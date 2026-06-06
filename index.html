@@ -1253,6 +1253,8 @@ function openDetail(id){
   const i=items.find(function(x){return x.id===id;});
   if(!i)return;
   const isAdmin=canDo('users');
+  const canEdit=canDo('edit');
+  const canDelete=canDo('delete');
   const catColor=i.cat==='آزمایشگاه'?'#60a5fa':i.cat==='یدکی'?'#c084fc':'#4ade80';
 
   document.getElementById('detailContent').innerHTML=`
@@ -1295,13 +1297,13 @@ function openDetail(id){
     </div>
 
     <!-- موجودی -->
-    <div style="display:flex;gap:10px;margin-bottom:${isAdmin?'12px':'0'}">
+    <div style="display:flex;gap:10px;margin-bottom:${canEdit?'12px':'0'}">
       <button class="btn btn-success" style="flex:1" onclick="changeQty('${i.id}',1)">➕ افزایش موجودی</button>
       <button class="btn btn-danger" style="flex:1" onclick="changeQty('${i.id}',-1)">➖ کاهش موجودی</button>
     </div>
 
-    <!-- ویرایش - فقط ادمین (کشویی) -->
-    ${isAdmin?`
+    <!-- ویرایش - ادمین و اوپراتور (کشویی) -->
+    ${canEdit?`
     <div style="border-top:1px solid #1a1d2e;margin-top:14px;padding-top:14px">
       <div onclick="toggleEditForm()" style="font-size:13px;font-weight:600;color:#c084fc;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#1e2235;padding:10px 14px;border-radius:10px">
         <span>✏️ ویرایش کالا</span>
@@ -1363,16 +1365,24 @@ function openDetail(id){
       </div>
       <div class="form-group" style="margin-top:8px">
         <label>عکس کالا</label>
-        ${i.image?`<div style="margin-bottom:10px"><img src="${i.image}" style="max-width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid #1a1d2e;background:#0b0d14"></div>`:''}
-        <input class="inp" id="edit-image-url-${i.id}" value="${i.image||''}" placeholder="لینک جدید از Google Drive..." oninput="previewDriveImage(this.value,'edit-img-prev-${i.id}')">
-        <div style="font-size:11px;color:#5a6080;margin-top:4px">Google Drive → Share → Anyone with link → Copy link</div>
+        <div id="edit-img-current-${i.id}" style="margin-bottom:10px;${i.image?'':'display:none'}">
+          <img src="${i.image||''}" style="max-width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid #1a1d2e;background:#0b0d14">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="edit-image-file-${i.id}" accept="image/*" capture="environment" style="display:none" onchange="previewAndUpload(this,'edit-img-prev-${i.id}','edit-img-status-${i.id}','${i.id}')">
+          <input type="file" id="edit-image-gallery-${i.id}" accept="image/*" style="display:none" onchange="previewAndUpload(this,'edit-img-prev-${i.id}','edit-img-status-${i.id}','${i.id}')">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('edit-image-file-${i.id}').click()">📷 دوربین</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('edit-image-gallery-${i.id}').click()">🖼️ گالری</button>
+          <span id="edit-img-status-${i.id}" style="font-size:12px;color:#5a6080"></span>
+        </div>
+        <input type="hidden" id="edit-image-url-${i.id}" value="${i.image||''}">
         <div id="edit-img-prev-${i.id}" style="margin-top:8px;display:none">
           <img style="max-width:100%;max-height:150px;object-fit:contain;border-radius:8px;border:1px solid #1a1d2e;background:#0b0d14">
         </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:6px">
         <button class="btn btn-primary" style="flex:1" onclick="saveEdit('${i.id}')">💾 ذخیره تغییرات</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteItem('${i.id}')">🗑️ حذف</button>
+        ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteItem('${i.id}')">🗑️ حذف</button>`:''}
       </div>
       </div>
     </div>`:''}
@@ -1381,7 +1391,7 @@ function openDetail(id){
   document.getElementById('modal-detail').classList.remove('hidden');
 
   // پر کردن زیردسته‌ها در فرم ویرایش
-  if(isAdmin){
+  if(canEdit){
     window._editCat = i.cat;
     var iSubcats = [];
     try { iSubcats = JSON.parse(i.subcats||'[]'); } catch(e){ iSubcats = []; }
