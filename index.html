@@ -1961,12 +1961,18 @@ async function previewAndUpload(input, previewDivId, statusId, itemId){
   if(result && result.url){
     if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✅ آپلود موفق'; }
     if(itemId){
-      // edit mode - آپدیت مستقیم
+      // edit mode - لینک عکس رو در فیلد مخفی بذار
       const hiddenInput = document.getElementById('edit-image-url-' + itemId);
       if(hiddenInput) hiddenInput.value = result.url;
-      items = items.map(function(i){ return i.id===itemId ? Object.assign({},i,{image:result.url}) : i; });
-      saveItems();
-      callSheet('updateImage', {id:itemId, image:result.url}, function(){});
+      if(currentUser && currentUser.role==='admin'){
+        // ادمین: مستقیم در شیت ذخیره کن
+        items = items.map(function(i){ return i.id===itemId ? Object.assign({},i,{image:result.url}) : i; });
+        saveItems();
+        callSheet('updateImage', {id:itemId, image:result.url}, function(){});
+      } else {
+        // اوپراتور: ذخیره نکن، فقط با دکمه «ذخیره تغییرات» به صورت درخواست بره
+        if(statusEl){ statusEl.style.color='#fbbf24'; statusEl.textContent='✅ آماده شد — برای ثبت، «ذخیره تغییرات» را بزنید'; }
+      }
     } else {
       // add mode - فقط URL رو ذخیره کن
       const hiddenInput = document.getElementById('ni-image-url');
