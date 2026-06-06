@@ -1,0 +1,4136 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>سیستم مدیریت هوشمند کالا iPrint3D</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Vazirmatn','Tahoma',sans-serif;direction:rtl;background:#0b0d14;color:#e2e4f0;min-height:100vh}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#13151f}::-webkit-scrollbar-thumb{background:#2e3350;border-radius:4px}
+input,select,textarea{font-family:inherit;direction:rtl;outline:none}
+.hidden{display:none!important}
+
+/* ── LOGIN ── */
+#loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,#0b0d14 0%,#131627 100%);display:flex;align-items:center;justify-content:center;z-index:999}
+.login-box{background:#13151f;border:1px solid #1e2235;border-radius:20px;padding:40px 36px;width:100%;max-width:380px;text-align:center}
+.login-logo{font-size:48px;margin-bottom:16px}
+.login-title{font-size:22px;font-weight:700;background:linear-gradient(135deg,#4f8ef7,#7c5af5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.login-sub{color:#4a5175;font-size:13px;margin-bottom:28px}
+.login-inp{width:100%;background:#0b0d14;border:1px solid #1e2235;border-radius:10px;padding:12px 16px;color:#e2e4f0;font-size:14px;margin-bottom:12px;transition:border .2s}
+.login-inp:focus{border-color:#4f8ef7}
+.login-btn{width:100%;background:linear-gradient(135deg,#4f8ef7,#7c5af5);border:none;border-radius:10px;padding:13px;color:white;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s;margin-top:4px}
+.login-btn:hover{opacity:.9}
+.login-err{color:#f87171;font-size:13px;margin-top:10px;min-height:20px}
+
+/* ── LAYOUT ── */
+#app{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#0e1018;border-left:1px solid #1a1d2e;padding:18px 14px;display:flex;flex-direction:column;gap:5px;position:fixed;top:0;right:0;bottom:0;overflow-y:auto;z-index:50}
+.main{flex:1;margin-right:220px;padding:24px;min-width:0}
+.logo{margin-bottom:22px;padding:0 6px}
+.logo-name{font-size:18px;font-weight:700;background:linear-gradient(135deg,#4f8ef7,#7c5af5);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-sub{font-size:10px;color:#2e3350;margin-top:2px}
+.nav{padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:9px;color:#5a6080;transition:all .15s;font-weight:500}
+.nav:hover{background:#13151f;color:#9aa3c2}
+.nav.active{background:linear-gradient(135deg,#4f8ef722,#7c5af522);color:#fff;border:1px solid #4f8ef730}
+.nav-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-bottom{margin-top:auto;border-top:1px solid #1a1d2e;padding-top:14px}
+.user-chip{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:#13151f;font-size:12px;color:#5a6080;margin-bottom:8px}
+.user-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0}
+
+/* ── CARDS ── */
+.card{background:#13151f;border:1px solid #1a1d2e;border-radius:14px;padding:20px}
+.stat-card{background:linear-gradient(135deg,#13151f,#161929);border:1px solid #1a1d2e;border-radius:14px;padding:18px}
+.btn{border:none;cursor:pointer;font-family:inherit;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:linear-gradient(135deg,#4f8ef7,#7c5af5);color:white}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-success{background:linear-gradient(135deg,#22c55e,#16a34a);color:white}
+.btn-ghost{background:#1e2235;color:#9aa3c2}
+.btn-ghost:hover{background:#252840;color:#e2e4f0}
+.btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:white}
+.btn-sm{padding:6px 12px;font-size:12px}
+.inp{background:#0b0d14;border:1px solid #1a1d2e;border-radius:10px;padding:10px 14px;color:#e2e4f0;font-size:13px;width:100%;transition:border .2s}
+.inp:focus{border-color:#4f8ef7}
+.tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.tag-lab{background:#1e3a5f;color:#60a5fa}
+.tag-spare{background:#3b1f5e;color:#c084fc}
+.tag-resin{background:#1a3a2a;color:#4ade80}
+.badge-low{background:#3f1515;color:#f87171;border:1px solid #7f1d1d30}
+.badge-ok{background:#1a3a1a;color:#4ade80}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px}
+.modal{background:#13151f;border:1px solid #1e2235;border-radius:18px;padding:24px;width:100%;max-width:500px;max-height:92vh;overflow-y:auto}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.form-group label{font-size:12px;color:#5a6080;font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:22px}
+table{width:100%;border-collapse:collapse}
+th{background:#0b0d14;color:#5a6080;font-size:11px;font-weight:600;padding:10px 12px;text-align:right;border-bottom:1px solid #1a1d2e}
+td{padding:10px 12px;border-bottom:1px solid #13151f;font-size:13px;vertical-align:middle}
+tr:hover td{background:#0e1018}
+.page-title{font-size:20px;font-weight:700;margin-bottom:18px}
+.row{display:flex;gap:10px;align-items:center}
+.ai-glow{border-color:#7c5af5!important;box-shadow:0 0 20px #7c5af520}
+.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#1e2235;border-radius:8px;padding:5px 10px;font-size:12px;color:#9aa3c2}
+
+/* ── QR PRINT ── */
+.qr-card-wrap{background:white;border-radius:12px;padding:14px;text-align:center;width:170px;display:inline-flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 4px 16px #0006;cursor:pointer;transition:transform .15s}
+.qr-card-wrap:hover{transform:scale(1.03)}
+.qr-name{font-size:11px;font-weight:700;color:#111;direction:rtl;line-height:1.4;max-width:150px}
+.qr-code-text{font-size:10px;color:#555;font-family:monospace}
+.qr-loc{font-size:10px;color:#666}
+@media print{
+  .no-print{display:none!important}
+  body{background:white;color:black}
+  .print-area{display:flex!important;flex-wrap:wrap;gap:16px;padding:16px}
+}
+
+/* ── SETUP BANNER ── */
+.setup-banner{background:linear-gradient(135deg,#1e1a3a,#2a1f4a);border:1px solid #7c5af5;border-radius:12px;padding:14px 18px;margin-bottom:18px}
+.setup-step{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #2a2f45}
+.setup-step:last-child{border-bottom:none}
+.step-num{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#4f8ef7,#7c5af5);color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+@media(max-width:700px){
+  .sidebar{width:54px;padding:10px 8px}
+  .logo,.nav span:last-child,.sidebar-bottom .user-chip span,.sidebar-bottom .btn span,.logo-sub{display:none}
+  .nav{justify-content:center;padding:10px}
+  .nav-icon{width:auto}
+  .main{margin-right:54px;padding:14px}
+  .grid3{grid-template-columns:1fr 1fr}
+}
+
+/* ── RESPONSIVE / MOBILE ── */
+.mobile-topbar{display:none}
+.menu-toggle{background:#1e2235;border:1px solid #2a2f45;border-radius:10px;width:42px;height:42px;align-items:center;justify-content:center;font-size:20px;cursor:pointer;color:#e2e4f0;flex-shrink:0}
+.menu-toggle:active{transform:scale(0.92)}
+.mobile-brand{font-size:22px;color:#fff;direction:ltr}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:49}
+@media (max-width:768px){
+  .mobile-topbar{display:flex !important;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;height:58px;background:#0e1018;border-bottom:1px solid #1a1d2e;padding:0 14px;z-index:300}
+  .menu-toggle{display:flex !important}
+  .sidebar{
+    display:flex !important;
+    flex-direction:column;
+    width:270px;
+    right:0;
+    left:auto;
+    top:58px;
+    bottom:0;
+    height:auto;
+    transform:translateX(110%);
+    transition:transform 0.3s ease;
+    box-shadow:-4px 0 24px rgba(0,0,0,0.5);
+    z-index:250;
+    padding-top:14px;
+    padding-bottom:20px;
+  }
+  .sidebar.open{transform:translateX(0)}
+  .sidebar{overflow-y:auto}
+  .sidebar .logo{display:none}
+  .sidebar .nav{
+    display:flex !important;
+    flex-direction:row;
+    align-items:center;
+    justify-content:flex-start;
+    font-size:16px;
+    padding:15px 16px;
+    gap:14px;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .sidebar .nav-icon{font-size:20px;width:26px;flex-shrink:0;text-align:center}
+  .sidebar .nav > span{display:inline !important}
+  .sidebar-bottom{display:block !important;margin-top:auto;padding-bottom:10px}
+  .user-chip{display:flex !important}
+  .sidebar-bottom button{display:flex !important;align-items:center;justify-content:center;gap:8px}
+  .sidebar-overlay{top:58px;left:0;right:0;bottom:0}
+  .sidebar-overlay.show{display:block}
+  .main{margin-right:0;padding:72px 12px 24px}
+  .grid2{grid-template-columns:1fr!important}
+  .grid3{grid-template-columns:1fr!important}
+  table{font-size:12px}
+  th,td{padding:6px 4px!important}
+  .page-title{font-size:18px}
+  .modal-bg{align-items:flex-start;padding:10px;overflow-y:auto;z-index:500}
+  .modal{max-width:100%!important;margin:10px 0 30px;max-height:none;padding:18px}
+}
+@media (max-width:480px){
+  .main{padding:60px 10px 20px}
+  .stat-card{padding:12px}
+}
+
+/* ── BRAND LOGO ── */
+.iprint-brand{font-family:'Quicksand',sans-serif;font-weight:700;letter-spacing:-1px;direction:ltr;display:inline-block}
+.iprint-brand .dot{color:#e63946}
+
+/* ── SUBCAT COMBOBOX ── */
+.combo-wrap{position:relative;flex:1}
+.combo-input{width:100%;box-sizing:border-box}
+.combo-dropdown{position:absolute;top:100%;left:0;right:0;background:#1a1d2e;border:1px solid #2a2f45;border-radius:10px;margin-top:4px;max-height:180px;overflow-y:auto;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:none}
+.combo-dropdown.open{display:block}
+.combo-opt{padding:10px 12px;font-size:13px;color:#e2e4f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.combo-opt:hover{background:#252b42}
+.combo-opt .del-opt{color:#f87171;font-size:12px;opacity:0.6;padding:0 4px}
+.combo-opt .del-opt:hover{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-title iprint-brand" style="font-size:40px;color:#fff;-webkit-text-fill-color:#fff;background:none">iprint3d</div>
+    <div class="login-sub">سیستم مدیریت هوشمند کالا</div>
+    <input class="login-inp" id="loginUser" placeholder="نام کاربری" autocomplete="username">
+    <input class="login-inp" id="loginPass" placeholder="رمز عبور" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">ورود به سیستم</button>
+    <div class="login-err" id="loginErr"></div>
+    <div style="margin-top:16px;border-top:1px solid #1e2235;padding-top:16px">
+      <button onclick="showRegister()" style="background:none;border:none;color:#4f8ef7;font-family:inherit;font-size:13px;cursor:pointer;text-decoration:underline">ثبت‌نام / درخواست دسترسی</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REGISTER ══════════════════════════════════════ -->
+<div id="registerScreen" class="hidden" style="position:fixed;inset:0;background:linear-gradient(135deg,#0b0d14 0%,#131627 100%);display:flex;align-items:center;justify-content:center;z-index:999">
+  <div class="login-box">
+    <div class="login-logo">📝</div>
+    <div class="login-title">ثبت‌نام</div>
+    <div class="login-sub">بعد از ثبت‌نام، ادمین دسترسی شما را تعیین می‌کند</div>
+    <input class="login-inp" id="regUser" placeholder="نام کاربری (انگلیسی)" autocomplete="username">
+    <input class="login-inp" id="regPass" placeholder="رمز عبور" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()">
+    <button class="login-btn" onclick="doRegister()">ارسال درخواست</button>
+    <div class="login-err" id="regErr"></div>
+    <div style="margin-top:16px;border-top:1px solid #1e2235;padding-top:16px">
+      <button onclick="showLogin()" style="background:none;border:none;color:#4f8ef7;font-family:inherit;font-size:13px;cursor:pointer;text-decoration:underline">← بازگشت به ورود</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ═══════════════════════════════════════════ -->
+<div id="app" class="hidden">
+  <!-- Mobile top bar -->
+  <div class="mobile-topbar">
+    <div class="menu-toggle" onclick="toggleSidebar()">☰</div>
+    <div class="mobile-brand iprint-brand">iprint3d</div>
+  </div>
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="logo">
+      <div class="logo-name iprint-brand" style="font-size:24px;color:#fff;direction:ltr">iprint3d</div>
+      <div class="logo-sub">سیستم مدیریت هوشمند کالا</div>
+    </div>
+    <div class="nav active" onclick="gotoView('dashboard',this)"><span class="nav-icon">🏠</span><span>خانه</span></div>
+    <div class="nav" onclick="gotoView('items',this)"><span class="nav-icon">📦</span><span>کالاها</span></div>
+    <div class="nav" onclick="gotoView('add',this)"><span class="nav-icon">➕</span><span>افزودن کالا</span></div>
+    <div class="nav" onclick="gotoView('ai',this)"><span class="nav-icon">🤖</span><span>جستجوی AI</span></div>
+
+    <div class="nav" onclick="gotoView('users',this)"><span class="nav-icon">👥</span><span>کاربران</span><span id="usersBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
+    <div class="nav" id="notifNav" onclick="gotoView('notif',this)"><span class="nav-icon">📋</span><span>درخواست‌ها</span><span id="notifBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
+    <div class="nav" onclick="gotoView('setup',this)"><span class="nav-icon">⚙️</span><span>تنظیمات</span></div>
+    <div class="sidebar-bottom">
+      <div class="user-chip">
+        <div class="user-dot"></div>
+        <span id="userLabel" style="font-weight:600">admin</span>
+        <span id="userRoleBadge" style="font-size:10px;padding:1px 8px;border-radius:6px;margin-right:6px"></span>
+      </div>
+      <button class="btn" style="width:100%;font-size:15px;font-weight:700;background:#dc2626;color:#ffffff !important;text-align:center;padding:13px;border-radius:10px;margin-top:8px" onclick="doLogout()">خروج</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- ── DASHBOARD ── -->
+    <div id="view-dashboard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div class="page-title" style="margin:0">🏠 خانه</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span id="syncStatus" style="font-size:12px;color:#5a6080"></span>
+          <button class="btn btn-primary btn-sm" onclick="refreshAll()">🔄 بروزرسانی</button>
+        </div>
+      </div>
+
+      <!-- پنجره اعلان‌ها -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-weight:600;font-size:14px">🔔 اعلان‌ها</div>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="clearAllNotifs()">پاک کردن همه</button>
+        </div>
+        <div id="notifFeed"><div style="color:#2e3350;font-size:13px;text-align:center;padding:20px">در حال بارگذاری...</div></div>
+      </div>
+
+      <!-- آخرین کالاها -->
+      <div class="card">
+        <div style="font-weight:600;font-size:14px;margin-bottom:12px">📦 آخرین کالاهای اضافه‌شده</div>
+        <div style="overflow-x:auto">
+          <table><thead><tr><th>کد کالا</th><th>نام</th><th>دسته</th><th>موجودی</th><th>قفسه</th></tr></thead>
+          <tbody id="recentItems"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ITEMS ── -->
+    <div id="view-items" class="hidden">
+      <!-- هدر -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+        <div class="page-title" style="margin:0">📦 کالاها</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="openScanner()" style="font-size:12px">📷 اسکن بارکد/QR</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportToExcel()" style="font-size:12px">📊 خروجی Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="refreshAll()" style="font-size:12px">🔄 بروزرسانی</button>
+        </div>
+      </div>
+
+      <!-- فیلتر و سرچ -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input class="inp" id="searchInp" placeholder="جستجو..." oninput="renderItems()" style="flex:2;min-width:150px">
+        <select class="inp" id="sortSelect" onchange="renderItems()" style="flex:1;min-width:120px">
+          <option value="">مرتب‌سازی...</option>
+          <option value="qty_asc">موجودی: کم به زیاد</option>
+          <option value="qty_desc">موجودی: زیاد به کم</option>
+          <option value="name_asc">نام: الف تا ی</option>
+          <option value="date_desc">جدیدترین</option>
+        </select>
+        <select class="inp" id="catFilter" onchange="renderItems()" style="flex:1;min-width:120px">
+          <option value="">همه دسته‌ها</option>
+        </select>
+      </div>
+
+      <!-- انتخاب دسته‌جمعی -->
+      <div id="bulkBar" style="display:none;background:#1e2235;border-radius:10px;padding:10px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="selectedCount" style="font-size:13px;color:#9aa3c2">۰ کالا انتخاب شده</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteSelected()">🗑️ حذف انتخاب‌شده‌ها</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearSelection()">انصراف</button>
+      </div>
+
+      
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="overflow-x:auto">
+          <table><thead><tr><th>کد کالا</th><th>نام</th><th>دسته</th><th>موقعیت</th><th>موجودی</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+          <tbody id="itemsTable"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ADD ITEM ── -->
+    <div id="view-add" class="hidden">
+      <div class="page-title">➕ افزودن کالای جدید</div>
+      <div class="card" style="max-width:600px">
+        <div style="background:#0b0d14;border:1px solid #4f8ef730;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#60a5fa">
+          💡 کد کالا به‌صورت خودکار تولید می‌شود
+        </div>
+        <div class="form-group">
+          <label>نام کالا *</label>
+          <input class="inp" id="ni-name" placeholder="مثال: پیپت ۱۰۰۰ میکرولیتر">
+        </div>
+        <div class="form-group">
+          <label>بارکد محصول (اختیاری)</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="inp" id="ni-barcode" placeholder="اسکن یا تایپ بارکد کارخانه" style="flex:1">
+            <button type="button" class="btn btn-primary btn-sm" onclick="scanBarcodeForAdd()" style="white-space:nowrap;padding:10px 14px">📷 اسکن</button>
+          </div>
+          <div style="font-size:11px;color:#5a6080;margin-top:4px">💡 کد کالا خودکار ساخته می‌شود — بارکد فقط برای اسکن سریع است</div>
+        </div>
+
+        <div class="form-group">
+          <label>توضیحات</label>
+          <textarea class="inp" id="ni-desc" placeholder="مشخصات فنی، برند، کاربرد..." rows="3" style="resize:vertical"></textarea>
+        </div>
+        <div class="grid2">
+          <div class="form-group">
+            <label>دسته‌بندی *</label>
+            <div style="display:flex;gap:8px">
+              <select class="inp" id="ni-cat" onchange="toggleUnit();refreshDatalists('ni-subcats')" style="flex:1"></select>
+              <button type="button" class="btn btn-ghost btn-sm" id="addCatBtn" onclick="showAddCat()" style="white-space:nowrap;padding:10px 12px">+ دسته</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>زیردسته‌ها (اختیاری)</label>
+            <div id="ni-subcats-datalists"></div>
+            <div id="ni-subcats"></div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addSubcatRow('ni-subcats')" style="margin-top:6px">+ افزودن زیردسته</button>
+            <div style="font-size:11px;color:#5a6080;margin-top:4px">💡 مثلاً: نوع → استاندارد v2 | رنگ → سفید | برند → ...</div>
+          </div>
+          <div class="form-group">
+            <label>وضعیت کالا</label>
+            <select class="inp" id="ni-status">
+              <option value="نو">🆕 نو</option>
+              <option value="دست‌دوم">♻️ دست‌دوم</option>
+              <option value="در حال خدمات">🛠️ در حال خدمات</option>
+              <option value="استفاده‌شده">📦 استفاده‌شده</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label id="qtyLabel">تعداد موجودی *</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input class="inp" type="number" inputmode="decimal" id="ni-qty" placeholder="0" min="0" style="font-size:16px">
+              <span id="unitBadge" style="background:#1e2235;padding:6px 10px;border-radius:8px;font-size:12px;color:#9aa3c2;white-space:nowrap;min-width:50px;text-align:center">عدد</span>
+            </div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="form-group">
+            <label>قفسه</label>
+            <input class="inp" id="ni-shelf" placeholder="مثال: A">
+          </div>
+          <div class="form-group">
+            <label>ردیف</label>
+            <input class="inp" id="ni-row" placeholder="مثال: ۱">
+          </div>
+        </div>
+        <div id="unitRow" style="display:none;gap:8px;align-items:center;margin-bottom:14px">
+          <label style="font-size:12px;color:#5a6080;font-weight:600;white-space:nowrap">واحد رزین:</label>
+          <select class="inp" id="ni-unit" onchange="toggleUnit()" style="max-width:160px">
+            <option value="گرم">گرم (g)</option>
+            <option value="کیلوگرم">کیلوگرم (kg)</option>
+            <option value="میلی‌لیتر">میلی‌لیتر (ml)</option>
+            <option value="لیتر">لیتر (L)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>حداقل موجودی (هشدار)</label>
+          <input class="inp" type="number" id="ni-min" placeholder="5" min="0">
+        </div>
+        <div class="form-group">
+          <label>عکس کالا (اختیاری)</label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="ni-image-file" accept="image/*" capture="environment" style="display:none" onchange="previewAndUpload(this,'ni-img-preview','ni-img-status','')">
+            <input type="file" id="ni-image-gallery" accept="image/*" style="display:none" onchange="previewAndUpload(this,'ni-img-preview','ni-img-status','')">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('ni-image-file').click()">📷 دوربین</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('ni-image-gallery').click()">🖼️ گالری</button>
+            <span id="ni-img-status" style="font-size:12px;color:#5a6080"></span>
+          </div>
+          <div id="ni-img-preview" style="margin-top:8px;display:none">
+            <img style="max-width:100%;max-height:150px;object-fit:contain;border-radius:8px;border:1px solid #1a1d2e;background:#0b0d14">
+          </div>
+          <input type="hidden" id="ni-image-url" value="">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:6px">
+          <button class="btn btn-success" style="flex:1" onclick="addItem()">✅ ذخیره و تولید QR</button>
+          <button class="btn btn-ghost" onclick="clearAddForm()">پاک کردن</button>
+        </div>
+        <div id="addResult" class="hidden" style="margin-top:16px;background:#1a3a2a;border:1px solid #166534;border-radius:10px;padding:16px">
+          <div style="color:#4ade80;font-weight:600;margin-bottom:10px">✅ کالا با موفقیت اضافه شد!</div>
+          <div id="addResultInfo"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AI SEARCH ── -->
+    <div id="view-ai" class="hidden">
+      <div class="page-title">🤖 جستجوی هوشمند</div>
+      <div id="groqStatus" style="display:none"></div>
+
+      <!-- Chat -->
+      <div class="card" style="margin-bottom:14px;min-height:320px;max-height:450px;overflow-y:auto;display:flex;flex-direction:column;gap:10px" id="chatBox">
+        <div id="chatPlaceholder" style="text-align:center;color:#2e3350;font-size:13px;padding:32px 16px;line-height:2">
+          💬 سوال بپرسید به فارسی:<br>
+          <span style="color:#3a4060">«پیپت کجاست؟»</span><br>
+          <span style="color:#3a4060">«کدام کالاها کم موجودند؟»</span><br>
+          <span style="color:#3a4060">«رزین در کدام قفسه است؟»</span>
+        </div>
+      </div>
+      <div class="row">
+        <input class="inp" id="aiMsg" placeholder="سوال یا دستور بنویسید..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendChat()">
+        <button class="btn btn-primary" onclick="sendChat()" id="sendBtn" style="white-space:nowrap">ارسال ↵</button>
+      </div>
+    </div>
+
+
+
+    <!-- ── USERS ── -->
+    <div id="view-users" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div class="page-title" style="margin:0">👥 مدیریت کاربران</div><button class="btn btn-ghost btn-sm" onclick="refreshAll()" style="font-size:12px">🔄 بروزرسانی</button></div>
+
+      <!-- Pending requests -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="font-weight:600;font-size:14px;margin-bottom:14px;color:#f59e0b">⏳ درخواست‌های در انتظار تأیید</div>
+        <div id="pendingList"><div style="color:#2e3350;font-size:13px;text-align:center;padding:20px">درخواستی وجود ندارد</div></div>
+      </div>
+
+      <!-- Active users -->
+      <div class="card">
+        <div style="font-weight:600;font-size:14px;margin-bottom:14px">✅ کاربران فعال</div>
+        <div id="activeUserList"></div>
+        <div style="margin-top:14px;border-top:1px solid #1a1d2e;padding-top:14px">
+          <div style="font-size:12px;color:#5a6080;margin-bottom:10px">افزودن کاربر مستقیم</div>
+          <div class="grid2" style="margin-bottom:10px">
+            <input class="inp" id="newUserName" placeholder="نام کاربری">
+            <input class="inp" id="newUserPass" placeholder="رمز عبور" type="password">
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <select class="inp" id="newUserRole">
+              <option value="viewer">فقط مشاهده</option>
+              <option value="operator">افزودن و جستجو</option>
+              <option value="admin">ادمین کامل</option>
+            </select>
+            <button class="btn btn-success btn-sm" onclick="addUserDirect()" style="white-space:nowrap">+ افزودن</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NOTIFICATIONS ── -->
+    <div id="view-notif" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="page-title" id="notifPageTitle" style="margin:0">📋 مدیریت درخواست‌ها</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm" onclick="openChatRequestForm()">💬 درخواست گفتگو</button>
+          <button class="btn btn-ghost btn-sm" onclick="refreshAll()">🔄</button>
+        </div>
+      </div>
+      <!-- تب‌ها فقط برای ادمین -->
+      <div id="adminNotifTabs" style="display:none;margin-bottom:14px">
+        <div style="display:flex;gap:4px;background:#0b0d14;border-radius:10px;padding:4px">
+          <button id="tab_active" class="btn btn-sm" onclick="switchNotifTab('active')" style="flex:1;border-radius:8px;background:#1e2235;color:#e2e4f0">📬 فعال</button>
+          <button id="tab_archive" class="btn btn-sm" onclick="switchNotifTab('archive')" style="flex:1;border-radius:8px;background:transparent;color:#5a6080">📁 بایگانی</button>
+        </div>
+      </div>
+      <div id="pendingChangesList"></div>
+    </div>
+
+    <!-- ── SETUP ── -->
+    <div id="view-setup" class="hidden">
+      <div class="page-title">⚙️ تنظیمات و راه‌اندازی آنلاین</div>
+
+      <!-- بکاپ -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="font-weight:600;font-size:15px;color:#4ade80">💾 بکاپ و بازگردانی</div>
+          <button class="btn btn-primary btn-sm" onclick="createBackup()">+ گرفتن بکاپ جدید</button>
+        </div>
+        <div style="font-size:12px;color:#5a6080;margin-bottom:12px;line-height:1.7">
+          بکاپ شامل همه داده‌ها (کالاها، کاربران، درخواست‌ها، دسته‌ها) است و در Google Sheet ذخیره می‌شود. بکاپ خودکار هر ۲ روز گرفته می‌شود.
+        </div>
+        <div id="backupsList"><div style="color:#5a6080;font-size:13px;text-align:center;padding:16px">در حال بارگذاری...</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div style="font-weight:600;font-size:15px;margin-bottom:14px;color:#c084fc">🌐 آنلاین کردن برنامه — قدم به قدم</div>
+
+        <div class="setup-step">
+          <div class="step-num">۱</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">ساخت Google Sheet</div>
+            <div style="font-size:12px;color:#5a6080;line-height:1.7">
+              به <a href="https://sheets.google.com" target="_blank" style="color:#60a5fa">sheets.google.com</a> بروید → Sheet جدید بسازید →
+              نام آن را <span style="color:#4ade80;font-family:monospace">lab-inventory</span> بگذارید →
+              ستون‌های زیر را در ردیف اول بنویسید:<br>
+              <span style="color:#f59e0b;font-family:monospace">id | code | name | desc | cat | qty | unit | shelf | row | minQty | date</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setup-step">
+          <div class="step-num">۲</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">ساخت API با Apps Script</div>
+            <div style="font-size:12px;color:#5a6080;line-height:1.7">
+              در Sheet → منوی <b>Extensions</b> → <b>Apps Script</b> → کد زیر را paste کنید → Deploy → Web App → Anyone
+            </div>
+            <div style="background:#0b0d14;border-radius:8px;padding:12px;margin-top:8px;font-family:monospace;font-size:11px;color:#4ade80;overflow-x:auto;white-space:pre">function doGet(e){
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  var sh=ss.getSheets()[0];
+  var data=sh.getDataRange().getValues();
+  var keys=data[0];
+  var rows=data.slice(1).map(function(r){
+    var obj={};keys.forEach(function(k,i){obj[k]=r[i]});
+    return obj;
+  });
+  return ContentService.createTextOutput(JSON.stringify(rows))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e){
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  var sh=ss.getSheets()[0];
+  var d=JSON.parse(e.postData.contents);
+  sh.appendRow([d.id,d.code,d.name,d.desc,d.cat,d.qty,d.unit,d.shelf,d.row,d.minQty,d.date]);
+  return ContentService.createTextOutput("ok");
+}</div>
+          </div>
+        </div>
+
+        <div class="setup-step">
+          <div class="step-num">۳</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">وارد کردن لینک API</div>
+            <div style="font-size:12px;color:#5a6080;margin-bottom:8px">لینک Deploy شده را اینجا وارد کنید:</div>
+            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbwY4kHDIBo4qxfG9LdHpJsT2MQc2DTf3ea2kahi4qzldOwSLCzjY9KNHimF_zw-P08aIw/exec" oninput="saveSheetUrl()" style="font-size:12px">
+            <div id="sheetStatus" style="font-size:12px;margin-top:6px;color:#5a6080"></div>
+          </div>
+        </div>
+
+        <div class="setup-step">
+          <div class="step-num">۴</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px">آپلود روی Glitch.com</div>
+            <div style="font-size:12px;color:#5a6080;line-height:1.7">
+              ۱. به <a href="https://glitch.com" target="_blank" style="color:#60a5fa">glitch.com</a> بروید → Sign in with Google<br>
+              ۲. New Project → Import from GitHub → یا فایل HTML را آپلود کنید<br>
+              ۳. لینک آنلاد شما: <span style="color:#4ade80">your-project.glitch.me</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- ── ADD CATEGORY MODAL ── -->
+<div id="modal-addCat" class="modal-bg hidden" onclick="if(event.target===this)closeAddCat()">
+  <div class="modal" style="max-width:360px">
+    <div style="font-weight:700;font-size:17px;margin-bottom:18px">➕ دسته‌بندی جدید</div>
+    <div class="form-group">
+      <label>نام دسته‌بندی</label>
+      <input class="inp" id="newCatName" placeholder="مثال: مواد شیمیایی" onkeydown="if(event.key==='Enter')saveNewCat()">
+    </div>
+    <div class="form-group">
+      <label>آیکون (اختیاری)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="iconPicker">
+        <span onclick="selectIcon(this,'🧪')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🧪</span>
+        <span onclick="selectIcon(this,'🔬')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🔬</span>
+        <span onclick="selectIcon(this,'🔧')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🔧</span>
+        <span onclick="selectIcon(this,'🧴')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🧴</span>
+        <span onclick="selectIcon(this,'💊')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">💊</span>
+        <span onclick="selectIcon(this,'🧫')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🧫</span>
+        <span onclick="selectIcon(this,'⚗️')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">⚗️</span>
+        <span onclick="selectIcon(this,'🔩')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🔩</span>
+        <span onclick="selectIcon(this,'📦')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">📦</span>
+        <span onclick="selectIcon(this,'🧲')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🧲</span>
+        <span onclick="selectIcon(this,'💡')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">💡</span>
+        <span onclick="selectIcon(this,'🌡️')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🌡️</span>
+        <span onclick="selectIcon(this,'🖥️')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🖥️</span>
+        <span onclick="selectIcon(this,'💉')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">💉</span>
+        <span onclick="selectIcon(this,'🩺')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🩺</span>
+        <span onclick="selectIcon(this,'🔭')" style="font-size:22px;cursor:pointer;padding:6px;border-radius:8px;border:2px solid transparent" class="icon-opt">🔭</span>
+      </div>
+    </div>
+    <input type="hidden" id="newCatIcon" value="📦">
+    <div id="catErr" style="color:#f87171;font-size:12px;min-height:18px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-success" style="flex:1" onclick="saveNewCat()">ذخیره</button>
+      <button class="btn btn-ghost" onclick="closeAddCat()">انصراف</button>
+    </div>
+    <div style="border-top:1px solid #1a1d2e;margin-top:16px;padding-top:14px">
+      <div style="font-size:13px;font-weight:600;color:#9aa3c2;margin-bottom:10px">دسته‌بندی‌های موجود</div>
+      <div id="catManageList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCANNER MODAL ── -->
+<div id="modal-scanner" class="modal-bg hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px">
+  <div style="background:#13151f;border:1px solid #2a2f45;border-radius:16px;padding:20px;max-width:420px;width:100%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:16px;font-weight:600;color:#e2e4f0">📷 اسکن بارکد / QR کد</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeScanner()" style="font-size:18px;padding:2px 10px">✕</button>
+    </div>
+    <div id="scannerView" style="width:100%;border-radius:12px;overflow:hidden;background:#0b0d14;min-height:280px"></div>
+    <div id="scannerMsg" style="text-align:center;font-size:13px;color:#5a6080;margin-top:12px">دوربین را به سمت بارکد یا QR کد بگیرید</div>
+  </div>
+</div>
+
+<!-- ── DETAIL MODAL ── -->
+<div id="modal-detail" class="modal-bg hidden" onclick="if(event.target===this)closeDetail()">
+  <div class="modal"><div id="detailContent"></div></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let items = JSON.parse(localStorage.getItem('lab_items')||'[]');
+let chatHistory = [];
+let currentUser = null;
+
+let USERS = JSON.parse(localStorage.getItem('lab_users')||JSON.stringify([
+  {user:'admin',pass:'lab1234',role:'admin',name:'مدیر سیستم',active:true},
+]));
+let PENDING = JSON.parse(localStorage.getItem('lab_pending')||'[]');
+
+const ROLES = {
+  admin:    {label:'ادمین',    color:'#c084fc', perms:['view','add','edit','delete','users','settings','ai']},
+  operator: {label:'اپراتور', color:'#4ade80', perms:['view','add','edit','delete','ai']},
+  viewer:   {label:'مشاهده',  color:'#60a5fa', perms:['view','ai']},
+};
+
+// دسته‌بندی‌ها
+let CATS = JSON.parse(localStorage.getItem('lab_cats')||JSON.stringify([
+  {id:'cat_1',name:'آزمایشگاه',icon:'🔬',color:'#60a5fa'},
+  {id:'cat_2',name:'یدکی',icon:'🔧',color:'#c084fc'},
+  {id:'cat_3',name:'رزین',icon:'🧴',color:'#4ade80'},
+]));
+function saveCats(){localStorage.setItem('lab_cats',JSON.stringify(CATS));}
+
+function savePending(){localStorage.setItem('lab_pending',JSON.stringify(PENDING))}
+function canDo(perm){
+  if(!currentUser)return false;
+  const role=ROLES[currentUser.role];
+  return role&&role.perms.includes(perm);
+}
+
+function saveItems(){localStorage.setItem('lab_items',JSON.stringify(items))}
+function saveUsers(){localStorage.setItem('lab_users',JSON.stringify(USERS));}
+function saveGroqKey(){localStorage.setItem('groqKey',document.getElementById('groqKeyInp').value)}
+function loadGroqKey(){return '';}
+function saveSheetUrl(){
+  localStorage.setItem('sheetUrl',document.getElementById('sheetUrl').value);
+  document.getElementById('sheetStatus').textContent='✅ لینک ذخیره شد';
+}
+const SHEET_URL='https://script.google.com/macros/s/AKfycbwY4kHDIBo4qxfG9LdHpJsT2MQc2DTf3ea2kahi4qzldOwSLCzjY9KNHimF_zw-P08aIw/exec';
+function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
+
+// ═══════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════
+function doLogin(){
+  const user = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  if(!user||!pass){err.textContent='نام کاربری و رمز را وارد کنید';return;}
+  err.style.color='#9aa3c2';
+  err.textContent='در حال بررسی...';
+
+  // ادمین اصلی همیشه کار می‌کنه
+  if(user==='admin'&&pass==='lab1234'){
+    enterApp({user:'admin',pass:'lab1234',role:'admin',name:'مدیر سیستم',active:'true'});
+    return;
+  }
+
+  // بقیه از Sheet
+  callSheet('getUsers',{t:Date.now()},function(data){
+    if(!Array.isArray(data)||data.length===0){
+      err.style.color='#f87171';
+      err.textContent='خطا در اتصال. دوباره تلاش کنید.';
+      return;
+    }
+    const found=data.find(function(u){
+      return String(u.user).toLowerCase()===user &&
+             String(u.pass)===pass &&
+             String(u.active)==='true';
+    });
+    if(!found){
+      err.style.color='#f87171';
+      err.textContent='نام کاربری یا رمز اشتباه است';
+      return;
+    }
+    enterApp(found);
+  });
+}
+
+function enterApp(u){
+  currentUser=u;
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('userLabel').textContent=u.name||u.user;
+  var roleBadge = document.getElementById('userRoleBadge');
+  if(roleBadge && ROLES[u.role]){
+    roleBadge.textContent = ROLES[u.role].label;
+    roleBadge.style.background = ROLES[u.role].color+'22';
+    roleBadge.style.color = ROLES[u.role].color;
+  }
+  renderDashboard();
+  loadFromSheet();
+  loadCatsFromSheet();
+  applyRoleUI();
+  renderCatSelect();
+  // ثبت زمان آنلاین شدن
+  updateMyLastSeen();
+  startHeartbeat();
+  startBadgeRefresh();
+  loadSubcatTemplates();
+}
+
+function updateMyLastSeen(){
+  if(!currentUser) return;
+  callSheet('updateLastSeen', {
+    user: currentUser.user,
+    time: new Date().toLocaleString('fa-IR')
+  }, function(){});
+}
+
+var _heartbeatTimer = null;
+function startHeartbeat(){
+  if(_heartbeatTimer) clearInterval(_heartbeatTimer);
+  // هر 2 دقیقه آپدیت کن
+  _heartbeatTimer = setInterval(updateMyLastSeen, 120000);
+}
+
+function doLogout(){
+  currentUser=null;
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('registerScreen').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+  document.getElementById('loginErr').textContent='';
+  document.getElementById('loginErr').style.color='#f87171';
+}
+
+function showRegister(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('registerScreen').classList.remove('hidden');
+  document.getElementById('regErr').textContent='';
+  document.getElementById('regUser').value='';
+  document.getElementById('regPass').value='';
+}
+
+function showLogin(){
+  document.getElementById('registerScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function doRegister(){
+  // جلوگیری از کلیک چندتایی
+  const btn = document.querySelector('#registerScreen .login-btn');
+  if(btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = 'در حال ارسال...';
+
+  const user = document.getElementById('regUser').value.trim().toLowerCase();
+  const pass = document.getElementById('regPass').value;
+  const err = document.getElementById('regErr');
+
+  function resetBtn(){ btn.disabled=false; btn.textContent='ارسال درخواست'; }
+
+  if(!user||!pass){ err.textContent='نام کاربری و رمز الزامی است'; resetBtn(); return; }
+  if(pass.length<4){ err.textContent='رمز باید حداقل ۴ کاراکتر باشد'; resetBtn(); return; }
+  if(user==='admin'){ err.textContent='این نام کاربری مجاز نیست'; resetBtn(); return; }
+
+  err.style.color='#9aa3c2';
+  err.textContent='در حال بررسی...';
+
+  // یه درخواست واحد به Sheet برای چک کردن
+  callSheet('checkAndRegister', {user:user, pass:pass, date:new Date().toLocaleDateString('fa-IR')}, function(res){
+    resetBtn();
+    if(res.status==='exists'){
+      err.style.color='#f87171';
+      err.textContent='این نام کاربری قبلاً ثبت شده است';
+    } else if(res.status==='ok'){
+      showLogin();
+      document.getElementById('loginErr').style.color='#4ade80';
+      document.getElementById('loginErr').textContent='✅ درخواست ارسال شد — منتظر تأیید ادمین باشید';
+      setTimeout(function(){
+        document.getElementById('loginErr').textContent='';
+        document.getElementById('loginErr').style.color='#f87171';
+      },6000);
+    } else {
+      err.style.color='#f87171';
+      err.textContent='خطا در ارسال. دوباره تلاش کنید.';
+    }
+  });
+}
+
+function callSheet(action,params,callback){
+  const url=loadSheetUrl();
+  if(!url){callback({error:'no url'});return;}
+  const cbName='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  const p=new URLSearchParams({action,callback:cbName});
+  Object.keys(params).forEach(function(k){p.append(k,params[k]);});
+  window[cbName]=function(data){
+    delete window[cbName];
+    const s=document.getElementById(cbName);if(s)s.remove();
+    callback(data);
+  };
+  const script=document.createElement('script');
+  script.id=cbName;
+  script.src=url+'?'+p.toString();
+  script.onerror=function(){delete window[cbName];this.remove();callback({error:true});};
+  setTimeout(function(){
+    if(window[cbName]){delete window[cbName];const s=document.getElementById(cbName);if(s)s.remove();callback({error:'timeout'});}
+  },12000);
+  document.head.appendChild(script);
+}
+
+function loadPendingFromSheet(){
+  callSheet('getPending',{t:Date.now()},function(data){
+    if(Array.isArray(data)){
+      PENDING=data.filter(function(d){return d.id;});
+      savePending();
+      renderPending();
+      renderActiveUsers();
+    }
+  });
+}
+
+
+// ═══════════════════════════════════════════════
+//  USER MANAGEMENT
+// ═══════════════════════════════════════════════
+function renderPending(){
+  const el=document.getElementById('pendingList');
+  if(!el)return;
+  if(!PENDING.length){
+    el.innerHTML='<div style="color:#2e3350;font-size:13px;text-align:center;padding:20px">درخواستی وجود ندارد</div>';
+    return;
+  }
+  el.innerHTML=PENDING.map(function(p){return `
+    <div style="background:#0b0d14;border-radius:10px;padding:14px;margin-bottom:10px;border:1px solid #1a1d2e">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div>
+          <div style="font-weight:600;font-size:15px;color:#e2e4f0">@${p.user}</div>
+          <div style="color:#5a6080;font-size:12px;margin-top:3px">تاریخ درخواست: ${p.date}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="rejectPending('${p.id}')">❌ رد</button>
+      </div>
+      <div style="font-size:12px;color:#9aa3c2;margin-bottom:8px">نوع دسترسی را انتخاب کنید:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="approvePending('${p.id}','viewer')"
+          style="background:#1e3a5f;color:#60a5fa;flex:1;min-width:100px">👁️ فقط مشاهده</button>
+        <button class="btn btn-sm" onclick="approvePending('${p.id}','operator')"
+          style="background:#1a3a2a;color:#4ade80;flex:1;min-width:100px">📦 افزودن کالا</button>
+        <button class="btn btn-sm" onclick="approvePending('${p.id}','admin')"
+          style="background:#3b1f5e;color:#c084fc;flex:1;min-width:100px">⚙️ ادمین کامل</button>
+      </div>
+    </div>`;}).join('');
+}
+
+function approvePending(id, role){
+  const p=PENDING.find(function(x){return x.id===id;});
+  if(!p)return;
+  // اضافه کردن کاربر به sheet کاربران
+  callSheet('addUser',{user:p.user,pass:p.pass,role:role,name:p.user,active:'true'},function(){
+    // علامت‌گذاری به عنوان تأیید شده در pending
+    callSheet('approvePending',{id:id},function(){
+      PENDING=PENDING.filter(function(x){return x.id!==id;});
+      savePending();
+      renderPending();
+      renderActiveUsers();
+      alert('کاربر @'+p.user+' با دسترسی '+role+' تأیید شد ✅');
+    });
+  });
+}
+
+function rejectPending(id){
+  const p=PENDING.find(function(x){return x.id===id;});
+  if(!p||!confirm('درخواست @'+p.user+' رد شود؟'))return;
+  callSheet('rejectPending',{id:id},function(){
+    PENDING=PENDING.filter(function(x){return x.id!==id;});
+    savePending();
+    renderPending();
+  });
+}
+
+function renderActiveUsers(){
+  const el=document.getElementById('activeUserList');
+  if(!el)return;
+  el.innerHTML=USERS.map(function(u,i){
+    var roleColor=ROLES[u.role]?ROLES[u.role].color:'#9aa3c2';
+    var roleLabel=ROLES[u.role]?ROLES[u.role].label:u.role;
+    return `<div style="background:#0b0d14;border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <span style="font-weight:600;font-size:13px">${u.name||u.user}</span>
+          <span style="color:#5a6080;font-size:12px;margin-right:8px">@${u.user}</span>
+          <span style="background:${roleColor}22;color:${roleColor};padding:2px 8px;border-radius:10px;font-size:11px">${roleLabel}</span>
+          ${u.lastSeen?`<div style="color:#5a6080;font-size:11px;margin-top:4px">🕐 آخرین حضور: ${u.lastSeen}</div>`:'<div style="color:#2e3350;font-size:11px;margin-top:4px">🕐 هنوز وارد نشده</div>'}
+        </div>
+        ${i===0?'<span style="color:#2e3350;font-size:11px">مدیر اصلی</span>':`
+        <div style="display:flex;gap:6px;align-items:center">
+          <select onchange="changeUserRole('${u.user}',this.value)" style="background:#1e2235;border:1px solid #2a2f45;border-radius:8px;padding:4px 8px;color:#e2e4f0;font-family:inherit;font-size:12px">
+            <option value="viewer" ${u.role==='viewer'?'selected':''}>مشاهده</option>
+            <option value="operator" ${u.role==='operator'?'selected':''}>اپراتور</option>
+            <option value="admin" ${u.role==='admin'?'selected':''}>ادمین</option>
+          </select>
+          <button class="btn btn-danger btn-sm" onclick="removeUser('${u.user}')">حذف</button>
+        </div>`}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;background:#0b0d14;border-radius:8px;padding:8px 10px">
+        <span style="font-size:11px;color:#5a6080">🔒 رمز فعلی:</span>
+        <span id="showpw_${u.user}" style="font-size:12px;font-family:monospace;color:#5a6080;flex:1">••••••••</span>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px" onclick="togglePassView('${u.user}')">👁️ نمایش</button>
+      </div>
+      ${i===0?'':`
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <input id="pw_${u.user}" type="password" placeholder="رمز جدید..." class="inp" style="flex:1;padding:7px 10px;font-size:12px">
+        <button class="btn btn-ghost btn-sm" onclick="changeUserPass('${u.user}')">🔑 تغییر رمز</button>
+      </div>`}
+    </div>`;
+  }).join('');
+}
+function changeUserRole(username, role){
+  callSheet('updateUserRole',{user:username,role:role},function(){
+    USERS=USERS.map(function(u){return u.user===username?Object.assign({},u,{role:role}):u;});
+    saveUsers();renderActiveUsers();
+  });
+}
+
+function changeUserPass(username){
+  const input=document.getElementById('pw_'+username);
+  if(!input||!input.value.trim()){alert('رمز جدید را وارد کنید');return;}
+  const newPass=input.value.trim();
+  if(newPass.length<4){alert('رمز باید حداقل ۴ کاراکتر باشد');return;}
+  callSheet('updateUserPass',{user:username,pass:newPass},function(res){
+    if(res&&res.status==='ok'){
+      USERS=USERS.map(function(u){return u.user===username?Object.assign({},u,{pass:newPass}):u;});
+      saveUsers();
+      input.value='';
+      alert('✅ رمز @'+username+' تغییر کرد');
+    } else {
+      alert('خطا در تغییر رمز');
+    }
+  });
+}
+
+function removeUser(username){
+  if(!confirm('کاربر @'+username+' حذف شود؟'))return;
+  callSheet('deleteUser',{user:username},function(){
+    USERS=USERS.filter(function(u){return u.user!==username;});
+    saveUsers();renderActiveUsers();
+  });
+}
+
+function addUserDirect(){
+  const user=document.getElementById('newUserName').value.trim().toLowerCase();
+  const pass=document.getElementById('newUserPass').value;
+  const role=document.getElementById('newUserRole').value;
+  if(!user||!pass){alert('نام کاربری و رمز الزامی است');return;}
+  if(USERS.find(function(u){return u.user===user;})){alert('این کاربر وجود دارد');return;}
+  callSheet('addUser',{user,pass,role,name:user,active:'true'},function(){
+    USERS.push({user,pass,role,name:user,active:'true'});
+    saveUsers();
+    document.getElementById('newUserName').value='';
+    document.getElementById('newUserPass').value='';
+    renderActiveUsers();
+  });
+}
+
+function applyRoleUI(){
+  const isAdmin=canDo('users');
+  const canAdd=canDo('add');
+  document.querySelectorAll('.nav').forEach(function(n){
+    const txt=n.textContent.trim();
+    if(txt.includes('کاربران'))n.style.display=isAdmin?'flex':'none';
+    if(txt.includes('تنظیمات'))n.style.display=isAdmin?'flex':'none';
+    if(txt.includes('افزودن کالا'))n.style.display=canAdd?'flex':'none';
+    if(txt.includes('جستجوی AI'))n.style.display='flex';
+  });
+  // دکمه خروجی Excel فقط برای ادمین
+  document.querySelectorAll('[onclick*="exportToExcel"]').forEach(function(btn){
+    btn.style.display = isAdmin ? 'inline-flex' : 'none';
+  });
+  // اعلان برای همه کاربران
+  if(isAdmin){
+    loadPendingChanges();
+  } else {
+    loadMyChanges();
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════════════
+function renderUserList(){
+  // placeholder for settings page user list
+  renderActiveUsers();
+}
+
+function gotoView(v,el){
+  // در موبایل سایدبار رو ببند
+  closeSidebar();
+  // اگه از notif خارج میشیم refresh رو متوقف کن
+  if(v !== 'notif') stopMyChangesRefresh();
+  document.querySelectorAll('[id^="view-"]').forEach(x=>x.classList.add('hidden'));
+  document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));
+  var viewEl = document.getElementById('view-'+v);
+  if(viewEl) viewEl.classList.remove('hidden');
+  if(el && el.classList) el.classList.add('active');
+  if(v==='dashboard')renderDashboard();
+  else if(v==='items')renderItems();
+  else if(v==='add'){renderCatSelect();}
+  else if(v==='notif'){
+    var notifTitle = document.getElementById('notifPageTitle');
+    var adminTabs = document.getElementById('adminNotifTabs');
+    if(canDo('users')){
+      if(notifTitle) notifTitle.textContent = '📋 مدیریت درخواست‌ها';
+      if(adminTabs) adminTabs.style.display = 'block';
+      currentNotifTab = 'active';
+      var btn = document.getElementById('tab_active');
+      if(btn){ btn.style.background='#1e2235'; btn.style.color='#e2e4f0'; }
+      var btn2 = document.getElementById('tab_archive');
+      if(btn2){ btn2.style.background='transparent'; btn2.style.color='#5a6080'; }
+      loadPendingChanges();
+    } else {
+      if(notifTitle) notifTitle.textContent = '📋 درخواست‌های من';
+      if(adminTabs) adminTabs.style.display = 'none';
+      loadMyChanges();
+      startMyChangesRefresh();
+    }
+  }
+  else if(v==='ai'){}
+  else if(v==='users'){
+    if(!canDo('users')){alert('دسترسی ندارید');return;}
+    renderPending();
+    renderActiveUsers();
+    // لود از Sheet هر بار
+    callSheet('getUsers',{t:Date.now()},function(data){
+      if(Array.isArray(data)&&data.length>0){
+        USERS=data.filter(function(u){return u.active!=='false';});
+        saveUsers();
+        renderActiveUsers();
+      }
+    });
+    loadPendingFromSheet();
+  }
+  else if(v==='setup'){
+    document.getElementById('sheetUrl').value=loadSheetUrl();
+    renderUserList();
+    loadBackups();
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  CODE GENERATOR
+// ═══════════════════════════════════════════════
+function genCode(cat){
+  const prefix=cat==='آزمایشگاه'?'LAB':cat==='یدکی'?'YDK':'RZN';
+  const nums=items.filter(i=>i.code.startsWith(prefix)).map(i=>parseInt(i.code.split('-')[1])||0);
+  const next=(nums.length?Math.max(...nums):0)+1;
+  return `${prefix}-${String(next).padStart(3,'0')}`;
+}
+
+// ═══════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════
+function renderDashboard(){
+  // آخرین کالاها
+  var recentEl = document.getElementById('recentItems');
+  if(recentEl){
+    recentEl.innerHTML=[...items].reverse().slice(0,8).map(i=>`<tr onclick="openDetail('${i.id}')" style="cursor:pointer">
+      <td style="color:#60a5fa;font-family:monospace;font-size:12px">${i.code}</td>
+      <td style="font-weight:500">${i.name}</td>
+      <td><span class="tag ${catClass(i.cat)}">${i.cat}</span></td>
+      <td>${i.qty} ${i.unit}</td>
+      <td style="color:#9aa3c2">قفسه ${i.shelf||'-'}</td>
+    </tr>`).join('');
+  }
+  // بارگذاری اعلان‌ها
+  loadNotifFeed();
+}
+
+// ═══════════════════════════════════════════════
+//  ITEMS LIST
+// ═══════════════════════════════════════════════
+const catClass=c=>c==='آزمایشگاه'?'tag-lab':c==='یدکی'?'tag-spare':'tag-resin';
+
+function renderItems(){
+  const search = (document.getElementById('searchInp')||{value:''}).value.trim().toLowerCase();
+  const sort = (document.getElementById('sortSelect')||{value:''}).value;
+  const catF = (document.getElementById('catFilter')||{value:''}).value;
+
+  // آپدیت فیلتر دسته‌بندی
+  const catSel = document.getElementById('catFilter');
+  if(catSel && catSel.options.length <= 1){
+    var cats = [...new Set(items.map(i=>i.cat))];
+    cats.forEach(function(c){
+      var opt=document.createElement('option');
+      opt.value=c; opt.textContent=c;
+      catSel.appendChild(opt);
+    });
+  }
+
+  var filtered = items.filter(function(i){
+    var matchSearch = !search || i.name.toLowerCase().includes(search) || i.code.toLowerCase().includes(search) || (i.desc||'').toLowerCase().includes(search) || (i.subcats||'').toLowerCase().includes(search) || (i.status||'').toLowerCase().includes(search);
+    var matchCat = !catF || i.cat === catF;
+    return matchSearch && matchCat;
+  });
+
+  // مرتب‌سازی
+  if(sort === 'qty_asc') filtered.sort(function(a,b){return a.qty-b.qty;});
+  else if(sort === 'qty_desc') filtered.sort(function(a,b){return b.qty-a.qty;});
+  else if(sort === 'name_asc') filtered.sort(function(a,b){return a.name.localeCompare(b.name,'fa');});
+  else if(sort === 'date_desc') filtered.sort(function(a,b){return b.id.localeCompare(a.id);});
+
+  const el = document.getElementById('itemsTable');
+  if(!el) return;
+
+  if(!filtered.length){
+    el.innerHTML='<div style="text-align:center;padding:40px;color:#2e3350">کالایی یافت نشد</div>';
+    return;
+  }
+
+  const canDel = canDo('delete');
+  const canEd = canDo('edit');
+
+  el.innerHTML = '<table style="width:100%;border-collapse:collapse">'
+    + '<thead><tr style="color:#5a6080;font-size:12px;border-bottom:1px solid #1a1d2e">'
+    + (canDel?'<th style="width:36px;padding:8px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>':'')
+    + '<th style="padding:8px;text-align:right">کالا</th>'
+    + '<th style="padding:8px;text-align:right">کد</th>'
+    + '<th style="padding:8px;text-align:right">دسته</th>'
+    + '<th style="padding:8px;text-align:right">وضعیت</th>'
+    + '<th style="padding:8px;text-align:right">موجودی</th>'
+    + '<th style="padding:8px;text-align:right">قفسه</th>'
+    + '<th style="padding:8px"></th>'
+    + '</tr></thead><tbody>'
+    + filtered.map(function(i){
+      var low = i.qty <= i.minQty;
+      var catColor = ROLES['admin'].color;
+      return '<tr style="border-bottom:1px solid #0b0d14;cursor:pointer" onclick="openDetail(&quot;'+i.id+'&quot;)">'
+        + (canDel?'<td style="padding:8px" onclick="event.stopPropagation()"><input type="checkbox" class="item-cb" value="'+i.id+'" onchange="updateBulkBar()"></td>':'')
+        + '<td style="padding:8px;max-width:180px">'
+        + '<div style="display:flex;align-items:center;gap:8px">'
+        + (i.image?'<img src="'+i.image+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">':'<div style="width:36px;height:36px;background:#1e2235;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">📦</div>')
+        + '<div><div style="font-weight:500;font-size:13px">'+i.name+'</div>'
+        + (i.desc?'<div style="color:#5a6080;font-size:11px">'+i.desc.slice(0,30)+'</div>':'')
+        + (function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} sc=sc.filter(function(s){return s.v;}); return sc.length?'<div style="margin-top:3px">'+sc.map(function(s){return '<span style=\'background:#13151f;padding:0px 5px;border-radius:4px;font-size:9px;margin-left:3px;color:#6a7290\'>'+s.v+'</span>';}).join('')+'</div>':''; })()
+        + '</div></div></td>'
+        + '<td style="padding:8px;font-family:monospace;font-size:12px;color:#60a5fa">'+i.code+'</td>'
+        + '<td style="padding:8px"><span style="background:#1e2235;padding:2px 8px;border-radius:8px;font-size:11px">'+i.cat+'</span></td>'
+        + '<td style="padding:8px">'+statusBadge(i.status||'نو')+'</td>'
+        + '<td style="padding:8px;font-weight:600;color:'+(low?'#f87171':'#4ade80')+'">'+i.qty+' '+i.unit+'</td>'
+        + '<td style="padding:8px;color:#5a6080;font-size:12px">'+i.shelf+'/'+i.row+'</td>'
+        + '<td style="padding:8px" onclick="event.stopPropagation()">'
+        + (canDel?'<button class="btn btn-danger btn-sm" onclick="deleteItem(&quot;'+i.id+'&quot;)">حذف</button>':'')
+        + '</td>'
+        + '</tr>';
+    }).join('')
+    + '</tbody></table>';
+
+  updateBulkBar();
+}
+
+function toggleSelectAll(cb){
+  document.querySelectorAll('.item-cb').forEach(function(el){ el.checked=cb.checked; });
+  updateBulkBar();
+}
+
+function updateBulkBar(){
+  const selected = document.querySelectorAll('.item-cb:checked');
+  const bar = document.getElementById('bulkBar');
+  const count = document.getElementById('selectedCount');
+  if(bar){
+    bar.style.display = selected.length > 0 ? 'flex' : 'none';
+    if(count) count.textContent = selected.length + ' کالا انتخاب شده';
+  }
+}
+
+function clearSelection(){
+  document.querySelectorAll('.item-cb').forEach(function(el){ el.checked=false; });
+  const cb = document.getElementById('selectAll');
+  if(cb) cb.checked=false;
+  updateBulkBar();
+}
+
+function deleteSelected(){
+  const selected = [...document.querySelectorAll('.item-cb:checked')].map(function(el){return el.value;});
+  if(!selected.length) return;
+  if(!confirm('حذف '+selected.length+' کالا؟')) return;
+  selected.forEach(function(id){
+    items=items.filter(function(i){return i.id!==id;});
+    callSheet('delete',{id:id},function(){});
+  });
+  saveItems();
+  clearSelection();
+  renderItems();
+  renderDashboard();
+}
+
+
+function openDetail(id){
+  const i=items.find(function(x){return x.id===id;});
+  if(!i)return;
+  const isAdmin=canDo('users');
+  const catColor=i.cat==='آزمایشگاه'?'#60a5fa':i.cat==='یدکی'?'#c084fc':'#4ade80';
+
+  document.getElementById('detailContent').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+      <div>
+        <div style="font-weight:700;font-size:18px">${i.name}</div>
+        <div style="color:#60a5fa;font-family:monospace;font-size:13px;margin-top:3px">${i.code}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeDetail()">✕</button>
+    </div>
+
+    ${i.image?`<div style="text-align:center;margin-bottom:16px">
+      <img src="${i.image}" style="width:100%;max-height:320px;object-fit:contain;border-radius:12px;border:1px solid #1a1d2e;background:#0b0d14;cursor:pointer" onclick="openFullImage('${i.image}')">
+      <div style="font-size:11px;color:#5a6080;margin-top:4px">برای بزرگنمایی کلیک کنید</div>
+    </div>`:''}
+    ${i.desc?`<div style="background:#0b0d14;border-radius:8px;padding:12px;font-size:13px;color:#9aa3c2;margin-bottom:16px;line-height:1.6">${i.desc}</div>`:''}
+
+    <div class="grid2" style="margin-bottom:16px">
+      ${[
+        ['دسته‌بندی', `<span style="color:${catColor}">${i.cat}</span>`],
+        ['وضعیت کالا', statusBadge(i.status||'نو')],
+        ...((function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} return sc.filter(function(s){return s.v;}).map(function(s){ return [s.k||'زیردسته', `<span style="color:#9aa3c2">${s.v}</span>`]; }); })()),
+        ['موقعیت', `قفسه ${i.shelf} — ردیف ${i.row}`],
+        ['موجودی', `<span style="color:${i.qty<=i.minQty?'#f87171':'#4ade80'};font-weight:700">${i.qty} ${i.unit}</span>`],
+        ['حداقل موجودی', `${i.minQty} ${i.unit}`],
+        ['تاریخ ثبت', i.date||'—']
+      ].map(function(r){return `<div style="background:#0b0d14;border-radius:10px;padding:12px">
+        <div style="color:#5a6080;font-size:11px">${r[0]}</div>
+        <div style="font-size:13px;margin-top:4px">${r[1]}</div>
+      </div>`;}).join('')}
+    </div>
+
+    <!-- QR Code -->
+    <div style="text-align:center;margin-bottom:16px">
+      <div id="modal-qr" style="display:inline-block;background:white;padding:12px;border-radius:10px"></div>
+      <div style="color:#5a6080;font-size:11px;margin-top:6px">${i.code}</div>
+      <div style="margin-top:8px">
+        <button class="btn btn-ghost btn-sm" onclick="downloadQRById('${i.id}','${i.code}')">⬇️ دانلود QR</button>
+      </div>
+    </div>
+
+    <!-- موجودی -->
+    <div style="display:flex;gap:10px;margin-bottom:${isAdmin?'12px':'0'}">
+      <button class="btn btn-success" style="flex:1" onclick="changeQty('${i.id}',1)">➕ افزایش موجودی</button>
+      <button class="btn btn-danger" style="flex:1" onclick="changeQty('${i.id}',-1)">➖ کاهش موجودی</button>
+    </div>
+
+    <!-- ویرایش - فقط ادمین (کشویی) -->
+    ${isAdmin?`
+    <div style="border-top:1px solid #1a1d2e;margin-top:14px;padding-top:14px">
+      <div onclick="toggleEditForm()" style="font-size:13px;font-weight:600;color:#c084fc;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#1e2235;padding:10px 14px;border-radius:10px">
+        <span>✏️ ویرایش کالا</span>
+        <span id="editFormArrow" style="font-size:14px">▼</span>
+      </div>
+      <div id="editFormBody" style="display:none">
+      <div class="form-group">
+        <label>نام کالا</label>
+        <input class="inp" id="edit-name" value="${i.name}">
+      </div>
+      <div class="form-group">
+        <label>توضیحات</label>
+        <textarea class="inp" id="edit-desc" rows="3" style="resize:vertical">${i.desc||''}</textarea>
+      </div>
+      <div class="grid2">
+        <div class="form-group">
+          <label>قفسه</label>
+          <input class="inp" id="edit-shelf" value="${i.shelf}">
+        </div>
+        <div class="form-group">
+          <label>ردیف</label>
+          <input class="inp" id="edit-row" value="${i.row}">
+        </div>
+        <div class="form-group">
+          <label>موجودی</label>
+          <input class="inp" type="number" id="edit-qty" value="${i.qty}">
+        </div>
+        <div class="form-group">
+          <label>حداقل موجودی</label>
+          <input class="inp" type="number" id="edit-min" value="${i.minQty}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>دسته‌بندی</label>
+        <select class="inp" id="edit-cat">
+          <option ${i.cat==='آزمایشگاه'?'selected':''}>آزمایشگاه</option>
+          <option ${i.cat==='یدکی'?'selected':''}>یدکی</option>
+          <option ${i.cat==='رزین'?'selected':''}>رزین</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>وضعیت کالا</label>
+        <select class="inp" id="edit-status">
+          <option value="نو" ${(i.status||'نو')==='نو'?'selected':''}>🆕 نو</option>
+          <option value="دست‌دوم" ${i.status==='دست‌دوم'?'selected':''}>♻️ دست‌دوم</option>
+          <option value="در حال خدمات" ${i.status==='در حال خدمات'?'selected':''}>🛠️ در حال خدمات</option>
+          <option value="استفاده‌شده" ${i.status==='استفاده‌شده'?'selected':''}>📦 استفاده‌شده</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>بارکد محصول</label>
+        <input class="inp" id="edit-barcode" value="${i.barcode||''}" placeholder="بارکد کارخانه (اختیاری)">
+      </div>
+      <div class="form-group">
+        <label>زیردسته‌ها</label>
+        <div id="edit-subcats-datalists"></div>
+        <div id="edit-subcats"></div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addSubcatRow('edit-subcats')" style="margin-top:6px">+ افزودن زیردسته</button>
+      </div>
+      <div class="form-group" style="margin-top:8px">
+        <label>عکس کالا</label>
+        ${i.image?`<div style="margin-bottom:10px"><img src="${i.image}" style="max-width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid #1a1d2e;background:#0b0d14"></div>`:''}
+        <input class="inp" id="edit-image-url-${i.id}" value="${i.image||''}" placeholder="لینک جدید از Google Drive..." oninput="previewDriveImage(this.value,'edit-img-prev-${i.id}')">
+        <div style="font-size:11px;color:#5a6080;margin-top:4px">Google Drive → Share → Anyone with link → Copy link</div>
+        <div id="edit-img-prev-${i.id}" style="margin-top:8px;display:none">
+          <img style="max-width:100%;max-height:150px;object-fit:contain;border-radius:8px;border:1px solid #1a1d2e;background:#0b0d14">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveEdit('${i.id}')">💾 ذخیره تغییرات</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('${i.id}')">🗑️ حذف</button>
+      </div>
+      </div>
+    </div>`:''}
+  `;
+
+  document.getElementById('modal-detail').classList.remove('hidden');
+
+  // پر کردن زیردسته‌ها در فرم ویرایش
+  if(isAdmin){
+    window._editCat = i.cat;
+    var iSubcats = [];
+    try { iSubcats = JSON.parse(i.subcats||'[]'); } catch(e){ iSubcats = []; }
+    setTimeout(function(){ fillSubcats('edit-subcats', iSubcats); }, 50);
+  }
+
+  // Generate QR
+  setTimeout(function(){
+    const el=document.getElementById('modal-qr');
+    if(el&&typeof QRCode!=='undefined'){
+      el.innerHTML='';
+      try{
+        new QRCode(el,{
+          text:i.code,
+          width:130,height:130,
+          colorDark:'#000000',colorLight:'#ffffff',
+          correctLevel:QRCode.CorrectLevel.L
+        });
+      }catch(e){console.log('QR err:',e);}
+    }
+  },300);
+}
+
+function saveEdit(id){
+  const name=document.getElementById('edit-name').value.trim();
+  const desc=document.getElementById('edit-desc').value.trim();
+  const shelf=document.getElementById('edit-shelf').value.trim().toUpperCase();
+  const row=document.getElementById('edit-row').value.trim();
+  const qty=parseInt(document.getElementById('edit-qty').value)||0;
+  const minQty=parseInt(document.getElementById('edit-min').value)||0;
+  const cat=document.getElementById('edit-cat').value;
+  const statusEl=document.getElementById('edit-status');
+  const status=statusEl?statusEl.value:'نو';
+  const bcEl=document.getElementById('edit-barcode');
+  const barcode=bcEl?bcEl.value.trim():'';
+  var subcatsArr=getSubcats('edit-subcats');
+  const subcats=JSON.stringify(subcatsArr);
+  updateSubcatTemplate(cat, subcatsArr);
+
+  if(!name){alert('نام کالا الزامی است');return;}
+
+  const item=items.find(function(i){return i.id===id;});
+  if(!item)return;
+  const updated = Object.assign({},item,{name,desc,shelf,row,qty,minQty,cat,status,barcode,subcats});
+
+  // بررسی لینک عکس جدید
+  const imgUrlInput = document.getElementById('edit-image-url-'+id);
+  if(imgUrlInput && imgUrlInput.value.trim()){
+    updated.image = imgUrlInput.value.trim();
+  }
+
+  if(currentUser && currentUser.role==='admin'){
+    // ادمین مستقیم اعمال می‌کنه - با updateItem (تک درخواست، مطمئن)
+    items=items.map(function(i){ return i.id!==id?i:updated; });
+    saveItems();
+    callSheet('updateItem', updated, function(res){
+      if(res && res.status==='ok'){
+        showToast('✅ تغییرات ذخیره شد');
+      } else {
+        showToast('⚠️ خطا در ذخیره — دوباره تلاش کنید');
+      }
+    });
+    closeDetail();
+    renderItems();
+    renderDashboard();
+  } else {
+    // operator درخواست می‌فرسته
+    var initMsg = prompt('توضیح برای ادمین (اختیاری):') || '';
+    window._pendingInitMsg = initMsg;
+    submitChange('edit', id, updated);
+    closeDetail();
+  }
+}
+
+
+function downloadQRById(id,code){
+  const el=document.getElementById('modal-qr');
+  if(!el)return;
+  const canvas=el.querySelector('canvas');
+  const img=el.querySelector('img');
+  if(canvas){
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL('image/png');
+    a.download='QR-'+code+'.png';
+    a.click();
+  } else if(img){
+    const a=document.createElement('a');
+    a.href=img.src;
+    a.download='QR-'+code+'.png';
+    a.click();
+  } else {
+    alert('QR هنوز آماده نشده');
+  }
+}
+
+function changeQty(id,dir){
+  const amt=parseInt(prompt(dir>0?'چند عدد اضافه شد؟':'چند عدد کم شد؟')||'0');
+  if(!amt||isNaN(amt)||amt<=0)return;
+  const item=items.find(function(i){return i.id===id;});
+  if(!item)return;
+
+  if(currentUser && currentUser.role==='admin'){
+    // ادمین مستقیم اعمال می‌کنه
+    items=items.map(function(i){
+      return i.id!==id?i:Object.assign({},i,{qty:Math.max(0,i.qty+dir*amt)});
+    });
+    saveItems();
+    const updated=items.find(function(i){return i.id===id;});
+    callSheet('delete',{id:id},function(){
+      callSheet('add',updated,function(){});
+    });
+    closeDetail();
+    openDetail(id);
+    renderDashboard();
+  } else {
+    // operator درخواست می‌فرسته
+    const newQty = Math.max(0, item.qty + dir*amt);
+    const changeData = Object.assign({}, item, {qty: newQty});
+    var initMsg = prompt((dir>0?'دلیل افزایش موجودی':'دلیل کاهش موجودی')+' (اختیاری):') || '';
+    window._pendingInitMsg = initMsg;
+    submitChange('edit', id, changeData);
+    closeDetail();
+  }
+}
+
+function closeDetail(){document.getElementById('modal-detail').classList.add('hidden')}
+
+// ═══════════════════════════════════════════════
+//  QR PAGE
+// ═══════════════════════════════════════════════
+
+
+
+
+// ═══════════════════════════════════════════════
+//  GROQ AI CHAT
+// ═══════════════════════════════════════════════
+function buildContext(){
+  const total=items.reduce(function(s,i){return s+i.qty;},0);
+  return 'تو دستیار هوشمند سیستم مدیریت کالا هستی و باید دقیق و کامل پاسخ بدی.\n\n'
+  +'قوانین مهم:\n'
+  +'- اگر پرسیدن «چند تا X داریم» → همه کالاهایی که اسمشان شامل X میشود را پیدا کن و تعدادشان را جمع بزن\n'
+  +'- اگر پرسیدن «X کجاست» → قفسه و ردیف دقیق را بگو\n'
+  +'- اگر پرسیدن «آیا X داریم» → موجودی دقیق را بگو\n'
+  +'- همیشه کد کالا، قفسه، ردیف و موجودی را ذکر کن\n'
+  +'- پاسخ را به فارسی و ساده بده\n\n'
+  +'لیست کامل کالاهای انبار ('+items.length+' قلم، مجموع: '+total+'):\n'
+  +items.map(function(i){
+    return '• کد:'+i.code+' | نام:'+i.name+' | دسته:'+i.cat
+      +' | قفسه:'+i.shelf+' ردیف:'+i.row
+      +' | موجودی:'+i.qty+' '+i.unit
+      +' | حداقل:'+i.minQty
+      +(i.desc?' | توضیح:'+i.desc:'')
+      +' | '+(i.qty<=i.minQty?'⚠️کم‌موجود':'✅موجود');
+  }).join('\n')
+  +'\n\nکم‌موجودها: '+(items.filter(function(i){return i.qty<=i.minQty;}).map(function(i){return i.name;}).join('، ')||'ندارد');
+}
+
+function addBubble(role,text){
+  const ph=document.getElementById('chatPlaceholder');
+  if(ph)ph.remove();
+  const box=document.getElementById('chatBox');
+  const isUser=role==='user';
+  const div=document.createElement('div');
+  div.style.cssText=`display:flex;justify-content:${isUser?'flex-start':'flex-end'}`;
+  div.innerHTML=`<div style="max-width:80%;padding:10px 14px;border-radius:${isUser?'4px 14px 14px 14px':'14px 4px 14px 14px'};
+    background:${isUser?'#1e2235':'linear-gradient(135deg,#4f8ef7,#7c5af5)'};
+    color:white;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word">${text}</div>`;
+  box.appendChild(div);box.scrollTop=box.scrollHeight;
+}
+
+function sendChat(){
+  const msg=document.getElementById('aiMsg').value.trim();
+  if(!msg)return;
+  document.getElementById('aiMsg').value='';
+  document.getElementById('sendBtn').disabled=true;
+  document.getElementById('sendBtn').textContent='...';
+
+  const ph=document.getElementById('chatPlaceholder');
+  if(ph)ph.remove();
+  addBubble('user',msg);
+  chatHistory.push({role:'user',content:msg});
+
+  const typing=document.createElement('div');
+  typing.id='typing';typing.style.cssText='display:flex;justify-content:flex-end';
+  typing.innerHTML='<div style="padding:10px 16px;border-radius:14px 4px 14px 14px;background:#1e2235;color:#5a6080;font-size:13px" class="pulse">در حال تایپ...</div>';
+  document.getElementById('chatBox').appendChild(typing);
+  document.getElementById('chatBox').scrollTop=9999;
+
+  // از Apps Script به عنوان proxy استفاده می‌کنیم — از همه جا کار می‌کنه
+  const cbName='aiCb_'+Date.now();
+  const ctx=buildContext();
+  // فقط آخرین پیام رو می‌فرستیم — چون URL محدودیت طول داره
+  const params=new URLSearchParams({
+    action:'ai',
+    callback:cbName,
+    q:msg,
+    ctx:ctx.slice(0,2000)
+  });
+
+  function resetBtn(){
+    document.getElementById('sendBtn').disabled=false;
+    document.getElementById('sendBtn').textContent='ارسال ↵';
+  }
+
+  window[cbName]=function(data){
+    typing.remove();
+    if(data && data.answer){
+      // استخراج کدهای مرتبط از [[CODES:...]]
+      var rawAnswer = data.answer;
+      var codes = [];
+      var match = rawAnswer.match(/\[\[CODES:([^\]]*)\]\]/);
+      if(match){
+        codes = match[1].split(',').map(function(c){ return c.trim(); }).filter(function(c){ return c; });
+        // حذف تگ از متن نمایشی
+        rawAnswer = rawAnswer.replace(/\[\[CODES:[^\]]*\]\]/g, '').trim();
+      }
+      chatHistory.push({role:'assistant',content:rawAnswer});
+      addBubble('assistant',rawAnswer);
+      showRelatedItemsByCodes(codes);
+    } else if(data && data.error){
+      addBubble('assistant','❌ خطا از سرور: '+data.error);
+    } else {
+      addBubble('assistant','❌ پاسخ نامعتبر از سرور');
+    }
+    delete window[cbName];
+    const s=document.getElementById(cbName);if(s)s.remove();
+    resetBtn();
+  };
+
+  const script=document.createElement('script');
+  script.id=cbName;
+  // فقط سوال رو می‌فرستیم — context رو Apps Script از Sheet می‌خونه
+  // آخرین ۶ پیام رو به عنوان history بفرست
+  var recentHistory = chatHistory.slice(-6);
+  var historyJson = encodeURIComponent(JSON.stringify(recentHistory));
+  const finalUrl=loadSheetUrl()+'?action=ai&callback='+cbName+'&q='+encodeURIComponent(msg)+'&history='+historyJson;
+  script.src=finalUrl;
+  script.onerror=function(){
+    typing.remove();
+    addBubble('assistant','❌ خطا: Apps Script در دسترس نیست. URL را در تنظیمات بررسی کنید.');
+    delete window[cbName];this.remove();
+    resetBtn();
+  };
+  setTimeout(function(){
+    if(window[cbName]){
+      typing.remove();
+      addBubble('assistant','⏱ زمان پاسخ تمام شد (۱۵ ثانیه). دوباره تلاش کنید.');
+      delete window[cbName];
+      const s=document.getElementById(cbName);if(s)s.remove();
+      resetBtn();
+    }
+  },15000);
+  document.head.appendChild(script);
+}
+
+async function testGroq(){
+  const key=document.getElementById('groqKeyInp').value.trim();
+  if(!key){alert('ابتدا API Key را وارد کنید');return}
+  document.getElementById('testBtn').textContent='...';
+  document.getElementById('groqStatus').textContent='در حال بررسی...';
+  try{
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:'سلام'}],max_tokens:10})
+    });
+    const d=await res.json();
+    if(d.error){document.getElementById('groqStatus').innerHTML='<span style="color:#f87171">❌ '+d.error.message+'</span>'}
+    else{document.getElementById('groqStatus').innerHTML='<span style="color:#4ade80">✅ اتصال موفق! AI آماده است</span>';saveGroqKey();}
+  }catch(e){document.getElementById('groqStatus').innerHTML='<span style="color:#f87171">❌ خطای اتصال</span>'}
+  document.getElementById('testBtn').textContent='تست';
+}
+
+// ═══════════════════════════════════════════════
+//  GOOGLE SHEETS SYNC
+// ═══════════════════════════════════════════════
+function syncToSheet(item){
+  const url=loadSheetUrl();
+  if(!url)return;
+  const cbName='addCb_'+Date.now();
+  const params=new URLSearchParams({
+    action:'add',callback:cbName,
+    id:item.id,code:item.code,name:item.name,desc:item.desc||'',
+    cat:item.cat,qty:item.qty,unit:item.unit,
+    shelf:item.shelf,row:item.row,minQty:item.minQty,date:item.date
+  });
+  window[cbName]=function(r){
+    console.log('Sheet sync:',r);
+    delete window[cbName];
+    const s=document.getElementById(cbName);if(s)s.remove();
+  };
+  const script=document.createElement('script');
+  script.id=cbName;
+  script.src=url+'?'+params.toString();
+  script.onerror=function(){delete window[cbName];this.remove();};
+  document.head.appendChild(script);
+}
+
+function deleteFromSheet(id){
+  const url=loadSheetUrl();
+  if(!url)return;
+  const cbName='delCb_'+Date.now();
+  window[cbName]=function(r){
+    console.log('Sheet delete:',r);
+    delete window[cbName];
+    const s=document.getElementById(cbName);if(s)s.remove();
+  };
+  const script=document.createElement('script');
+  script.id=cbName;
+  script.src=url+'?action=delete&id='+encodeURIComponent(id)+'&callback='+cbName;
+  script.onerror=function(){delete window[cbName];this.remove();};
+  document.head.appendChild(script);
+}
+
+function loadFromSheet(){
+  const statusEl = document.getElementById('syncStatus');
+  if(statusEl) statusEl.textContent = 'در حال بارگذاری...';
+  callSheet('read', {t:Date.now()}, function(data){
+    if(Array.isArray(data) && data.length > 0){
+      items = data.map(d=>({
+        id:String(d.id||'item_'+Math.random()),
+        code:String(d.code||''), name:String(d.name||''), desc:String(d.desc||''),
+        cat:String(d.cat||'آزمایشگاه'), qty:Number(d.qty)||0, unit:String(d.unit||'عدد'),
+        status:String(d.status||'نو'),
+        barcode:String(d.barcode||''),
+        subcats:String(d.subcats||''),
+        shelf:String(d.shelf||'-'), row:String(d.row||'-'), minQty:Number(d.minQty)||0, date:String(d.date||''), image:String(d.image||'')
+      }));
+      saveItems();
+      buildSubcatTemplates();
+      renderDashboard();
+      if(statusEl) statusEl.textContent = '✅ '+items.length+' کالا بارگذاری شد';
+    } else {
+      if(statusEl) statusEl.textContent = items.length ? '✅ '+items.length+' کالا (حافظه محلی)' : '⚠️ انبار خالی است';
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  CATEGORY MANAGEMENT
+// ═══════════════════════════════════════════════
+function renderCatSelect(){
+  var sel=document.getElementById('ni-cat');
+  if(!sel)return;
+  var cur=sel.value;
+  sel.innerHTML=CATS.map(function(c){
+    return '<option value="'+c.name+'">'+c.icon+' '+c.name+'</option>';
+  }).join('');
+  if(cur)sel.value=cur;
+  var btn=document.getElementById('addCatBtn');
+  if(btn)btn.style.display=canDo('add')?'inline-flex':'none';
+  toggleUnit();
+}
+
+function showAddCat(){
+  if(!canDo('add')){alert('دسترسی ندارید');return;}
+  document.getElementById('newCatName').value='';
+  document.getElementById('newCatIcon').value='📦';
+  document.getElementById('catErr').textContent='';
+  document.querySelectorAll('.icon-opt').forEach(function(el){
+    el.style.borderColor='transparent';el.style.background='transparent';
+  });
+  renderCatManageList();
+  document.getElementById('modal-addCat').classList.remove('hidden');
+  setTimeout(function(){document.getElementById('newCatName').focus();},100);
+}
+
+function closeAddCat(){document.getElementById('modal-addCat').classList.add('hidden');}
+
+function selectIcon(el,icon){
+  document.getElementById('newCatIcon').value=icon;
+  document.querySelectorAll('.icon-opt').forEach(function(e){
+    e.style.borderColor='transparent';e.style.background='transparent';
+  });
+  el.style.borderColor='#4f8ef7';el.style.background='#1e2235';
+}
+
+function saveNewCat(){
+  var name=document.getElementById('newCatName').value.trim();
+  var icon=document.getElementById('newCatIcon').value||'📦';
+  var err=document.getElementById('catErr');
+  if(!name){err.textContent='نام دسته الزامی است';return;}
+  if(CATS.find(function(c){return c.name===name;})){err.textContent='این دسته قبلاً وجود دارد';return;}
+  var newCat={id:'cat_'+Date.now(),name:name,icon:icon,color:'#9aa3c2'};
+  CATS.push(newCat);
+  saveCats();
+  callSheet('addCat',{id:newCat.id,name:newCat.name,icon:newCat.icon},function(){});
+  closeAddCat();
+  renderCatSelect();
+  document.getElementById('ni-cat').value=name;
+  toggleUnit();
+}
+
+function loadCatsFromSheet(){
+  callSheet('getCats',{t:Date.now()},function(data){
+    if(Array.isArray(data)&&data.length>0){
+      data.filter(function(d){return d.id&&d.name;}).forEach(function(rc){
+        if(!CATS.find(function(c){return c.name===rc.name;})){
+          CATS.push({id:rc.id,name:rc.name,icon:rc.icon||'📦',color:'#9aa3c2'});
+        }
+      });
+      saveCats();
+      renderCatSelect();
+    }
+  });
+}
+
+function previewEditImage(input, itemId){
+  const file=input.files[0];
+  if(!file)return;
+  document.getElementById('edit-img-name-'+itemId).textContent=file.name;
+}
+
+
+
+
+function previewImageUrl(url){
+  const wrap=document.getElementById('imagePreviewWrap');
+  const img=document.getElementById('imagePreview');
+  if(!url){wrap.style.display='none';return;}
+  const direct=convertDriveUrl(url);
+  img.src=direct;
+  img.onerror=function(){wrap.style.display='none';};
+  img.onload=function(){wrap.style.display='block';};
+}
+
+// ─── ArvanCloud S3 Upload ───────────────────────
+var ARVAN_ACCESS = 'faab6d47-ccda-458f-9331-1883d451df06';
+var ARVAN_SECRET = '0baf5815671d1a9a3ca5baa34018e490e7c20438bcb753669c66fa3c287a123b';
+var ARVAN_ENDPOINT = 'https://s3.ir-thr-at1.arvanstorage.ir';
+var ARVAN_BUCKET = 'lab-inventory';
+
+async function uploadToArvan(file, itemId, statusEl){
+  function setStatus(msg, color){
+    if(statusEl){ statusEl.style.color=color||'#9aa3c2'; statusEl.textContent=msg; }
+    console.log('[Upload]', msg);
+  }
+
+  function callGET(params, timeout){
+    return new Promise(function(resolve){
+      var cb = 'cb'+Date.now()+Math.random().toString(36).slice(2,5);
+      var url = loadSheetUrl()+'?'+params+'&callback='+cb;
+      window[cb]=function(res){
+        delete window[cb];
+        var s=document.getElementById(cb);if(s)s.remove();
+        resolve(res);
+      };
+      var script=document.createElement('script');
+      script.id=cb;
+      script.src=url;
+      script.onerror=function(){
+        delete window[cb];this.remove();resolve(null);
+      };
+      setTimeout(function(){
+        if(window[cb]){
+          delete window[cb];
+          var s=document.getElementById(cb);if(s)s.remove();
+          resolve(null);
+        }
+      }, timeout||20000);
+      document.head.appendChild(script);
+    });
+  }
+
+  function delay(ms){ return new Promise(function(r){setTimeout(r,ms);}); }
+
+  setStatus('فشرده‌سازی...');
+  try{
+    var maxSize = 800, quality = 0.85;
+    var compressed = await compressImage(file, maxSize, quality);
+    var tries = 0;
+    while(compressed.size > 25000 && tries < 10){
+      quality = Math.max(0.4, quality - 0.07);
+      if(tries > 5) maxSize = Math.max(300, maxSize - 100);
+      compressed = await compressImage(file, maxSize, quality);
+      tries++;
+    }
+    console.log('[Upload] فشرده:', Math.round(compressed.size/1024)+'KB');
+    setStatus('فشرده: '+Math.round(compressed.size/1024)+'KB');
+
+    const base64 = await new Promise(function(resolve){
+      const r = new FileReader();
+      r.onload = function(e){ resolve(e.target.result.split(',')[1]); };
+      r.readAsDataURL(compressed);
+    });
+
+    const fileName = 'items_'+itemId+'.jpg';
+    const CHUNK = 1500;
+    const chunks = [];
+    for(var i=0; i<base64.length; i+=CHUNK) chunks.push(base64.slice(i,i+CHUNK));
+    const sid = 'sid'+Date.now();
+    console.log('[Upload] chunks:', chunks.length);
+
+    // اگه یه chunk - مستقیم
+    if(chunks.length === 1){
+      setStatus('آپلود به Drive...');
+      const params = 'action=imgUpload&id='+encodeURIComponent(itemId)+'&f='+encodeURIComponent(fileName)+'&d='+encodeURIComponent(base64);
+      const result = await callGET(params, 45000);
+      if(result && result.status==='ok'){
+        items=items.map(function(i){return i.id===itemId?Object.assign({},i,{image:result.url}):i;});
+        saveItems();
+        return {url:result.url};
+      }
+      return {error:result?result.message:'خطا در آپلود'};
+    }
+
+    // chunk ها یکی یکی با delay
+    setStatus('ارسال '+chunks.length+' بخش...');
+    for(var c=0; c<chunks.length; c++){
+      await delay(300); // صبر بین chunk ها
+      const params = 'action=imgChunk&s='+encodeURIComponent(sid)+'&n='+c+'&d='+encodeURIComponent(chunks[c]);
+      var res = await callGET(params, 25000);
+      if(!res || res.status!=='ok'){
+        await delay(1000);
+        res = await callGET(params, 25000); // retry
+        if(!res || res.status!=='ok'){
+          return {error:'خطا در بخش '+(c+1)+' از '+chunks.length};
+        }
+      }
+      setStatus('ارسال... '+Math.round((c+1)/chunks.length*80)+'%');
+      console.log('[Upload] chunk '+(c+1)+'/'+chunks.length+' OK');
+    }
+
+    setStatus('ذخیره در Drive...');
+    await delay(500);
+    const finParams = 'action=imgFinish&s='+encodeURIComponent(sid)+'&f='+encodeURIComponent(fileName)+'&id='+encodeURIComponent(itemId)+'&t='+chunks.length;
+    const result = await callGET(finParams, 60000);
+    console.log('[Upload] نتیجه:', JSON.stringify(result));
+
+    if(result && result.status==='ok'){
+      items=items.map(function(i){return i.id===itemId?Object.assign({},i,{image:result.url}):i;});
+      saveItems();
+      return {url:result.url};
+    }
+    return {error:result?result.message:'خطا در ذخیره'};
+
+  }catch(err){
+    return {error:err.message};
+  }
+}
+
+
+async function previewAndUpload(input, previewDivId, statusId, itemId){
+  const file = input.files[0];
+  if(!file) return;
+  
+  const statusEl = document.getElementById(statusId);
+  const previewDiv = document.getElementById(previewDivId);
+  
+  // نمایش preview
+  const reader = new FileReader();
+  reader.onload = function(e){
+    if(previewDiv){
+      const img = previewDiv.querySelector('img');
+      if(img) img.src = e.target.result;
+      previewDiv.style.display = 'block';
+    }
+  };
+  reader.readAsDataURL(file);
+  
+  // آپلود
+  if(statusEl) statusEl.textContent = 'در حال آپلود...';
+  
+  const result = await uploadToArvan(file, itemId || 'temp_' + Date.now(), statusEl);
+  
+  if(result && result.url){
+    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✅ آپلود موفق'; }
+    if(itemId){
+      // edit mode - آپدیت مستقیم
+      const hiddenInput = document.getElementById('edit-image-url-' + itemId);
+      if(hiddenInput) hiddenInput.value = result.url;
+      items = items.map(function(i){ return i.id===itemId ? Object.assign({},i,{image:result.url}) : i; });
+      saveItems();
+      callSheet('updateImage', {id:itemId, image:result.url}, function(){});
+    } else {
+      // add mode - فقط URL رو ذخیره کن
+      const hiddenInput = document.getElementById('ni-image-url');
+      if(hiddenInput) hiddenInput.value = result.url;
+      // نشون بده که آپلود شده ولی هنوز کالا ذخیره نشده
+      console.log('[Upload] URL ready for new item:', result.url);
+    }
+  } else {
+    const errMsg = (result && result.error) ? result.error : 'خطای ناشناخته';
+    if(statusEl){ statusEl.style.color='#f87171'; statusEl.textContent='❌ ' + errMsg; }
+    console.error('[Upload] خطا:', errMsg);
+  }
+}
+
+function compressImage(file, maxSize, quality){
+  return new Promise(function(resolve){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = new Image();
+      img.onload = function(){
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if(w > maxSize || h > maxSize){
+          if(w > h){ h = Math.round(h * maxSize / w); w = maxSize; }
+          else { w = Math.round(w * maxSize / h); h = maxSize; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(function(blob){ resolve(blob); }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function openFullImage(src){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  overlay.onclick = function(){ document.body.removeChild(overlay); };
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:95vw;max-height:95vh;object-fit:contain;border-radius:8px';
+  overlay.appendChild(img);
+  document.body.appendChild(overlay);
+}
+
+// Debug logger برای گوشی
+var _debugLogs = [];
+var _origLog = console.log;
+var _origErr = console.error;
+console.log = function(){
+  _origLog.apply(console, arguments);
+  _debugLogs.push('[LOG] ' + Array.from(arguments).join(' '));
+  updateDebugDiv();
+};
+console.error = function(){
+  _origErr.apply(console, arguments);
+  _debugLogs.push('[ERR] ' + Array.from(arguments).join(' '));
+  updateDebugDiv();
+};
+function updateDebugDiv(){
+  var el = document.getElementById('debugDiv');
+  if(el) el.innerHTML = _debugLogs.slice(-10).join('<br>');
+}
+function showDebug(){
+  var el = document.getElementById('debugDiv');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'debugDiv';
+    el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.9);color:#0f0;font-size:11px;padding:8px;max-height:200px;overflow-y:auto;z-index:99999;direction:ltr;font-family:monospace';
+    document.body.appendChild(el);
+  }
+  el.style.display = el.style.display==='none'?'block':'block';
+}
+
+
+function convertDriveUrl(url){
+  if(!url) return '';
+  // تبدیل لینک Google Drive به لینک مستقیم
+  var m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(m) return 'https://drive.google.com/uc?export=view&id='+m[1];
+  m = url.match(/id=([a-zA-Z0-9_-]+)/);
+  if(m) return 'https://drive.google.com/uc?export=view&id='+m[1];
+  return url;
+}
+
+function previewDriveImage(url, previewDivId){
+  var wrap = document.getElementById(previewDivId);
+  if(!wrap) return;
+  if(!url){ wrap.style.display='none'; return; }
+  var direct = convertDriveUrl(url);
+  var img = wrap.querySelector('img');
+  if(img){
+    img.src = direct;
+    img.onload = function(){ wrap.style.display='block'; };
+    img.onerror = function(){ wrap.style.display='none'; };
+  }
+}
+
+function toggleUnit(){
+  var cat = document.getElementById('ni-cat');
+  if(!cat) return;
+  var isResin = cat.value === 'رزین';
+  var unitRow = document.getElementById('unitRow');
+  var badge = document.getElementById('unitBadge');
+  var qtyLabel = document.getElementById('qtyLabel');
+  if(unitRow) unitRow.style.display = isResin ? 'flex' : 'none';
+  if(badge) badge.textContent = isResin ? 'گرم' : 'عدد';
+  if(qtyLabel) qtyLabel.textContent = isResin ? 'حجم/وزن موجودی *' : 'تعداد موجودی *';
+}
+
+function addItem(){
+  const name=document.getElementById('ni-name').value.trim();
+  const cat=document.getElementById('ni-cat').value;
+  const qty=parseInt(document.getElementById('ni-qty').value)||0;
+  if(!name){alert('نام کالا الزامی است');return;}
+
+  const unitEl=document.getElementById('ni-unit');
+  const unit=cat==='رزین'?(unitEl?unitEl.value:'گرم'):'عدد';
+  const code = genCode(cat);
+  const id='item_'+Date.now();
+  const statusEl=document.getElementById('ni-status');
+  var barcodeInp = document.getElementById('ni-barcode');
+  var barcode = barcodeInp ? barcodeInp.value.trim() : '';
+  var subcats = getSubcats('ni-subcats');
+  updateSubcatTemplate(cat, subcats);
+  const item={
+    id,code,name,
+    desc:document.getElementById('ni-desc').value.trim(),
+    cat,qty,unit,
+    shelf:(document.getElementById('ni-shelf').value.trim().toUpperCase()||'-'),
+    row:(document.getElementById('ni-row').value.trim()||'-'),
+    minQty:parseInt(document.getElementById('ni-min').value)||0,
+    status:(statusEl?statusEl.value:'نو'),
+    barcode:barcode,
+    subcats:JSON.stringify(subcats),
+    date:new Date().toLocaleDateString('fa-IR'),
+    image:''
+  };
+
+  // اگه ادمین هست مستقیم اضافه کن، اگه نه درخواست بفرست
+  if(currentUser && currentUser.role === 'admin'){
+    items.push(item);
+    saveItems();
+    callSheet('add',item,function(){});
+  } else {
+    var initMsg = prompt('توضیح برای ادمین (اختیاری):\nمثلاً: این کالا برای پروژه X نیاز است') || '';
+    window._pendingInitMsg = initMsg;
+    submitChange('add', '', item);
+    clearAddForm();
+    return;
+  }
+
+  // لینک عکس از آپلود
+  const imgUrl = document.getElementById('ni-image-url').value.trim();
+  if(imgUrl){
+    item.image = imgUrl;
+    items=items.map(function(i){return i.id===id?Object.assign({},i,{image:imgUrl}):i;});
+    saveItems();
+    setTimeout(function(){
+      callSheet('updateImage',{id:id,image:imgUrl},function(){});
+    }, 1000);
+  }
+
+  document.getElementById('addResult').classList.remove('hidden');
+  document.getElementById('addResultInfo').innerHTML=
+    '<div style="display:flex;flex-wrap:wrap;gap:10px">'
+    + [['کد کالا',code],['دسته',cat],['موجودی',qty+' '+unit],['قفسه',item.shelf+' / ردیف '+item.row]].map(function(r){
+      return '<div class="chip"><span style="color:#5a6080">'+r[0]+':</span><span style="color:#e2e4f0"> '+r[1]+'</span></div>';
+    }).join('')
+    + '</div>'
+    + '<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="gotoView(&quot;items&quot;,document.querySelector(&quot;.nav:nth-child(2)&quot;))">مشاهده کالاها ↗</button>';
+  clearAddForm(true);
+}
+
+function clearAddForm(keepResult){
+  ['ni-name','ni-barcode','ni-desc','ni-shelf','ni-row','ni-qty','ni-min','ni-image-url'].forEach(function(id){
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  var stEl=document.getElementById('ni-status');if(stEl)stEl.value='نو';
+  var scEl=document.getElementById('ni-subcats');if(scEl)scEl.innerHTML='';
+  const niPrev = document.getElementById('ni-img-preview');
+  if(niPrev) niPrev.style.display='none';
+  if(!keepResult){
+    const r=document.getElementById('addResult');
+    if(r)r.classList.add('hidden');
+  }
+}
+
+
+function deleteItem(id){
+  if(!confirm('این کالا حذف شود؟')) return;
+  var item = items.find(function(i){ return i.id===id; });
+  if(currentUser && currentUser.role === 'admin'){
+    items = items.filter(function(i){ return i.id !== id; });
+    saveItems();
+    callSheet('delete', {id:id}, function(){});
+    closeDetail();
+    renderItems();
+    renderDashboard();
+  } else {
+    var initMsg = prompt('دلیل حذف (اختیاری):') || '';
+    window._pendingInitMsg = initMsg;
+    submitChange('delete', id, item || {id:id});
+    closeDetail();
+  }
+}
+
+
+
+function showRelatedItems(answer){
+  // پیدا کردن کالاهایی که در جواب AI ذکر شدن
+  var found = [];
+  items.forEach(function(item){
+    // چک کن اسم یا کد کالا توی جواب هست
+    if(answer.includes(item.name) || answer.includes(item.code)){
+      found.push(item);
+    }
+  });
+  if(!found.length) return;
+
+  // ساخت کارت‌های کالا
+  var box = document.getElementById('chatBox');
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'margin-top:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-end';
+  
+  found.forEach(function(item){
+    var low = item.qty <= item.minQty;
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#1e2235;border:1px solid #2a2f45;border-radius:10px;padding:10px 14px;max-width:80%;cursor:pointer;transition:background 0.2s';
+    card.onmouseover = function(){ this.style.background='#252b42'; };
+    card.onmouseout = function(){ this.style.background='#1e2235'; };
+    card.onclick = function(){
+      gotoView('items', document.querySelector('.nav'));
+      setTimeout(function(){ openDetail(item.id); }, 100);
+    };
+    card.innerHTML = 
+      '<div style="display:flex;align-items:center;gap:10px">'
+      + (item.image ? '<img src="'+item.image+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">' 
+                    : '<div style="width:36px;height:36px;background:#0b0d14;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px">📦</div>')
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0">'+item.name+'</div>'
+      + '<div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">'
+      + '<span style="font-family:monospace;font-size:11px;color:#60a5fa">'+item.code+'</span>'
+      + '<span style="font-size:11px;color:'+(low?'#f87171':'#4ade80')+'">'+item.qty+' '+item.unit+'</span>'
+      + '<span style="font-size:11px;color:#5a6080">قفسه '+item.shelf+'</span>'
+      + '</div>'
+      + '</div>'
+      + '<span style="font-size:11px;color:#4f8ef7;white-space:nowrap">مشاهده ←</span>'
+      + '</div>';
+    wrap.appendChild(card);
+  });
+
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── سیستم اعلان تغییرات ──
+
+var pendingChanges = [];
+var myChanges = [];
+
+function loadPendingChanges(){
+  var el = document.getElementById('pendingChangesList');
+  if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#5a6080">⏳ در حال بارگذاری...</div>';
+  callSheet('getPendingChanges', {t: Date.now()}, function(data){
+    console.log('[Notif] data received:', typeof data, Array.isArray(data), JSON.stringify(data).slice(0,200));
+    if(Array.isArray(data)){
+      pendingChanges = data;
+      updateNotifBadge();
+      renderPendingChanges();
+    } else if(data && data.error){
+      if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#f87171">❌ '+data.error+'</div>';
+    } else {
+      // شاید داده درست باشه ولی array نباشه
+      if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#f87171">❌ داده نامعتبر: '+JSON.stringify(data).slice(0,100)+'</div>';
+    }
+  });
+}
+
+function loadMyChanges(){
+  if(!currentUser) return;
+  var el = document.getElementById('pendingChangesList');
+  if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#5a6080">⏳ در حال بارگذاری...</div>';
+  callSheet('getMyChanges', {user: currentUser.user, t: Date.now()}, function(data){
+    if(Array.isArray(data)){
+      myChanges = data;
+      updateNotifBadge();
+      renderMyChanges();
+    } else {
+      if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#f87171">❌ خطا در بارگذاری</div>';
+    }
+  });
+}
+
+// بروزرسانی خودکار هر 30 ثانیه برای operator
+var _myChangesTimer = null;
+function startMyChangesRefresh(){
+  stopMyChangesRefresh();
+  _myChangesTimer = setInterval(function(){
+    if(!canDo('users') && currentUser){
+      var notifView = document.getElementById('view-notif');
+      if(notifView && !notifView.classList.contains('hidden')){
+        loadMyChanges();
+      }
+    }
+  }, 10000);
+}
+function stopMyChangesRefresh(){ if(_myChangesTimer){ clearInterval(_myChangesTimer); _myChangesTimer=null; } }
+
+function updateNotifBadge(){
+  var badge = document.getElementById('notifBadge');
+  if(!badge) return;
+  var isAdmin = canDo('users');
+  var count = isAdmin ? pendingChanges.length : myChanges.filter(function(c){ return c.status==='pending'; }).length;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
+function renderPendingChanges(){
+  if(!canDo('users')){ renderMyChanges(); return; }
+  var el = document.getElementById('pendingChangesList');
+  if(!el) return;
+
+  if(!pendingChanges.length){
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:#5a6080">📭 هیچ درخواستی وجود ندارد</div>';
+    return;
+  }
+
+  // هدر انتخاب دسته‌جمعی
+  var bulkHeader = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">'
+    + '<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#9aa3c2;cursor:pointer">'
+    + '<input type="checkbox" id="selectAllChanges" onchange="toggleSelectAllChanges(this)"> انتخاب همه</label>'
+    + '<div id="bulkChangeBar" style="display:none;gap:6px;align-items:center">'
+    + '<button class="btn btn-ghost btn-sm" onclick="bulkArchiveChanges()">📁 بایگانی</button>'
+    + '<button class="btn btn-ghost btn-sm" style="color:#f87171" onclick="bulkDeleteChanges()">🗑️ حذف</button>'
+    + '<span id="bulkChangeCount" style="font-size:12px;color:#5a6080"></span>'
+    + '</div>'
+    + '</div>';
+
+  el.innerHTML = bulkHeader + pendingChanges.map(function(p){
+    var data = {};
+    try { data = JSON.parse(p.data||'{}'); } catch(e){}
+    var status = (p.status && p.status.trim()) ? p.status.trim() : 'pending';
+    var isPending = status === 'pending';
+    var typeLabel = p.type==='add'?'➕ افزودن': p.type==='delete'?'🗑️ حذف': p.type==='message'?'💬 گفتگو':'✏️ ویرایش';
+    var typeColor = p.type==='add'?'#4ade80': p.type==='delete'?'#f87171': p.type==='message'?'#c084fc':'#60a5fa';
+    var statusLabel = isPending?'⏳ در انتظار': status==='approved'?'✅ تأیید':'❌ رد';
+    var statusColor = isPending?'#f59e0b': status==='approved'?'#4ade80':'#f87171';
+
+    // تایتل خلاصه
+    var itemName = data.name || data.code || p.itemId || 'کالا';
+    var origQty = data._orig_qty !== undefined ? parseInt(data._orig_qty)||0 : null;
+    var newQty = data.qty !== undefined ? parseInt(data.qty)||0 : null;
+    var summary = typeLabel + ' ' + itemName;
+    if(p.type==='message'){
+      summary = '💬 ' + (data.subject || ('گفتگو با ' + p.user));
+    } else if(p.type==='edit' && origQty!==null && newQty!==null){
+      var diff = newQty - origQty;
+      summary = (diff>0?'📈 افزایش ':'📉 کاهش ') + Math.abs(diff) + ' ' + (data.unit||'عدد') + ' — ' + itemName;
+    } else if(p.type==='add'){
+      summary = '➕ افزودن کالا — ' + itemName;
+    } else if(p.type==='delete'){
+      summary = '🗑️ حذف کالا — ' + itemName;
+    }
+
+    // آیکون کالا (یا چت برای message)
+    var itemObj = null;
+    var isMessage = p.type === 'message';
+    if(!isMessage){
+      if(p.itemId) itemObj = items.find(function(i){ return String(i.id)===String(p.itemId); });
+      if(!itemObj && data.id) itemObj = items.find(function(i){ return String(i.id)===String(data.id); });
+      if(!itemObj && data.code) itemObj = items.find(function(i){ return i.code===data.code; });
+    }
+    var itemImg = (itemObj && itemObj.image) ? itemObj.image : (data.image||'');
+
+    var cardId = 'chgCard_'+p.id;
+    var detailId = 'chgDetail_'+p.id;
+
+    return '<div id="'+cardId+'" style="background:#0b0d14;border:1px solid '+(isPending?'#2a2f45':'#1a1d2e')+';border-radius:12px;margin-bottom:10px;overflow:hidden">'
+
+      // ── هدر کشویی ──
+      + '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer" onclick="toggleChangeDetail(&quot;'+detailId+'&quot;)">'
+      + '<input type="checkbox" class="chg-cb" value="'+p.id+'" onchange="event.stopPropagation();updateBulkChangeBar()" style="flex-shrink:0">'
+      + (isMessage
+          ? '<div style="width:38px;height:38px;background:#c084fc22;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💬</div>'
+          : (itemImg
+            ? '<img src="'+itemImg+'" style="width:38px;height:38px;object-fit:cover;border-radius:8px;flex-shrink:0" onclick="event.stopPropagation();'+(itemObj?'openDetail(&quot;'+itemObj.id+'&quot;)':'')+'">'
+            : '<div style="width:38px;height:38px;background:#1e2235;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;cursor:'+(itemObj?'pointer':'default')+'" onclick="event.stopPropagation();'+(itemObj?'openDetail(&quot;'+itemObj.id+'&quot;)':'')+'">📦</div>'))
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+summary+'</div>'
+      + '<div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">'
+      + '<span style="font-size:11px;color:#5a6080">از: '+p.user+'</span>'
+      + '<span style="font-size:11px;color:#5a6080">'+p.date+'</span>'
+      + '<span style="background:'+statusColor+'22;color:'+statusColor+';padding:1px 6px;border-radius:4px;font-size:11px">'+statusLabel+'</span>'
+      + '</div>'
+      + '</div>'
+      + '<span style="color:#5a6080;font-size:16px;flex-shrink:0" id="arrow_'+p.id+'">▼</span>'
+      + '</div>'
+
+      // ── جزئیات کشویی ──
+      + '<div id="'+detailId+'" style="display:none;border-top:1px solid #1a1d2e;padding:14px">'
+
+      // جزئیات تغییر
+      + '<div style="background:#1e2235;border-radius:8px;padding:12px;font-size:12px;margin-bottom:12px">'
+      + buildChangeDetail(p.type, data)
+      + '</div>'
+
+      // گفتگو
+      + '<div style="margin-bottom:12px">'
+      + '<div style="font-size:12px;color:#5a6080;margin-bottom:6px">💬 گفتگو</div>'
+      + '<div id="msgs_'+p.id+'" style="background:#0b0d14;border-radius:8px;padding:8px;max-height:200px;overflow-y:auto;min-height:40px;margin-bottom:8px">'
+      + '<div style="color:#5a6080;font-size:11px;text-align:center;padding:8px">در حال بارگذاری...</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px">'
+      + '<input id="msgInput_'+p.id+'" type="text" class="inp" placeholder="پیام..." style="flex:1;font-size:12px;padding:7px 10px" onkeydown="if(event.key==&apos;Enter&apos;)submitMessageInChange(&quot;'+p.id+'&quot;)">'
+      + '<button class="btn btn-ghost btn-sm" onclick="submitMessageInChange(&quot;'+p.id+'&quot;)">ارسال</button>'
+      + '</div>'
+      + '</div>'
+
+      // دکمه‌های عملیات
+      + (canDo('users')
+        ? '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+          + (isPending && p.type!=='message'
+            ? '<button class="btn btn-primary btn-sm" onclick="approvePendingChange(&quot;'+p.id+'&quot;)">✅ تأیید</button>'
+              + '<button class="btn btn-danger btn-sm" onclick="rejectPendingChange(&quot;'+p.id+'&quot;)">❌ رد</button>'
+            : '')
+          + '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="archiveChange(&quot;'+p.id+'&quot;)">📁 بایگانی</button>'
+          + '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171" onclick="deleteChange(&quot;'+p.id+'&quot;)">🗑️ حذف</button>'
+          + '</div>'
+        : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  autoLoadMessages(pendingChanges);
+}
+
+function toggleChangeDetail(id){
+  var el = document.getElementById(id);
+  if(!el) return;
+  var isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  // آپدیت فلش
+  var cardId = id.replace('chgDetail_','chgCard_');
+  var arrowId = 'arrow_'+id.replace('chgDetail_','');
+  var arrow = document.getElementById(arrowId);
+  if(arrow) arrow.textContent = isOpen ? '▼' : '▲';
+}
+
+
+function approvePendingChange(id){
+  var msgEl = document.getElementById('adminMsg_'+id);
+  var adminMsg = msgEl ? msgEl.value.trim() : '';
+  callSheet('approvePendingChange', {id:id, adminMsg:adminMsg}, function(res){
+    if(res && res.status==='ok'){
+      loadPendingChanges();
+      loadFromSheet();
+      updateAllBadges();
+      showToast('✅ درخواست تأیید شد');
+    }
+  });
+}
+
+function rejectPendingChange(id){
+  var msgEl = document.getElementById('adminMsg_'+id);
+  var adminMsg = msgEl ? msgEl.value.trim() : '';
+  callSheet('rejectPendingChange', {id:id, adminMsg:adminMsg}, function(res){
+    if(res && res.status==='ok'){
+      loadPendingChanges();
+      updateAllBadges();
+      showToast('❌ درخواست رد شد');
+    }
+  });
+}
+
+// تابع ارسال درخواست تغییر برای operator
+function submitChange(type, itemId, data){
+  var changeId = 'chg_' + Date.now();
+  // پیدا کردن داده اصلی کالا (قبل از تغییر)
+  var original = items.find(function(i){ return i.id === itemId; }) || null;
+  
+  var summary = {
+    id: data.id||'',
+    code: data.code||'',
+    name: data.name||'',
+    cat: data.cat||'',
+    qty: data.qty!==undefined ? data.qty : 0,
+    unit: data.unit||'',
+    desc: data.desc||'',
+    shelf: data.shelf||'',
+    row: data.row||'',
+    minQty: data.minQty||0,
+    date: data.date||'',
+    image: data.image||'',
+    status: data.status||'نو',
+    barcode: data.barcode||'',
+    subcats: data.subcats||'',
+    // داده اصلی برای مقایسه
+    _orig_qty: original ? original.qty : null,
+    _orig_name: original ? original.name : null,
+    _orig_cat: original ? original.cat : null,
+    _orig_shelf: original ? original.shelf : null,
+    _orig_row: original ? original.row : null,
+    _orig_desc: original ? original.desc : null
+  };
+  var dataStr = JSON.stringify(summary);
+  
+  var url = loadSheetUrl();
+  if(!url){ showToast('خطا: URL تنظیم نشده'); return; }
+  
+  var cbName = 'chgCb_' + Date.now();
+  var params = new URLSearchParams({
+    action: 'addPending',
+    callback: cbName,
+    id: changeId,
+    type: type,
+    itemId: itemId || '',
+    user: currentUser ? currentUser.user : 'unknown',
+    date: new Date().toLocaleDateString('fa-IR'),
+    data: dataStr
+  });
+  
+  window[cbName] = function(res){
+    delete window[cbName];
+    var s = document.getElementById(cbName); if(s) s.remove();
+    if(res && res.status==='ok'){
+      showToast('✅ درخواست ارسال شد — منتظر تأیید ادمین');
+      updateAllBadges();
+      // اگه توضیح اولیه داشت ارسال کن
+      if(window._pendingInitMsg && window._pendingInitMsg.trim()){
+        sendChangeMessage(changeId, currentUser.user, 'operator', window._pendingInitMsg);
+        window._pendingInitMsg = '';
+      }
+      setTimeout(loadMyChanges, 1500);
+    } else {
+      showToast('❌ خطا در ارسال درخواست');
+    }
+  };
+  
+  var script = document.createElement('script');
+  script.id = cbName;
+  script.src = url + '?' + params.toString();
+  script.onerror = function(){ 
+    delete window[cbName]; this.remove();
+    showToast('❌ خطا در اتصال');
+  };
+  setTimeout(function(){
+    if(window[cbName]){ delete window[cbName]; showToast('⏱ timeout در ارسال'); }
+  }, 15000);
+  document.head.appendChild(script);
+}
+
+function showToast(msg){
+  var t = document.getElementById('toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e2235;color:#e2e4f0;padding:10px 20px;border-radius:10px;font-size:13px;z-index:9999;border:1px solid #2a2f45;transition:opacity 0.3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(function(){ t.style.opacity = '0'; }, 3000);
+}
+
+function renderMyChanges(){
+  var el = document.getElementById('pendingChangesList');
+  if(!el) return;
+
+  var visibleChanges = myChanges.filter(function(c){ return c.status !== 'archived'; });
+
+  if(!visibleChanges.length){
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:#5a6080">📭 هیچ درخواستی ارسال نشده</div>';
+    return;
+  }
+
+  el.innerHTML = visibleChanges.map(function(c){
+    var data = {};
+    try { data = JSON.parse(c.data||'{}'); } catch(e){}
+    var status = (c.status && c.status.trim()) ? c.status.trim() : 'pending';
+    var statusLabel = c.type==='message'?'💬 گفتگو': status==='pending'?'⏳ در حال بررسی': status==='approved'?'✅ تأیید شده':'❌ رد شده';
+    var statusColor = status==='pending'?'#f59e0b': status==='approved'?'#4ade80':'#f87171';
+    var typeLabel = c.type==='add'?'➕ افزودن': c.type==='delete'?'🗑️ حذف': c.type==='message'?'💬 گفتگو':'✏️ ویرایش';
+
+    var itemName = data.name || data.code || c.itemId || 'کالا';
+    var origQty = data._orig_qty !== undefined ? parseInt(data._orig_qty)||0 : null;
+    var newQty = data.qty !== undefined ? parseInt(data.qty)||0 : null;
+    var summary = typeLabel + ' — ' + itemName;
+    if(c.type==='message'){
+      // اگه ادمین فرستاده، نشون بده از طرف ادمین
+      summary = (c.user==='admin' ? '💬 پیام از ادمین' : '💬 ' + (data.subject || 'درخواست گفتگو'));
+    } else if(c.type==='edit' && origQty!==null && newQty!==null){
+      var diff = newQty - origQty;
+      summary = (diff>0?'📈 افزایش ':'📉 کاهش ') + Math.abs(diff) + ' ' + (data.unit||'عدد') + ' — ' + itemName;
+    }
+
+    var detailId = 'myChgDetail_'+c.id;
+
+    return '<div style="background:#0b0d14;border:1px solid #1a1d2e;border-radius:12px;margin-bottom:10px;overflow:hidden">'
+      + '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer" onclick="toggleChangeDetail(&quot;'+detailId+'&quot;)">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0">'+summary+'</div>'
+      + '<div style="display:flex;gap:6px;margin-top:3px">'
+      + '<span style="font-size:11px;color:#5a6080">'+c.date+'</span>'
+      + '<span style="background:'+statusColor+'22;color:'+statusColor+';padding:1px 6px;border-radius:4px;font-size:11px">'+statusLabel+'</span>'
+      + '</div>'
+      + '</div>'
+      + '<span style="color:#5a6080;font-size:16px" id="arrow_'+c.id+'">▼</span>'
+      + '</div>'
+
+      + '<div id="'+detailId+'" style="display:none;border-top:1px solid #1a1d2e;padding:14px">'
+      + '<div style="background:#1e2235;border-radius:8px;padding:10px;font-size:12px;margin-bottom:10px">'
+      + buildChangeDetail(c.type, data)
+      + '</div>'
+      + '<div style="margin-bottom:10px">'
+      + '<div style="font-size:11px;color:#5a6080;margin-bottom:6px">💬 گفتگو</div>'
+      + '<div id="msgs_'+c.id+'" style="background:#0b0d14;border-radius:8px;padding:8px;max-height:180px;overflow-y:auto;min-height:36px;margin-bottom:8px">'
+      + '<div style="color:#5a6080;font-size:11px;text-align:center">در حال بارگذاری...</div>'
+      + '</div>'
+      + ((status==='pending' || c.type==='message')
+        ? '<div style="display:flex;gap:6px"><input id="msgInput_'+c.id+'" type="text" class="inp" placeholder="پاسخ..." style="flex:1;font-size:11px;padding:6px 8px" onkeydown="if(event.key==&apos;Enter&apos;)submitMessageInChange(&quot;'+c.id+'&quot;)"><button class="btn btn-ghost btn-sm" onclick="submitMessageInChange(&quot;'+c.id+'&quot;)">ارسال</button></div>'
+        : '')
+      + '</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  autoLoadMessages(visibleChanges);
+}
+
+function buildChangeDetail(type, data){
+  var rows = '';
+  if(!data) return rows;
+
+  if(type === 'message'){
+    rows += '<div style="color:#c084fc;font-weight:600;margin-bottom:6px">💬 درخواست گفتگو</div>';
+    if(data.subject) rows += '<div><span style="color:#5a6080">موضوع: </span><span style="color:#e2e4f0">'+data.subject+'</span></div>';
+    if(data.from) rows += '<div><span style="color:#5a6080">از طرف: </span><span style="color:#e2e4f0">'+data.from+'</span></div>';
+    rows += '<div style="margin-top:6px;color:#9aa3c2;font-size:11px">پیام‌ها را در بخش گفتگوی پایین ببینید</div>';
+    return rows;
+  }
+
+  if(type === 'delete'){
+    rows += '<div style="color:#f87171;font-weight:600;margin-bottom:6px">🗑️ این کالا حذف خواهد شد</div>';
+    if(data.name) rows += '<div><span style="color:#5a6080">نام: </span><span style="color:#e2e4f0">'+data.name+'</span></div>';
+    if(data.code) rows += '<div><span style="color:#5a6080">کد: </span><span style="color:#60a5fa;font-family:monospace">'+data.code+'</span></div>';
+    rows += '<div><span style="color:#5a6080">موجودی فعلی: </span><span style="color:#f87171">'+(data.qty||0)+' '+(data.unit||'')+'</span></div>';
+    return rows;
+  }
+
+  if(type === 'add'){
+    rows += '<div style="color:#4ade80;font-weight:600;margin-bottom:6px">➕ کالای جدید</div>';
+    if(data.name) rows += '<div><span style="color:#5a6080">نام: </span><span style="color:#e2e4f0">'+data.name+'</span></div>';
+    if(data.code) rows += '<div><span style="color:#5a6080">کد: </span><span style="color:#60a5fa;font-family:monospace">'+data.code+'</span></div>';
+    if(data.cat) rows += '<div><span style="color:#5a6080">دسته: </span><span style="color:#e2e4f0">'+data.cat+'</span></div>';
+    rows += '<div><span style="color:#5a6080">موجودی: </span><span style="color:#4ade80">'+(data.qty||0)+' '+(data.unit||'')+'</span></div>';
+    if(data.desc) rows += '<div><span style="color:#5a6080">توضیح: </span><span style="color:#e2e4f0">'+data.desc+'</span></div>';
+    if(data.shelf && data.shelf!=='-') rows += '<div><span style="color:#5a6080">قفسه: </span><span style="color:#e2e4f0">'+data.shelf+' / ردیف '+data.row+'</span></div>';
+    return rows;
+  }
+
+  // edit
+  rows += '<div style="color:#60a5fa;font-weight:600;margin-bottom:6px">✏️ تغییرات درخواستی</div>';
+  if(data.name) rows += '<div><span style="color:#5a6080">کالا: </span><span style="color:#e2e4f0;font-weight:600">'+data.name+'</span>'+(data.code?' <span style="color:#60a5fa;font-family:monospace;font-size:11px">('+data.code+')</span>':'')+'</div>';
+
+  if(data._orig_qty !== null && data._orig_qty !== undefined && data._orig_qty !== ''){
+    var origQty = parseInt(data._orig_qty)||0;
+    var newQty = parseInt(data.qty)||0;
+    var diff = newQty - origQty;
+    var diffColor = diff>0?'#4ade80':diff<0?'#f87171':'#9aa3c2';
+    var diffStr = diff>0?'(+'+diff+')':diff<0?'('+diff+')':'(بدون تغییر)';
+    rows += '<div style="margin-top:8px;padding:8px;background:#0b0d14;border-radius:8px">';
+    rows += '<div style="font-size:11px;color:#5a6080;margin-bottom:4px">موجودی</div>';
+    rows += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+    rows += '<span style="color:#9aa3c2">'+origQty+' '+(data.unit||'')+'</span>';
+    rows += '<span style="color:#5a6080">←</span>';
+    rows += '<span style="color:'+diffColor+';font-weight:700;font-size:15px">'+newQty+' '+(data.unit||'')+'</span>';
+    rows += '<span style="color:'+diffColor+';font-size:12px;background:'+diffColor+'22;padding:2px 8px;border-radius:6px">'+diffStr+'</span>';
+    rows += '</div></div>';
+  }
+
+  var changes = [];
+  if(data._orig_name && data.name !== data._orig_name) changes.push({label:'نام', old:data._orig_name, new_:data.name});
+  if(data._orig_cat && data.cat !== data._orig_cat) changes.push({label:'دسته', old:data._orig_cat, new_:data.cat});
+  if(data._orig_shelf && data.shelf !== data._orig_shelf) changes.push({label:'قفسه', old:data._orig_shelf, new_:data.shelf});
+  if(data._orig_desc !== undefined && data.desc !== data._orig_desc) changes.push({label:'توضیح', old:data._orig_desc||'—', new_:data.desc||'—'});
+
+  if(changes.length){
+    rows += '<div style="margin-top:8px">';
+    changes.forEach(function(c){
+      rows += '<div style="font-size:12px;margin-top:4px">';
+      rows += '<span style="color:#5a6080">'+c.label+': </span>';
+      rows += '<span style="color:#9aa3c2;text-decoration:line-through">'+c.old+'</span>';
+      rows += '<span style="color:#5a6080"> → </span>';
+      rows += '<span style="color:#e2e4f0">'+c.new_+'</span>';
+      rows += '</div>';
+    });
+    rows += '</div>';
+  }
+  return rows;
+}
+
+// ── تمام توابع مدیریت درخواست‌ها ──
+
+var currentNotifTab = 'active';
+var archivedChanges = [];
+
+function refreshNotif(){
+  if(canDo('users')){
+    if(currentNotifTab === 'active') loadPendingChanges();
+    else loadArchivedChanges();
+  } else {
+    loadMyChanges();
+  }
+}
+
+function switchNotifTab(tab){
+  currentNotifTab = tab;
+  ['active','archive'].forEach(function(t){
+    var btn = document.getElementById('tab_'+t);
+    if(btn){
+      btn.style.background = t===tab ? '#1e2235' : 'transparent';
+      btn.style.color = t===tab ? '#e2e4f0' : '#5a6080';
+    }
+  });
+  if(tab === 'active') loadPendingChanges();
+  else loadArchivedChanges();
+}
+
+function loadArchivedChanges(){
+  var el = document.getElementById('pendingChangesList');
+  if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#5a6080">⏳ در حال بارگذاری...</div>';
+  callSheet('getArchivedChanges', {t:Date.now()}, function(data){
+    if(Array.isArray(data)){
+      archivedChanges = data;
+      renderArchivedChanges();
+    }
+  });
+}
+
+function renderArchivedChanges(){
+  var el = document.getElementById('pendingChangesList');
+  if(!el) return;
+  if(!archivedChanges.length){
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:#5a6080">📭 بایگانی خالی است</div>';
+    return;
+  }
+  var bulkHeader = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">'
+    + '<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#9aa3c2;cursor:pointer">'
+    + '<input type="checkbox" id="selectAllChanges" onchange="toggleSelectAllChanges(this)"> انتخاب همه</label>'
+    + '<button class="btn btn-ghost btn-sm" onclick="exportArchiveToExcel()">📊 خروجی Excel</button>'
+    + '<div id="bulkChangeBar" style="display:none;gap:6px;align-items:center">'
+    + '<button class="btn btn-ghost btn-sm" style="color:#f87171" onclick="bulkDeleteChanges()">🗑️ حذف انتخاب‌شده</button>'
+    + '<span id="bulkChangeCount" style="font-size:12px;color:#5a6080"></span>'
+    + '</div></div>';
+
+  el.innerHTML = bulkHeader + archivedChanges.map(function(p){
+    var data = {};
+    try { data = JSON.parse(p.data||'{}'); } catch(e){}
+    var msgs = [];
+    try { msgs = JSON.parse(p.messages||'[]'); } catch(e){}
+    var typeLabel = p.type==='add'?'➕ افزودن': p.type==='delete'?'🗑️ حذف':'✏️ ویرایش';
+    var st = (p.status||'').trim();
+    var statusLabel = st==='approved'?'✅ تأیید': st==='rejected'?'❌ رد':'📁 بایگانی';
+    var statusColor = st==='approved'?'#4ade80': st==='rejected'?'#f87171':'#9aa3c2';
+    var detailId = 'archDetail_'+p.id;
+    var msgHtml = msgs.length ? '<div style="margin-top:8px"><div style="font-size:11px;color:#5a6080;margin-bottom:4px">💬 گفتگو ('+msgs.length+' پیام)</div>'
+      + msgs.map(function(m){ var isA=m.role==='admin'; return '<div style="background:'+(isA?'#1a2a3a':'#1e2235')+';border-radius:6px;padding:6px 10px;margin-bottom:4px"><div style="display:flex;justify-content:space-between"><span style="font-size:11px;color:'+(isA?'#c084fc':'#4ade80')+'">'+(isA?'👑 ':'')+m.user+'</span><span style="font-size:10px;color:#5a6080">'+m.time+'</span></div><div style="font-size:12px;color:#e2e4f0">'+m.text+'</div></div>'; }).join('')+'</div>' : '';
+
+    return '<div style="background:#0b0d14;border:1px solid #1a1d2e;border-radius:10px;margin-bottom:10px;overflow:hidden">'
+      + '<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer" onclick="toggleChangeDetail(&quot;'+detailId+'&quot;)">'
+      + '<input type="checkbox" class="chg-cb" value="'+p.id+'" onchange="event.stopPropagation();updateBulkChangeBar()" style="flex-shrink:0">'
+      + '<div style="flex:1"><div style="font-weight:600;font-size:13px;color:#9aa3c2">'+(data.name||p.itemId||'')+'</div>'
+      + '<div style="display:flex;gap:6px;margin-top:2px"><span style="font-size:11px;color:#5a6080">'+typeLabel+' | '+p.user+' | '+p.date+'</span>'
+      + '<span style="background:'+statusColor+'22;color:'+statusColor+';padding:1px 6px;border-radius:4px;font-size:11px">'+statusLabel+'</span></div></div>'
+      + '<span style="color:#5a6080;font-size:14px" id="arrow_'+p.id+'">▼</span>'
+      + '</div>'
+      + '<div id="'+detailId+'" style="display:none;border-top:1px solid #1a1d2e;padding:12px">'
+      + '<div style="background:#1e2235;border-radius:8px;padding:10px;font-size:12px;margin-bottom:8px">'+buildChangeDetail(p.type,data)+'</div>'
+      + msgHtml
+      + '<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171" onclick="deleteChange(&quot;'+p.id+'&quot;)">🗑️ حذف دائم</button></div>'
+      + '</div></div>';
+  }).join('');
+}
+
+function archiveChange(id){
+  if(!canDo('users')){ showToast('دسترسی ندارید'); return; }
+  callSheet('archiveChange', {id:id}, function(res){
+    if(res && res.status==='ok'){
+      pendingChanges = pendingChanges.filter(function(p){ return p.id!==id; });
+      updateNotifBadge();
+      renderPendingChanges();
+      showToast('📁 بایگانی شد');
+    }
+  });
+}
+
+function deleteChange(id){
+  if(!canDo('users')){ showToast('دسترسی ندارید'); return; }
+  if(!confirm('این درخواست برای همیشه حذف شود؟')) return;
+  callSheet('deleteChange', {id:id}, function(res){
+    if(res && res.status==='ok'){
+      if(currentNotifTab==='active'){
+        pendingChanges = pendingChanges.filter(function(p){ return p.id!==id; });
+      } else {
+        archivedChanges = archivedChanges.filter(function(p){ return p.id!==id; });
+      }
+      updateNotifBadge();
+      if(currentNotifTab==='active') renderPendingChanges();
+      else renderArchivedChanges();
+      showToast('🗑️ حذف شد');
+    }
+  });
+}
+
+function toggleSelectAllChanges(cb){
+  document.querySelectorAll('.chg-cb').forEach(function(el){ el.checked = cb.checked; });
+  updateBulkChangeBar();
+}
+
+function updateBulkChangeBar(){
+  var selected = document.querySelectorAll('.chg-cb:checked');
+  var bar = document.getElementById('bulkChangeBar');
+  var count = document.getElementById('bulkChangeCount');
+  if(bar) bar.style.display = selected.length > 0 ? 'flex' : 'none';
+  if(count) count.textContent = selected.length + ' درخواست انتخاب شده';
+}
+
+function getSelectedChangeIds(){
+  return Array.from(document.querySelectorAll('.chg-cb:checked')).map(function(el){ return el.value; });
+}
+
+function bulkArchiveChanges(){
+  if(!canDo('users')){ showToast('دسترسی ندارید'); return; }
+  var ids = getSelectedChangeIds();
+  if(!ids.length) return;
+  if(!confirm('بایگانی '+ids.length+' درخواست؟')) return;
+  var done = 0;
+  ids.forEach(function(id){
+    callSheet('archiveChange', {id:id}, function(){
+      done++;
+      if(done===ids.length){
+        pendingChanges = pendingChanges.filter(function(p){ return ids.indexOf(p.id)===-1; });
+        updateNotifBadge(); renderPendingChanges();
+        showToast('📁 '+ids.length+' درخواست بایگانی شد');
+      }
+    });
+  });
+}
+
+function bulkDeleteChanges(){
+  if(!canDo('users')){ showToast('دسترسی ندارید'); return; }
+  var ids = getSelectedChangeIds();
+  if(!ids.length) return;
+  if(!confirm('حذف دائم '+ids.length+' درخواست؟')) return;
+  var done = 0;
+  ids.forEach(function(id){
+    callSheet('deleteChange', {id:id}, function(){
+      done++;
+      if(done===ids.length){
+        if(currentNotifTab==='active') pendingChanges = pendingChanges.filter(function(p){ return ids.indexOf(p.id)===-1; });
+        else archivedChanges = archivedChanges.filter(function(p){ return ids.indexOf(p.id)===-1; });
+        updateNotifBadge();
+        if(currentNotifTab==='active') renderPendingChanges(); else renderArchivedChanges();
+        showToast('🗑️ '+ids.length+' درخواست حذف شد');
+      }
+    });
+  });
+}
+
+function autoLoadMessages(list){
+  if(!list || !list.length) return;
+  list.forEach(function(c){
+    setTimeout(function(){ loadChangeMessages(c.id); }, 300);
+  });
+}
+
+function loadChangeMessages(changeId){
+  callSheet('getMessages', {changeId: changeId}, function(res){
+    if(res && res.messages) renderChangeMessages(changeId, res.messages);
+  });
+}
+
+function renderChangeMessages(changeId, messages){
+  var el = document.getElementById('msgs_'+changeId);
+  if(!el) return;
+  if(!messages.length){
+    el.innerHTML = '<div style="color:#5a6080;font-size:11px;text-align:center;padding:8px">هنوز پیامی نیست</div>';
+    return;
+  }
+  el.innerHTML = messages.map(function(m){
+    var isAdmin = m.role==='admin';
+    return '<div style="background:'+(isAdmin?'#1a2a3a':'#1e2235')+';border-radius:8px;padding:8px 10px;margin-bottom:6px">'
+      + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+      + '<span style="font-size:11px;color:'+(isAdmin?'#c084fc':'#4ade80')+';font-weight:600">'+(isAdmin?'👑 ':'')+m.user+'</span>'
+      + '<span style="font-size:10px;color:#5a6080">'+m.time+'</span>'
+      + '</div>'
+      + '<div style="font-size:12px;color:#e2e4f0">'+m.text+'</div>'
+      + '</div>';
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function sendChangeMessage(changeId, user, role, text){
+  if(!text || !text.trim()) return;
+  callSheet('sendMessage', {changeId:changeId, user:user, role:role, text:text.trim()}, function(res){
+    if(res && res.status==='ok'){
+      setTimeout(function(){ loadChangeMessages(changeId); }, 500);
+    } else {
+      showToast('❌ خطا در ارسال پیام');
+    }
+  });
+}
+
+function submitMessageInChange(changeId){
+  var input = document.getElementById('msgInput_'+changeId);
+  if(!input || !input.value.trim()) return;
+  var role = canDo('users') ? 'admin' : 'operator';
+  sendChangeMessage(changeId, currentUser.user, role, input.value.trim());
+  input.value = '';
+}
+
+// بروزرسانی خودکار برای operator
+var _myChangesTimer = null;
+function startMyChangesRefresh(){
+  stopMyChangesRefresh();
+  _myChangesTimer = setInterval(function(){
+    if(!canDo('users') && currentUser){
+      var notifView = document.getElementById('view-notif');
+      if(notifView && !notifView.classList.contains('hidden')){
+        // فقط اگه کارتی باز نیست refresh کن
+        var anyOpen = Array.from(document.querySelectorAll('[id^="myChgDetail_"]')).some(function(el){ return el.style.display==='block'; });
+        if(!anyOpen) loadMyChangesQuiet();
+      }
+    }
+  }, 15000);
+}
+
+function loadMyChangesQuiet(){
+  // بارگذاری بدون نمایش loading - فقط اگه تغییری بود render کن
+  if(!currentUser) return;
+  callSheet('getMyChanges', {user: currentUser.user, t: Date.now()}, function(data){
+    if(Array.isArray(data)){
+      var changed = JSON.stringify(data) !== JSON.stringify(myChanges);
+      myChanges = data;
+      updateNotifBadge();
+      if(changed){
+        var notifView = document.getElementById('view-notif');
+        if(notifView && !notifView.classList.contains('hidden')) renderMyChanges();
+      }
+    }
+  });
+}
+function stopMyChangesRefresh(){
+  if(_myChangesTimer){ clearInterval(_myChangesTimer); _myChangesTimer = null; }
+}
+
+// ── درخواست گفتگو ──
+
+function openChatRequestForm(){
+  var isAdmin = canDo('users');
+  var modal = document.getElementById('chatReqModal');
+  if(modal) modal.remove();
+
+  var targetOptions = '';
+  if(isAdmin){
+    // ادمین: لیست همه کاربران به جز خودش
+    var userList = USERS.filter(function(u){ return u.user !== currentUser.user; });
+    if(!userList.length){ alert('کاربر دیگری وجود ندارد'); return; }
+    targetOptions = userList.map(function(u){
+      var roleLabel = ROLES[u.role] ? ROLES[u.role].label : u.role;
+      return '<option value="'+u.user+'">'+(u.name||u.user)+' (@'+u.user+' — '+roleLabel+')</option>';
+    }).join('');
+  }
+
+  modal = document.createElement('div');
+  modal.id = 'chatReqModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+  modal.innerHTML = '<div style="background:#13151f;border:1px solid #2a2f45;border-radius:16px;padding:24px;max-width:420px;width:100%">'
+    + '<div style="font-size:16px;font-weight:600;color:#e2e4f0;margin-bottom:16px">💬 درخواست گفتگو</div>'
+    + (isAdmin
+        ? '<div style="margin-bottom:14px"><label style="font-size:13px;color:#9aa3c2;display:block;margin-bottom:6px">گفتگو با کدام کاربر؟</label>'
+          + '<select id="chatReqTarget" class="inp" style="width:100%;box-sizing:border-box">'+targetOptions+'</select></div>'
+        : '<div style="margin-bottom:14px;background:#0b0d14;border-radius:10px;padding:12px;font-size:13px;color:#9aa3c2">📨 این پیام برای <span style="color:#c084fc;font-weight:600">ادمین</span> ارسال می‌شود</div>')
+    + '<div style="margin-bottom:16px"><label style="font-size:13px;color:#9aa3c2;display:block;margin-bottom:6px">پیام شما</label>'
+    + '<textarea id="chatReqMsg" class="inp" placeholder="پیام خود را بنویسید..." style="width:100%;box-sizing:border-box;min-height:90px;resize:vertical;font-family:inherit"></textarea></div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button class="btn btn-primary" id="chatReqSubmitBtn" onclick="submitChatRequest()" style="flex:1">📤 ارسال</button>'
+    + '<button class="btn btn-ghost" onclick="closeChatReqModal()">انصراف</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+  modal.onclick = function(e){ if(e.target===modal) closeChatReqModal(); };
+}
+
+function closeChatReqModal(){
+  var m = document.getElementById('chatReqModal');
+  if(m) m.remove();
+}
+
+var _chatReqSubmitting = false;
+function submitChatRequest(){
+  if(_chatReqSubmitting){ return; }
+  var isAdmin = canDo('users');
+  var msgEl = document.getElementById('chatReqMsg');
+  var msg = msgEl ? msgEl.value.trim() : '';
+  if(!msg){ alert('پیام را بنویسید'); return; }
+  _chatReqSubmitting = true;
+  var btn = document.getElementById('chatReqSubmitBtn');
+  if(btn){ btn.textContent = '⏳ در حال ارسال...'; btn.disabled = true; }
+
+  var target = 'admin';
+  if(isAdmin){
+    var tEl = document.getElementById('chatReqTarget');
+    target = tEl ? tEl.value : '';
+    if(!target){ alert('کاربر را انتخاب کنید'); return; }
+  }
+
+  var changeId = 'msg_' + Date.now();
+  var data = {
+    subject: isAdmin ? ('گفتگو با ' + target) : 'درخواست گفتگو با ادمین',
+    target: target,
+    from: currentUser.user
+  };
+
+  var url = loadSheetUrl();
+  var cbName = 'chatReq_' + Date.now();
+  var params = new URLSearchParams({
+    action: 'addPending',
+    callback: cbName,
+    id: changeId,
+    type: 'message',
+    itemId: isAdmin ? target : '',
+    user: currentUser.user,
+    date: new Date().toLocaleDateString('fa-IR'),
+    data: JSON.stringify(data)
+  });
+
+  window[cbName] = function(res){
+    delete window[cbName];
+    var s = document.getElementById(cbName); if(s) s.remove();
+    _chatReqSubmitting = false;
+    if(res && res.status==='ok'){
+      var role = isAdmin ? 'admin' : 'operator';
+      sendChangeMessage(changeId, currentUser.user, role, msg);
+      closeChatReqModal();
+      showToast('💬 درخواست گفتگو ارسال شد');
+      setTimeout(refreshNotif, 1500);
+    } else {
+      showToast('❌ خطا در ارسال');
+    }
+  };
+
+  var script = document.createElement('script');
+  script.id = cbName;
+  script.src = url + '?' + params.toString();
+  script.onerror = function(){ delete window[cbName]; this.remove(); showToast('❌ خطا'); };
+  document.head.appendChild(script);
+}
+
+// ── خروجی Excel ──
+
+function exportToExcel(){
+  if(!canDo('users')){ showToast('فقط ادمین دسترسی دارد'); return; }
+  // کالاهایی که نمایش داده شدن (با فیلتر فعلی) رو export کن
+  var search = (document.getElementById('searchInp').value||'').trim().toLowerCase();
+  var catFilter = document.getElementById('catFilter').value||'';
+
+  var list = items.filter(function(i){
+    var matchSearch = !search || (i.name+' '+i.code+' '+(i.desc||'')).toLowerCase().indexOf(search)>=0;
+    var matchCat = !catFilter || i.cat===catFilter;
+    return matchSearch && matchCat;
+  });
+
+  if(!list.length){ showToast('کالایی برای خروجی وجود ندارد'); return; }
+
+  // ساخت داده برای Excel
+  var rows = list.map(function(i){
+    return {
+      'کد کالا': i.code,
+      'نام': i.name,
+      'دسته': i.cat,
+      'موجودی': i.qty,
+      'واحد': i.unit,
+      'حداقل موجودی': i.minQty,
+      'وضعیت': i.status||'نو',
+      'بارکد': i.barcode||'',
+      'قفسه': i.shelf,
+      'ردیف': i.row,
+      'توضیحات': i.desc||'',
+      'تاریخ ثبت': i.date||''
+    };
+  });
+
+  if(typeof XLSX !== 'undefined'){
+    // استفاده از SheetJS
+    var ws = XLSX.utils.json_to_sheet(rows);
+    // راست‌چین کردن
+    ws['!cols'] = [{wch:12},{wch:25},{wch:12},{wch:10},{wch:8},{wch:12},{wch:12},{wch:8},{wch:30},{wch:14}];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'کالاها');
+    var fileName = 'iPrint3D_کالاها_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
+    XLSX.writeFile(wb, fileName);
+    showToast('✅ فایل Excel دانلود شد ('+list.length+' کالا)');
+  } else {
+    // fallback به CSV
+    var headers = Object.keys(rows[0]);
+    var csv = '\ufeff' + headers.join(',') + '\n';
+    csv += rows.map(function(r){
+      return headers.map(function(h){
+        var val = String(r[h]||'').replace(/"/g,'""');
+        return '"'+val+'"';
+      }).join(',');
+    }).join('\n');
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'انبار_آزمایشگاه.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ فایل CSV دانلود شد');
+  }
+}
+
+function exportArchiveToExcel(){
+  if(!canDo('users')){ showToast('فقط ادمین دسترسی دارد'); return; }
+  if(!archivedChanges.length){ showToast('بایگانی خالی است'); return; }
+
+  var rows = archivedChanges.map(function(p){
+    var data = {};
+    try { data = JSON.parse(p.data||'{}'); } catch(e){}
+    var msgs = [];
+    try { msgs = JSON.parse(p.messages||'[]'); } catch(e){}
+    var typeLabel = p.type==='add'?'افزودن': p.type==='delete'?'حذف': p.type==='message'?'گفتگو':'ویرایش';
+    var st = (p.status||'').trim();
+    var statusLabel = st==='approved'?'تأیید شده': st==='rejected'?'رد شده':'بایگانی';
+
+    // خلاصه گفتگو
+    var chatText = msgs.map(function(m){ return (m.role==='admin'?'ادمین':m.user)+': '+m.text; }).join(' | ');
+
+    // تغییر موجودی
+    var qtyChange = '';
+    if(p.type==='edit' && data._orig_qty!==undefined && data._orig_qty!==null){
+      qtyChange = data._orig_qty + ' ← ' + data.qty + ' ' + (data.unit||'');
+    } else if(data.qty!==undefined){
+      qtyChange = data.qty + ' ' + (data.unit||'');
+    }
+
+    return {
+      'نوع درخواست': typeLabel,
+      'کالا': data.name || data.subject || p.itemId || '',
+      'کد کالا': data.code || '',
+      'تغییر موجودی': qtyChange,
+      'کاربر': p.user,
+      'وضعیت': statusLabel,
+      'تاریخ': p.date,
+      'گفتگو': chatText
+    };
+  });
+
+  if(typeof XLSX !== 'undefined'){
+    var ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{wch:12},{wch:22},{wch:12},{wch:18},{wch:12},{wch:12},{wch:14},{wch:50}];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'بایگانی درخواست‌ها');
+    var fileName = 'بایگانی_درخواست‌ها_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
+    XLSX.writeFile(wb, fileName);
+    showToast('✅ فایل Excel دانلود شد ('+rows.length+' درخواست)');
+  } else {
+    showToast('❌ کتابخانه Excel بارگذاری نشده');
+  }
+}
+
+// ── بروزرسانی جامع همه داده‌ها ──
+
+function refreshAll(){
+  showToast('🔄 در حال بروزرسانی کامل...');
+
+  // بستن همه مودال‌های باز
+  document.querySelectorAll('.modal-bg').forEach(function(m){ m.classList.add('hidden'); });
+  closeSidebar();
+
+  // 1. کالاها از Sheet
+  loadFromSheet();
+
+  // 2. دسته‌بندی‌ها از Sheet
+  if(typeof loadCatsFromSheet === 'function') loadCatsFromSheet();
+
+  // 3. کاربران از Sheet (اگه ادمین)
+  if(canDo('users')){
+    callSheet('getUsers', {t:Date.now()}, function(data){
+      if(Array.isArray(data) && data.length>0){
+        USERS = data.filter(function(u){ return u.active!=='false'; });
+        saveUsers();
+        renderActiveUsers();
+      }
+    });
+    loadPendingFromSheet();
+  }
+
+  // 4. آپدیت آخرین حضور خود کاربر
+  updateMyLastSeen();
+
+  // 5. بازسازی همه view ها بعد از لود داده
+  setTimeout(function(){
+    renderDashboard();
+    var itemsView = document.getElementById('view-items');
+    if(itemsView && !itemsView.classList.contains('hidden')) renderItems();
+    // درخواست‌ها
+    var notifView = document.getElementById('view-notif');
+    if(notifView && !notifView.classList.contains('hidden')) refreshNotif();
+    // badge ها
+    updateAllBadges();
+    // دسته‌بندی select در فرم افزودن
+    if(typeof renderCatSelect === 'function') renderCatSelect();
+  }, 1200);
+
+  setTimeout(function(){ showToast('✅ همه چیز بروزرسانی شد'); }, 1800);
+}
+
+// ── پنجره اعلان‌ها در داشبورد ──
+
+function getDismissedNotifs(){
+  try { return JSON.parse(localStorage.getItem('dismissed_notifs')||'[]'); } catch(e){ return []; }
+}
+function saveDismissedNotifs(arr){
+  localStorage.setItem('dismissed_notifs', JSON.stringify(arr));
+}
+function dismissNotif(notifId){
+  var d = getDismissedNotifs();
+  if(d.indexOf(notifId)===-1){ d.push(notifId); saveDismissedNotifs(d); }
+  loadNotifFeed();
+  updateAllBadges();
+}
+function clearAllNotifs(){
+  // همه نوتیف‌های فعلی رو dismiss کن
+  var d = getDismissedNotifs();
+  _currentNotifs.forEach(function(n){ if(d.indexOf(n.id)===-1) d.push(n.id); });
+  saveDismissedNotifs(d);
+  loadNotifFeed();
+}
+
+var _currentNotifs = [];
+
+var _notifPendingUsers = [];
+
+function loadNotifFeed(){
+  if(!currentUser) return;
+  var isAdmin = canDo('users');
+
+  if(isAdmin){
+    // ادمین: درخواست‌های ثبت‌نام جدید
+    callSheet('getPending', {t:Date.now()}, function(pdata){
+      _notifPendingUsers = Array.isArray(pdata) ? pdata.filter(function(d){ return d.id; }) : [];
+      // بعد درخواست‌های تغییر
+      callSheet('getPendingChanges', {t:Date.now()}, function(data){
+        if(Array.isArray(data)) buildNotifFeed(data, true);
+      });
+    });
+  } else {
+    callSheet('getMyChanges', {user:currentUser.user, t:Date.now()}, function(data){
+      if(Array.isArray(data)) buildNotifFeed(data, false);
+    });
+  }
+}
+
+function buildNotifFeed(changes, isAdmin){
+  var dismissed = getDismissedNotifs();
+  var notifs = [];
+
+  // اعلان ثبت‌نام کاربران جدید (فقط ادمین)
+  if(isAdmin && _notifPendingUsers.length){
+    _notifPendingUsers.forEach(function(u){
+      notifs.push({
+        id: 'reg_'+u.id,
+        changeId: null,
+        isUserReg: true,
+        icon: '👤', color: '#a78bfa',
+        text: 'درخواست ثبت‌نام جدید: ' + u.user + ' — برای تأیید به پنل کاربران بروید',
+        time: u.date || ''
+      });
+    });
+  }
+
+  changes.forEach(function(c){
+    var data = {};
+    try { data = JSON.parse(c.data||'{}'); } catch(e){}
+    var msgs = [];
+    try { msgs = JSON.parse(c.messages||'[]'); } catch(e){}
+    var itemName = data.name || data.subject || c.itemId || 'کالا';
+    var st = (c.status||'pending').trim();
+
+    if(isAdmin){
+      // درخواست جدید pending
+      if(st === 'pending' && c.type !== 'message'){
+        var nid = 'new_'+c.id;
+        notifs.push({
+          id: nid, changeId: c.id,
+          icon: c.type==='message'?'💬':'📋',
+          color: '#f59e0b',
+          text: 'درخواست '+ (c.type==='message'?'گفتگو':'تغییر') +' جدید از ' + c.user + ' — ' + itemName,
+          time: c.date
+        });
+      }
+      // پیام جدید از operator (آخرین پیام از operator باشه)
+      if(msgs.length){
+        var lastMsg = msgs[msgs.length-1];
+        if(lastMsg.role === 'operator'){
+          var nid2 = 'msg_'+c.id+'_'+msgs.length;
+          notifs.push({
+            id: nid2, changeId: c.id,
+            icon: '✉️', color: '#60a5fa',
+            text: 'پیام جدید از ' + lastMsg.user + ': ' + lastMsg.text.slice(0,40),
+            time: lastMsg.time
+          });
+        }
+      }
+    } else {
+      // operator: درخواست تأیید یا رد شد
+      if(st === 'approved'){
+        notifs.push({
+          id: 'appr_'+c.id, changeId: c.id,
+          icon: '✅', color: '#4ade80',
+          text: 'درخواست شما تأیید شد — ' + itemName,
+          time: c.date
+        });
+      } else if(st === 'rejected'){
+        notifs.push({
+          id: 'rej_'+c.id, changeId: c.id,
+          icon: '❌', color: '#f87171',
+          text: 'درخواست شما رد شد — ' + itemName,
+          time: c.date
+        });
+      }
+      // پیام جدید از ادمین
+      if(msgs.length){
+        var lastMsg2 = msgs[msgs.length-1];
+        if(lastMsg2.role === 'admin'){
+          notifs.push({
+            id: 'amsg_'+c.id+'_'+msgs.length, changeId: c.id,
+            icon: '✉️', color: '#c084fc',
+            text: 'پیام از ادمین: ' + lastMsg2.text.slice(0,40),
+            time: lastMsg2.time
+          });
+        }
+      }
+    }
+  });
+
+  // فیلتر dismissed
+  notifs = notifs.filter(function(n){ return dismissed.indexOf(n.id)===-1; });
+  _currentNotifs = notifs;
+
+  var el = document.getElementById('notifFeed');
+  if(!el) return;
+  if(!notifs.length){
+    el.innerHTML = '<div style="color:#2e3350;font-size:13px;text-align:center;padding:20px">✨ اعلان جدیدی نیست</div>';
+    return;
+  }
+
+  el.innerHTML = notifs.map(function(n){
+    var clickAction = '';
+    if(n.isUserReg){
+      clickAction = 'onclick="gotoView(&quot;users&quot;,document.querySelector(&quot;.nav&quot;))" style="cursor:pointer;';
+    } else if(n.changeId){
+      clickAction = 'onclick="gotoView(&quot;notif&quot;,null)" style="cursor:pointer;';
+    } else {
+      clickAction = 'style="';
+    }
+    return '<div '+clickAction+'display:flex;align-items:center;gap:10px;padding:10px;background:#0b0d14;border-radius:10px;margin-bottom:8px;border:1px solid #1a1d2e">'
+      + '<div style="width:34px;height:34px;background:'+n.color+'22;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+n.icon+'</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:13px;color:#e2e4f0">'+n.text+'</div>'
+      + '<div style="font-size:11px;color:#5a6080;margin-top:2px">'+n.time+'</div>'
+      + '</div>'
+      + '<button class="btn btn-ghost btn-sm" style="font-size:11px;flex-shrink:0;padding:4px 10px" onclick="event.stopPropagation();dismissNotif(&quot;'+n.id+'&quot;)">👁️ مشاهده شد</button>'
+      + '</div>';
+  }).join('');
+}
+
+// ── بروزرسانی badge های منو ──
+
+function updateAllBadges(){
+  if(!currentUser) return;
+  var isAdmin = canDo('users');
+
+  if(isAdmin){
+    // badge کاربران: تعداد ثبت‌نام‌های در انتظار
+    callSheet('getPending', {t:Date.now()}, function(data){
+      console.log('[Badge] pending users:', JSON.stringify(data).slice(0,200));
+      var count = Array.isArray(data) ? data.filter(function(d){ return d.id; }).length : 0;
+      var badge = document.getElementById('usersBadge');
+      console.log('[Badge] users count:', count, 'badge el:', !!badge);
+      if(badge){
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+      }
+    });
+    // badge درخواست‌ها: تعداد pending changes
+    callSheet('getPendingChanges', {t:Date.now()}, function(data){
+      var count = 0;
+      if(Array.isArray(data)){
+        count = data.filter(function(c){ return (c.status||'pending').trim()==='pending'; }).length;
+      }
+      var badge = document.getElementById('notifBadge');
+      if(badge){
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+      }
+    });
+  } else {
+    // operator: badge درخواست‌ها = پیام‌های جدید یا تغییر وضعیت
+    callSheet('getMyChanges', {user:currentUser.user, t:Date.now()}, function(data){
+      var count = 0;
+      if(Array.isArray(data)){
+        // درخواست‌هایی که تأیید/رد شدن یا پیام جدید دارن
+        var dismissed = getDismissedNotifs();
+        data.forEach(function(c){
+          var st = (c.status||'pending').trim();
+          if(st==='approved' && dismissed.indexOf('appr_'+c.id)===-1) count++;
+          else if(st==='rejected' && dismissed.indexOf('rej_'+c.id)===-1) count++;
+          var msgs=[]; try{msgs=JSON.parse(c.messages||'[]');}catch(e){}
+          if(msgs.length){
+            var last=msgs[msgs.length-1];
+            if(last.role==='admin' && dismissed.indexOf('amsg_'+c.id+'_'+msgs.length)===-1) count++;
+          }
+        });
+      }
+      var badge = document.getElementById('notifBadge');
+      if(badge){
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+      }
+    });
+  }
+}
+
+// بروزرسانی badge ها هر 20 ثانیه
+var _badgeTimer = null;
+function startBadgeRefresh(){
+  if(_badgeTimer) clearInterval(_badgeTimer);
+  setTimeout(updateAllBadges, 1500);
+  _badgeTimer = setInterval(updateAllBadges, 20000);
+}
+
+function togglePassView(username){
+  var el = document.getElementById('showpw_'+username);
+  if(!el) return;
+  if(el.dataset.shown === '1'){
+    el.textContent = '••••••••';
+    el.dataset.shown = '0';
+    el.style.color = '#5a6080';
+  } else {
+    var u = USERS.find(function(x){ return x.user === username; });
+    var pass = u ? (u.pass||'') : '';
+    el.textContent = pass || '(خالی)';
+    el.dataset.shown = '1';
+    el.style.color = '#4ade80';
+  }
+}
+
+function statusBadge(status){
+  var map = {
+    'نو': {icon:'🆕', color:'#4ade80'},
+    'دست‌دوم': {icon:'♻️', color:'#60a5fa'},
+    'در حال خدمات': {icon:'🛠️', color:'#c084fc'},
+    'استفاده‌شده': {icon:'📦', color:'#9aa3c2'}
+  };
+  var s = map[status] || map['نو'];
+  return '<span style="background:'+s.color+'22;color:'+s.color+';padding:2px 10px;border-radius:8px;font-size:12px;white-space:nowrap">'+s.icon+' '+(status||'نو')+'</span>';
+}
+
+function toggleEditForm(){
+  var body = document.getElementById('editFormBody');
+  var arrow = document.getElementById('editFormArrow');
+  if(!body) return;
+  var isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if(arrow) arrow.textContent = isOpen ? '▼' : '▲';
+}
+
+function showRelatedItemsByCodes(codes){
+  if(!codes || !codes.length) return;
+  var found = [];
+  codes.forEach(function(code){
+    var item = items.find(function(i){ return i.code === code; });
+    if(item && found.indexOf(item)===-1) found.push(item);
+  });
+  if(!found.length) return;
+
+  var box = document.getElementById('chatBox');
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'margin-top:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-end';
+
+  found.forEach(function(item){
+    var low = item.qty <= item.minQty;
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#1e2235;border:1px solid #2a2f45;border-radius:10px;padding:10px 14px;max-width:80%;cursor:pointer;transition:background 0.2s';
+    card.onmouseover = function(){ this.style.background='#252b42'; };
+    card.onmouseout = function(){ this.style.background='#1e2235'; };
+    card.onclick = function(){
+      gotoView('items', document.querySelector('.nav'));
+      setTimeout(function(){ openDetail(item.id); }, 100);
+    };
+    card.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px">'
+      + (item.image ? '<img src="'+item.image+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">'
+                    : '<div style="width:36px;height:36px;background:#0b0d14;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px">📦</div>')
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0">'+item.name+'</div>'
+      + '<div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">'
+      + '<span style="font-family:monospace;font-size:11px;color:#60a5fa">'+item.code+'</span>'
+      + '<span style="font-size:11px;color:'+(low?'#f87171':'#4ade80')+'">'+item.qty+' '+item.unit+'</span>'
+      + '<span style="font-size:11px;color:#9aa3c2">'+(item.status||'نو')+'</span>'
+      + '</div>'
+      + '</div>'
+      + '<span style="font-size:11px;color:#4f8ef7;white-space:nowrap">مشاهده ←</span>'
+      + '</div>';
+    wrap.appendChild(card);
+  });
+
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
+}
+
+function renderCatManageList(){
+  var el = document.getElementById('catManageList');
+  if(!el) return;
+
+  var html = '';
+  var knownNames = CATS.map(function(c){ return c.name; });
+
+  // دسته‌های ثبت‌شده
+  CATS.forEach(function(c){
+    var count = items.filter(function(i){ return i.cat === c.name; }).length;
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0b0d14;border-radius:8px;margin-bottom:6px">'
+      + '<span style="font-size:18px">'+(c.icon||'📦')+'</span>'
+      + '<div style="flex:1"><div style="font-size:13px;color:#e2e4f0">'+c.name+'</div>'
+      + '<div style="font-size:11px;color:#5a6080">'+count+' کالا</div></div>'
+      + '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171;padding:4px 10px" onclick="deleteCat(&quot;'+c.id+'&quot;,&quot;'+c.name+'&quot;,'+count+')">🗑️</button>'
+      + '</div>';
+  });
+
+  // دسته‌های یتیم (کالا دارن ولی در لیست نیستن)
+  var orphanCats = {};
+  items.forEach(function(i){
+    if(i.cat && knownNames.indexOf(i.cat)===-1){
+      orphanCats[i.cat] = (orphanCats[i.cat]||0) + 1;
+    }
+  });
+  var orphanNames = Object.keys(orphanCats);
+  if(orphanNames.length){
+    html += '<div style="margin-top:12px;margin-bottom:6px;font-size:12px;color:#f59e0b">⚠️ دسته‌های حذف‌شده که هنوز کالا دارند:</div>';
+    orphanNames.forEach(function(name){
+      var count = orphanCats[name];
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1a1505;border:1px solid #4a3a0a;border-radius:8px;margin-bottom:6px">'
+        + '<span style="font-size:18px">⚠️</span>'
+        + '<div style="flex:1"><div style="font-size:13px;color:#e2e4f0">'+name+'</div>'
+        + '<div style="font-size:11px;color:#f59e0b">'+count+' کالا — دسته وجود ندارد</div></div>'
+        + '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#4ade80;padding:4px 8px" onclick="restoreCat(&quot;'+name+'&quot;)">↩️ بازگردانی</button>'
+        + '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171;padding:4px 8px" onclick="moveOrphanItems(&quot;'+name+'&quot;,'+count+')">انتقال</button>'
+        + '</div>';
+    });
+  }
+
+  if(!html){
+    html = '<div style="color:#5a6080;font-size:12px;text-align:center;padding:10px">دسته‌بندی‌ای نیست</div>';
+  }
+  el.innerHTML = html;
+}
+
+function restoreCat(name){
+  // دسته یتیم رو دوباره بساز
+  var id = 'cat_' + Date.now();
+  callSheet('addCat', {id:id, name:name, icon:'📦'}, function(res){
+    CATS.push({id:id, name:name, icon:'📦'});
+    if(typeof saveCats==='function') saveCats();
+    renderCatManageList();
+    renderCatSelect();
+    showToast('↩️ دسته «'+name+'» بازگردانده شد');
+  });
+}
+
+function moveOrphanItems(name, count){
+  var allNames = CATS.map(function(c){ return c.name; });
+  if(!allNames.length){ alert('دسته‌ای برای انتقال نیست. اول یک دسته بسازید.'); return; }
+  var msg = count+' کالای دسته «'+name+'» به کدام دسته منتقل شوند؟\n';
+  allNames.forEach(function(n,idx){ msg += (idx+1)+') '+n+'\n'; });
+  var choice = prompt(msg);
+  if(choice===null) return;
+  var num = parseInt(choice.trim());
+  if(num>=1 && num<=allNames.length){
+    var moveTo = allNames[num-1];
+    callSheet('deleteCat', {id:'', name:name, moveTo:moveTo}, function(res){
+      items = items.map(function(i){ return i.cat===name?Object.assign({},i,{cat:moveTo}):i; });
+      saveItems();
+      renderCatManageList();
+      renderCatSelect();
+      renderItems();
+      renderDashboard();
+      showToast('کالاها به «'+moveTo+'» منتقل شدند');
+    });
+  } else {
+    alert('شماره نامعتبر');
+  }
+}
+
+function deleteCat(id, name, count){
+  var moveTo = '';
+  if(count > 0){
+    // لیست دسته‌های دیگه برای انتقال
+    var others = CATS.filter(function(c){ return c.name !== name; });
+    // دسته‌های پیش‌فرض رو هم اضافه کن اگه نیستن
+    var allNames = others.map(function(c){ return c.name; });
+    ['آزمایشگاه','یدکی','رزین'].forEach(function(n){
+      if(n !== name && allNames.indexOf(n)===-1) allNames.push(n);
+    });
+    if(!allNames.length){
+      if(!confirm('این دسته‌بندی '+count+' کالا دارد و دسته دیگری برای انتقال نیست. کالاها بدون دسته می‌مانند. ادامه؟')) return;
+      moveTo = '';
+    } else {
+      var msg = 'این دسته‌بندی «'+name+'» شامل '+count+' کالا است.\n\n';
+      msg += 'کالاها به کدام دسته منتقل شوند؟\n';
+      allNames.forEach(function(n, idx){ msg += (idx+1)+') '+n+'\n'; });
+      msg += '\nشماره دسته را وارد کنید (یا خالی بگذارید تا بدون دسته بمانند):';
+      var choice = prompt(msg);
+      if(choice === null) return; // انصراف
+      choice = choice.trim();
+      if(choice === ''){
+        moveTo = '';
+      } else {
+        var num = parseInt(choice);
+        if(num >= 1 && num <= allNames.length){
+          moveTo = allNames[num-1];
+        } else {
+          alert('شماره نامعتبر');
+          return;
+        }
+      }
+    }
+  } else {
+    if(!confirm('دسته‌بندی «'+name+'» حذف شود؟')) return;
+  }
+
+  callSheet('deleteCat', {id:id, name:name, moveTo:moveTo}, function(res){
+    if(res && res.status==='ok'){
+      CATS = CATS.filter(function(c){ return c.id !== id; });
+      if(typeof saveCats === 'function') saveCats();
+      // آپدیت کالاهای محلی
+      if(count > 0){
+        items = items.map(function(i){ return i.cat===name ? Object.assign({},i,{cat:moveTo}) : i; });
+        saveItems();
+      }
+      renderCatManageList();
+      renderCatSelect();
+      renderItems();
+      renderDashboard();
+      showToast(moveTo ? ('🗑️ حذف شد — کالاها به «'+moveTo+'» منتقل شدند') : '🗑️ دسته‌بندی حذف شد');
+    } else {
+      showToast('❌ خطا در حذف');
+    }
+  });
+}
+
+function toggleSidebar(){
+  var sb = document.getElementById('sidebar');
+  var ov = document.getElementById('sidebarOverlay');
+  if(!sb) return;
+  var isOpen = sb.classList.contains('open');
+  if(isOpen){
+    sb.classList.remove('open');
+    if(ov) ov.classList.remove('show');
+  } else {
+    sb.classList.add('open');
+    if(ov) ov.classList.add('show');
+  }
+}
+
+function closeSidebar(){
+  var sb = document.getElementById('sidebar');
+  var ov = document.getElementById('sidebarOverlay');
+  if(sb) sb.classList.remove('open');
+  if(ov) ov.classList.remove('show');
+}
+
+// ── اسکنر بارکد و QR ──
+
+var _qrScanner = null;
+
+function openScanner(){
+  var modal = document.getElementById('modal-scanner');
+  if(modal) modal.classList.remove('hidden');
+  var msg = document.getElementById('scannerMsg');
+
+  if(typeof Html5Qrcode !== 'undefined'){
+    startScannerCamera();
+    return;
+  }
+
+  // کتابخانه نیست - تلاش برای بارگذاری مجدد
+  if(msg) msg.textContent = 'در حال بارگذاری اسکنر...';
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+  s.onload = function(){
+    if(typeof Html5Qrcode !== 'undefined'){
+      startScannerCamera();
+    } else {
+      if(msg) msg.textContent = '❌ بارگذاری اسکنر ناموفق بود';
+    }
+  };
+  s.onerror = function(){
+    if(msg) msg.textContent = '❌ اتصال به سرور اسکنر ناموفق (اینترنت را چک کنید)';
+  };
+  document.head.appendChild(s);
+}
+
+function startScannerCamera(){
+  var msg = document.getElementById('scannerMsg');
+  if(msg) msg.textContent = 'در حال راه‌اندازی دوربین...';
+
+  _qrScanner = new Html5Qrcode('scannerView');
+  var config = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+  _qrScanner.start(
+    { facingMode: 'environment' },
+    config,
+    function(decodedText){ onScanSuccess(decodedText); },
+    function(err){}
+  ).then(function(){
+    if(msg) msg.textContent = 'دوربین را به سمت بارکد یا QR کد بگیرید';
+  }).catch(function(err){
+    if(msg) msg.textContent = '❌ دسترسی به دوربین رد شد یا دوربین موجود نیست';
+    console.error('Scanner error:', err);
+  });
+}
+
+function onScanSuccess(code){
+  var mode = _scanMode; // قبل از بستن، حالت رو ذخیره کن
+  stopScanner();
+  closeScanner();
+
+  var found = String(code).trim();
+
+  // حالت پر کردن فیلد بارکد در فرم افزودن
+  if(mode === 'fill'){
+    var bcInp = document.getElementById('ni-barcode');
+    if(bcInp){
+      bcInp.value = found;
+      bcInp.style.background = '#1a2a3a';
+    }
+    showToast('📷 بارکد ثبت شد: ' + found);
+    return;
+  }
+
+  // جستجو بر اساس کد کالا یا بارکد
+  var item = items.find(function(i){ return String(i.code).trim() === found; });
+  if(!item) item = items.find(function(i){ return i.barcode && String(i.barcode).trim() === found; });
+  if(!item) item = items.find(function(i){ return i.id === found; });
+  if(!item && found.length > 3) item = items.find(function(i){ return found.indexOf(String(i.code).trim()) !== -1; });
+
+  if(item){
+    showToast('✅ کالا پیدا شد: ' + item.name);
+    setTimeout(function(){ openDetail(item.id); }, 200);
+  } else {
+    // کالا پیدا نشد - پیشنهاد ثبت کالای جدید
+    if(!canDo('add')){
+      showToast('❌ همچین کالایی وجود ندارد');
+      return;
+    }
+    var go = confirm('❌ همچین کالایی وجود ندارد.\n\nبارکد اسکن‌شده: ' + found + '\n\nآیا مایل به افزودن کالای جدید هستید؟\n(کد کالا خودکار ساخته می‌شود و این بارکد به آن وصل می‌شود)');
+    if(go){
+      gotoView('add', document.querySelector('.nav'));
+      setTimeout(function(){
+        var barcodeInp = document.getElementById('ni-barcode');
+        if(barcodeInp) barcodeInp.value = found;
+        var nameInp = document.getElementById('ni-name');
+        if(nameInp) nameInp.focus();
+        showToast('مشخصات کالای اسکن‌شده را وارد کنید');
+      }, 300);
+    }
+  }
+}
+
+function stopScanner(){
+  if(_qrScanner){
+    try {
+      _qrScanner.stop().then(function(){
+        _qrScanner.clear();
+        _qrScanner = null;
+      }).catch(function(){ _qrScanner = null; });
+    } catch(e){ _qrScanner = null; }
+  }
+}
+
+function closeScanner(){
+  stopScanner();
+  _scanMode = 'search';
+  var modal = document.getElementById('modal-scanner');
+  if(modal) modal.classList.add('hidden');
+}
+
+// ── اسکن بارکد برای فرم افزودن ──
+var _scanMode = 'search'; // 'search' یا 'fill'
+
+function scanBarcodeForAdd(){
+  _scanMode = 'fill';
+  openScanner();
+}
+
+// ── مدیریت زیردسته‌ها (با حافظه الگو) ──
+
+// الگوی زیردسته‌ها برای هر دسته: { 'رزین': {keys:['نوع','رنگ'], values:{'نوع':['abs like'],'رنگ':['مشکی','سفید']}} }
+var SUBCAT_TEMPLATES = {};
+
+function buildSubcatTemplates(){
+  // ساخت الگوها از روی کالاهای موجود (هر دسته جدا)
+  SUBCAT_TEMPLATES = {};
+  items.forEach(function(it){
+    if(!it.cat) return;
+    var sc = [];
+    try { sc = JSON.parse(it.subcats||'[]'); } catch(e){ return; }
+    if(!sc.length) return;
+    if(!SUBCAT_TEMPLATES[it.cat]) SUBCAT_TEMPLATES[it.cat] = {keys:[], values:{}};
+    var tmpl = SUBCAT_TEMPLATES[it.cat];
+    sc.forEach(function(s){
+      if(!s.k) return;
+      if(tmpl.keys.indexOf(s.k) === -1) tmpl.keys.push(s.k);
+      if(!tmpl.values[s.k]) tmpl.values[s.k] = [];
+      if(s.v && tmpl.values[s.k].indexOf(s.v) === -1) tmpl.values[s.k].push(s.v);
+    });
+  });
+}
+
+function loadSubcatTemplates(){
+  // الگوها از روی کالاهای موجود ساخته می‌شوند
+  buildSubcatTemplates();
+}
+
+function getCurrentFormCat(prefix){
+  // دسته انتخاب‌شده فعلی در فرم
+  if(prefix === 'ni'){
+    var el = document.getElementById('ni-cat');
+    return el ? el.value : '';
+  } else {
+    // edit form - از window._editCat
+    return window._editCat || '';
+  }
+}
+
+function buildDatalists(cat){
+  // ساخت datalist های مورد نیاز برای دسته
+  var tmpl = SUBCAT_TEMPLATES[cat] || {keys:[], values:{}};
+  var html = '<datalist id="dl-keys">';
+  (tmpl.keys||[]).forEach(function(k){ html += '<option value="'+k.replace(/"/g,'&quot;')+'">'; });
+  html += '</datalist>';
+  // datalist برای هر کلید
+  Object.keys(tmpl.values||{}).forEach(function(k){
+    var safeId = 'dl-val-' + encodeURIComponent(k).replace(/[^a-zA-Z0-9]/g,'');
+    html += '<datalist id="'+safeId+'">';
+    (tmpl.values[k]||[]).forEach(function(v){ html += '<option value="'+v.replace(/"/g,'&quot;')+'">'; });
+    html += '</datalist>';
+  });
+  return html;
+}
+
+function addSubcatRow(containerId, key, val){
+  var container = document.getElementById(containerId);
+  if(!container) return;
+  var prefix = containerId === 'ni-subcats' ? 'ni' : 'edit';
+  var cat = getCurrentFormCat(prefix);
+  var tmpl = SUBCAT_TEMPLATES[cat] || {keys:[], values:{}};
+
+  var row = document.createElement('div');
+  row.className = 'subcat-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:flex-start;margin-bottom:8px';
+
+  var keyVal = (key||'').replace(/"/g,'&quot;');
+  var valVal = (val||'').replace(/"/g,'&quot;');
+
+  row.innerHTML =
+    '<div class="combo-wrap">'
+    + '<input class="inp combo-input subcat-key" placeholder="عنوان (مثل رنگ)" value="'+keyVal+'" style="padding:9px 11px;font-size:13px;border-radius:9px" '
+    + 'onfocus="openComboKey(this)" oninput="openComboKey(this);refreshValCombo(this)" autocomplete="off">'
+    + '<div class="combo-dropdown"></div>'
+    + '</div>'
+    + '<div class="combo-wrap">'
+    + '<input class="inp combo-input subcat-val" placeholder="مقدار (مثل سفید)" value="'+valVal+'" style="padding:9px 11px;font-size:13px;border-radius:9px" '
+    + 'onfocus="openComboVal(this)" oninput="openComboVal(this)" autocomplete="off">'
+    + '<div class="combo-dropdown"></div>'
+    + '</div>'
+    + '<button type="button" class="btn btn-ghost btn-sm" onclick="this.parentNode.remove()" style="color:#f87171;padding:9px 11px;flex-shrink:0">🗑️</button>';
+  container.appendChild(row);
+}
+
+function getRowCat(input){
+  var container = input.closest('#ni-subcats') ? 'ni' : 'edit';
+  return getCurrentFormCat(container);
+}
+
+function openComboKey(input){
+  var cat = getRowCat(input);
+  var tmpl = SUBCAT_TEMPLATES[cat] || {keys:[], values:{}};
+  var dd = input.parentNode.querySelector('.combo-dropdown');
+  var typed = input.value.trim().toLowerCase();
+  var opts = (tmpl.keys||[]).filter(function(k){ return !typed || k.toLowerCase().indexOf(typed)>=0; });
+  renderCombo(dd, opts, input, 'key', cat);
+}
+
+function openComboVal(input){
+  var cat = getRowCat(input);
+  var tmpl = SUBCAT_TEMPLATES[cat] || {keys:[], values:{}};
+  var keyInput = input.parentNode.parentNode.querySelector('.subcat-key');
+  var key = keyInput ? keyInput.value.trim() : '';
+  var dd = input.parentNode.querySelector('.combo-dropdown');
+  var vals = (tmpl.values && tmpl.values[key]) ? tmpl.values[key] : [];
+  var typed = input.value.trim().toLowerCase();
+  var opts = vals.filter(function(v){ return !typed || v.toLowerCase().indexOf(typed)>=0; });
+  renderCombo(dd, opts, input, 'val', cat, key);
+}
+
+function refreshValCombo(keyInput){
+  // وقتی عنوان عوض شد، اگه dropdown مقدار باز بود ببند
+  var valInput = keyInput.parentNode.parentNode.querySelector('.subcat-val');
+  if(valInput){
+    var dd = valInput.parentNode.querySelector('.combo-dropdown');
+    if(dd) dd.classList.remove('open');
+  }
+}
+
+function renderCombo(dd, opts, input, type, cat, key){
+  if(!dd) return;
+  if(!opts.length){ dd.classList.remove('open'); dd.innerHTML=''; return; }
+  dd.innerHTML = opts.map(function(o){
+    var safe = o.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    return '<div class="combo-opt" onmousedown="event.preventDefault();selectCombo(this,&quot;'+safe+'&quot;)">'
+      + '<span>'+o+'</span>'
+      + '<span class="del-opt" onmousedown="event.preventDefault();event.stopPropagation();delComboOpt(&quot;'+type+'&quot;,&quot;'+(cat||'').replace(/"/g,'&quot;')+'&quot;,&quot;'+(key||'').replace(/"/g,'&quot;')+'&quot;,&quot;'+safe+'&quot;,this)">✕</span>'
+      + '</div>';
+  }).join('');
+  dd.classList.add('open');
+  dd._input = input;
+}
+
+function selectCombo(optEl, value){
+  var dd = optEl.closest('.combo-dropdown');
+  if(dd && dd._input){
+    dd._input.value = value;
+    dd.classList.remove('open');
+    // اگه عنوان انتخاب شد، dropdown مقدار رو ریست کن
+    if(dd._input.classList.contains('subcat-key')){
+      var valInput = dd._input.parentNode.parentNode.querySelector('.subcat-val');
+      if(valInput){ var vdd = valInput.parentNode.querySelector('.combo-dropdown'); if(vdd) vdd.classList.remove('open'); }
+    }
+  }
+}
+
+function delComboOpt(type, cat, key, value, el){
+  if(!confirm('حذف «'+value+'» از لیست پیشنهادها؟')) return;
+  var tmpl = SUBCAT_TEMPLATES[cat];
+  if(!tmpl) return;
+  if(type === 'key'){
+    tmpl.keys = tmpl.keys.filter(function(k){ return k !== value; });
+    delete tmpl.values[value];
+  } else {
+    if(tmpl.values[key]) tmpl.values[key] = tmpl.values[key].filter(function(v){ return v !== value; });
+  }
+  // حذف ردیف از dropdown
+  var optDiv = el.closest('.combo-opt');
+  if(optDiv) optDiv.remove();
+  showToast('🗑️ از لیست حذف شد');
+}
+
+// بستن dropdown با کلیک بیرون
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.combo-wrap')){
+    document.querySelectorAll('.combo-dropdown.open').forEach(function(d){ d.classList.remove('open'); });
+  }
+});
+
+
+function getSubcats(containerId){
+  var container = document.getElementById(containerId);
+  if(!container) return [];
+  var rows = container.querySelectorAll('.subcat-row');
+  var result = [];
+  rows.forEach(function(r){
+    var k = r.querySelector('.subcat-key').value.trim();
+    var v = r.querySelector('.subcat-val').value.trim();
+    if(k || v) result.push({k:k, v:v});
+  });
+  return result;
+}
+
+function fillSubcats(containerId, subcats){
+  var container = document.getElementById(containerId);
+  if(!container) return;
+  container.innerHTML = '';
+  if(subcats && subcats.length){
+    subcats.forEach(function(s){ addSubcatRow(containerId, s.k, s.v); });
+  }
+}
+
+function refreshDatalists(containerId){
+  // وقتی دسته عوض شد، datalist ها رو دوباره بساز
+  var prefix = containerId === 'ni-subcats' ? 'ni' : 'edit';
+  var cat = getCurrentFormCat(prefix);
+  var dlContainer = document.getElementById(containerId+'-datalists');
+  if(dlContainer) dlContainer.innerHTML = buildDatalists(cat);
+}
+
+// ذخیره الگوی جدید بعد از ثبت کالا (عنوان‌ها و مقادیر جدید رو به حافظه دسته اضافه کن)
+function updateSubcatTemplate(cat, subcats){
+  if(!cat || !subcats || !subcats.length) return;
+  var tmpl = SUBCAT_TEMPLATES[cat] || {keys:[], values:{}};
+  if(!tmpl.keys) tmpl.keys = [];
+  if(!tmpl.values) tmpl.values = {};
+  var changed = false;
+  subcats.forEach(function(s){
+    if(s.k && tmpl.keys.indexOf(s.k)===-1){ tmpl.keys.push(s.k); changed = true; }
+    if(s.k){
+      if(!tmpl.values[s.k]) tmpl.values[s.k] = [];
+      if(s.v && tmpl.values[s.k].indexOf(s.v)===-1){ tmpl.values[s.k].push(s.v); changed = true; }
+    }
+  });
+  if(changed){
+    SUBCAT_TEMPLATES[cat] = tmpl;
+    callSheet('saveSubcatTemplate', {cat:cat, data:JSON.stringify(tmpl)}, function(){});
+  }
+}
+
+function renderSubcatsBadges(subcats){
+  if(!subcats || !subcats.length) return '';
+  return subcats.map(function(s){
+    return '<span style="background:#1a1d2e;color:#9aa3c2;padding:1px 7px;border-radius:6px;font-size:10px;margin-left:4px">'+(s.k?s.k+': ':'')+s.v+'</span>';
+  }).join('');
+}
+
+// ── سیستم بکاپ و بازگردانی ──
+
+var BACKUPS = [];
+
+function loadBackups(){
+  if(!canDo('users')) return;
+  var el = document.getElementById('backupsList');
+  callSheet('getBackups', {t:Date.now()}, function(data){
+    if(Array.isArray(data)){
+      BACKUPS = data;
+      renderBackups();
+    } else if(el){
+      el.innerHTML = '<div style="color:#f87171;font-size:13px;text-align:center;padding:16px">خطا در بارگذاری بکاپ‌ها</div>';
+    }
+  });
+}
+
+function renderBackups(){
+  var el = document.getElementById('backupsList');
+  if(!el) return;
+  if(!BACKUPS.length){
+    el.innerHTML = '<div style="color:#5a6080;font-size:13px;text-align:center;padding:16px">هنوز بکاپی گرفته نشده</div>';
+    return;
+  }
+  el.innerHTML = BACKUPS.map(function(b){
+    var isAuto = b.by === 'auto' || b.by === 'system';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:10px;margin-bottom:8px">'
+      + '<div style="width:36px;height:36px;background:'+(isAuto?'#1a2a3a':'#1a3a2a')+';border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+(isAuto?'🔄':'💾')+'</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:13px;color:#e2e4f0">'+b.date+'</div>'
+      + '<div style="font-size:11px;color:#5a6080">'+(b.by==='auto'?'خودکار':b.by==='system'?'سیستم':'توسط '+b.by)+'</div>'
+      + '</div>'
+      + '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#4ade80;padding:6px 10px" onclick="startRestore(&quot;'+b.id+'&quot;,&quot;'+b.date+'&quot;)">↩️ بازگردانی</button>'
+      + '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171;padding:6px 8px" onclick="deleteBackup(&quot;'+b.id+'&quot;)">🗑️</button>'
+      + '</div>';
+  }).join('');
+}
+
+function createBackup(){
+  if(!canDo('users')){ showToast('فقط ادمین'); return; }
+  showToast('💾 در حال گرفتن بکاپ...');
+  callSheet('createBackup', {by: currentUser.user}, function(res){
+    if(res && res.status==='ok'){
+      showToast('✅ بکاپ گرفته شد');
+      loadBackups();
+    } else {
+      showToast('❌ خطا در بکاپ');
+    }
+  });
+}
+
+function deleteBackup(id){
+  if(!confirm('این بکاپ حذف شود؟')) return;
+  callSheet('deleteBackup', {id:id}, function(res){
+    if(res && res.status==='ok'){
+      BACKUPS = BACKUPS.filter(function(b){ return b.id!==id; });
+      renderBackups();
+      showToast('🗑️ بکاپ حذف شد');
+    }
+  });
+}
+
+// ── بازگردانی با تأیید امن ──
+
+var _restoreId = null;
+var _restoreCountdown = null;
+var CONFIRM_TEXT = 'داده‌های فعلی با نسخه قدیمی جایگزین میشن و هر چیزی که بعد از اون بکاپ اضافه شده پاک میشه.';
+
+function startRestore(id, date){
+  if(!canDo('users')){ showToast('فقط ادمین'); return; }
+  _restoreId = id;
+  var modal = document.getElementById('restoreModal');
+  if(modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'restoreModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px';
+  modal.innerHTML = '<div style="background:#13151f;border:1px solid #4a1515;border-radius:16px;padding:22px;max-width:460px;width:100%">'
+    + '<div style="font-size:16px;font-weight:700;color:#f87171;margin-bottom:8px">⚠️ بازگردانی بکاپ</div>'
+    + '<div style="font-size:12px;color:#9aa3c2;margin-bottom:14px">بکاپ: '+date+'</div>'
+    + '<div style="background:#1a1010;border:1px solid #4a1515;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:#f87171;line-height:1.8;user-select:none">'+CONFIRM_TEXT+'</div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">برای تأیید، متن بالا را <b>دقیقاً</b> تایپ کنید (کپی ممکن نیست):</label>'
+    + '<textarea id="restoreConfirmInput" class="inp" style="width:100%;box-sizing:border-box;min-height:70px;resize:none;font-family:inherit" oninput="checkRestoreText()" onpaste="return false" oncopy="return false" oncut="return false" placeholder="متن را اینجا تایپ کنید..."></textarea>'
+    + '<div id="restoreCountdownBox" style="display:none;text-align:center;margin:12px 0;color:#f59e0b;font-size:13px"></div>'
+    + '<div style="display:flex;gap:8px;margin-top:14px">'
+    + '<button id="restoreFinalBtn" class="btn" style="flex:1;background:#4a1515;color:#f87171;opacity:0.5;pointer-events:none" onclick="doRestore()">تأیید نهایی</button>'
+    + '<button class="btn btn-ghost" onclick="cancelRestore()">کنسل</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+}
+
+function checkRestoreText(){
+  var inp = document.getElementById('restoreConfirmInput');
+  if(!inp) return;
+  if(inp.value.trim() === CONFIRM_TEXT){
+    // متن درسته - شمارش معکوس شروع شه
+    inp.disabled = true;
+    inp.style.borderColor = '#4ade80';
+    startRestoreCountdown();
+  }
+}
+
+function startRestoreCountdown(){
+  var box = document.getElementById('restoreCountdownBox');
+  var btn = document.getElementById('restoreFinalBtn');
+  if(box) box.style.display = 'block';
+  var remaining = 60;
+  if(box) box.textContent = '⏳ دکمه تأیید نهایی تا ' + remaining + ' ثانیه دیگر فعال می‌شود (در صورت پشیمانی کنسل کنید)';
+  _restoreCountdown = setInterval(function(){
+    remaining--;
+    if(remaining > 0){
+      if(box) box.textContent = '⏳ دکمه تأیید نهایی تا ' + remaining + ' ثانیه دیگر فعال می‌شود';
+    } else {
+      clearInterval(_restoreCountdown);
+      if(box){ box.textContent = '✅ حالا می‌توانید تأیید نهایی را بزنید'; box.style.color = '#4ade80'; }
+      if(btn){ btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; btn.style.background = '#dc2626'; btn.style.color = '#fff'; }
+    }
+  }, 1000);
+}
+
+function cancelRestore(){
+  if(_restoreCountdown) clearInterval(_restoreCountdown);
+  _restoreId = null;
+  var modal = document.getElementById('restoreModal');
+  if(modal) modal.remove();
+  showToast('بازگردانی لغو شد');
+}
+
+function doRestore(){
+  if(!_restoreId) return;
+  var modal = document.getElementById('restoreModal');
+  if(modal) modal.remove();
+  if(_restoreCountdown) clearInterval(_restoreCountdown);
+  showToast('↩️ در حال بازگردانی...');
+  callSheet('restoreBackup', {id: _restoreId}, function(res){
+    if(res && res.status==='ok'){
+      showToast('✅ بازگردانی انجام شد — در حال بارگذاری مجدد');
+      setTimeout(function(){ refreshAll(); }, 1500);
+    } else {
+      showToast('❌ خطا در بازگردانی');
+    }
+    _restoreId = null;
+  });
+}
+</script>
+</body>
+</html>
