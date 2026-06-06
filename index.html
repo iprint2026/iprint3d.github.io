@@ -730,17 +730,19 @@ function doLogin(){
 }
 
 function enterApp(u){
-  // اگه نقش خالی بود، پیش‌فرض viewer (نه ادمین)
-  if(!u.role || !ROLES[u.role]){ u.role = 'viewer'; }
+  // اگه نقش خالی یا نامعتبر بود، پیش‌فرض viewer (نه ادمین)
+  if(!u.role || !ROLES[String(u.role).trim()]){ u.role = 'viewer'; }
+  else { u.role = String(u.role).trim(); }
   currentUser=u;
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('userLabel').textContent=u.name||u.user;
   var roleBadge = document.getElementById('userRoleBadge');
-  if(roleBadge && ROLES[u.role]){
-    roleBadge.textContent = ROLES[u.role].label;
-    roleBadge.style.background = ROLES[u.role].color+'22';
-    roleBadge.style.color = ROLES[u.role].color;
+  var rdef = ROLES[u.role] || ROLES['viewer'];
+  if(roleBadge){
+    roleBadge.textContent = rdef.label;
+    roleBadge.style.background = rdef.color+'22';
+    roleBadge.style.color = rdef.color;
   }
   renderDashboard();
   loadFromSheet();
