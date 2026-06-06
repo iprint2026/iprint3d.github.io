@@ -564,7 +564,7 @@ function doPost(e){
           <div>
             <div style="font-weight:600;font-size:13px;margin-bottom:4px">وارد کردن لینک API</div>
             <div style="font-size:12px;color:#5a6080;margin-bottom:8px">لینک Deploy شده را اینجا وارد کنید:</div>
-            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbzxqWmbsHcYpa5lLeSQMAGdWPZpYMh3fj8mUbVbNMty4nefrA5mEGudzwN--Zw7Y-HVGw/exec" oninput="saveSheetUrl()" style="font-size:12px">
+            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbwngf9PaomnFZz5xI-m_CTCHVR4r0WnidIg9b48w-P2W4YkW6NsUBK1aOoPZqIm7z_55Q/exec" oninput="saveSheetUrl()" style="font-size:12px">
             <div id="sheetStatus" style="font-size:12px;margin-top:6px;color:#5a6080"></div>
           </div>
         </div>
@@ -688,7 +688,7 @@ function saveSheetUrl(){
   localStorage.setItem('sheetUrl',document.getElementById('sheetUrl').value);
   document.getElementById('sheetStatus').textContent='✅ لینک ذخیره شد';
 }
-const SHEET_URL='https://script.google.com/macros/s/AKfycbzxqWmbsHcYpa5lLeSQMAGdWPZpYMh3fj8mUbVbNMty4nefrA5mEGudzwN--Zw7Y-HVGw/exec';
+const SHEET_URL='https://script.google.com/macros/s/AKfycbwngf9PaomnFZz5xI-m_CTCHVR4r0WnidIg9b48w-P2W4YkW6NsUBK1aOoPZqIm7z_55Q/exec';
 function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 
 // ═══════════════════════════════════════════════
@@ -730,6 +730,8 @@ function doLogin(){
 }
 
 function enterApp(u){
+  // اگه نقش خالی بود، پیش‌فرض viewer (نه ادمین)
+  if(!u.role || !ROLES[u.role]){ u.role = 'viewer'; }
   currentUser=u;
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
