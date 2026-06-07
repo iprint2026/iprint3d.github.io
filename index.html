@@ -1797,7 +1797,7 @@ function openConsumeModal(id){
     + '<div id="consume-reason-suggest"></div>'
     + '<div id="consume-project-wrap" style="margin-top:12px">'
     +   '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">نام پروژه (می‌توانید تایپ کنید یا از لیست انتخاب کنید)</label>'
-    +   '<input class="inp" id="consume-project" placeholder="مثلاً عدسی" oninput="onProjectInput()" autocomplete="off" style="margin-bottom:4px">'
+    +   '<input class="inp" id="consume-project" placeholder="نام پروژه را وارد کنید" oninput="onProjectInput()" autocomplete="off" style="margin-bottom:4px">'
     +   '<div id="consume-project-suggest"></div>'
     + '</div>'
     + '<div style="display:flex;gap:8px;margin-top:18px">'
@@ -1845,7 +1845,7 @@ function onProjectInput(){
   var box = document.getElementById('consume-project-suggest');
   if(!box) return;
   if(!val.trim()){ box.innerHTML=''; return; }
-  // پیشنهاد بر اساس شروع کلمه (مثلاً «عد» → «عدسی»)؛ اگه نبود، شامل بودن
+  // پیشنهاد بر اساس شروع کلمه؛ اگه نبود، شامل بودن
   var starts = KNOWN_PROJECTS.filter(function(p){ return p.key.indexOf(norm)===0; });
   var contains = KNOWN_PROJECTS.filter(function(p){ return p.key.indexOf(norm)>0; });
   var matches = starts.concat(contains);
