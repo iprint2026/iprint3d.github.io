@@ -232,6 +232,7 @@ tr:hover td{background:#0e1018}
     <div class="nav" onclick="gotoView('items',this)"><span class="nav-icon">📦</span><span>کالاها</span></div>
     <div class="nav" onclick="gotoView('add',this)"><span class="nav-icon">➕</span><span>افزودن کالا</span></div>
     <div class="nav" onclick="gotoView('ai',this)"><span class="nav-icon">🤖</span><span>جستجوی AI</span></div>
+    <div class="nav" onclick="gotoView('usage',this)"><span class="nav-icon">📊</span><span>گزارش مصرف</span></div>
 
     <div class="nav" onclick="gotoView('users',this)"><span class="nav-icon">👥</span><span>کاربران</span><span id="usersBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
     <div class="nav" id="notifNav" onclick="gotoView('notif',this)"><span class="nav-icon">📋</span><span>درخواست‌ها</span><span id="notifBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
@@ -498,6 +499,29 @@ tr:hover td{background:#0e1018}
     </div>
 
     <!-- ── SETUP ── -->
+    <div id="view-usage" class="hidden">
+      <div class="page-title">📊 گزارش مصرف</div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="font-size:13px;color:#9aa3c2;margin-bottom:14px;line-height:1.7">
+          گزارش مصرف کالاها بر اساس دلیل و پروژه. می‌توانید بر اساس پروژه فیلتر کنید تا ببینید برای هر پروژه چقدر از هر کالا مصرف شده است.
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+          <input class="inp" id="usage-filter-project" placeholder="🔍 فیلتر بر اساس پروژه..." oninput="renderUsageReport()" style="flex:1;min-width:180px">
+          <select class="inp" id="usage-filter-reason" onchange="renderUsageReport()" style="max-width:160px">
+            <option value="">همه دلایل</option>
+            <option value="پروژه چاپ">پروژه چاپ</option>
+            <option value="فروش">فروش</option>
+            <option value="ضایعات">ضایعات</option>
+            <option value="سایر">سایر</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="loadUsageReport()">🔄 بروزرسانی</button>
+          <button class="btn btn-success btn-sm" onclick="exportUsageToExcel()">📥 خروجی Excel</button>
+        </div>
+      </div>
+      <div id="usage-summary"></div>
+      <div id="usage-report-list"><div style="text-align:center;padding:30px;color:#5a6080">برای مشاهده، روی بروزرسانی بزنید</div></div>
+    </div>
+
     <div id="view-setup" class="hidden">
       <div class="page-title">⚙️ تنظیمات و راه‌اندازی آنلاین</div>
 
@@ -508,7 +532,12 @@ tr:hover td{background:#0e1018}
           <button class="btn btn-primary btn-sm" onclick="createBackup()">+ گرفتن بکاپ جدید</button>
         </div>
         <div style="font-size:12px;color:#5a6080;margin-bottom:12px;line-height:1.7">
-          بکاپ شامل همه داده‌ها (کالاها، کاربران، درخواست‌ها، دسته‌ها) است و در Google Sheet ذخیره می‌شود. بکاپ خودکار هر ۲ روز گرفته می‌شود.
+          بکاپ شامل همه داده‌ها (کالاها، کاربران، درخواست‌ها، دسته‌ها) است. در Google Sheet و هر هفته خودکار روی Google Drive (پوشه iPrint3D-backups) ذخیره می‌شود.
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          <button class="btn btn-ghost btn-sm" onclick="downloadBackupFile()">⬇️ دانلود فایل بکاپ</button>
+          <input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none" onchange="restoreFromFile(this)">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('restoreFileInput').click()">⬆️ بازگردانی از فایل</button>
         </div>
         <div id="backupsList"><div style="color:#5a6080;font-size:13px;text-align:center;padding:16px">در حال بارگذاری...</div></div>
       </div>
@@ -564,7 +593,7 @@ function doPost(e){
           <div>
             <div style="font-weight:600;font-size:13px;margin-bottom:4px">وارد کردن لینک API</div>
             <div style="font-size:12px;color:#5a6080;margin-bottom:8px">لینک Deploy شده را اینجا وارد کنید:</div>
-            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbyzQmytQ_RNRTo65gado9U5BWkJQSJApcQgMwuS5AOawT-txa0LOZBlbGJtESGDev5kHg/exec" oninput="saveSheetUrl()" style="font-size:12px">
+            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbz89L2gMTV8Sb0eqr7BnXVzJUZtJT9tBLkCjmxIkUCyAola1HdYhkB1gR8Ewxd_tXQlAQ/exec" oninput="saveSheetUrl()" style="font-size:12px">
             <div id="sheetStatus" style="font-size:12px;margin-top:6px;color:#5a6080"></div>
           </div>
         </div>
@@ -688,7 +717,7 @@ function saveSheetUrl(){
   localStorage.setItem('sheetUrl',document.getElementById('sheetUrl').value);
   document.getElementById('sheetStatus').textContent='✅ لینک ذخیره شد';
 }
-const SHEET_URL='https://script.google.com/macros/s/AKfycbyzQmytQ_RNRTo65gado9U5BWkJQSJApcQgMwuS5AOawT-txa0LOZBlbGJtESGDev5kHg/exec';
+const SHEET_URL='https://script.google.com/macros/s/AKfycbz89L2gMTV8Sb0eqr7BnXVzJUZtJT9tBLkCjmxIkUCyAola1HdYhkB1gR8Ewxd_tXQlAQ/exec';
 function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 
 // ═══════════════════════════════════════════════
@@ -1025,6 +1054,7 @@ function applyRoleUI(){
     if(txt.includes('کاربران'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('تنظیمات'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('افزودن کالا'))n.style.display=canAdd?'flex':'none';
+    if(txt.includes('گزارش مصرف'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('جستجوی AI'))n.style.display='flex';
   });
   // دکمه خروجی Excel فقط برای ادمین
@@ -1080,6 +1110,7 @@ function gotoView(v,el){
     }
   }
   else if(v==='ai'){}
+  else if(v==='usage'){ loadUsageReport(); loadProjects(); }
   else if(v==='users'){
     if(!canDo('users')){alert('دسترسی ندارید');return;}
     renderPending();
@@ -1487,32 +1518,299 @@ function downloadQRById(id,code){
   }
 }
 
+// نرمال‌سازی اسم پروژه: یکسان کردن اعداد فارسی/عربی/انگلیسی، حذف فاصله اضافه، یکسان‌سازی حروف
+function normalizeProject(s){
+  if(!s) return '';
+  s = String(s);
+  // اعداد فارسی و عربی به انگلیسی
+  var fa = '۰۱۲۳۴۵۶۷۸۹', ar = '٠١٢٣٤٥٦٧٨٩';
+  s = s.replace(/[۰-۹]/g, function(c){ return fa.indexOf(c); });
+  s = s.replace(/[٠-٩]/g, function(c){ return ar.indexOf(c); });
+  // کلمات عددی فارسی رایج به رقم
+  var words = {'یک':'1','دو':'2','سه':'3','چهار':'4','پنج':'5','شش':'6','هفت':'7','هشت':'8','نه':'9','ده':'10'};
+  // یکسان‌سازی حروف عربی/فارسی
+  s = s.replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/ة/g,'ه').replace(/ﺀ|ء/g,'');
+  // حذف نیم‌فاصله و فاصله‌های اضافه، حروف کوچک
+  s = s.replace(/\u200c/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+  // جایگزینی کلمات عددی
+  Object.keys(words).forEach(function(w){
+    s = s.replace(new RegExp('(^|\\s)'+w+'($|\\s)','g'), function(m,a,b){ return (a||'')+words[w]+(b||''); });
+  });
+  s = s.replace(/\s+/g,' ').trim();
+  return s;
+}
+
+// کش پروژه‌های قبلی برای پیشنهاد
+var KNOWN_PROJECTS = [];
+function loadProjects(){
+  callSheet('getProjects', {t:Date.now()}, function(data){
+    if(Array.isArray(data)) KNOWN_PROJECTS = data;
+  });
+}
+
+// ── گزارش مصرف ──
+var USAGE_LOG = [];
+function loadUsageReport(){
+  var el = document.getElementById('usage-report-list');
+  if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#5a6080">⏳ در حال بارگذاری...</div>';
+  callSheet('getUsageLog', {t:Date.now()}, function(data){
+    if(Array.isArray(data)){
+      USAGE_LOG = data;
+      renderUsageReport();
+    } else {
+      if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#f87171">❌ خطا در بارگذاری</div>';
+    }
+  });
+}
+
+function renderUsageReport(){
+  var el = document.getElementById('usage-report-list');
+  var summaryEl = document.getElementById('usage-summary');
+  if(!el) return;
+  var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
+  var fReason = document.getElementById('usage-filter-reason').value||'';
+
+  var rows = USAGE_LOG.filter(function(r){
+    var okP = !fProj || (normalizeProject(r.project||'').indexOf(fProj)>=0) || (String(r.projectKey||'').indexOf(fProj)>=0);
+    var okR = !fReason || (r.reason===fReason);
+    return okP && okR;
+  });
+
+  if(!rows.length){
+    if(summaryEl) summaryEl.innerHTML='';
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#5a6080">هیچ رکوردی یافت نشد</div>';
+    return;
+  }
+
+  // خلاصه: جمع مصرف هر کالا
+  var byItem = {};
+  rows.forEach(function(r){
+    var amt = Math.abs(parseInt(r.change||'0'))||0;
+    if(!byItem[r.itemName]) byItem[r.itemName]=0;
+    byItem[r.itemName]+=amt;
+  });
+  var summaryHtml = '<div class="card" style="margin-bottom:14px"><div style="font-weight:600;color:#4ade80;margin-bottom:10px">📦 جمع مصرف'+(fProj?' (فیلترشده)':'')+'</div>';
+  Object.keys(byItem).forEach(function(name){
+    summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+name+'</span><span style="color:#f87171;font-weight:700">'+byItem[name]+'</span></div>';
+  });
+  summaryHtml += '</div>';
+  if(summaryEl) summaryEl.innerHTML = summaryHtml;
+
+  // جدول جزئیات (جدید به قدیم)
+  var html = '<div class="card"><div style="font-weight:600;color:#9aa3c2;margin-bottom:10px">📋 جزئیات ('+rows.length+' رکورد)</div>';
+  rows.slice().reverse().forEach(function(r){
+    var amt = Math.abs(parseInt(r.change||'0'))||0;
+    html += '<div style="padding:10px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:8px;margin-bottom:8px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      +   '<span style="font-weight:600;color:#e2e4f0">'+r.itemName+'</span>'
+      +   '<span style="color:#f87171;font-weight:700">-'+amt+'</span>'
+      + '</div>'
+      + '<div style="font-size:12px;color:#9aa3c2">'
+      +   '🏷️ '+(r.reason||'-')+(r.project?(' • 📁 '+r.project):'')
+      + '</div>'
+      + '<div style="font-size:11px;color:#5a6080;margin-top:3px">👤 '+(r.user||'-')+' • 🕐 '+(r.date||'-')+'</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// خروجی Excel از گزارش مصرف (با فیلتر فعلی)
+function exportUsageToExcel(){
+  if(!canDo('users')){ showToast('فقط ادمین دسترسی دارد'); return; }
+  var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
+  var fReason = document.getElementById('usage-filter-reason').value||'';
+  var rows = USAGE_LOG.filter(function(r){
+    var okP = !fProj || (normalizeProject(r.project||'').indexOf(fProj)>=0) || (String(r.projectKey||'').indexOf(fProj)>=0);
+    var okR = !fReason || (r.reason===fReason);
+    return okP && okR;
+  });
+  if(!rows.length){ showToast('رکوردی برای خروجی وجود ندارد'); return; }
+
+  var data = rows.slice().reverse().map(function(r){
+    return {
+      'تاریخ': r.date||'',
+      'نام کالا': r.itemName||'',
+      'مقدار مصرف': Math.abs(parseInt(r.change||'0'))||0,
+      'دلیل': r.reason||'',
+      'پروژه': r.project||'',
+      'کاربر': r.user||''
+    };
+  });
+
+  // یه شیت خلاصه هم بسازیم: جمع مصرف هر کالا
+  var byItem = {};
+  rows.forEach(function(r){
+    var amt = Math.abs(parseInt(r.change||'0'))||0;
+    var key = r.itemName||'-';
+    if(!byItem[key]) byItem[key]=0;
+    byItem[key]+=amt;
+  });
+  var summary = Object.keys(byItem).map(function(name){
+    return {'نام کالا': name, 'جمع مصرف': byItem[name]};
+  });
+
+  if(typeof XLSX !== 'undefined'){
+    var wb = XLSX.utils.book_new();
+    var wsS = XLSX.utils.json_to_sheet(summary);
+    wsS['!cols'] = [{wch:25},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, wsS, 'خلاصه مصرف');
+    var ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{wch:20},{wch:25},{wch:12},{wch:14},{wch:20},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws, 'جزئیات');
+    var fname = 'iPrint3D_گزارش‌مصرف' + (fProj?('_'+(document.getElementById('usage-filter-project').value||'').trim()):'') + '_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
+    XLSX.writeFile(wb, fname);
+    showToast('✅ خروجی Excel دانلود شد ('+rows.length+' رکورد)');
+  } else {
+    var headers = Object.keys(data[0]);
+    var csv = '\ufeff' + headers.join(',') + '\n';
+    csv += data.map(function(r){
+      return headers.map(function(h){ return '"'+String(r[h]||'').replace(/"/g,'""')+'"'; }).join(',');
+    }).join('\n');
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download='گزارش_مصرف.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ فایل CSV دانلود شد');
+  }
+}
+
 function changeQty(id,dir){
-  const amt=parseInt(prompt(dir>0?'چند عدد اضافه شد؟':'چند عدد کم شد؟')||'0');
-  if(!amt||isNaN(amt)||amt<=0)return;
   const item=items.find(function(i){return i.id===id;});
   if(!item)return;
+  if(dir<0){
+    // کاهش = مصرف → مودال مخصوص با ثبت دلیل/پروژه
+    openConsumeModal(id);
+  } else {
+    // افزایش → فقط تعداد
+    const amt=parseInt(prompt('چند عدد اضافه شد؟')||'0');
+    if(!amt||isNaN(amt)||amt<=0)return;
+    applyQtyChange(id, 1, amt, '', '', '');
+  }
+}
+
+// مودال مصرف (کاهش موجودی)
+function openConsumeModal(id){
+  const item=items.find(function(i){return i.id===id;});
+  if(!item)return;
+  loadProjects();
+  var unit = item.unit || 'عدد';
+  var html = ''
+    + '<div onclick="closeConsume(event)" id="consumeOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
+    + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:420px;width:100%;margin-top:30px">'
+    + '<div style="font-size:16px;font-weight:700;color:#f87171;margin-bottom:4px">➖ ثبت مصرف / کاهش موجودی</div>'
+    + '<div style="font-size:13px;color:#9aa3c2;margin-bottom:16px">'+item.name+' (موجودی فعلی: '+item.qty+' '+unit+')</div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">چه مقدار کم شد؟ ('+unit+')</label>'
+    + '<input class="inp" id="consume-amt" type="number" min="1" placeholder="مثلاً 1" style="margin-bottom:14px">'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">برای چه چیزی مصرف شد؟</label>'
+    + '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="setConsumeReason(this,\'پروژه چاپ\')">🖨️ پروژه چاپ</button>'
+    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="setConsumeReason(this,\'فروش\')">💰 فروش</button>'
+    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="setConsumeReason(this,\'ضایعات\')">🗑️ ضایعات</button>'
+    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="setConsumeReason(this,\'سایر\')">دیگر</button>'
+    + '</div>'
+    + '<input type="hidden" id="consume-reason" value="">'
+    + '<div id="consume-project-wrap" style="display:none">'
+    +   '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">نام پروژه (می‌توانید تایپ کنید یا از لیست انتخاب کنید)</label>'
+    +   '<input class="inp" id="consume-project" placeholder="مثلاً پروژه عدسی" oninput="onProjectInput()" autocomplete="off" style="margin-bottom:4px">'
+    +   '<div id="consume-project-suggest"></div>'
+    +   '<div id="consume-project-hint" style="font-size:11px;color:#fbbf24;margin-top:4px"></div>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-top:18px">'
+    +   '<button class="btn btn-danger" style="flex:1" onclick="confirmConsume(\''+id+'\')">ثبت مصرف</button>'
+    +   '<button class="btn btn-ghost" onclick="closeConsume()">انصراف</button>'
+    + '</div>'
+    + '</div></div>';
+  var div = document.createElement('div');
+  div.id = 'consumeModalHost';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+function closeConsume(e){
+  if(e && e.target && e.target.id!=='consumeOverlay') return;
+  var h = document.getElementById('consumeModalHost');
+  if(h) h.remove();
+}
+function setConsumeReason(btn, reason){
+  document.getElementById('consume-reason').value = reason;
+  // هایلایت دکمه انتخاب‌شده
+  var btns = btn.parentNode.querySelectorAll('button');
+  btns.forEach(function(b){ b.style.background='transparent'; b.style.color='#9aa3c2'; });
+  btn.style.background = '#dc2626'; btn.style.color='#fff';
+  // اگه پروژه چاپ یا فروش بود، فیلد نام پروژه رو نشون بده
+  var wrap = document.getElementById('consume-project-wrap');
+  wrap.style.display = 'block';
+}
+function onProjectInput(){
+  var val = document.getElementById('consume-project').value;
+  var norm = normalizeProject(val);
+  var box = document.getElementById('consume-project-suggest');
+  var hint = document.getElementById('consume-project-hint');
+  // پیشنهاد پروژه‌های مشابه
+  var matches = KNOWN_PROJECTS.filter(function(p){
+    return p.key.indexOf(norm)>=0 || norm.indexOf(p.key)>=0;
+  });
+  // تطابق دقیق نرمال‌شده؟
+  var exact = KNOWN_PROJECTS.find(function(p){ return p.key===norm; });
+  if(exact && exact.label.trim()!==val.trim()){
+    hint.textContent = '💡 مشابه پروژه قبلی: «'+exact.label+'» — همان در نظر گرفته می‌شود';
+  } else { hint.textContent=''; }
+  if(val.trim() && matches.length){
+    box.innerHTML = matches.slice(0,5).map(function(p){
+      return '<div onclick="pickProject(\''+encodeURIComponent(p.label)+'\')" style="padding:7px 10px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:7px;margin-top:4px;cursor:pointer;font-size:13px;color:#c7cce0">'+p.label+'</div>';
+    }).join('');
+  } else { box.innerHTML=''; }
+}
+function pickProject(label){
+  document.getElementById('consume-project').value = decodeURIComponent(label);
+  document.getElementById('consume-project-suggest').innerHTML='';
+  document.getElementById('consume-project-hint').textContent='';
+}
+function confirmConsume(id){
+  var amt = parseInt(document.getElementById('consume-amt').value||'0');
+  if(!amt || isNaN(amt) || amt<=0){ showToast('مقدار را وارد کنید'); return; }
+  var reason = document.getElementById('consume-reason').value || '';
+  if(!reason){ showToast('دلیل مصرف را انتخاب کنید'); return; }
+  var project = '';
+  var projectKey = '';
+  var pwrap = document.getElementById('consume-project-wrap');
+  if(pwrap && pwrap.style.display!=='none'){
+    project = (document.getElementById('consume-project').value||'').trim();
+    projectKey = normalizeProject(project);
+  }
+  closeConsume();
+  applyQtyChange(id, -1, amt, reason, project, projectKey);
+}
+
+// اعمال تغییر موجودی + ثبت لاگ
+function applyQtyChange(id, dir, amt, reason, project, projectKey){
+  const item=items.find(function(i){return i.id===id;});
+  if(!item)return;
+  const newQty = Math.max(0, item.qty + dir*amt);
 
   if(currentUser && currentUser.role==='admin'){
-    // ادمین مستقیم اعمال می‌کنه
-    items=items.map(function(i){
-      return i.id!==id?i:Object.assign({},i,{qty:Math.max(0,i.qty+dir*amt)});
-    });
+    items=items.map(function(i){ return i.id!==id?i:Object.assign({},i,{qty:newQty}); });
     saveItems();
     const updated=items.find(function(i){return i.id===id;});
     callSheet('delete',{id:id},function(){
       callSheet('add',updated,function(){});
     });
-    closeDetail();
-    openDetail(id);
-    renderDashboard();
+    // ثبت لاگ مصرف (فقط برای کاهش)
+    if(dir<0){
+      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user},function(){ loadProjects(); });
+    }
+    closeDetail(); openDetail(id); renderDashboard();
   } else {
-    // operator درخواست می‌فرسته
-    const newQty = Math.max(0, item.qty + dir*amt);
+    // operator: درخواست تغییر + لاگ بعد از تأیید (فعلاً لاگ رو همون موقع ثبت می‌کنیم با وضعیت درخواست)
     const changeData = Object.assign({}, item, {qty: newQty});
-    var initMsg = prompt((dir>0?'دلیل افزایش موجودی':'دلیل کاهش موجودی')+' (اختیاری):') || '';
+    var initMsg = (dir<0 ? ('مصرف: '+reason+(project?(' - '+project):'')) : 'افزایش موجودی');
     window._pendingInitMsg = initMsg;
+    // اطلاعات مصرف رو همراه درخواست نگه می‌داریم
     submitChange('edit', id, changeData);
+    // لاگ مصرف رو همون موقع ثبت کن (مصرف واقعی اتفاق افتاده)
+    if(dir<0){
+      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user},function(){ loadProjects(); });
+    }
     closeDetail();
   }
 }
@@ -4100,6 +4398,70 @@ function createBackup(){
       showToast('❌ خطا در بکاپ');
     }
   });
+}
+
+// دانلود فایل بکاپ (وضعیت فعلی) روی دستگاه کاربر
+function downloadBackupFile(){
+  if(!canDo('users')){ showToast('فقط ادمین'); return; }
+  showToast('⏳ در حال آماده‌سازی فایل...');
+  callSheet('getBackupData', {t:Date.now()}, function(res){
+    if(res && res.status==='ok' && res.data){
+      var blob = new Blob([res.data], {type:'application/json'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var now = new Date();
+      var fname = 'iPrint3D_backup_' + now.getFullYear() + '-' + ('0'+(now.getMonth()+1)).slice(-2) + '-' + ('0'+now.getDate()).slice(-2) + '.json';
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('✅ فایل بکاپ دانلود شد');
+    } else {
+      showToast('❌ خطا در دریافت داده');
+    }
+  });
+}
+
+// بازگردانی از فایل آپلودشده
+function restoreFromFile(input){
+  if(!canDo('users')){ showToast('فقط ادمین'); return; }
+  var file = input.files && input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var text = e.target.result;
+    // اعتبارسنجی فایل
+    var parsed = null;
+    try { parsed = JSON.parse(text); } catch(err){ showToast('❌ فایل نامعتبر است'); input.value=''; return; }
+    if(!parsed || !parsed.items){ showToast('❌ فایل بکاپ معتبر نیست'); input.value=''; return; }
+    // تأیید
+    if(!confirm('⚠️ هشدار: با بازگردانی این فایل، تمام داده‌های فعلی پاک و با محتوای فایل جایگزین می‌شوند.\n\n(یک بکاپ ایمنی خودکار قبلش گرفته می‌شود)\n\nادامه می‌دهید؟')){ input.value=''; return; }
+    showToast('⏳ در حال بازگردانی...');
+    // ارسال با POST (چون داده بزرگ است)
+    postToSheet('restoreFromData', {data: text}, function(res){
+      input.value='';
+      if(res && res.status==='ok'){
+        showToast('✅ بازگردانی انجام شد');
+        loadFromSheet(); loadCatsFromSheet(); loadBackups();
+      } else {
+        showToast('❌ خطا: ' + (res && res.message ? res.message : 'نامشخص'));
+      }
+    });
+  };
+  reader.readAsText(file);
+}
+
+// ارسال POST به Apps Script (برای داده‌های بزرگ مثل بازگردانی فایل)
+function postToSheet(action, params, callback){
+  var url = loadSheetUrl();
+  if(!url){ callback({status:'error',message:'no url'}); return; }
+  var body = new URLSearchParams();
+  body.append('action', action);
+  Object.keys(params).forEach(function(k){ body.append(k, params[k]); });
+  fetch(url, { method:'POST', body: body })
+    .then(function(r){ return r.json(); })
+    .then(function(data){ callback(data); })
+    .catch(function(err){ callback({status:'error', message:'ارتباط ناموفق'}); });
 }
 
 function deleteBackup(id){
