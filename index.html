@@ -1577,6 +1577,9 @@ function loadUsageReport(){
   callSheet('getUsageLog', {t:Date.now()}, function(data){
     if(Array.isArray(data)){
       USAGE_LOG = data;
+      // جمع‌آوری دلایل قبلی برای پیشنهاد
+      var rs = {}; data.forEach(function(r){ if(r.reason) rs[r.reason]=1; });
+      KNOWN_REASONS = Object.keys(rs);
       renderUsageReport();
     } else {
       if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#f87171">❌ خطا در بارگذاری</div>';
@@ -1790,14 +1793,9 @@ function openConsumeModal(id){
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">چه مقدار کم شد؟ ('+unit+')</label>'
     + '<input class="inp" id="consume-amt" type="number" min="0" step="any" placeholder="مثلاً 1" style="margin-bottom:14px">'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">برای چه چیزی مصرف شد؟</label>'
-    + '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
-    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="setConsumeReason(this,\'پروژه چاپ\')">🖨️ پروژه چاپ</button>'
-    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="setConsumeReason(this,\'فروش\')">💰 فروش</button>'
-    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="setConsumeReason(this,\'ضایعات\')">🗑️ ضایعات</button>'
-    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="setConsumeReason(this,\'سایر\')">دیگر</button>'
-    + '</div>'
-    + '<input type="hidden" id="consume-reason" value="">'
-    + '<div id="consume-project-wrap" style="display:none">'
+    + '<input class="inp" id="consume-reason" placeholder="مثلاً پروژه چاپ، فروش، ضایعات..." oninput="onReasonInput()" autocomplete="off" style="margin-bottom:4px">'
+    + '<div id="consume-reason-suggest"></div>'
+    + '<div id="consume-project-wrap" style="margin-top:12px">'
     +   '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">نام پروژه (می‌توانید تایپ کنید یا از لیست انتخاب کنید)</label>'
     +   '<input class="inp" id="consume-project" placeholder="مثلاً عدسی" oninput="onProjectInput()" autocomplete="off" style="margin-bottom:4px">'
     +   '<div id="consume-project-suggest"></div>'
@@ -1817,15 +1815,29 @@ function closeConsume(e){
   var h = document.getElementById('consumeModalHost');
   if(h) h.remove();
 }
-function setConsumeReason(btn, reason){
-  document.getElementById('consume-reason').value = reason;
-  // هایلایت دکمه انتخاب‌شده
-  var btns = btn.parentNode.querySelectorAll('button');
-  btns.forEach(function(b){ b.style.background='transparent'; b.style.color='#9aa3c2'; });
-  btn.style.background = '#dc2626'; btn.style.color='#fff';
-  // اگه پروژه چاپ یا فروش بود، فیلد نام پروژه رو نشون بده
-  var wrap = document.getElementById('consume-project-wrap');
-  wrap.style.display = 'block';
+// پیشنهاد دلیل مصرف موقع تایپ
+var KNOWN_REASONS = [];
+function onReasonInput(){
+  var val = document.getElementById('consume-reason').value;
+  var box = document.getElementById('consume-reason-suggest');
+  if(!box) return;
+  if(!val.trim()){ box.innerHTML=''; return; }
+  var norm = normalizeProject(val);
+  // دلایل پیش‌فرض + دلایلی که قبلاً استفاده شده
+  var base = ['پروژه چاپ','فروش','ضایعات','نمونه','تعمیر'];
+  var all = base.concat(KNOWN_REASONS).filter(function(v,i,a){ return a.indexOf(v)===i; });
+  var starts = all.filter(function(r){ return normalizeProject(r).indexOf(norm)===0; });
+  var contains = all.filter(function(r){ return normalizeProject(r).indexOf(norm)>0; });
+  var matches = starts.concat(contains).filter(function(v,i,a){ return a.indexOf(v)===i; });
+  if(matches.length){
+    box.innerHTML = matches.slice(0,6).map(function(r){
+      return '<div onclick="pickReason(\''+encodeURIComponent(r)+'\')" style="padding:8px 10px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:7px;margin-top:4px;cursor:pointer;font-size:13px;color:#c7cce0">🏷️ '+r+'</div>';
+    }).join('');
+  } else { box.innerHTML=''; }
+}
+function pickReason(r){
+  document.getElementById('consume-reason').value = decodeURIComponent(r);
+  document.getElementById('consume-reason-suggest').innerHTML='';
 }
 function onProjectInput(){
   var val = document.getElementById('consume-project').value;
@@ -1853,15 +1865,10 @@ function pickProject(label){
 function confirmConsume(id){
   var amt = parseFloat(document.getElementById('consume-amt').value||'0');
   if(!amt || isNaN(amt) || amt<=0){ showToast('مقدار را وارد کنید'); return; }
-  var reason = document.getElementById('consume-reason').value || '';
-  if(!reason){ showToast('دلیل مصرف را انتخاب کنید'); return; }
-  var project = '';
-  var projectKey = '';
-  var pwrap = document.getElementById('consume-project-wrap');
-  if(pwrap && pwrap.style.display!=='none'){
-    project = (document.getElementById('consume-project').value||'').trim();
-    projectKey = normalizeProject(project);
-  }
+  var reason = (document.getElementById('consume-reason').value || '').trim();
+  if(!reason){ showToast('دلیل مصرف را وارد کنید'); return; }
+  var project = (document.getElementById('consume-project').value||'').trim();
+  var projectKey = normalizeProject(project);
   closeConsume();
   applyQtyChange(id, -1, amt, reason, project, projectKey);
 }
