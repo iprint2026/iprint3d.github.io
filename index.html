@@ -393,6 +393,12 @@ tr:hover td{background:#0e1018}
             <span>📏 این کالا وزنی/حجمی است (مثل رزین) — نه عددی</span>
           </label>
         </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ni-batched" style="width:18px;height:18px;cursor:pointer">
+            <span>📅 این کالا بچ‌بندی دارد (سری‌های جدا با تاریخ انقضای متفاوت)</span>
+          </label>
+        </div>
         <div id="unitRow" style="display:none;gap:8px;align-items:center;margin-bottom:14px">
           <label style="font-size:12px;color:#5a6080;font-weight:600;white-space:nowrap">واحد اندازه‌گیری:</label>
           <select class="inp" id="ni-unit" onchange="toggleUnit()" style="max-width:160px">
@@ -614,7 +620,7 @@ function doPost(e){
           <div>
             <div style="font-weight:600;font-size:13px;margin-bottom:4px">وارد کردن لینک API</div>
             <div style="font-size:12px;color:#5a6080;margin-bottom:8px">لینک Deploy شده را اینجا وارد کنید:</div>
-            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbx5nBLTO7vjQp6A2z4Gbodk0_P6FXAKBvvy2kIhGAsOl_STknBaEun06DEkHFN1orgr_Q/exec" oninput="saveSheetUrl()" style="font-size:12px">
+            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbyFOZlW54zJbwJsLHdM_eNOYqBl-kQN8eXSOFFc9SuUVOwQ0SsfqRMg3x-seAvEbjQnkw/exec" oninput="saveSheetUrl()" style="font-size:12px">
             <div id="sheetStatus" style="font-size:12px;margin-top:6px;color:#5a6080"></div>
           </div>
         </div>
@@ -738,7 +744,7 @@ function saveSheetUrl(){
   localStorage.setItem('sheetUrl',document.getElementById('sheetUrl').value);
   document.getElementById('sheetStatus').textContent='✅ لینک ذخیره شد';
 }
-const SHEET_URL='https://script.google.com/macros/s/AKfycbx5nBLTO7vjQp6A2z4Gbodk0_P6FXAKBvvy2kIhGAsOl_STknBaEun06DEkHFN1orgr_Q/exec';
+const SHEET_URL='https://script.google.com/macros/s/AKfycbyFOZlW54zJbwJsLHdM_eNOYqBl-kQN8eXSOFFc9SuUVOwQ0SsfqRMg3x-seAvEbjQnkw/exec';
 function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 
 // ═══════════════════════════════════════════════
@@ -1247,7 +1253,7 @@ function renderItems(){
         + (i.image?'<img src="'+i.image+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">':'<div style="width:36px;height:36px;background:#1e2235;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">📦</div>')
         + '<div><div style="font-weight:500;font-size:13px">'+i.name+'</div>'
         + (i.desc?'<div style="color:#5a6080;font-size:11px">'+i.desc.slice(0,30)+'</div>':'')
-        + (function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} sc=sc.filter(function(s){return s.v;}); return sc.length?'<div style="margin-top:3px">'+sc.map(function(s){return '<span style=\'background:#13151f;padding:0px 5px;border-radius:4px;font-size:9px;margin-left:3px;color:#6a7290\'>'+s.v+'</span>';}).join('')+'</div>':''; })()
+        + (function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} sc=sc.filter(function(s){return s.v && s.k!=='__batched__';}); return sc.length?'<div style="margin-top:3px">'+sc.map(function(s){return '<span style=\'background:#13151f;padding:0px 5px;border-radius:4px;font-size:9px;margin-left:3px;color:#6a7290\'>'+s.v+'</span>';}).join('')+'</div>':''; })()
         + '</div></div></td>'
         + '<td style="padding:8px;font-family:monospace;font-size:12px;color:#60a5fa">'+i.code+'</td>'
         + '<td style="padding:8px"><span style="background:#1e2235;padding:2px 8px;border-radius:8px;font-size:11px">'+i.cat+'</span></td>'
@@ -1328,7 +1334,7 @@ function openDetail(id){
       ${[
         ['دسته‌بندی', `<span style="color:${catColor}">${i.cat}</span>`],
         ['وضعیت کالا', statusBadge(i.status||'نو')],
-        ...((function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} return sc.filter(function(s){return s.v;}).map(function(s){ return [s.k||'زیردسته', `<span style="color:#9aa3c2">${s.v}</span>`]; }); })()),
+        ...((function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} return sc.filter(function(s){return s.v && s.k!=='__batched__';}).map(function(s){ return [s.k||'زیردسته', `<span style="color:#9aa3c2">${s.v}</span>`]; }); })()),
         ['موقعیت', `قفسه ${i.shelf} — ردیف ${i.row}`],
         ['موجودی', `<span style="color:${i.qty<=i.minQty?'#f87171':'#4ade80'};font-weight:700">${i.qty} ${i.unit}</span>`],
         ['حداقل موجودی', `${i.minQty} ${i.unit}`],
@@ -1347,6 +1353,9 @@ function openDetail(id){
         <button class="btn btn-ghost btn-sm" onclick="downloadQRById('${i.id}','${i.code}')">⬇️ دانلود QR</button>
       </div>
     </div>
+
+    <!-- بخش بچ‌ها -->
+    <div id="batchSection-${i.id}" style="margin-bottom:12px"></div>
 
     <!-- موجودی -->
     <div style="display:flex;gap:10px;margin-bottom:${canEdit?'12px':'0'}">
@@ -1410,6 +1419,12 @@ function openDetail(id){
         <input class="inp" id="edit-barcode" value="${i.barcode||''}" placeholder="بارکد کارخانه (اختیاری)">
       </div>
       <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="edit-batched" ${isItemBatched(i)?'checked':''} style="width:18px;height:18px;cursor:pointer">
+          <span>📅 این کالا بچ‌بندی دارد</span>
+        </label>
+      </div>
+      <div class="form-group">
         <label>زیردسته‌ها</label>
         <div id="edit-subcats-datalists"></div>
         <div id="edit-subcats"></div>
@@ -1465,6 +1480,159 @@ function openDetail(id){
       }catch(e){console.log('QR err:',e);}
     }
   },300);
+  // رندر بخش بچ‌ها
+  setTimeout(function(){ renderBatchSection(i.id); }, 60);
+}
+
+// رندر بخش بچ‌های یک کالا در پروفایل
+function renderBatchSection(itemId){
+  var host = document.getElementById('batchSection-'+itemId);
+  if(!host) return;
+  var item = items.find(function(x){ return x.id===itemId; });
+  // فقط اگه کالا بچ‌بندی داره
+  if(!isItemBatched(item)){ host.innerHTML=''; return; }
+  var bs = batchesOf(itemId);
+  var unit = (item && item.unit && item.unit!=='عدد') ? item.unit : '';
+  var canEdit = canDo('edit');
+
+  var html = '<div style="background:#0b0d14;border:1px solid #1a1d2e;border-radius:10px;padding:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +   '<span style="font-weight:700;color:#60a5fa;font-size:14px">📅 بچ‌ها / سری‌های ساخت</span>'
+    +   (canEdit?'<button class="btn btn-ghost btn-sm" onclick="openAddBatch(\''+itemId+'\')">+ بچ جدید</button>':'')
+    + '</div>';
+
+  if(!bs.length){
+    html += '<div style="font-size:12px;color:#5a6080;padding:6px 0">هنوز بچی ثبت نشده. کل موجودی به صورت ساده مدیریت می‌شود.</div>';
+  } else {
+    var total = 0;
+    bs.forEach(function(b){
+      var q = parseFloat(b.qty)||0; total += q;
+      var expired = isExpired(b.expiry);
+      var bothD = b.expiry ? smartDateBoth(b.expiry) : null;
+      var expiryTxt = '';
+      if(bothD){ expiryTxt = ' • 🗓️ انقضا: '+bothD.shamsi+' (میلادی '+bothD.milady+')'; }
+      else if(b.expiry){ expiryTxt = ' • 🗓️ انقضا: '+b.expiry; }
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:'+(expired?'#1a1010':'#11131f')+';border:1px solid '+(expired?'#4a1515':'#1a1d2e')+';border-radius:7px;margin-bottom:6px">'
+        + '<div style="min-width:0;flex:1">'
+        +   '<div style="font-size:13px;color:#e2e4f0;font-weight:600">'+(b.batchName||'بدون نام')+(expired?' <span style="color:#f87171">⛔ منقضی</span>':'')+'</div>'
+        +   '<div style="font-size:11px;color:#9aa3c2;margin-top:2px">📦 '+q+(unit?(' '+unit):'')+expiryTxt+'</div>'
+        +   (b.note?('<div style="font-size:11px;color:#5a6080;margin-top:2px">📝 '+b.note+'</div>'):'')
+        + '</div>'
+        + (canEdit?'<div style="display:flex;gap:4px;flex-shrink:0"><button class="btn btn-ghost btn-sm" onclick="openEditBatch(\''+b.id+'\')" style="padding:4px 8px">✏️</button><button class="btn btn-ghost btn-sm" onclick="delBatch(\''+b.id+'\',\''+itemId+'\')" style="padding:4px 8px;color:#f87171">🗑️</button></div>':'')
+        + '</div>';
+    });
+    total = Math.round(total*1000)/1000;
+    html += '<div style="text-align:left;font-size:13px;color:#4ade80;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid #1a1d2e">جمع بچ‌ها: '+total+(unit?(' '+unit):' عدد')+'</div>';
+  }
+  html += '</div>';
+  host.innerHTML = html;
+}
+
+// مودال افزودن/ویرایش بچ
+function openAddBatch(itemId){ showBatchModal(itemId, null); }
+function openEditBatch(batchId){
+  var b = BATCHES.find(function(x){ return x.id===batchId; });
+  if(b) showBatchModal(b.itemId, b);
+}
+function showBatchModal(itemId, batch){
+  var item = items.find(function(x){ return x.id===itemId; });
+  var unit = (item && item.unit && item.unit!=='عدد') ? item.unit : 'عدد';
+  var isEdit = !!batch;
+  var html = '<div onclick="closeBatchModal(event)" id="batchOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
+    + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:400px;width:100%;margin-top:30px">'
+    + '<div style="font-size:16px;font-weight:700;color:#60a5fa;margin-bottom:16px">'+(isEdit?'✏️ ویرایش بچ':'➕ بچ جدید')+' — '+(item?item.name:'')+'</div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">نام/شماره بچ</label>'
+    + '<input class="inp" id="batch-name" value="'+(isEdit?(batch.batchName||''):'')+'" placeholder="مثلاً خرید مرداد یا بچ ۱" style="margin-bottom:12px">'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">مقدار ('+unit+')</label>'
+    + '<input class="inp" id="batch-qty" type="number" step="any" min="0" value="'+(isEdit?(batch.qty||''):'')+'" placeholder="مثلاً 5" style="margin-bottom:12px">'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ انقضا (اختیاری)</label>'
+    + '<input class="inp" id="batch-expiry" value="'+(isEdit?(batch.expiry||''):'')+'" placeholder="مثلاً 1405/12/29 یا 2027/03/20" oninput="previewBatchDate()" style="margin-bottom:4px">'
+    + '<div id="batch-date-preview" style="font-size:11px;color:#60a5fa;margin-bottom:12px;min-height:14px"></div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">یادداشت (اختیاری)</label>'
+    + '<input class="inp" id="batch-note" value="'+(isEdit?(batch.note||''):'')+'" placeholder="توضیح..." style="margin-bottom:18px">'
+    + '<div style="display:flex;gap:8px">'
+    +   '<button class="btn btn-primary" style="flex:1" onclick="saveBatch(\''+itemId+'\','+(isEdit?('\''+batch.id+'\''):'null')+')">💾 ذخیره</button>'
+    +   '<button class="btn btn-ghost" onclick="closeBatchModal()">انصراف</button>'
+    + '</div>'
+    + '</div></div>';
+  var div = document.createElement('div');
+  div.id = 'batchModalHost';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+  setTimeout(previewBatchDate, 50);
+}
+function closeBatchModal(e){
+  if(e && e.target && e.target.id!=='batchOverlay') return;
+  var h = document.getElementById('batchModalHost');
+  if(h) h.remove();
+}
+// پیش‌نمایش زنده تاریخ (هر دو فرم شمسی و میلادی)
+function previewBatchDate(){
+  var inp = document.getElementById('batch-expiry');
+  var prev = document.getElementById('batch-date-preview');
+  if(!inp || !prev) return;
+  var both = smartDateBoth(inp.value);
+  if(both){
+    prev.innerHTML = '📅 شمسی: <b>'+both.shamsi+'</b> &nbsp;|&nbsp; 🌍 میلادی: <b>'+both.milady+'</b>';
+    prev.style.color = '#60a5fa';
+  } else if(inp.value.trim()){
+    prev.textContent = 'فرمت: سال/ماه/روز';
+    prev.style.color = '#5a6080';
+  } else {
+    prev.textContent = '';
+  }
+}
+function saveBatch(itemId, batchId){
+  var name = (document.getElementById('batch-name').value||'').trim();
+  var qty = parseFloat(document.getElementById('batch-qty').value||'0')||0;
+  var expiry = (document.getElementById('batch-expiry').value||'').trim();
+  var note = (document.getElementById('batch-note').value||'').trim();
+  if(qty<=0){ showToast('مقدار را وارد کنید'); return; }
+  if(!name){ name = 'بچ ' + (batchesOf(itemId).length+1); }
+  closeBatchModal();
+  showToast('⏳ در حال ذخیره...');
+  if(batchId){
+    callSheet('updateBatch', {id:batchId, batchName:name, qty:String(qty), expiry:expiry, note:note}, function(res){
+      afterBatchChange(itemId, res);
+    });
+  } else {
+    callSheet('addBatch', {itemId:itemId, batchName:name, qty:String(qty), expiry:expiry, note:note}, function(res){
+      afterBatchChange(itemId, res);
+    });
+  }
+}
+function delBatch(batchId, itemId){
+  if(!confirm('این بچ حذف شود؟')) return;
+  showToast('⏳ در حال حذف...');
+  callSheet('deleteBatch', {id:batchId}, function(res){
+    afterBatchChange(itemId, res);
+  });
+}
+// بعد از هر تغییر بچ: بارگذاری مجدد + همگام‌سازی موجودی کل کالا
+function afterBatchChange(itemId, res){
+  if(res && (res.status==='ok')){
+    loadBatches(function(){
+      syncItemQtyFromBatches(itemId);
+      renderBatchSection(itemId);
+      showToast('✅ انجام شد');
+    });
+  } else {
+    showToast('❌ خطا');
+  }
+}
+// موجودی کل کالا رو با جمع بچ‌ها هماهنگ کن (در شیت)
+function syncItemQtyFromBatches(itemId){
+  var total = totalFromBatches(itemId);
+  if(total===null) return; // بچ نداره
+  total = Math.round(total*1000)/1000;
+  items = items.map(function(i){ return i.id===itemId ? Object.assign({},i,{qty:total}) : i; });
+  saveItems();
+  var updated = items.find(function(i){ return i.id===itemId; });
+  if(updated){
+    callSheet('delete',{id:itemId},function(){
+      callSheet('add',updated,function(){ renderDashboard(); renderItems(); });
+    });
+  }
 }
 
 function saveEdit(id){
@@ -1480,6 +1648,9 @@ function saveEdit(id){
   const bcEl=document.getElementById('edit-barcode');
   const barcode=bcEl?bcEl.value.trim():'';
   var subcatsArr=getSubcats('edit-subcats');
+  // حفظ/تنظیم نشانگر بچ‌بندی
+  var editBatchedEl = document.getElementById('edit-batched');
+  subcatsArr = setBatchedFlag(subcatsArr, editBatchedEl && editBatchedEl.checked);
   const subcats=JSON.stringify(subcatsArr);
   updateSubcatTemplate(cat, subcatsArr);
 
@@ -1567,6 +1738,114 @@ function loadProjects(){
   callSheet('getProjects', {t:Date.now()}, function(data){
     if(Array.isArray(data)) KNOWN_PROJECTS = data;
   });
+}
+
+// ── سیستم بچ (Batch/Lot) ──
+var BATCHES = [];  // همه بچ‌های همه کالاها
+
+// آیا کالا بچ‌بندی داره؟ (نشانگر __batched__ در subcats ذخیره می‌شود)
+function isItemBatched(item){
+  if(!item) return false;
+  try {
+    var arr = JSON.parse(item.subcats||'[]');
+    return arr.some(function(s){ return s && s.k==='__batched__'; });
+  } catch(e){ return false; }
+}
+// تنظیم نشانگر بچ در آرایه subcats
+function setBatchedFlag(subcatsArr, on){
+  var arr = (subcatsArr||[]).filter(function(s){ return !(s && s.k==='__batched__'); });
+  if(on) arr.unshift({k:'__batched__', v:'1'});
+  return arr;
+}
+// فیلتر کردن نشانگر بچ از نمایش (تا کاربر __batched__ رو نبینه)
+function visibleSubcats(arr){
+  return (arr||[]).filter(function(s){ return !(s && s.k==='__batched__'); });
+}
+function loadBatches(cb){
+  callSheet('getBatches', {t:Date.now()}, function(data){
+    if(Array.isArray(data)) BATCHES = data;
+    if(cb) cb();
+  });
+}
+// بچ‌های یک کالا
+function batchesOf(itemId){
+  return BATCHES.filter(function(b){ return String(b.itemId)===String(itemId); });
+}
+// موجودی کل از جمع بچ‌ها (اگه بچ داشته باشه)
+function totalFromBatches(itemId){
+  var bs = batchesOf(itemId);
+  if(!bs.length) return null; // بچ نداره
+  return bs.reduce(function(s,b){ return s + (parseFloat(b.qty)||0); }, 0);
+}
+// آیا تاریخ گذشته؟ (فرمت شمسی YYYY/MM/DD یا میلادی)
+function isExpired(expiry){
+  if(!expiry) return false;
+  var t = parseShamsiOrGregorian(expiry);
+  if(!t) return false;
+  return t < new Date(new Date().toDateString()).getTime();
+}
+// تبدیل تاریخ شمسی/میلادی به timestamp (ساده)
+function parseShamsiOrGregorian(s){
+  s = String(s).trim().replace(/-/g,'/');
+  var parts = s.split('/').map(function(x){ return parseInt(x); });
+  if(parts.length!==3 || parts.some(isNaN)) return null;
+  var y=parts[0], m=parts[1], d=parts[2];
+  if(y < 1700){
+    // شمسی → میلادی (تبدیل تقریبی دقیق)
+    return jalaliToTimestamp(y,m,d);
+  }
+  return new Date(y, m-1, d).getTime();
+}
+// تبدیل جلالی به میلادی
+function jalaliToTimestamp(jy,jm,jd){
+  var gy = (jy<=979)? 1600 : 1979;
+  jy -= (jy<=979)? 0 : 979;
+  var days = 365*jy + Math.floor(jy/33)*8 + Math.floor(((jy%33)+3)/4) + 78 + jd + ((jm<7)? (jm-1)*31 : ((jm-7)*30)+186);
+  gy += 400*Math.floor(days/146097); days %= 146097;
+  if(days>36524){ gy += 100*Math.floor(--days/36524); days %= 36524; if(days>=365) days++; }
+  gy += 4*Math.floor(days/1461); days %= 1461;
+  if(days>365){ gy += Math.floor((days-1)/365); days = (days-1)%365; }
+  var gd = days+1;
+  var sal_a = [0,31,(((gy%4===0)&&(gy%100!==0))||(gy%400===0))?29:28,31,30,31,30,31,31,30,31,30,31];
+  var gm; for(gm=0; gm<13 && gd>sal_a[gm]; gm++){ gd -= sal_a[gm]; }
+  return new Date(gy, gm-1, gd).getTime();
+}
+
+// تبدیل میلادی به جلالی → [jy,jm,jd]
+function gregorianToJalali(gy,gm,gd){
+  var g_d_m=[0,31,59,90,120,151,181,212,243,273,304,334];
+  var jy = (gy<=1600)? 0 : 979;
+  gy -= (gy<=1600)? 621 : 1600;
+  var gy2 = (gm>2)? (gy+1) : gy;
+  var days = 365*gy + Math.floor((gy2+3)/4) - Math.floor((gy2+99)/100) + Math.floor((gy2+399)/400) - 80 + gd + g_d_m[gm-1];
+  jy += 33*Math.floor(days/12053); days %= 12053;
+  jy += 4*Math.floor(days/1461); days %= 1461;
+  jy += Math.floor((days-1)/365); if(days>365) days = (days-1)%365;
+  var jm = (days<186)? 1+Math.floor(days/31) : 7+Math.floor((days-186)/30);
+  var jd = 1 + ((days<186)? (days%31) : ((days-186)%30));
+  return [jy,jm,jd];
+}
+function pad2(n){ return ('0'+n).slice(-2); }
+// از یک ورودی تاریخ (شمسی یا میلادی)، هر دو فرم رو برگردون
+function smartDateBoth(input){
+  input = String(input||'').trim().replace(/-/g,'/');
+  var parts = input.split('/').map(function(x){ return parseInt(x); });
+  if(parts.length!==3 || parts.some(isNaN)) return null;
+  var y=parts[0], m=parts[1], d=parts[2];
+  var shamsi, milady;
+  if(y < 1700){
+    // ورودی شمسی → میلادی
+    shamsi = y+'/'+pad2(m)+'/'+pad2(d);
+    var ts = jalaliToTimestamp(y,m,d);
+    var g = new Date(ts);
+    milady = g.getFullYear()+'/'+pad2(g.getMonth()+1)+'/'+pad2(g.getDate());
+  } else {
+    // ورودی میلادی → شمسی
+    milady = y+'/'+pad2(m)+'/'+pad2(d);
+    var j = gregorianToJalali(y,m,d);
+    shamsi = j[0]+'/'+pad2(j[1])+'/'+pad2(j[2]);
+  }
+  return { shamsi: shamsi, milady: milady };
 }
 
 // ── گزارش مصرف ──
@@ -1720,6 +1999,7 @@ function exportUsageToExcel(){
       'مقدار کسر': Math.abs(parseFloat(r.change||'0'))||0,
       'واحد': r.unit||'عدد',
       'ماده / کالا': r.itemName||'',
+      'بچ': r.batch||'',
       'پروژه': r.project||'',
       'دلیل': r.reason||''
     };
@@ -1745,7 +2025,7 @@ function exportUsageToExcel(){
     wsS['!cols'] = [{wch:25},{wch:12}];
     XLSX.utils.book_append_sheet(wb, wsS, 'خلاصه مصرف');
     var ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{wch:6},{wch:22},{wch:16},{wch:10},{wch:10},{wch:24},{wch:22},{wch:14}];
+    ws['!cols'] = [{wch:6},{wch:22},{wch:16},{wch:10},{wch:10},{wch:24},{wch:18},{wch:22},{wch:14}];
     XLSX.utils.book_append_sheet(wb, ws, 'جزئیات کسر');
     var fname = 'iPrint3D_گزارش‌مصرف' + (fProj?('_'+(document.getElementById('usage-filter-project').value||'').trim()):'') + '_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
     XLSX.writeFile(wb, fname);
@@ -1779,6 +2059,25 @@ function changeQty(id,dir){
   }
 }
 
+// HTML انتخاب بچ در مودال مصرف
+function batchSelectorHtml(item){
+  if(!item) return '';
+  if(!isItemBatched(item)) return ''; // بچ‌بندی نداره
+  var bs = batchesOf(item.id);
+  if(!bs.length) return ''; // بچ نداره → چیزی نشون نده
+  var unit = (item.unit && item.unit!=='عدد') ? item.unit : '';
+  var opts = '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">از کدام بچ کم شود؟</label>';
+  opts += '<select class="inp" id="consume-batch" style="margin-bottom:14px">';
+  bs.forEach(function(b){
+    var q = parseFloat(b.qty)||0;
+    var expired = isExpired(b.expiry);
+    var label = (b.batchName||'بدون نام') + ' — ' + q + (unit?(' '+unit):'') + (b.expiry?(' (انقضا '+b.expiry+')'):'') + (expired?' ⛔منقضی':'');
+    opts += '<option value="'+b.id+'">'+label+'</option>';
+  });
+  opts += '</select>';
+  return opts;
+}
+
 // مودال مصرف (کاهش موجودی)
 function openConsumeModal(id){
   const item=items.find(function(i){return i.id===id;});
@@ -1790,6 +2089,7 @@ function openConsumeModal(id){
     + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:420px;width:100%;margin-top:30px">'
     + '<div style="font-size:16px;font-weight:700;color:#f87171;margin-bottom:4px">➖ ثبت مصرف / کاهش موجودی</div>'
     + '<div style="font-size:13px;color:#9aa3c2;margin-bottom:16px">'+item.name+' (موجودی فعلی: '+item.qty+' '+unit+')</div>'
+    + batchSelectorHtml(item)
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">چه مقدار کم شد؟ ('+unit+')</label>'
     + '<input class="inp" id="consume-amt" type="number" min="0" step="any" placeholder="مثلاً 1" style="margin-bottom:14px">'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">برای چه چیزی مصرف شد؟</label>'
@@ -1869,6 +2169,35 @@ function confirmConsume(id){
   if(!reason){ showToast('دلیل مصرف را وارد کنید'); return; }
   var project = (document.getElementById('consume-project').value||'').trim();
   var projectKey = normalizeProject(project);
+
+  // اگه کالا بچ داره، از بچ انتخاب‌شده کم کن
+  var batchSel = document.getElementById('consume-batch');
+  if(batchSel){
+    var batchId = batchSel.value;
+    var b = BATCHES.find(function(x){ return x.id===batchId; });
+    if(b){
+      var bq = parseFloat(b.qty)||0;
+      if(amt > bq){ showToast('مقدار بیشتر از موجودی این بچ است ('+bq+')'); return; }
+      var newBq = Math.round((bq-amt)*1000)/1000;
+      closeConsume();
+      showToast('⏳ در حال ثبت...');
+      // آپدیت مقدار بچ در شیت
+      callSheet('updateBatch', {id:batchId, qty:String(newBq)}, function(res){
+        loadBatches(function(){
+          // اگه بچ صفر شد، حذفش کن (اختیاری) - فعلاً نگه می‌داریم
+          syncItemQtyFromBatches(id);
+          // ثبت لاگ مصرف با نام بچ
+          var item = items.find(function(i){ return i.id===id; });
+          callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:(item&&item.unit&&item.unit!=='عدد'?item.unit:''),batch:(b.batchName||'')},function(){ loadProjects(); });
+          renderBatchSection(id);
+          showToast('✅ مصرف از بچ «'+(b.batchName||'')+'» ثبت شد');
+          closeDetail();
+        });
+      });
+      return;
+    }
+  }
+
   closeConsume();
   applyQtyChange(id, -1, amt, reason, project, projectKey);
 }
@@ -2115,6 +2444,7 @@ function loadFromSheet(){
       }));
       saveItems();
       buildSubcatTemplates();
+      loadBatches(function(){ renderDashboard(); });
       renderDashboard();
       if(statusEl) statusEl.textContent = '✅ '+items.length+' کالا بارگذاری شد';
     } else {
@@ -2506,6 +2836,9 @@ function addItem(){
   var barcode = barcodeInp ? barcodeInp.value.trim() : '';
   var subcats = getSubcats('ni-subcats');
   updateSubcatTemplate(cat, subcats);
+  // نشانگر بچ‌بندی
+  var batchedEl = document.getElementById('ni-batched');
+  if(batchedEl && batchedEl.checked){ subcats = setBatchedFlag(subcats, true); }
   const item={
     id,code,name,
     desc:document.getElementById('ni-desc').value.trim(),
@@ -4245,7 +4578,7 @@ function buildSubcatTemplates(){
     if(!SUBCAT_TEMPLATES[it.cat]) SUBCAT_TEMPLATES[it.cat] = {keys:[], values:{}};
     var tmpl = SUBCAT_TEMPLATES[it.cat];
     sc.forEach(function(s){
-      if(!s.k) return;
+      if(!s.k || s.k==='__batched__') return;
       if(tmpl.keys.indexOf(s.k) === -1) tmpl.keys.push(s.k);
       if(!tmpl.values[s.k]) tmpl.values[s.k] = [];
       if(s.v && tmpl.values[s.k].indexOf(s.v) === -1) tmpl.values[s.k].push(s.v);
@@ -4418,7 +4751,10 @@ function fillSubcats(containerId, subcats){
   if(!container) return;
   container.innerHTML = '';
   if(subcats && subcats.length){
-    subcats.forEach(function(s){ addSubcatRow(containerId, s.k, s.v); });
+    subcats.forEach(function(s){
+      if(s && s.k==='__batched__') return; // نشانگر بچ نمایش داده نشود
+      addSubcatRow(containerId, s.k, s.v);
+    });
   }
 }
 
@@ -4438,6 +4774,7 @@ function updateSubcatTemplate(cat, subcats){
   if(!tmpl.values) tmpl.values = {};
   var changed = false;
   subcats.forEach(function(s){
+    if(s.k==='__batched__') return;
     if(s.k && tmpl.keys.indexOf(s.k)===-1){ tmpl.keys.push(s.k); changed = true; }
     if(s.k){
       if(!tmpl.values[s.k]) tmpl.values[s.k] = [];
