@@ -620,7 +620,7 @@ function doPost(e){
           <div>
             <div style="font-weight:600;font-size:13px;margin-bottom:4px">وارد کردن لینک API</div>
             <div style="font-size:12px;color:#5a6080;margin-bottom:8px">لینک Deploy شده را اینجا وارد کنید:</div>
-            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbynDZMZHbbLjCPdq3QFj7kS1Sn2ldy8mUYwLigBONilEVqn5hJFwLywRx69WB2lhi9Vog/exec" oninput="saveSheetUrl()" style="font-size:12px">
+            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbySrKIXRmxApW4VvRFJP7W_X9ULNqtR8NNOJLsqfGH283aOv2ge_ZsdicLPUA2nb4tLaQ/exec" oninput="saveSheetUrl()" style="font-size:12px">
             <div id="sheetStatus" style="font-size:12px;margin-top:6px;color:#5a6080"></div>
           </div>
         </div>
@@ -744,7 +744,7 @@ function saveSheetUrl(){
   localStorage.setItem('sheetUrl',document.getElementById('sheetUrl').value);
   document.getElementById('sheetStatus').textContent='✅ لینک ذخیره شد';
 }
-const SHEET_URL='https://script.google.com/macros/s/AKfycbynDZMZHbbLjCPdq3QFj7kS1Sn2ldy8mUYwLigBONilEVqn5hJFwLywRx69WB2lhi9Vog/exec';
+const SHEET_URL='https://script.google.com/macros/s/AKfycbySrKIXRmxApW4VvRFJP7W_X9ULNqtR8NNOJLsqfGH283aOv2ge_ZsdicLPUA2nb4tLaQ/exec';
 function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 
 // ═══════════════════════════════════════════════
@@ -1524,7 +1524,10 @@ function renderBatchSection(itemId){
         +   statusBar
         +   (b.note?('<div style="font-size:11px;color:#5a6080;margin-top:2px">📝 '+b.note+'</div>'):'')
         + '</div>'
-        + (canEdit?'<div style="display:flex;gap:4px;flex-shrink:0"><button class="btn btn-ghost btn-sm" onclick="openEditBatch(\''+b.id+'\')" style="padding:4px 8px">✏️</button><button class="btn btn-ghost btn-sm" onclick="delBatch(\''+b.id+'\',\''+itemId+'\')" style="padding:4px 8px;color:#f87171">🗑️</button></div>':'')
+        + '<div style="display:flex;gap:4px;flex-shrink:0">'
+        +   (b.batchCode?'<button class="btn btn-ghost btn-sm" onclick="downloadBatchQR(\''+b.id+'\')" style="padding:4px 8px" title="دانلود برچسب QR بچ">🏷️</button>':'')
+        +   (canEdit?'<button class="btn btn-ghost btn-sm" onclick="openEditBatch(\''+b.id+'\')" style="padding:4px 8px">✏️</button><button class="btn btn-ghost btn-sm" onclick="delBatch(\''+b.id+'\',\''+itemId+'\')" style="padding:4px 8px;color:#f87171">🗑️</button>':'')
+        + '</div>'
         + '</div>';
     });
     total = Math.round(total*1000)/1000;
@@ -1710,6 +1713,70 @@ function saveEdit(id){
   }
 }
 
+
+// دانلود برچسب QR برای یک بچ (شامل نام کالا، کد بچ، انقضا)
+function downloadBatchQR(batchId){
+  var b = BATCHES.find(function(x){ return x.id===batchId; });
+  if(!b){ showToast('بچ یافت نشد'); return; }
+  var item = items.find(function(i){ return i.id===b.itemId; });
+  var itemName = item ? item.name : '';
+  var code = b.batchCode || '';
+  if(!code){ showToast('این بچ کد ندارد'); return; }
+  var both = b.expiry ? smartDateBoth(b.expiry) : null;
+  var expiryTxt = both ? ('انقضا: '+both.shamsi) : (b.expiry?('انقضا: '+b.expiry):'');
+
+  // ساخت QR در یک عنصر موقت
+  var tmp = document.createElement('div');
+  tmp.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(tmp);
+  try {
+    new QRCode(tmp, { text: code, width:300, height:300, colorDark:'#000000', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch(e){ showToast('خطا در ساخت QR'); tmp.remove(); return; }
+
+  setTimeout(function(){
+    var qrCanvas = tmp.querySelector('canvas');
+    var qrImg = tmp.querySelector('img');
+    var qrSrc = qrCanvas ? qrCanvas.toDataURL('image/png') : (qrImg ? qrImg.src : null);
+    if(!qrSrc){ showToast('QR آماده نشد'); tmp.remove(); return; }
+
+    // ساخت یک برچسب کامل با متن + QR روی canvas
+    var W = 400, H = 480;
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,W,H);
+    // قاب
+    ctx.strokeStyle = '#000000'; ctx.lineWidth = 3; ctx.strokeRect(8,8,W-16,H-16);
+
+    var qimg = new Image();
+    qimg.onload = function(){
+      ctx.drawImage(qimg, 50, 30, 300, 300);
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.direction = 'rtl';
+      // کد بچ (بزرگ)
+      ctx.font = 'bold 30px Tahoma, Arial';
+      ctx.fillText(code, W/2, 375);
+      // نام کالا
+      ctx.font = '20px Tahoma, Arial';
+      ctx.fillText(itemName, W/2, 410);
+      // انقضا
+      if(expiryTxt){
+        ctx.font = '17px Tahoma, Arial';
+        ctx.fillStyle = '#c00000';
+        ctx.fillText(expiryTxt, W/2, 440);
+      }
+      // دانلود
+      var a = document.createElement('a');
+      a.href = c.toDataURL('image/png');
+      a.download = 'برچسب-'+code+'.png';
+      a.click();
+      tmp.remove();
+      showToast('✅ برچسب بچ دانلود شد');
+    };
+    qimg.src = qrSrc;
+  }, 300);
+}
 
 function downloadQRById(id,code){
   const el=document.getElementById('modal-qr');
