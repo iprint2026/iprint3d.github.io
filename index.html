@@ -369,7 +369,7 @@ tr:hover td{background:#0e1018}
               <option value="استفاده‌شده">📦 استفاده‌شده</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="qtyFormGroup">
             <label id="qtyLabel">تعداد موجودی *</label>
             <div style="display:flex;gap:8px;align-items:center">
               <input class="inp" type="number" inputmode="decimal" id="ni-qty" placeholder="0" min="0" style="font-size:16px">
@@ -395,7 +395,7 @@ tr:hover td{background:#0e1018}
         </div>
         <div class="form-group" style="margin-bottom:10px">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-            <input type="checkbox" id="ni-batched" style="width:18px;height:18px;cursor:pointer">
+            <input type="checkbox" id="ni-batched" onchange="toggleBatchedAdd()" style="width:18px;height:18px;cursor:pointer">
             <span>📅 این کالا بچ‌بندی دارد (سری‌های جدا با تاریخ انقضای متفاوت)</span>
           </label>
         </div>
@@ -620,7 +620,7 @@ function doPost(e){
           <div>
             <div style="font-weight:600;font-size:13px;margin-bottom:4px">وارد کردن لینک API</div>
             <div style="font-size:12px;color:#5a6080;margin-bottom:8px">لینک Deploy شده را اینجا وارد کنید:</div>
-            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbySrKIXRmxApW4VvRFJP7W_X9ULNqtR8NNOJLsqfGH283aOv2ge_ZsdicLPUA2nb4tLaQ/exec" oninput="saveSheetUrl()" style="font-size:12px">
+            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbySTpbjJDAXRJ9qKtxeBcppN7DXjEnt1BGdiDlDsnLBuuJI8FhoAqUjQShpKxRspmUMeQ/exec" oninput="saveSheetUrl()" style="font-size:12px">
             <div id="sheetStatus" style="font-size:12px;margin-top:6px;color:#5a6080"></div>
           </div>
         </div>
@@ -744,7 +744,7 @@ function saveSheetUrl(){
   localStorage.setItem('sheetUrl',document.getElementById('sheetUrl').value);
   document.getElementById('sheetStatus').textContent='✅ لینک ذخیره شد';
 }
-const SHEET_URL='https://script.google.com/macros/s/AKfycbySrKIXRmxApW4VvRFJP7W_X9ULNqtR8NNOJLsqfGH283aOv2ge_ZsdicLPUA2nb4tLaQ/exec';
+const SHEET_URL='https://script.google.com/macros/s/AKfycbySTpbjJDAXRJ9qKtxeBcppN7DXjEnt1BGdiDlDsnLBuuJI8FhoAqUjQShpKxRspmUMeQ/exec';
 function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 
 // ═══════════════════════════════════════════════
@@ -1537,6 +1537,34 @@ function renderBatchSection(itemId){
   host.innerHTML = html;
 }
 
+// انتخابگر واحد برای مقدار بچ (فقط اگه کالا وزنی/حجمی باشه)
+function batchUnitSelectorHtml(baseUnit){
+  if(!baseUnit || baseUnit==='عدد') {
+    return '<span style="display:flex;align-items:center;padding:0 10px;color:#9aa3c2;font-size:13px;white-space:nowrap">عدد</span><input type="hidden" id="batch-unit" value="عدد">';
+  }
+  var units = compatibleUnits(baseUnit);
+  if(units.length<=1){
+    return '<span style="display:flex;align-items:center;padding:0 10px;color:#9aa3c2;font-size:13px;white-space:nowrap">'+baseUnit+'</span><input type="hidden" id="batch-unit" value="'+baseUnit+'">';
+  }
+  var opts = units.map(function(u){
+    return '<option value="'+u+'"'+(u===baseUnit?' selected':'')+'>'+u+'</option>';
+  }).join('');
+  return '<select class="inp" id="batch-unit" style="max-width:120px">'+opts+'</select>';
+}
+
+// انتخابگر واحد برای مودال مصرف
+function batchUnitSelectorHtmlConsume(baseUnit){
+  if(!baseUnit || baseUnit==='عدد'){
+    return '<span style="display:flex;align-items:center;padding:0 10px;color:#9aa3c2;font-size:13px;white-space:nowrap">عدد</span><input type="hidden" id="consume-unit" value="عدد">';
+  }
+  var units = compatibleUnits(baseUnit);
+  if(units.length<=1){
+    return '<span style="display:flex;align-items:center;padding:0 10px;color:#9aa3c2;font-size:13px;white-space:nowrap">'+baseUnit+'</span><input type="hidden" id="consume-unit" value="'+baseUnit+'">';
+  }
+  var opts = units.map(function(u){ return '<option value="'+u+'"'+(u===baseUnit?' selected':'')+'>'+u+'</option>'; }).join('');
+  return '<select class="inp" id="consume-unit" style="max-width:120px">'+opts+'</select>';
+}
+
 // مودال افزودن/ویرایش بچ
 function openAddBatch(itemId){ showBatchModal(itemId, null); }
 function openEditBatch(batchId){
@@ -1552,8 +1580,11 @@ function showBatchModal(itemId, batch){
     + '<div style="font-size:16px;font-weight:700;color:#60a5fa;margin-bottom:16px">'+(isEdit?'✏️ ویرایش بچ':'➕ بچ جدید')+' — '+(item?item.name:'')+'</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">نام/شماره بچ</label>'
     + '<input class="inp" id="batch-name" value="'+(isEdit?(batch.batchName||''):'')+'" placeholder="مثلاً خرید مرداد یا بچ ۱" style="margin-bottom:12px">'
-    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">مقدار ('+unit+')</label>'
-    + '<input class="inp" id="batch-qty" type="number" step="any" min="0" value="'+(isEdit?(batch.qty||''):'')+'" placeholder="مثلاً 5" style="margin-bottom:12px">'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">مقدار</label>'
+    + '<div style="display:flex;gap:8px;margin-bottom:12px">'
+    +   '<input class="inp" id="batch-qty" type="number" step="any" min="0" value="'+(isEdit?(batch.qty||''):'')+'" placeholder="مثلاً 5" style="flex:1">'
+    +   batchUnitSelectorHtml(unit)
+    + '</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ انقضا (اختیاری)</label>'
     + '<input class="inp" id="batch-expiry" value="'+(isEdit?(batch.expiry||''):'')+'" placeholder="مثلاً 1405/12/29 یا 2027/03/20" oninput="previewBatchDate()" style="margin-bottom:4px">'
     + '<div id="batch-date-preview" style="font-size:11px;color:#60a5fa;margin-bottom:12px;min-height:14px"></div>'
@@ -1593,10 +1624,21 @@ function previewBatchDate(){
 }
 function saveBatch(itemId, batchId){
   var name = (document.getElementById('batch-name').value||'').trim();
-  var qty = parseFloat(document.getElementById('batch-qty').value||'0')||0;
+  var qtyRaw = parseFloat(document.getElementById('batch-qty').value||'0')||0;
   var expiry = (document.getElementById('batch-expiry').value||'').trim();
   var note = (document.getElementById('batch-note').value||'').trim();
-  if(qty<=0){ showToast('مقدار را وارد کنید'); return; }
+  if(qtyRaw<=0){ showToast('مقدار را وارد کنید'); return; }
+  // تبدیل واحد به واحد پایه کالا
+  var item = items.find(function(i){ return i.id===itemId; });
+  var baseUnit = (item && item.unit) ? item.unit : 'عدد';
+  var unitSel = document.getElementById('batch-unit');
+  var chosenUnit = unitSel ? unitSel.value : baseUnit;
+  var qty = qtyRaw;
+  if(chosenUnit !== baseUnit){
+    var conv = convertUnit(qtyRaw, chosenUnit, baseUnit);
+    if(conv===null){ showToast('واحد قابل تبدیل نیست'); return; }
+    qty = Math.round(conv*1000)/1000;
+  }
   if(!name){ name = 'بچ ' + (batchesOf(itemId).length+1); }
   closeBatchModal();
   showToast('⏳ در حال ذخیره...');
@@ -1830,6 +1872,31 @@ function loadProjects(){
 
 // ── سیستم بچ (Batch/Lot) ──
 var BATCHES = [];  // همه بچ‌های همه کالاها
+
+// واحدهای هم‌خانواده برای تبدیل
+var UNIT_GROUPS = {
+  'وزن': { base:'گرم', units:{ 'گرم':1, 'کیلوگرم':1000 } },
+  'حجم': { base:'میلی‌لیتر', units:{ 'میلی‌لیتر':1, 'لیتر':1000 } }
+};
+// گروه یک واحد رو پیدا کن
+function unitGroupOf(unit){
+  for(var g in UNIT_GROUPS){ if(UNIT_GROUPS[g].units[unit]!==undefined) return g; }
+  return null;
+}
+// تبدیل مقدار از واحد مبدا به واحد مقصد (اگه هم‌خانواده باشن)
+function convertUnit(amount, fromUnit, toUnit){
+  if(fromUnit===toUnit) return amount;
+  var g = unitGroupOf(fromUnit);
+  if(!g || UNIT_GROUPS[g].units[toUnit]===undefined) return null; // قابل تبدیل نیست
+  var inBase = amount * UNIT_GROUPS[g].units[fromUnit];
+  return inBase / UNIT_GROUPS[g].units[toUnit];
+}
+// واحدهای قابل انتخاب برای یک واحد پایه
+function compatibleUnits(baseUnit){
+  var g = unitGroupOf(baseUnit);
+  if(!g) return [baseUnit];
+  return Object.keys(UNIT_GROUPS[g].units);
+}
 
 // آیا کالا بچ‌بندی داره؟ (نشانگر __batched__ در subcats ذخیره می‌شود)
 function isItemBatched(item){
@@ -2278,8 +2345,11 @@ function openConsumeModal(id){
     + '<div style="font-size:16px;font-weight:700;color:#f87171;margin-bottom:4px">➖ ثبت مصرف / کاهش موجودی</div>'
     + '<div style="font-size:13px;color:#9aa3c2;margin-bottom:16px">'+item.name+' (موجودی فعلی: '+item.qty+' '+unit+')</div>'
     + batchSelectorHtml(item)
-    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">چه مقدار کم شد؟ ('+unit+')</label>'
-    + '<input class="inp" id="consume-amt" type="number" min="0" step="any" placeholder="مثلاً 1" style="margin-bottom:14px">'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">چه مقدار کم شد؟</label>'
+    + '<div style="display:flex;gap:8px;margin-bottom:14px">'
+    +   '<input class="inp" id="consume-amt" type="number" min="0" step="any" placeholder="مثلاً 1" style="flex:1">'
+    +   batchUnitSelectorHtmlConsume(unit)
+    + '</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">برای چه چیزی مصرف شد؟</label>'
     + '<input class="inp" id="consume-reason" placeholder="مثلاً پروژه چاپ، فروش، ضایعات..." oninput="onReasonInput()" autocomplete="off" style="margin-bottom:4px">'
     + '<div id="consume-reason-suggest"></div>'
@@ -2351,8 +2421,19 @@ function pickProject(label){
   document.getElementById('consume-project-suggest').innerHTML='';
 }
 function confirmConsume(id){
-  var amt = parseFloat(document.getElementById('consume-amt').value||'0');
-  if(!amt || isNaN(amt) || amt<=0){ showToast('مقدار را وارد کنید'); return; }
+  var amtRaw = parseFloat(document.getElementById('consume-amt').value||'0');
+  if(!amtRaw || isNaN(amtRaw) || amtRaw<=0){ showToast('مقدار را وارد کنید'); return; }
+  // تبدیل واحد به واحد پایه کالا
+  var itemC = items.find(function(i){ return i.id===id; });
+  var baseUnitC = (itemC && itemC.unit) ? itemC.unit : 'عدد';
+  var cuSel = document.getElementById('consume-unit');
+  var chosenUnitC = cuSel ? cuSel.value : baseUnitC;
+  var amt = amtRaw;
+  if(chosenUnitC !== baseUnitC){
+    var convC = convertUnit(amtRaw, chosenUnitC, baseUnitC);
+    if(convC===null){ showToast('واحد قابل تبدیل نیست'); return; }
+    amt = Math.round(convC*1000)/1000;
+  }
   var reason = (document.getElementById('consume-reason').value || '').trim();
   if(!reason){ showToast('دلیل مصرف را وارد کنید'); return; }
   var project = (document.getElementById('consume-project').value||'').trim();
@@ -2439,7 +2520,6 @@ function closeDetail(){document.getElementById('modal-detail').classList.add('hi
 //  GROQ AI CHAT
 // ═══════════════════════════════════════════════
 function buildContext(){
-  const total=items.reduce(function(s,i){return s+(parseFloat(i.qty)||0);},0);
   return 'تو دستیار هوشمند سیستم مدیریت کالا هستی و باید دقیق و کامل پاسخ بدی.\n\n'
   +'قوانین مهم:\n'
   +'- اگر پرسیدن «چند تا X داریم» → همه کالاهایی که اسمشان شامل X میشود را پیدا کن و تعدادشان را جمع بزن\n'
@@ -2449,7 +2529,7 @@ function buildContext(){
   +'- اگر پرسیدند «چه چیزی منقضی شده» یا «نزدیک انقضا» → بچ‌های منقضی یا رو به انقضا را لیست کن\n'
   +'- همیشه کد کالا، قفسه، ردیف و موجودی را ذکر کن\n'
   +'- پاسخ را به فارسی و ساده بده\n\n'
-  +'لیست کامل کالاهای انبار ('+items.length+' قلم، مجموع: '+total+'):\n'
+  +'لیست کامل کالاهای انبار ('+items.length+' قلم):\n'
   +items.map(function(i){
     var line = '• کد:'+i.code+' | نام:'+i.name+' | دسته:'+i.cat
       +' | قفسه:'+i.shelf+' ردیف:'+i.row
@@ -3024,6 +3104,19 @@ function toggleUnit(){
   if(badge) badge.textContent = unitTxt;
   if(qtyLabel) qtyLabel.textContent = weighted ? ('مقدار موجودی * ('+unitTxt+')') : 'تعداد موجودی *';
 }
+// وقتی تیک بچ‌بندی خورد، فیلد تعداد دستی مخفی شود (موجودی از بچ‌ها می‌آید)
+function toggleBatchedAdd(){
+  var chk = document.getElementById('ni-batched');
+  var qg = document.getElementById('qtyFormGroup');
+  if(!qg) return;
+  if(chk && chk.checked){
+    qg.style.display = 'none';
+    var qi = document.getElementById('ni-qty'); if(qi) qi.value = '0';
+  } else {
+    qg.style.display = '';
+  }
+}
+
 // وقتی دسته رزین انتخاب شد، خودکار تیک وزنی بزن (پیشنهاد)
 function onCatChangeForUnit(){
   var cat = document.getElementById('ni-cat');
@@ -3041,7 +3134,10 @@ function addItem(){
   const cat=document.getElementById('ni-cat').value;
   const weightedEl=document.getElementById('ni-weighted');
   const isWeighted = weightedEl && weightedEl.checked;
-  const qty = isWeighted ? (parseFloat(document.getElementById('ni-qty').value)||0) : (parseInt(document.getElementById('ni-qty').value)||0);
+  const batchedElChk=document.getElementById('ni-batched');
+  const isBatched = batchedElChk && batchedElChk.checked;
+  // اگه بچ‌بندی فعاله، موجودی صفر (بعداً از بچ‌ها پر می‌شود)
+  const qty = isBatched ? 0 : (isWeighted ? (parseFloat(document.getElementById('ni-qty').value)||0) : (parseInt(document.getElementById('ni-qty').value)||0));
   if(!name){alert('نام کالا الزامی است');return;}
 
   const unitEl=document.getElementById('ni-unit');
