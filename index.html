@@ -526,6 +526,21 @@ tr:hover td{background:#0e1018}
             <option value="ضایعات">ضایعات</option>
             <option value="سایر">سایر</option>
           </select>
+          <select class="inp" id="usage-filter-time" onchange="onTimeFilterChange()" style="max-width:160px">
+            <option value="">همه‌ی زمان‌ها</option>
+            <option value="week">هفته گذشته</option>
+            <option value="month">ماه گذشته (۳۰ روز)</option>
+            <option value="3month">سه ماه گذشته</option>
+            <option value="year">سال گذشته</option>
+            <option value="custom">ماه خاص (انتخابی)</option>
+          </select>
+          <select class="inp" id="usage-filter-month" onchange="renderUsageReport()" style="max-width:120px;display:none">
+            <option value="1">فروردین</option><option value="2">اردیبهشت</option><option value="3">خرداد</option>
+            <option value="4">تیر</option><option value="5">مرداد</option><option value="6">شهریور</option>
+            <option value="7">مهر</option><option value="8">آبان</option><option value="9">آذر</option>
+            <option value="10">دی</option><option value="11">بهمن</option><option value="12">اسفند</option>
+          </select>
+          <input class="inp" id="usage-filter-year" type="number" placeholder="سال" value="1404" onchange="renderUsageReport()" style="max-width:90px;display:none">
           <select class="inp" id="usage-sort" onchange="renderUsageReport()" style="max-width:170px">
             <option value="date_desc">جدیدترین اول</option>
             <option value="date_asc">قدیمی‌ترین اول</option>
@@ -620,7 +635,7 @@ function doPost(e){
           <div>
             <div style="font-weight:600;font-size:13px;margin-bottom:4px">وارد کردن لینک API</div>
             <div style="font-size:12px;color:#5a6080;margin-bottom:8px">لینک Deploy شده را اینجا وارد کنید:</div>
-            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbySTpbjJDAXRJ9qKtxeBcppN7DXjEnt1BGdiDlDsnLBuuJI8FhoAqUjQShpKxRspmUMeQ/exec" oninput="saveSheetUrl()" style="font-size:12px">
+            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbxTvNPf4c_Qqe-mmaYoPLqVOc4AtcnsrG_BqNEWHGTSR8pazjmosD-W93ZF8VBMwmYcuA/exec" oninput="saveSheetUrl()" style="font-size:12px">
             <div id="sheetStatus" style="font-size:12px;margin-top:6px;color:#5a6080"></div>
           </div>
         </div>
@@ -744,7 +759,7 @@ function saveSheetUrl(){
   localStorage.setItem('sheetUrl',document.getElementById('sheetUrl').value);
   document.getElementById('sheetStatus').textContent='✅ لینک ذخیره شد';
 }
-const SHEET_URL='https://script.google.com/macros/s/AKfycbySTpbjJDAXRJ9qKtxeBcppN7DXjEnt1BGdiDlDsnLBuuJI8FhoAqUjQShpKxRspmUMeQ/exec';
+const SHEET_URL='https://script.google.com/macros/s/AKfycbxTvNPf4c_Qqe-mmaYoPLqVOc4AtcnsrG_BqNEWHGTSR8pazjmosD-W93ZF8VBMwmYcuA/exec';
 function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 
 // ═══════════════════════════════════════════════
@@ -2076,6 +2091,32 @@ function smartDateBoth(input){
 
 // ── گزارش مصرف ──
 var USAGE_LOG = [];
+
+// نمایش/مخفی کردن فیلد ماه و سال وقتی «ماه خاص» انتخاب شد
+function onTimeFilterChange(){
+  var t = document.getElementById('usage-filter-time').value;
+  var mEl = document.getElementById('usage-filter-month');
+  var yEl = document.getElementById('usage-filter-year');
+  var show = (t==='custom');
+  if(mEl) mEl.style.display = show ? '' : 'none';
+  if(yEl) yEl.style.display = show ? '' : 'none';
+  renderUsageReport();
+}
+
+// پارس تاریخ لاگ مصرف (فرمت: ۱۴۰۵/۳/۱۷, ۱۳:۰۵:۳۱) → {jy,jm,jd, ts}
+function parseUsageDate(dateStr){
+  if(!dateStr) return null;
+  // تبدیل ارقام فارسی به انگلیسی
+  var s = String(dateStr).replace(/[۰-۹]/g, function(c){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); });
+  // فقط بخش تاریخ (قبل از کاما)
+  var datePart = s.split(',')[0].trim();
+  var parts = datePart.split('/').map(function(x){ return parseInt(x); });
+  if(parts.length<3 || parts.some(isNaN)) return null;
+  var jy=parts[0], jm=parts[1], jd=parts[2];
+  var ts = jalaliToTimestamp(jy, jm, jd);
+  return { jy:jy, jm:jm, jd:jd, ts:ts };
+}
+
 function loadUsageReport(){
   var el = document.getElementById('usage-report-list');
   if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#5a6080">⏳ در حال بارگذاری...</div>';
@@ -2103,11 +2144,35 @@ function renderUsageReport(){
   // به هر رکورد یک ایندکس ثابت بده (برای انتخاب)
   var indexed = USAGE_LOG.map(function(r,i){ return {r:r, idx:i}; });
 
+  // فیلتر زمانی
+  var timeMode = (document.getElementById('usage-filter-time')||{}).value || '';
+  var nowTs = Date.now();
+  var fromTs = null;
+  var customJM = null, customJY = null;
+  if(timeMode==='week') fromTs = nowTs - 7*86400000;
+  else if(timeMode==='month') fromTs = nowTs - 30*86400000;
+  else if(timeMode==='3month') fromTs = nowTs - 90*86400000;
+  else if(timeMode==='year') fromTs = nowTs - 365*86400000;
+  else if(timeMode==='custom'){
+    customJM = parseInt((document.getElementById('usage-filter-month')||{}).value)||0;
+    customJY = parseInt((document.getElementById('usage-filter-year')||{}).value)||0;
+  }
+
   var rows = indexed.filter(function(o){
     var r = o.r;
     var okP = !fProj || (normalizeProject(r.project||'').indexOf(fProj)>=0) || (String(r.projectKey||'').indexOf(fProj)>=0);
     var okR = !fReason || (r.reason===fReason);
-    return okP && okR;
+    var okT = true;
+    if(timeMode){
+      var pd = parseUsageDate(r.date);
+      if(!pd){ okT = false; }
+      else if(timeMode==='custom'){
+        okT = (pd.jm===customJM && pd.jy===customJY);
+      } else if(fromTs!==null){
+        okT = (pd.ts >= fromTs);
+      }
+    }
+    return okP && okR && okT;
   });
 
   if(!rows.length){
@@ -2209,10 +2274,24 @@ function exportUsageToExcel(){
   } else {
     var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
     var fReason = document.getElementById('usage-filter-reason').value||'';
+    var timeMode = (document.getElementById('usage-filter-time')||{}).value || '';
+    var nowTs = Date.now(); var fromTs = null; var cJM=0, cJY=0;
+    if(timeMode==='week') fromTs = nowTs - 7*86400000;
+    else if(timeMode==='month') fromTs = nowTs - 30*86400000;
+    else if(timeMode==='3month') fromTs = nowTs - 90*86400000;
+    else if(timeMode==='year') fromTs = nowTs - 365*86400000;
+    else if(timeMode==='custom'){ cJM = parseInt((document.getElementById('usage-filter-month')||{}).value)||0; cJY = parseInt((document.getElementById('usage-filter-year')||{}).value)||0; }
     rows = USAGE_LOG.filter(function(r){
       var okP = !fProj || (normalizeProject(r.project||'').indexOf(fProj)>=0) || (String(r.projectKey||'').indexOf(fProj)>=0);
       var okR = !fReason || (r.reason===fReason);
-      return okP && okR;
+      var okT = true;
+      if(timeMode){
+        var pd = parseUsageDate(r.date);
+        if(!pd) okT=false;
+        else if(timeMode==='custom') okT = (pd.jm===cJM && pd.jy===cJY);
+        else if(fromTs!==null) okT = (pd.ts >= fromTs);
+      }
+      return okP && okR && okT;
     });
   }
   if(!rows.length){ showToast('رکوردی برای خروجی وجود ندارد'); return; }
@@ -2447,22 +2526,56 @@ function confirmConsume(id){
     if(b){
       var bq = parseFloat(b.qty)||0;
       if(amt > bq){ showToast('مقدار بیشتر از موجودی این بچ است ('+bq+')'); return; }
-      var newBq = Math.round((bq-amt)*1000)/1000;
-      closeConsume();
-      showToast('⏳ در حال ثبت...');
-      // آپدیت مقدار بچ در شیت
-      callSheet('updateBatch', {id:batchId, qty:String(newBq)}, function(res){
-        loadBatches(function(){
-          // اگه بچ صفر شد، حذفش کن (اختیاری) - فعلاً نگه می‌داریم
-          syncItemQtyFromBatches(id);
-          // ثبت لاگ مصرف با نام بچ
-          var item = items.find(function(i){ return i.id===id; });
-          callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:(item&&item.unit&&item.unit!=='عدد'?item.unit:''),batch:(b.batchName||'')},function(){ loadProjects(); });
-          renderBatchSection(id);
-          showToast('✅ مصرف از بچ «'+(b.batchName||'')+'» ثبت شد');
-          closeDetail();
+      var item = items.find(function(i){ return i.id===id; });
+      var unitTxt = (item && item.unit && item.unit!=='عدد') ? item.unit : '';
+
+      if(currentUser && currentUser.role==='admin'){
+        // ادمین: مستقیم از بچ کم کن
+        var newBq = Math.round((bq-amt)*1000)/1000;
+        closeConsume();
+        showToast('⏳ در حال ثبت...');
+        if(newBq <= 0){
+          // بچ خالی شد → حذف بچ
+          callSheet('deleteBatch', {id:batchId}, function(res){
+            loadBatches(function(){
+              syncItemQtyFromBatches(id);
+              callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:(b.batchName||'')},function(){ loadProjects(); });
+              renderBatchSection(id);
+              showToast('✅ بچ «'+(b.batchName||'')+'» خالی شد و حذف گردید');
+              closeDetail();
+            });
+          });
+        } else {
+          callSheet('updateBatch', {id:batchId, qty:String(newBq)}, function(res){
+            loadBatches(function(){
+              syncItemQtyFromBatches(id);
+              callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:(b.batchName||'')},function(){ loadProjects(); });
+              renderBatchSection(id);
+              showToast('✅ مصرف از بچ «'+(b.batchName||'')+'» ثبت شد');
+              closeDetail();
+            });
+          });
+        }
+      } else {
+        // اوپراتور: درخواست تأیید برای ادمین بفرست (شامل اطلاعات بچ)
+        closeConsume();
+        var changeData = Object.assign({}, item, {
+          _batchConsume: true,
+          _batchId: batchId,
+          _batchName: b.batchName||'',
+          _batchCode: b.batchCode||'',
+          _consumeAmt: amt,
+          _reason: reason,
+          _project: project,
+          _projectKey: projectKey,
+          _unit: unitTxt,
+          qty: Math.max(0, (parseFloat(item.qty)||0) - amt)
         });
-      });
+        window._pendingInitMsg = 'مصرف ' + amt + (unitTxt?(' '+unitTxt):'') + ' از بچ «'+(b.batchName||'')+'» — دلیل: ' + reason + (project?(' - پروژه: '+project):'');
+        submitChange('batch_consume', id, changeData);
+        showToast('✅ درخواست مصرف برای ادمین ارسال شد');
+        closeDetail();
+      }
       return;
     }
   }
@@ -3388,8 +3501,8 @@ function renderPendingChanges(){
     try { data = JSON.parse(p.data||'{}'); } catch(e){}
     var status = (p.status && p.status.trim()) ? p.status.trim() : 'pending';
     var isPending = status === 'pending';
-    var typeLabel = p.type==='add'?'➕ افزودن': p.type==='delete'?'🗑️ حذف': p.type==='message'?'💬 گفتگو':'✏️ ویرایش';
-    var typeColor = p.type==='add'?'#4ade80': p.type==='delete'?'#f87171': p.type==='message'?'#c084fc':'#60a5fa';
+    var typeLabel = p.type==='add'?'➕ افزودن': p.type==='delete'?'🗑️ حذف': p.type==='message'?'💬 گفتگو': p.type==='batch_consume'?'📉 مصرف از بچ':'✏️ ویرایش';
+    var typeColor = p.type==='add'?'#4ade80': p.type==='delete'?'#f87171': p.type==='message'?'#c084fc': p.type==='batch_consume'?'#fbbf24':'#60a5fa';
     var statusLabel = isPending?'⏳ در انتظار': status==='approved'?'✅ تأیید':'❌ رد';
     var statusColor = isPending?'#f59e0b': status==='approved'?'#4ade80':'#f87171';
 
@@ -3407,6 +3520,8 @@ function renderPendingChanges(){
       summary = '➕ افزودن کالا — ' + itemName;
     } else if(p.type==='delete'){
       summary = '🗑️ حذف کالا — ' + itemName;
+    } else if(p.type==='batch_consume'){
+      summary = '📉 مصرف ' + (data._consumeAmt||'') + (data._unit?(' '+data._unit):'') + ' از بچ «' + (data._batchName||'') + '» — ' + itemName + (data._reason?(' • '+data._reason):'') + (data._project?(' • پروژه: '+data._project):'');
     }
 
     // آیکون کالا (یا چت برای message)
@@ -3497,6 +3612,45 @@ function toggleChangeDetail(id){
 function approvePendingChange(id){
   var msgEl = document.getElementById('adminMsg_'+id);
   var adminMsg = msgEl ? msgEl.value.trim() : '';
+  // پیدا کردن درخواست
+  var ch = (pendingChanges||[]).find(function(c){ return c.id===id; });
+  var data = null;
+  if(ch){ try { data = JSON.parse(ch.data||'{}'); } catch(e){ data = null; } }
+
+  // اگه درخواست مصرف از بچ است → اول عملیات بچ را انجام بده
+  if(ch && ch.type==='batch_consume' && data && data._batchConsume){
+    var batchId = data._batchId;
+    var amt = parseFloat(data._consumeAmt)||0;
+    var itemId = ch.itemId;
+    var b = BATCHES.find(function(x){ return x.id===batchId; });
+    if(!b){ showToast('❌ بچ یافت نشد (شاید قبلاً حذف شده)'); return; }
+    var bq = parseFloat(b.qty)||0;
+    if(amt > bq){ showToast('❌ مقدار درخواست بیشتر از موجودی فعلی بچ است ('+bq+')'); return; }
+    var newBq = Math.round((bq-amt)*1000)/1000;
+    var item = items.find(function(i){ return i.id===itemId; });
+    showToast('⏳ در حال اعمال...');
+
+    function finishApprove(){
+      loadBatches(function(){
+        syncItemQtyFromBatches(itemId);
+        callSheet('logUsage',{itemId:itemId,itemName:(item?item.name:''),change:String(-amt),reason:data._reason||'',project:data._project||'',projectKey:data._projectKey||'',user:(ch.user||''),unit:data._unit||'',batch:data._batchName||''},function(){ loadProjects(); });
+        // درخواست را تأیید‌شده علامت بزن
+        callSheet('approvePendingChange', {id:id, adminMsg:adminMsg||('مصرف '+amt+' از بچ تأیید شد')}, function(res){
+          loadPendingChanges(); loadFromSheet(); updateAllBadges();
+          showToast('✅ مصرف از بچ تأیید و اعمال شد');
+        });
+      });
+    }
+
+    if(newBq <= 0){
+      callSheet('deleteBatch', {id:batchId}, function(){ finishApprove(); });
+    } else {
+      callSheet('updateBatch', {id:batchId, qty:String(newBq)}, function(){ finishApprove(); });
+    }
+    return;
+  }
+
+  // درخواست عادی
   callSheet('approvePendingChange', {id:id, adminMsg:adminMsg}, function(res){
     if(res && res.status==='ok'){
       loadPendingChanges();
@@ -3547,7 +3701,17 @@ function submitChange(type, itemId, data){
     _orig_cat: original ? original.cat : null,
     _orig_shelf: original ? original.shelf : null,
     _orig_row: original ? original.row : null,
-    _orig_desc: original ? original.desc : null
+    _orig_desc: original ? original.desc : null,
+    // اطلاعات مصرف بچ (برای درخواست‌های batch_consume)
+    _batchConsume: data._batchConsume || false,
+    _batchId: data._batchId || '',
+    _batchName: data._batchName || '',
+    _batchCode: data._batchCode || '',
+    _consumeAmt: data._consumeAmt || 0,
+    _reason: data._reason || '',
+    _project: data._project || '',
+    _projectKey: data._projectKey || '',
+    _unit: data._unit || ''
   };
   var dataStr = JSON.stringify(summary);
   
@@ -3626,7 +3790,7 @@ function renderMyChanges(){
     var status = (c.status && c.status.trim()) ? c.status.trim() : 'pending';
     var statusLabel = c.type==='message'?'💬 گفتگو': status==='pending'?'⏳ در حال بررسی': status==='approved'?'✅ تأیید شده':'❌ رد شده';
     var statusColor = status==='pending'?'#f59e0b': status==='approved'?'#4ade80':'#f87171';
-    var typeLabel = c.type==='add'?'➕ افزودن': c.type==='delete'?'🗑️ حذف': c.type==='message'?'💬 گفتگو':'✏️ ویرایش';
+    var typeLabel = c.type==='add'?'➕ افزودن': c.type==='delete'?'🗑️ حذف': c.type==='message'?'💬 گفتگو': c.type==='batch_consume'?'📉 مصرف از بچ':'✏️ ویرایش';
 
     var itemName = data.name || data.code || c.itemId || 'کالا';
     var origQty = data._orig_qty !== undefined ? parseInt(data._orig_qty)||0 : null;
@@ -4141,10 +4305,38 @@ function exportToExcel(){
   if(typeof XLSX !== 'undefined'){
     // استفاده از SheetJS
     var ws = XLSX.utils.json_to_sheet(rows);
-    // راست‌چین کردن
-    ws['!cols'] = [{wch:12},{wch:25},{wch:12},{wch:10},{wch:8},{wch:12},{wch:12},{wch:8},{wch:30},{wch:14}];
+    ws['!cols'] = [{wch:14},{wch:25},{wch:12},{wch:10},{wch:8},{wch:12},{wch:12},{wch:14},{wch:8},{wch:8},{wch:30},{wch:16}];
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'کالاها');
+
+    // شیت دوم: بچ‌ها (اگه وجود داشته باشه)
+    var batchRows = [];
+    list.forEach(function(i){
+      if(isItemBatched(i)){
+        batchesOf(i.id).forEach(function(b){
+          var st = expiryStatus(b.expiry);
+          var both = b.expiry ? smartDateBoth(b.expiry) : null;
+          batchRows.push({
+            'کد بچ': b.batchCode||'',
+            'کالا': i.name,
+            'کد کالا': i.code,
+            'نام بچ': b.batchName||'',
+            'مقدار': parseFloat(b.qty)||0,
+            'واحد': i.unit||'عدد',
+            'انقضا (شمسی)': both?both.shamsi:(b.expiry||''),
+            'انقضا (میلادی)': both?both.milady:'',
+            'وضعیت': st ? (st.expired ? ('منقضی - '+Math.abs(st.days)+' روز گذشته') : (st.days+' روز مانده')) : 'بدون انقضا',
+            'یادداشت': b.note||''
+          });
+        });
+      }
+    });
+    if(batchRows.length){
+      var wsB = XLSX.utils.json_to_sheet(batchRows);
+      wsB['!cols'] = [{wch:16},{wch:22},{wch:12},{wch:16},{wch:10},{wch:10},{wch:14},{wch:14},{wch:20},{wch:20}];
+      XLSX.utils.book_append_sheet(wb, wsB, 'بچ‌ها');
+    }
+
     var fileName = 'iPrint3D_کالاها_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
     XLSX.writeFile(wb, fileName);
     showToast('✅ فایل Excel دانلود شد ('+list.length+' کالا)');
