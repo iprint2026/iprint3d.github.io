@@ -349,7 +349,7 @@ tr:hover td{background:#0e1018}
           <div class="form-group">
             <label>دسته‌بندی *</label>
             <div style="display:flex;gap:8px">
-              <select class="inp" id="ni-cat" onchange="toggleUnit();refreshDatalists('ni-subcats')" style="flex:1"></select>
+              <select class="inp" id="ni-cat" onchange="onCatChangeForUnit();refreshDatalists('ni-subcats')" style="flex:1"></select>
               <button type="button" class="btn btn-ghost btn-sm" id="addCatBtn" onclick="showAddCat()" style="white-space:nowrap;padding:10px 12px">+ دسته</button>
             </div>
           </div>
@@ -387,8 +387,14 @@ tr:hover td{background:#0e1018}
             <input class="inp" id="ni-row" placeholder="مثال: ۱">
           </div>
         </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ni-weighted" onchange="toggleUnit()" style="width:18px;height:18px;cursor:pointer">
+            <span>📏 این کالا وزنی/حجمی است (مثل رزین) — نه عددی</span>
+          </label>
+        </div>
         <div id="unitRow" style="display:none;gap:8px;align-items:center;margin-bottom:14px">
-          <label style="font-size:12px;color:#5a6080;font-weight:600;white-space:nowrap">واحد رزین:</label>
+          <label style="font-size:12px;color:#5a6080;font-weight:600;white-space:nowrap">واحد اندازه‌گیری:</label>
           <select class="inp" id="ni-unit" onchange="toggleUnit()" style="max-width:160px">
             <option value="گرم">گرم (g)</option>
             <option value="کیلوگرم">کیلوگرم (kg)</option>
@@ -1600,15 +1606,16 @@ function renderUsageReport(){
   var html = '<div class="card"><div style="font-weight:600;color:#9aa3c2;margin-bottom:10px">📋 جزئیات ('+rows.length+' رکورد)</div>';
   rows.slice().reverse().forEach(function(r){
     var amt = Math.abs(parseInt(r.change||'0'))||0;
-    html += '<div style="padding:10px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:8px;margin-bottom:8px">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
-      +   '<span style="font-weight:600;color:#e2e4f0">'+r.itemName+'</span>'
-      +   '<span style="color:#f87171;font-weight:700">-'+amt+'</span>'
+    html += '<div style="padding:11px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:8px;margin-bottom:8px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +   '<span style="font-weight:700;color:#e2e4f0">📦 '+r.itemName+'</span>'
+      +   '<span style="color:#f87171;font-weight:700;font-size:15px">- '+amt+'</span>'
       + '</div>'
-      + '<div style="font-size:12px;color:#9aa3c2">'
-      +   '🏷️ '+(r.reason||'-')+(r.project?(' • 📁 '+r.project):'')
+      + '<div style="font-size:12px;color:#9aa3c2;line-height:1.8">'
+      +   '🗓️ تاریخ کسر: '+(r.date||'-')+'<br>'
+      +   '👤 فرد: '+(r.user||'-')+'<br>'
+      +   '🏷️ دلیل: '+(r.reason||'-')+(r.project?('<br>📁 پروژه: '+r.project):'')
       + '</div>'
-      + '<div style="font-size:11px;color:#5a6080;margin-top:3px">👤 '+(r.user||'-')+' • 🕐 '+(r.date||'-')+'</div>'
       + '</div>';
   });
   html += '</div>';
@@ -1629,14 +1636,17 @@ function exportUsageToExcel(){
 
   var data = rows.slice().reverse().map(function(r){
     return {
-      'تاریخ': r.date||'',
-      'نام کالا': r.itemName||'',
-      'مقدار مصرف': Math.abs(parseInt(r.change||'0'))||0,
-      'دلیل': r.reason||'',
+      'ردیف': 0,
+      'تاریخ کسر': r.date||'',
+      'فرد (کاربر)': r.user||'',
+      'مقدار کسر': Math.abs(parseInt(r.change||'0'))||0,
+      'ماده / کالا': r.itemName||'',
       'پروژه': r.project||'',
-      'کاربر': r.user||''
+      'دلیل': r.reason||''
     };
   });
+  // شماره ردیف
+  data.forEach(function(r,idx){ r['ردیف'] = idx+1; });
 
   // یه شیت خلاصه هم بسازیم: جمع مصرف هر کالا
   var byItem = {};
@@ -1656,8 +1666,8 @@ function exportUsageToExcel(){
     wsS['!cols'] = [{wch:25},{wch:12}];
     XLSX.utils.book_append_sheet(wb, wsS, 'خلاصه مصرف');
     var ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{wch:20},{wch:25},{wch:12},{wch:14},{wch:20},{wch:14}];
-    XLSX.utils.book_append_sheet(wb, ws, 'جزئیات');
+    ws['!cols'] = [{wch:6},{wch:22},{wch:16},{wch:10},{wch:24},{wch:22},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws, 'جزئیات کسر');
     var fname = 'iPrint3D_گزارش‌مصرف' + (fProj?('_'+(document.getElementById('usage-filter-project').value||'').trim()):'') + '_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
     XLSX.writeFile(wb, fname);
     showToast('✅ خروجی Excel دانلود شد ('+rows.length+' رکورد)');
@@ -1682,8 +1692,9 @@ function changeQty(id,dir){
     // کاهش = مصرف → مودال مخصوص با ثبت دلیل/پروژه
     openConsumeModal(id);
   } else {
-    // افزایش → فقط تعداد
-    const amt=parseInt(prompt('چند عدد اضافه شد؟')||'0');
+    // افزایش
+    var unitTxt = (item.unit && item.unit!=='عدد') ? item.unit : 'عدد';
+    const amt=parseFloat(prompt('چه مقدار اضافه شد؟ ('+unitTxt+')')||'0');
     if(!amt||isNaN(amt)||amt<=0)return;
     applyQtyChange(id, 1, amt, '', '', '');
   }
@@ -1701,7 +1712,7 @@ function openConsumeModal(id){
     + '<div style="font-size:16px;font-weight:700;color:#f87171;margin-bottom:4px">➖ ثبت مصرف / کاهش موجودی</div>'
     + '<div style="font-size:13px;color:#9aa3c2;margin-bottom:16px">'+item.name+' (موجودی فعلی: '+item.qty+' '+unit+')</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">چه مقدار کم شد؟ ('+unit+')</label>'
-    + '<input class="inp" id="consume-amt" type="number" min="1" placeholder="مثلاً 1" style="margin-bottom:14px">'
+    + '<input class="inp" id="consume-amt" type="number" min="0" step="any" placeholder="مثلاً 1" style="margin-bottom:14px">'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">برای چه چیزی مصرف شد؟</label>'
     + '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
     +   '<button type="button" class="btn btn-ghost btn-sm" onclick="setConsumeReason(this,\'پروژه چاپ\')">🖨️ پروژه چاپ</button>'
@@ -1767,7 +1778,7 @@ function pickProject(label){
   document.getElementById('consume-project-hint').textContent='';
 }
 function confirmConsume(id){
-  var amt = parseInt(document.getElementById('consume-amt').value||'0');
+  var amt = parseFloat(document.getElementById('consume-amt').value||'0');
   if(!amt || isNaN(amt) || amt<=0){ showToast('مقدار را وارد کنید'); return; }
   var reason = document.getElementById('consume-reason').value || '';
   if(!reason){ showToast('دلیل مصرف را انتخاب کنید'); return; }
@@ -1786,7 +1797,10 @@ function confirmConsume(id){
 function applyQtyChange(id, dir, amt, reason, project, projectKey){
   const item=items.find(function(i){return i.id===id;});
   if(!item)return;
-  const newQty = Math.max(0, item.qty + dir*amt);
+  var curQty = parseFloat(item.qty)||0;
+  var newQty = Math.max(0, curQty + dir*amt);
+  // گرد کردن اعشار اضافی (تا 3 رقم)
+  newQty = Math.round(newQty*1000)/1000;
 
   if(currentUser && currentUser.role==='admin'){
     items=items.map(function(i){ return i.id!==id?i:Object.assign({},i,{qty:newQty}); });
@@ -2372,25 +2386,39 @@ function previewDriveImage(url, previewDivId){
 }
 
 function toggleUnit(){
-  var cat = document.getElementById('ni-cat');
-  if(!cat) return;
-  var isResin = cat.value === 'رزین';
+  var chk = document.getElementById('ni-weighted');
   var unitRow = document.getElementById('unitRow');
   var badge = document.getElementById('unitBadge');
   var qtyLabel = document.getElementById('qtyLabel');
-  if(unitRow) unitRow.style.display = isResin ? 'flex' : 'none';
-  if(badge) badge.textContent = isResin ? 'گرم' : 'عدد';
-  if(qtyLabel) qtyLabel.textContent = isResin ? 'حجم/وزن موجودی *' : 'تعداد موجودی *';
+  var unitSel = document.getElementById('ni-unit');
+  var weighted = chk && chk.checked;
+  if(unitRow) unitRow.style.display = weighted ? 'flex' : 'none';
+  var unitTxt = weighted && unitSel ? unitSel.value : 'عدد';
+  if(badge) badge.textContent = unitTxt;
+  if(qtyLabel) qtyLabel.textContent = weighted ? ('مقدار موجودی * ('+unitTxt+')') : 'تعداد موجودی *';
+}
+// وقتی دسته رزین انتخاب شد، خودکار تیک وزنی بزن (پیشنهاد)
+function onCatChangeForUnit(){
+  var cat = document.getElementById('ni-cat');
+  var chk = document.getElementById('ni-weighted');
+  if(cat && chk && cat.value === 'رزین' && !chk.checked){
+    chk.checked = true;
+    var unitSel = document.getElementById('ni-unit');
+    if(unitSel) unitSel.value = 'گرم';
+  }
+  toggleUnit();
 }
 
 function addItem(){
   const name=document.getElementById('ni-name').value.trim();
   const cat=document.getElementById('ni-cat').value;
-  const qty=parseInt(document.getElementById('ni-qty').value)||0;
+  const weightedEl=document.getElementById('ni-weighted');
+  const isWeighted = weightedEl && weightedEl.checked;
+  const qty = isWeighted ? (parseFloat(document.getElementById('ni-qty').value)||0) : (parseInt(document.getElementById('ni-qty').value)||0);
   if(!name){alert('نام کالا الزامی است');return;}
 
   const unitEl=document.getElementById('ni-unit');
-  const unit=cat==='رزین'?(unitEl?unitEl.value:'گرم'):'عدد';
+  const unit= isWeighted ? (unitEl?unitEl.value:'گرم') : 'عدد';
   const code = genCode(cat);
   const id='item_'+Date.now();
   const statusEl=document.getElementById('ni-status');
