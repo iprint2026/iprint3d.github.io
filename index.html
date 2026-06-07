@@ -520,8 +520,23 @@ tr:hover td{background:#0e1018}
             <option value="ضایعات">ضایعات</option>
             <option value="سایر">سایر</option>
           </select>
+          <select class="inp" id="usage-sort" onchange="renderUsageReport()" style="max-width:170px">
+            <option value="date_desc">جدیدترین اول</option>
+            <option value="date_asc">قدیمی‌ترین اول</option>
+            <option value="amt_desc">بیشترین مقدار</option>
+            <option value="amt_asc">کمترین مقدار</option>
+            <option value="item">نام کالا (الفبا)</option>
+            <option value="project">پروژه (الفبا)</option>
+          </select>
           <button class="btn btn-ghost btn-sm" onclick="loadUsageReport()">🔄 بروزرسانی</button>
-          <button class="btn btn-success btn-sm" onclick="exportUsageToExcel()">📥 خروجی Excel</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9aa3c2;cursor:pointer">
+            <input type="checkbox" id="usage-select-all" onchange="toggleSelectAllUsage()" style="width:16px;height:16px;cursor:pointer">
+            انتخاب همه
+          </label>
+          <span id="usage-selected-count" style="font-size:12px;color:#5a6080"></span>
+          <button class="btn btn-success btn-sm" onclick="exportUsageToExcel()" style="margin-right:auto">📥 خروجی Excel (انتخابی یا همه)</button>
         </div>
       </div>
       <div id="usage-summary"></div>
@@ -599,7 +614,7 @@ function doPost(e){
           <div>
             <div style="font-weight:600;font-size:13px;margin-bottom:4px">وارد کردن لینک API</div>
             <div style="font-size:12px;color:#5a6080;margin-bottom:8px">لینک Deploy شده را اینجا وارد کنید:</div>
-            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbz89L2gMTV8Sb0eqr7BnXVzJUZtJT9tBLkCjmxIkUCyAola1HdYhkB1gR8Ewxd_tXQlAQ/exec" oninput="saveSheetUrl()" style="font-size:12px">
+            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbx5nBLTO7vjQp6A2z4Gbodk0_P6FXAKBvvy2kIhGAsOl_STknBaEun06DEkHFN1orgr_Q/exec" oninput="saveSheetUrl()" style="font-size:12px">
             <div id="sheetStatus" style="font-size:12px;margin-top:6px;color:#5a6080"></div>
           </div>
         </div>
@@ -723,7 +738,7 @@ function saveSheetUrl(){
   localStorage.setItem('sheetUrl',document.getElementById('sheetUrl').value);
   document.getElementById('sheetStatus').textContent='✅ لینک ذخیره شد';
 }
-const SHEET_URL='https://script.google.com/macros/s/AKfycbz89L2gMTV8Sb0eqr7BnXVzJUZtJT9tBLkCjmxIkUCyAola1HdYhkB1gR8Ewxd_tXQlAQ/exec';
+const SHEET_URL='https://script.google.com/macros/s/AKfycbx5nBLTO7vjQp6A2z4Gbodk0_P6FXAKBvvy2kIhGAsOl_STknBaEun06DEkHFN1orgr_Q/exec';
 function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 
 // ═══════════════════════════════════════════════
@@ -1575,8 +1590,13 @@ function renderUsageReport(){
   if(!el) return;
   var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
   var fReason = document.getElementById('usage-filter-reason').value||'';
+  var sortMode = (document.getElementById('usage-sort')||{}).value || 'date_desc';
 
-  var rows = USAGE_LOG.filter(function(r){
+  // به هر رکورد یک ایندکس ثابت بده (برای انتخاب)
+  var indexed = USAGE_LOG.map(function(r,i){ return {r:r, idx:i}; });
+
+  var rows = indexed.filter(function(o){
+    var r = o.r;
     var okP = !fProj || (normalizeProject(r.project||'').indexOf(fProj)>=0) || (String(r.projectKey||'').indexOf(fProj)>=0);
     var okR = !fReason || (r.reason===fReason);
     return okP && okR;
@@ -1585,53 +1605,108 @@ function renderUsageReport(){
   if(!rows.length){
     if(summaryEl) summaryEl.innerHTML='';
     el.innerHTML = '<div style="text-align:center;padding:30px;color:#5a6080">هیچ رکوردی یافت نشد</div>';
+    updateUsageSelectedCount();
     return;
   }
 
+  // مرتب‌سازی
+  function amtOf(r){ return Math.abs(parseFloat(r.change||'0'))||0; }
+  rows.sort(function(a,b){
+    if(sortMode==='date_desc') return b.idx - a.idx;
+    if(sortMode==='date_asc') return a.idx - b.idx;
+    if(sortMode==='amt_desc') return amtOf(b.r) - amtOf(a.r);
+    if(sortMode==='amt_asc') return amtOf(a.r) - amtOf(b.r);
+    if(sortMode==='item') return String(a.r.itemName||'').localeCompare(String(b.r.itemName||''),'fa');
+    if(sortMode==='project') return String(a.r.project||'').localeCompare(String(b.r.project||''),'fa');
+    return b.idx - a.idx;
+  });
+
   // خلاصه: جمع مصرف هر کالا
   var byItem = {};
-  rows.forEach(function(r){
-    var amt = Math.abs(parseInt(r.change||'0'))||0;
-    if(!byItem[r.itemName]) byItem[r.itemName]=0;
-    byItem[r.itemName]+=amt;
+  rows.forEach(function(o){
+    var r=o.r; var amt = amtOf(r);
+    var unit = r.unit || '';
+    var key = r.itemName||'-';
+    if(!byItem[key]) byItem[key]={sum:0};
+    byItem[key].sum += amt;
   });
   var summaryHtml = '<div class="card" style="margin-bottom:14px"><div style="font-weight:600;color:#4ade80;margin-bottom:10px">📦 جمع مصرف'+(fProj?' (فیلترشده)':'')+'</div>';
   Object.keys(byItem).forEach(function(name){
-    summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+name+'</span><span style="color:#f87171;font-weight:700">'+byItem[name]+'</span></div>';
+    var v = Math.round(byItem[name].sum*1000)/1000;
+    summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+name+'</span><span style="color:#f87171;font-weight:700">'+v+'</span></div>';
   });
   summaryHtml += '</div>';
   if(summaryEl) summaryEl.innerHTML = summaryHtml;
 
-  // جدول جزئیات (جدید به قدیم)
-  var html = '<div class="card"><div style="font-weight:600;color:#9aa3c2;margin-bottom:10px">📋 جزئیات ('+rows.length+' رکورد)</div>';
-  rows.slice().reverse().forEach(function(r){
-    var amt = Math.abs(parseInt(r.change||'0'))||0;
-    html += '<div style="padding:11px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:8px;margin-bottom:8px">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-      +   '<span style="font-weight:700;color:#e2e4f0">📦 '+r.itemName+'</span>'
-      +   '<span style="color:#f87171;font-weight:700;font-size:15px">- '+amt+'</span>'
+  // لیست خطی (جمع‌شده) - با کلیک باز می‌شود
+  var html = '<div class="card"><div style="font-weight:600;color:#9aa3c2;margin-bottom:10px">📋 گزارش‌ها ('+rows.length+' مورد)</div>';
+  rows.forEach(function(o){
+    var r = o.r; var amt = amtOf(r);
+    var unit = r.unit ? (' '+r.unit) : '';
+    html += '<div style="background:#0b0d14;border:1px solid #1a1d2e;border-radius:8px;margin-bottom:6px;overflow:hidden">'
+      // خط جمع‌شده
+      + '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px">'
+      +   '<input type="checkbox" class="usage-chk" data-idx="'+o.idx+'" onchange="updateUsageSelectedCount()" onclick="event.stopPropagation()" style="width:17px;height:17px;cursor:pointer;flex-shrink:0">'
+      +   '<div onclick="toggleUsageRow('+o.idx+')" style="flex:1;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0">'
+      +     '<span style="font-size:13px;color:#e2e4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+      +       '<b style="color:#f87171">'+amt+unit+'</b> کسر «'+(r.itemName||'-')+'»'
+      +       (r.project?(' • 📁 '+r.project):'')
+      +     '</span>'
+      +     '<span style="font-size:11px;color:#5a6080;white-space:nowrap;flex-shrink:0">'+(r.date||'')+' ▼</span>'
+      +   '</div>'
       + '</div>'
-      + '<div style="font-size:12px;color:#9aa3c2;line-height:1.8">'
-      +   '🗓️ تاریخ کسر: '+(r.date||'-')+'<br>'
-      +   '👤 فرد: '+(r.user||'-')+'<br>'
-      +   '🏷️ دلیل: '+(r.reason||'-')+(r.project?('<br>📁 پروژه: '+r.project):'')
+      // جزئیات (مخفی)
+      + '<div id="usage-detail-'+o.idx+'" style="display:none;padding:0 12px 12px 40px;font-size:12px;color:#9aa3c2;line-height:1.9;border-top:1px solid #1a1d2e">'
+      +   '<div style="padding-top:8px">📦 ماده/کالا: <b style="color:#c7cce0">'+(r.itemName||'-')+'</b></div>'
+      +   '<div>➖ مقدار کسر: <b style="color:#f87171">'+amt+unit+'</b></div>'
+      +   '<div>🗓️ تاریخ: '+(r.date||'-')+'</div>'
+      +   '<div>👤 فرد: '+(r.user||'-')+'</div>'
+      +   '<div>🏷️ دلیل: '+(r.reason||'-')+'</div>'
+      +   (r.project?('<div>📁 پروژه: '+r.project+'</div>'):'')
       + '</div>'
       + '</div>';
   });
   html += '</div>';
   el.innerHTML = html;
+  updateUsageSelectedCount();
+}
+
+// باز/بسته کردن جزئیات یک گزارش
+function toggleUsageRow(idx){
+  var d = document.getElementById('usage-detail-'+idx);
+  if(d) d.style.display = (d.style.display==='none') ? 'block' : 'none';
+}
+// انتخاب همه
+function toggleSelectAllUsage(){
+  var all = document.getElementById('usage-select-all');
+  document.querySelectorAll('.usage-chk').forEach(function(c){ c.checked = all.checked; });
+  updateUsageSelectedCount();
+}
+// شمارش انتخاب‌شده‌ها
+function updateUsageSelectedCount(){
+  var n = document.querySelectorAll('.usage-chk:checked').length;
+  var el = document.getElementById('usage-selected-count');
+  if(el) el.textContent = n ? (n+' مورد انتخاب شده') : '';
 }
 
 // خروجی Excel از گزارش مصرف (با فیلتر فعلی)
 function exportUsageToExcel(){
   if(!canDo('users')){ showToast('فقط ادمین دسترسی دارد'); return; }
-  var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
-  var fReason = document.getElementById('usage-filter-reason').value||'';
-  var rows = USAGE_LOG.filter(function(r){
-    var okP = !fProj || (normalizeProject(r.project||'').indexOf(fProj)>=0) || (String(r.projectKey||'').indexOf(fProj)>=0);
-    var okR = !fReason || (r.reason===fReason);
-    return okP && okR;
-  });
+  // اگه چند مورد انتخاب شده، فقط همون‌ها؛ وگرنه همه فیلترشده‌ها
+  var checked = document.querySelectorAll('.usage-chk:checked');
+  var rows;
+  if(checked.length){
+    var idxs = Array.prototype.map.call(checked, function(c){ return parseInt(c.getAttribute('data-idx')); });
+    rows = idxs.map(function(i){ return USAGE_LOG[i]; }).filter(Boolean);
+  } else {
+    var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
+    var fReason = document.getElementById('usage-filter-reason').value||'';
+    rows = USAGE_LOG.filter(function(r){
+      var okP = !fProj || (normalizeProject(r.project||'').indexOf(fProj)>=0) || (String(r.projectKey||'').indexOf(fProj)>=0);
+      var okR = !fReason || (r.reason===fReason);
+      return okP && okR;
+    });
+  }
   if(!rows.length){ showToast('رکوردی برای خروجی وجود ندارد'); return; }
 
   var data = rows.slice().reverse().map(function(r){
@@ -1639,7 +1714,8 @@ function exportUsageToExcel(){
       'ردیف': 0,
       'تاریخ کسر': r.date||'',
       'فرد (کاربر)': r.user||'',
-      'مقدار کسر': Math.abs(parseInt(r.change||'0'))||0,
+      'مقدار کسر': Math.abs(parseFloat(r.change||'0'))||0,
+      'واحد': r.unit||'عدد',
       'ماده / کالا': r.itemName||'',
       'پروژه': r.project||'',
       'دلیل': r.reason||''
@@ -1651,8 +1727,8 @@ function exportUsageToExcel(){
   // یه شیت خلاصه هم بسازیم: جمع مصرف هر کالا
   var byItem = {};
   rows.forEach(function(r){
-    var amt = Math.abs(parseInt(r.change||'0'))||0;
-    var key = r.itemName||'-';
+    var amt = Math.abs(parseFloat(r.change||'0'))||0;
+    var key = (r.itemName||'-') + (r.unit?(' ('+r.unit+')'):'');
     if(!byItem[key]) byItem[key]=0;
     byItem[key]+=amt;
   });
@@ -1666,7 +1742,7 @@ function exportUsageToExcel(){
     wsS['!cols'] = [{wch:25},{wch:12}];
     XLSX.utils.book_append_sheet(wb, wsS, 'خلاصه مصرف');
     var ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{wch:6},{wch:22},{wch:16},{wch:10},{wch:24},{wch:22},{wch:14}];
+    ws['!cols'] = [{wch:6},{wch:22},{wch:16},{wch:10},{wch:10},{wch:24},{wch:22},{wch:14}];
     XLSX.utils.book_append_sheet(wb, ws, 'جزئیات کسر');
     var fname = 'iPrint3D_گزارش‌مصرف' + (fProj?('_'+(document.getElementById('usage-filter-project').value||'').trim()):'') + '_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
     XLSX.writeFile(wb, fname);
@@ -1723,9 +1799,8 @@ function openConsumeModal(id){
     + '<input type="hidden" id="consume-reason" value="">'
     + '<div id="consume-project-wrap" style="display:none">'
     +   '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">نام پروژه (می‌توانید تایپ کنید یا از لیست انتخاب کنید)</label>'
-    +   '<input class="inp" id="consume-project" placeholder="مثلاً پروژه عدسی" oninput="onProjectInput()" autocomplete="off" style="margin-bottom:4px">'
+    +   '<input class="inp" id="consume-project" placeholder="مثلاً عدسی" oninput="onProjectInput()" autocomplete="off" style="margin-bottom:4px">'
     +   '<div id="consume-project-suggest"></div>'
-    +   '<div id="consume-project-hint" style="font-size:11px;color:#fbbf24;margin-top:4px"></div>'
     + '</div>'
     + '<div style="display:flex;gap:8px;margin-top:18px">'
     +   '<button class="btn btn-danger" style="flex:1" onclick="confirmConsume(\''+id+'\')">ثبت مصرف</button>'
@@ -1756,26 +1831,24 @@ function onProjectInput(){
   var val = document.getElementById('consume-project').value;
   var norm = normalizeProject(val);
   var box = document.getElementById('consume-project-suggest');
-  var hint = document.getElementById('consume-project-hint');
-  // پیشنهاد پروژه‌های مشابه
-  var matches = KNOWN_PROJECTS.filter(function(p){
-    return p.key.indexOf(norm)>=0 || norm.indexOf(p.key)>=0;
-  });
-  // تطابق دقیق نرمال‌شده؟
-  var exact = KNOWN_PROJECTS.find(function(p){ return p.key===norm; });
-  if(exact && exact.label.trim()!==val.trim()){
-    hint.textContent = '💡 مشابه پروژه قبلی: «'+exact.label+'» — همان در نظر گرفته می‌شود';
-  } else { hint.textContent=''; }
-  if(val.trim() && matches.length){
-    box.innerHTML = matches.slice(0,5).map(function(p){
-      return '<div onclick="pickProject(\''+encodeURIComponent(p.label)+'\')" style="padding:7px 10px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:7px;margin-top:4px;cursor:pointer;font-size:13px;color:#c7cce0">'+p.label+'</div>';
+  if(!box) return;
+  if(!val.trim()){ box.innerHTML=''; return; }
+  // پیشنهاد بر اساس شروع کلمه (مثلاً «عد» → «عدسی»)؛ اگه نبود، شامل بودن
+  var starts = KNOWN_PROJECTS.filter(function(p){ return p.key.indexOf(norm)===0; });
+  var contains = KNOWN_PROJECTS.filter(function(p){ return p.key.indexOf(norm)>0; });
+  var matches = starts.concat(contains);
+  // حذف تکراری و خود مقدار دقیق
+  var seen = {}; var uniq = [];
+  matches.forEach(function(p){ if(!seen[p.key]){ seen[p.key]=1; uniq.push(p); } });
+  if(uniq.length){
+    box.innerHTML = uniq.slice(0,6).map(function(p){
+      return '<div onclick="pickProject(\''+encodeURIComponent(p.label)+'\')" style="padding:8px 10px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:7px;margin-top:4px;cursor:pointer;font-size:13px;color:#c7cce0">📁 '+p.label+'</div>';
     }).join('');
   } else { box.innerHTML=''; }
 }
 function pickProject(label){
   document.getElementById('consume-project').value = decodeURIComponent(label);
   document.getElementById('consume-project-suggest').innerHTML='';
-  document.getElementById('consume-project-hint').textContent='';
 }
 function confirmConsume(id){
   var amt = parseFloat(document.getElementById('consume-amt').value||'0');
@@ -1811,7 +1884,7 @@ function applyQtyChange(id, dir, amt, reason, project, projectKey){
     });
     // ثبت لاگ مصرف (فقط برای کاهش)
     if(dir<0){
-      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user},function(){ loadProjects(); });
+      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:(item.unit&&item.unit!=='عدد'?item.unit:'')},function(){ loadProjects(); });
     }
     closeDetail(); openDetail(id); renderDashboard();
   } else {
@@ -1823,7 +1896,7 @@ function applyQtyChange(id, dir, amt, reason, project, projectKey){
     submitChange('edit', id, changeData);
     // لاگ مصرف رو همون موقع ثبت کن (مصرف واقعی اتفاق افتاده)
     if(dir<0){
-      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user},function(){ loadProjects(); });
+      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:(item.unit&&item.unit!=='عدد'?item.unit:'')},function(){ loadProjects(); });
     }
     closeDetail();
   }
