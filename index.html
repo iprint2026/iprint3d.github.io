@@ -659,7 +659,7 @@ function doPost(e){
 </div>
 
 <!-- ── ADD CATEGORY MODAL ── -->
-<div id="modal-addCat" class="modal-bg hidden" onclick="if(event.target===this)closeAddCat()">
+<div id="modal-addCat" class="modal-bg hidden">
   <div class="modal" style="max-width:360px">
     <div style="font-weight:700;font-size:17px;margin-bottom:18px">➕ دسته‌بندی جدید</div>
     <div class="form-group">
@@ -713,7 +713,7 @@ function doPost(e){
 </div>
 
 <!-- ── DETAIL MODAL ── -->
-<div id="modal-detail" class="modal-bg hidden" onclick="if(event.target===this)closeDetail()">
+<div id="modal-detail" class="modal-bg hidden">
   <div class="modal"><div id="detailContent"></div></div>
 </div>
 
@@ -1596,7 +1596,7 @@ function startBatchActivation(itemId){
   var curQty = parseFloat(item.qty)||0;
   var curUnit = item.unit || 'عدد';
   var html = ''
-    + '<div onclick="closeBatchActivation(event)" id="batchActOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
+    + '<div id="batchActOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
     + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #2a3550;border-radius:14px;padding:20px;max-width:430px;width:100%;margin-top:30px">'
     + '<div style="font-size:16px;font-weight:700;color:#fbbf24;margin-bottom:6px">📅 فعال‌سازی بچ‌بندی</div>'
     + '<div style="background:#1a1010;border:1px solid #4a1515;border-radius:10px;padding:10px;margin-bottom:14px;font-size:12px;color:#f87171;line-height:1.7">⚠️ این عمل <b>غیرقابل برگشت</b> است. موجودی فعلی این کالا به یک «بچ» تبدیل می‌شود و از این پس موجودی از مجموع بچ‌ها محاسبه می‌گردد.</div>'
@@ -1701,7 +1701,7 @@ function showBatchModal(itemId, batch){
   var item = items.find(function(x){ return x.id===itemId; });
   var unit = (item && item.unit && item.unit!=='عدد') ? item.unit : 'عدد';
   var isEdit = !!batch;
-  var html = '<div onclick="closeBatchModal(event)" id="batchOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
+  var html = '<div id="batchOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
     + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:400px;width:100%;margin-top:30px">'
     + '<div style="font-size:16px;font-weight:700;color:#60a5fa;margin-bottom:16px">'+(isEdit?'✏️ ویرایش بچ':'➕ بچ جدید')+' — '+(item?item.name:'')+'</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">نام/شماره بچ</label>'
@@ -1711,9 +1711,10 @@ function showBatchModal(itemId, batch){
     +   '<input class="inp" id="batch-qty" type="number" step="any" min="0" value="'+(isEdit?(batch.qty||''):'')+'" placeholder="مثلاً 5" style="flex:1">'
     +   batchUnitSelectorHtml(unit)
     + '</div>'
-    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ انقضا (اختیاری)</label>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ انقضا</label>'
     + '<input class="inp" id="batch-expiry" value="'+(isEdit?(batch.expiry||''):'')+'" placeholder="مثلاً 1405/12/29 یا 2027/03/20" oninput="previewBatchDate()" style="margin-bottom:4px">'
-    + '<div id="batch-date-preview" style="font-size:11px;color:#60a5fa;margin-bottom:12px;min-height:14px"></div>'
+    + '<div id="batch-date-preview" style="font-size:11px;color:#60a5fa;margin-bottom:6px;min-height:14px"></div>'
+    + '<div style="font-size:11px;color:#fbbf24;background:#1a1505;border:1px solid #4a3a0a;border-radius:7px;padding:7px 9px;margin-bottom:12px;line-height:1.6">⚠️ لطفاً تاریخ انقضا را حتماً بعداً بررسی کنید و در صورت نیاز ویرایش نمایید.</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">یادداشت (اختیاری)</label>'
     + '<input class="inp" id="batch-note" value="'+(isEdit?(batch.note||''):'')+'" placeholder="توضیح..." style="margin-bottom:18px">'
     + '<div style="display:flex;gap:8px">'
@@ -2545,7 +2546,7 @@ function openConsumeModal(id){
   loadProjects();
   var unit = item.unit || 'عدد';
   var html = ''
-    + '<div onclick="closeConsume(event)" id="consumeOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
+    + '<div id="consumeOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
     + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:420px;width:100%;margin-top:30px">'
     + '<div style="font-size:16px;font-weight:700;color:#f87171;margin-bottom:4px">➖ ثبت مصرف / کاهش موجودی</div>'
     + '<div style="font-size:13px;color:#9aa3c2;margin-bottom:16px">'+item.name+' (موجودی فعلی: '+item.qty+' '+unit+')</div>'
@@ -3410,6 +3411,7 @@ function addItem(){
     items.push(item);
     saveItems();
     callSheet('add',item,function(){});
+    showToast('✅ کالا «'+name+'» با کد '+code+' ثبت شد');
   } else {
     var initMsg = prompt('توضیح برای ادمین (اختیاری):\nمثلاً: این کالا برای پروژه X نیاز است') || '';
     window._pendingInitMsg = initMsg;
