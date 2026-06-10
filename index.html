@@ -1434,10 +1434,19 @@ function openDetail(id){
         <input class="inp" id="edit-barcode" value="${i.barcode||''}" placeholder="بارکد کارخانه (اختیاری)">
       </div>
       <div class="form-group">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="edit-batched" ${isItemBatched(i)?'checked':''} style="width:18px;height:18px;cursor:pointer">
-          <span>📅 این کالا بچ‌بندی دارد</span>
+        ${isItemBatched(i) ? `
+        <label style="display:flex;align-items:center;gap:8px;color:#4ade80">
+          <input type="checkbox" checked disabled style="width:18px;height:18px">
+          <span>📅 این کالا بچ‌بندی دارد (فعال — غیرقابل تغییر)</span>
         </label>
+        <input type="hidden" id="edit-batched" value="1">
+        ` : `
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="edit-batched" value="0" style="width:18px;height:18px;cursor:pointer">
+          <span>📅 فعال‌سازی بچ‌بندی <span style="color:#f87171">(غیرقابل برگشت)</span></span>
+        </label>
+        <div style="font-size:11px;color:#5a6080;margin-top:4px">با فعال کردن، موجودی فعلی به یک بچ تبدیل می‌شود.</div>
+        `}
       </div>
       <div class="form-group">
         <label>زیردسته‌ها</label>
@@ -1578,6 +1587,108 @@ function batchUnitSelectorHtmlConsume(baseUnit){
   }
   var opts = units.map(function(u){ return '<option value="'+u+'"'+(u===baseUnit?' selected':'')+'>'+u+'</option>'; }).join('');
   return '<select class="inp" id="consume-unit" style="max-width:120px">'+opts+'</select>';
+}
+
+// ── فعال‌سازی بچ‌بندی برای کالای موجود ──
+function startBatchActivation(itemId){
+  var item = items.find(function(i){ return i.id===itemId; });
+  if(!item) return;
+  var curQty = parseFloat(item.qty)||0;
+  var curUnit = item.unit || 'عدد';
+  var html = ''
+    + '<div onclick="closeBatchActivation(event)" id="batchActOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
+    + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #2a3550;border-radius:14px;padding:20px;max-width:430px;width:100%;margin-top:30px">'
+    + '<div style="font-size:16px;font-weight:700;color:#fbbf24;margin-bottom:6px">📅 فعال‌سازی بچ‌بندی</div>'
+    + '<div style="background:#1a1010;border:1px solid #4a1515;border-radius:10px;padding:10px;margin-bottom:14px;font-size:12px;color:#f87171;line-height:1.7">⚠️ این عمل <b>غیرقابل برگشت</b> است. موجودی فعلی این کالا به یک «بچ» تبدیل می‌شود و از این پس موجودی از مجموع بچ‌ها محاسبه می‌گردد.</div>'
+    + '<div style="font-size:13px;color:#9aa3c2;margin-bottom:14px">کالا: <b style="color:#e2e4f0">'+item.name+'</b><br>موجودی فعلی: <b style="color:#e2e4f0">'+curQty+' '+curUnit+'</b></div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">واحد این کالا چه باشد؟</label>'
+    + '<select class="inp" id="ba-unit" onchange="baUnitChanged()" style="margin-bottom:12px">'
+    +   '<option value="'+curUnit+'">'+curUnit+' (فعلی — بدون تغییر)</option>'
+    +   '<option value="گرم">گرم</option>'
+    +   '<option value="کیلوگرم">کیلوگرم</option>'
+    +   '<option value="میلی‌لیتر">میلی‌لیتر</option>'
+    +   '<option value="لیتر">لیتر</option>'
+    + '</select>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">مقدار بچ اول</label>'
+    + '<input class="inp" id="ba-qty" type="number" step="any" min="0" value="'+curQty+'" style="margin-bottom:12px">'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ انقضا (اختیاری — بعداً هم می‌توانید وارد کنید)</label>'
+    + '<input class="inp" id="ba-expiry" placeholder="مثلاً 1405/12/29" oninput="baDatePreview()" style="margin-bottom:4px">'
+    + '<div id="ba-date-preview" style="font-size:11px;color:#60a5fa;margin-bottom:14px;min-height:14px"></div>'
+    + '<div style="display:flex;gap:8px">'
+    +   '<button class="btn btn-primary" style="flex:1" onclick="confirmBatchActivation(\''+itemId+'\')">✅ فعال‌سازی</button>'
+    +   '<button class="btn btn-ghost" onclick="closeBatchActivation()">انصراف</button>'
+    + '</div>'
+    + '</div></div>';
+  var div = document.createElement('div');
+  div.id = 'batchActHost';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+function closeBatchActivation(e){
+  if(e && e.target && e.target.id!=='batchActOverlay') return;
+  var h = document.getElementById('batchActHost');
+  if(h) h.remove();
+}
+function baUnitChanged(){ /* جای خالی برای توسعه آینده */ }
+function baDatePreview(){
+  var inp = document.getElementById('ba-expiry');
+  var prev = document.getElementById('ba-date-preview');
+  if(!inp||!prev) return;
+  var both = smartDateBoth(inp.value);
+  if(both){ prev.innerHTML = '📅 شمسی: <b>'+both.shamsi+'</b> | 🌍 میلادی: <b>'+both.milady+'</b>'; }
+  else { prev.textContent=''; }
+}
+function confirmBatchActivation(itemId){
+  var item = items.find(function(i){ return i.id===itemId; });
+  if(!item) return;
+  var newUnit = document.getElementById('ba-unit').value;
+  var newQty = parseFloat(document.getElementById('ba-qty').value)||0;
+  var expiry = (document.getElementById('ba-expiry').value||'').trim();
+  closeBatchActivation();
+  closeDetail();
+
+  if(currentUser && currentUser.role==='admin'){
+    showToast('⏳ در حال فعال‌سازی بچ‌بندی...');
+    // ۱) واحد کالا رو آپدیت کن + نشانگر بچ + موجودی صفر (از بچ میاد)
+    var newSubcats = setBatchedFlag(getSubcatsFromItem(item), true);
+    var updatedItem = Object.assign({}, item, { unit:newUnit, qty:newQty, subcats:JSON.stringify(newSubcats) });
+    items = items.map(function(i){ return i.id===itemId ? updatedItem : i; });
+    saveItems();
+    callSheet('delete',{id:itemId}, function(){
+      callSheet('add', updatedItem, function(){
+        // ۲) بچ اول رو بساز
+        var bcode = (item.code||'ITEM') + '-B1';
+        callSheet('addBatch', {itemId:itemId, batchCode:bcode, batchName:'بچ ۱', qty:String(newQty), expiry:expiry, note:''}, function(res){
+          loadBatches(function(){
+            syncItemQtyFromBatches(itemId);
+            renderDashboard(); renderItems();
+            showToast('✅ بچ‌بندی فعال شد — لطفاً زیردسته‌ها را بازبینی کنید');
+            // هشدار زیردسته‌ها + باز کردن فرم ویرایش
+            setTimeout(function(){
+              alert('⚠️ یادآوری: زیردسته‌ها و ویژگی‌های پروفایل اصلی (مثل رنگ، نوع) ممکن است برای همه‌ی بچ‌ها یکسان نباشد. لطفاً آن‌ها را بازبینی کنید. می‌توانید توضیح هر بچ را جداگانه در یادداشت بچ وارد کنید.');
+              openDetail(itemId);
+              setTimeout(function(){ var efb=document.getElementById('editFormBody'); if(efb && efb.style.display==='none'){ toggleEditForm(); } }, 250);
+            }, 400);
+          });
+        });
+      });
+    });
+  } else {
+    // اوپراتور: درخواست برای ادمین
+    var changeData = Object.assign({}, item, {
+      _batchActivation: true,
+      _newUnit: newUnit,
+      _newQty: newQty,
+      _expiry: expiry
+    });
+    window._pendingInitMsg = 'فعال‌سازی بچ‌بندی برای «'+item.name+'» — موجودی اولیه: '+newQty+' '+newUnit;
+    submitChange('batch_activate', itemId, changeData);
+    showToast('✅ درخواست فعال‌سازی بچ برای ادمین ارسال شد');
+  }
+}
+// گرفتن آرایه زیردسته از یک آیتم
+function getSubcatsFromItem(item){
+  try { return JSON.parse(item.subcats||'[]'); } catch(e){ return []; }
 }
 
 // مودال افزودن/ویرایش بچ
@@ -1729,9 +1840,24 @@ function saveEdit(id){
   const bcEl=document.getElementById('edit-barcode');
   const barcode=bcEl?bcEl.value.trim():'';
   var subcatsArr=getSubcats('edit-subcats');
-  // حفظ/تنظیم نشانگر بچ‌بندی
   var editBatchedEl = document.getElementById('edit-batched');
-  subcatsArr = setBatchedFlag(subcatsArr, editBatchedEl && editBatchedEl.checked);
+  var wasBatched = isItemBatched(items.find(function(i){return i.id===id;}));
+  // آیا کاربر تیک بچ‌بندی رو تازه زده؟ (قبلاً بچ نداشت و الان تیک خورده)
+  var batchedNow = false;
+  if(editBatchedEl){
+    if(editBatchedEl.type==='checkbox') batchedNow = editBatchedEl.checked;
+    else batchedNow = (editBatchedEl.value==='1'); // hidden = قبلاً بچ‌دار بوده
+  }
+  var newlyActivating = (!wasBatched && batchedNow);
+
+  // اگه تازه داره بچ‌بندی فعال میشه → جریان مخصوص (نه ذخیره عادی)
+  if(newlyActivating){
+    startBatchActivation(id);
+    return;
+  }
+
+  // حفظ نشانگر بچ‌بندی (اگه از قبل بچ‌دار بوده)
+  subcatsArr = setBatchedFlag(subcatsArr, wasBatched);
   const subcats=JSON.stringify(subcatsArr);
   updateSubcatTemplate(cat, subcatsArr);
 
@@ -3501,8 +3627,8 @@ function renderPendingChanges(){
     try { data = JSON.parse(p.data||'{}'); } catch(e){}
     var status = (p.status && p.status.trim()) ? p.status.trim() : 'pending';
     var isPending = status === 'pending';
-    var typeLabel = p.type==='add'?'➕ افزودن': p.type==='delete'?'🗑️ حذف': p.type==='message'?'💬 گفتگو': p.type==='batch_consume'?'📉 مصرف از بچ':'✏️ ویرایش';
-    var typeColor = p.type==='add'?'#4ade80': p.type==='delete'?'#f87171': p.type==='message'?'#c084fc': p.type==='batch_consume'?'#fbbf24':'#60a5fa';
+    var typeLabel = p.type==='add'?'➕ افزودن': p.type==='delete'?'🗑️ حذف': p.type==='message'?'💬 گفتگو': p.type==='batch_consume'?'📉 مصرف از بچ': p.type==='batch_activate'?'📅 فعال‌سازی بچ':'✏️ ویرایش';
+    var typeColor = p.type==='add'?'#4ade80': p.type==='delete'?'#f87171': p.type==='message'?'#c084fc': p.type==='batch_consume'?'#fbbf24': p.type==='batch_activate'?'#fbbf24':'#60a5fa';
     var statusLabel = isPending?'⏳ در انتظار': status==='approved'?'✅ تأیید':'❌ رد';
     var statusColor = isPending?'#f59e0b': status==='approved'?'#4ade80':'#f87171';
 
@@ -3522,6 +3648,8 @@ function renderPendingChanges(){
       summary = '🗑️ حذف کالا — ' + itemName;
     } else if(p.type==='batch_consume'){
       summary = '📉 مصرف ' + (data._consumeAmt||'') + (data._unit?(' '+data._unit):'') + ' از بچ «' + (data._batchName||'') + '» — ' + itemName + (data._reason?(' • '+data._reason):'') + (data._project?(' • پروژه: '+data._project):'');
+    } else if(p.type==='batch_activate'){
+      summary = '📅 فعال‌سازی بچ‌بندی — ' + itemName + ' (موجودی اولیه: ' + (data._newQty||'') + ' ' + (data._newUnit||'') + ')';
     }
 
     // آیکون کالا (یا چت برای message)
@@ -3650,6 +3778,37 @@ function approvePendingChange(id){
     return;
   }
 
+  // اگه درخواست فعال‌سازی بچ‌بندی است
+  if(ch && ch.type==='batch_activate' && data && data._batchActivation){
+    var itemId2 = ch.itemId;
+    var item2 = items.find(function(i){ return i.id===itemId2; });
+    if(!item2){ showToast('❌ کالا یافت نشد'); return; }
+    if(isItemBatched(item2)){ showToast('این کالا قبلاً بچ‌بندی شده'); callSheet('approvePendingChange',{id:id,adminMsg:adminMsg},function(){ loadPendingChanges(); }); return; }
+    var nUnit = data._newUnit || item2.unit;
+    var nQty = parseFloat(data._newQty)||0;
+    var nExpiry = data._expiry || '';
+    showToast('⏳ در حال فعال‌سازی...');
+    var newSub = setBatchedFlag(getSubcatsFromItem(item2), true);
+    var upd = Object.assign({}, item2, { unit:nUnit, qty:nQty, subcats:JSON.stringify(newSub) });
+    items = items.map(function(i){ return i.id===itemId2 ? upd : i; });
+    saveItems();
+    callSheet('delete',{id:itemId2}, function(){
+      callSheet('add', upd, function(){
+        var bcode = (item2.code||'ITEM')+'-B1';
+        callSheet('addBatch', {itemId:itemId2, batchCode:bcode, batchName:'بچ ۱', qty:String(nQty), expiry:nExpiry, note:''}, function(){
+          loadBatches(function(){
+            syncItemQtyFromBatches(itemId2);
+            callSheet('approvePendingChange', {id:id, adminMsg:adminMsg||'فعال‌سازی بچ تأیید شد'}, function(){
+              loadPendingChanges(); loadFromSheet(); updateAllBadges();
+              showToast('✅ بچ‌بندی فعال شد');
+            });
+          });
+        });
+      });
+    });
+    return;
+  }
+
   // درخواست عادی
   callSheet('approvePendingChange', {id:id, adminMsg:adminMsg}, function(res){
     if(res && res.status==='ok'){
@@ -3711,7 +3870,12 @@ function submitChange(type, itemId, data){
     _reason: data._reason || '',
     _project: data._project || '',
     _projectKey: data._projectKey || '',
-    _unit: data._unit || ''
+    _unit: data._unit || '',
+    // اطلاعات فعال‌سازی بچ
+    _batchActivation: data._batchActivation || false,
+    _newUnit: data._newUnit || '',
+    _newQty: data._newQty || 0,
+    _expiry: data._expiry || ''
   };
   var dataStr = JSON.stringify(summary);
   
@@ -3790,7 +3954,7 @@ function renderMyChanges(){
     var status = (c.status && c.status.trim()) ? c.status.trim() : 'pending';
     var statusLabel = c.type==='message'?'💬 گفتگو': status==='pending'?'⏳ در حال بررسی': status==='approved'?'✅ تأیید شده':'❌ رد شده';
     var statusColor = status==='pending'?'#f59e0b': status==='approved'?'#4ade80':'#f87171';
-    var typeLabel = c.type==='add'?'➕ افزودن': c.type==='delete'?'🗑️ حذف': c.type==='message'?'💬 گفتگو': c.type==='batch_consume'?'📉 مصرف از بچ':'✏️ ویرایش';
+    var typeLabel = c.type==='add'?'➕ افزودن': c.type==='delete'?'🗑️ حذف': c.type==='message'?'💬 گفتگو': c.type==='batch_consume'?'📉 مصرف از بچ': c.type==='batch_activate'?'📅 فعال‌سازی بچ':'✏️ ویرایش';
 
     var itemName = data.name || data.code || c.itemId || 'کالا';
     var origQty = data._orig_qty !== undefined ? parseInt(data._orig_qty)||0 : null;
