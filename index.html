@@ -721,6 +721,18 @@ function doPost(e){
 // ═══════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════
+// ─── امنیت: تابع escape برای جلوگیری از XSS ───
+// هر مقدار متنی که کاربر وارد می‌کند، قبل از نمایش در HTML باید از این تابع رد شود
+function escapeHtml(s){
+  if(s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let items = JSON.parse(localStorage.getItem('lab_items')||'[]');
 let chatHistory = [];
 let currentUser = null;
@@ -1192,11 +1204,11 @@ function renderDashboard(){
   var recentEl = document.getElementById('recentItems');
   if(recentEl){
     recentEl.innerHTML=[...items].reverse().slice(0,8).map(i=>`<tr onclick="openDetail('${i.id}')" style="cursor:pointer">
-      <td style="color:#60a5fa;font-family:monospace;font-size:12px">${i.code}</td>
-      <td style="font-weight:500">${i.name}</td>
-      <td><span class="tag ${catClass(i.cat)}">${i.cat}</span></td>
-      <td>${i.qty} ${i.unit}</td>
-      <td style="color:#9aa3c2">قفسه ${i.shelf||'-'}</td>
+      <td style="color:#60a5fa;font-family:monospace;font-size:12px">${escapeHtml(i.code)}</td>
+      <td style="font-weight:500">${escapeHtml(i.name)}</td>
+      <td><span class="tag ${catClass(i.cat)}">${escapeHtml(i.cat)}</span></td>
+      <td>${escapeHtml(String(i.qty))} ${escapeHtml(i.unit)}</td>
+      <td style="color:#9aa3c2">قفسه ${escapeHtml(i.shelf||'-')}</td>
     </tr>`).join('');
   }
   // بارگذاری اعلان‌ها
@@ -1266,12 +1278,12 @@ function renderItems(){
         + '<td style="padding:8px;max-width:180px">'
         + '<div style="display:flex;align-items:center;gap:8px">'
         + (i.image?'<img src="'+i.image+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">':'<div style="width:36px;height:36px;background:#1e2235;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">📦</div>')
-        + '<div><div style="font-weight:500;font-size:13px">'+i.name+'</div>'
-        + (i.desc?'<div style="color:#5a6080;font-size:11px">'+i.desc.slice(0,30)+'</div>':'')
-        + (function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} sc=sc.filter(function(s){return s.v && s.k!=='__batched__';}); return sc.length?'<div style="margin-top:3px">'+sc.map(function(s){return '<span style=\'background:#13151f;padding:0px 5px;border-radius:4px;font-size:9px;margin-left:3px;color:#6a7290\'>'+s.v+'</span>';}).join('')+'</div>':''; })()
+        + '<div><div style="font-weight:500;font-size:13px">'+escapeHtml(i.name)+'</div>'
+        + (i.desc?'<div style="color:#5a6080;font-size:11px">'+escapeHtml(i.desc.slice(0,30))+'</div>':'')
+        + (function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} sc=sc.filter(function(s){return s.v && s.k!=='__batched__';}); return sc.length?'<div style="margin-top:3px">'+sc.map(function(s){return '<span style=\'background:#13151f;padding:0px 5px;border-radius:4px;font-size:9px;margin-left:3px;color:#6a7290\'>'+escapeHtml(s.v)+'</span>';}).join('')+'</div>':''; })()
         + '</div></div></td>'
-        + '<td style="padding:8px;font-family:monospace;font-size:12px;color:#60a5fa">'+i.code+'</td>'
-        + '<td style="padding:8px"><span style="background:#1e2235;padding:2px 8px;border-radius:8px;font-size:11px">'+i.cat+'</span></td>'
+        + '<td style="padding:8px;font-family:monospace;font-size:12px;color:#60a5fa">'+escapeHtml(i.code)+'</td>'
+        + '<td style="padding:8px"><span style="background:#1e2235;padding:2px 8px;border-radius:8px;font-size:11px">'+escapeHtml(i.cat)+'</span></td>'
         + '<td style="padding:8px">'+statusBadge(i.status||'نو')+'</td>'
         + '<td style="padding:8px;font-weight:600;color:'+(low?'#f87171':'#4ade80')+'">'+i.qty+' '+i.unit+ batchBadgeForList(i) +'</td>'
         + '<td style="padding:8px;color:#5a6080;font-size:12px">'+i.shelf+'/'+i.row+'</td>'
@@ -1333,8 +1345,8 @@ function openDetail(id){
   document.getElementById('detailContent').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
       <div>
-        <div style="font-weight:700;font-size:18px">${i.name}</div>
-        <div style="color:#60a5fa;font-family:monospace;font-size:13px;margin-top:3px">${i.code}</div>
+        <div style="font-weight:700;font-size:18px">${escapeHtml(i.name)}</div>
+        <div style="color:#60a5fa;font-family:monospace;font-size:13px;margin-top:3px">${escapeHtml(i.code)}</div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="closeDetail()">✕</button>
     </div>
@@ -1343,14 +1355,14 @@ function openDetail(id){
       <img src="${i.image}" style="width:100%;max-height:320px;object-fit:contain;border-radius:12px;border:1px solid #1a1d2e;background:#0b0d14;cursor:pointer" onclick="openFullImage('${i.image}')">
       <div style="font-size:11px;color:#5a6080;margin-top:4px">برای بزرگنمایی کلیک کنید</div>
     </div>`:''}
-    ${i.desc?`<div style="background:#0b0d14;border-radius:8px;padding:12px;font-size:13px;color:#9aa3c2;margin-bottom:16px;line-height:1.6">${i.desc}</div>`:''}
+    ${i.desc?`<div style="background:#0b0d14;border-radius:8px;padding:12px;font-size:13px;color:#9aa3c2;margin-bottom:16px;line-height:1.6">${escapeHtml(i.desc)}</div>`:''}
 
     <div class="grid2" style="margin-bottom:16px">
       ${[
         ['دسته‌بندی', `<span style="color:${catColor}">${i.cat}</span>`],
         ['وضعیت کالا', statusBadge(i.status||'نو')],
-        ...((function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} return sc.filter(function(s){return s.v && s.k!=='__batched__';}).map(function(s){ return [s.k||'زیردسته', `<span style="color:#9aa3c2">${s.v}</span>`]; }); })()),
-        ['موقعیت', `قفسه ${i.shelf} — ردیف ${i.row}`],
+        ...((function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} return sc.filter(function(s){return s.v && s.k!=='__batched__';}).map(function(s){ return [escapeHtml(s.k||'زیردسته'), `<span style="color:#9aa3c2">${escapeHtml(s.v)}</span>`]; }); })()),
+        ['موقعیت', `قفسه ${escapeHtml(i.shelf)} — ردیف ${escapeHtml(i.row)}`],
         ['موجودی', `<span style="color:${i.qty<=i.minQty?'#f87171':'#4ade80'};font-weight:700">${i.qty} ${i.unit}</span>`],
         ['حداقل موجودی', `${i.minQty} ${i.unit}`],
         ['تاریخ ثبت', i.date||'—']
@@ -1542,11 +1554,11 @@ function renderBatchSection(itemId){
         : (expiryTxt?('<div style="font-size:11px;color:#9aa3c2;margin-top:3px">🗓️ '+expiryTxt+'</div>'):'');
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px;background:'+(expired?'#1a1010':'#11131f')+';border:1px solid '+(st?st.color+'44':'#1a1d2e')+';border-right:4px solid '+(st?st.color:'#1a1d2e')+';border-radius:7px;margin-bottom:6px">'
         + '<div style="min-width:0;flex:1">'
-        +   '<div style="font-size:13px;color:#e2e4f0;font-weight:600">'+(item?item.name+' — ':'')+(b.batchName||'بدون نام')+'</div>'
-        +   (b.batchCode?('<div style="font-size:11px;color:#60a5fa;margin-top:2px;font-family:monospace">🔖 '+b.batchCode+'</div>'):'')
-        +   '<div style="font-size:11px;color:#9aa3c2;margin-top:2px">📦 '+q+(unit?(' '+unit):'')+'</div>'
+        +   '<div style="font-size:13px;color:#e2e4f0;font-weight:600">'+(item?escapeHtml(item.name)+' — ':'')+escapeHtml(b.batchName||'بدون نام')+'</div>'
+        +   (b.batchCode?('<div style="font-size:11px;color:#60a5fa;margin-top:2px;font-family:monospace">🔖 '+escapeHtml(b.batchCode)+'</div>'):'')
+        +   '<div style="font-size:11px;color:#9aa3c2;margin-top:2px">📦 '+q+(unit?(' '+escapeHtml(unit)):'')+'</div>'
         +   statusBar
-        +   (b.note?('<div style="font-size:11px;color:#5a6080;margin-top:2px">📝 '+b.note+'</div>'):'')
+        +   (b.note?('<div style="font-size:11px;color:#5a6080;margin-top:2px">📝 '+escapeHtml(b.note)+'</div>'):'')
         + '</div>'
         + '<div style="display:flex;gap:4px;flex-shrink:0">'
         +   (b.batchCode?'<button class="btn btn-ghost btn-sm" onclick="downloadBatchQR(\''+b.id+'\')" style="padding:4px 8px" title="دانلود برچسب QR بچ">🏷️</button>':'')
@@ -3079,11 +3091,9 @@ function previewImageUrl(url){
   img.onload=function(){wrap.style.display='block';};
 }
 
-// ─── ArvanCloud S3 Upload ───────────────────────
-var ARVAN_ACCESS = 'faab6d47-ccda-458f-9331-1883d451df06';
-var ARVAN_SECRET = '0baf5815671d1a9a3ca5baa34018e490e7c20438bcb753669c66fa3c287a123b';
-var ARVAN_ENDPOINT = 'https://s3.ir-thr-at1.arvanstorage.ir';
-var ARVAN_BUCKET = 'lab-inventory';
+// ─── آپلود تصویر از طریق Apps Script (Google Drive) ───────────────────────
+// نکته امنیتی: آپلود واقعی از طریق Apps Script انجام می‌شود (imgUpload/imgChunk)
+// و هیچ کلید مخفی در سمت کلاینت نگهداری نمی‌شود.
 
 async function uploadToArvan(file, itemId, statusEl){
   function setStatus(msg, color){
