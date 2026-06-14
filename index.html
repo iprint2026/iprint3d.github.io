@@ -1582,7 +1582,7 @@ function renderBatchSection(itemId){
       var statusBar = st
         ? '<div style="font-size:11px;margin-top:3px"><span style="color:'+st.color+';font-weight:700">● '+st.label+'</span>'+(expiryTxt?('<span style="color:#5a6080"> • 🗓️ '+expiryTxt+'</span>'):'')+'</div>'
         : (expiryTxt?('<div style="font-size:11px;color:#9aa3c2;margin-top:3px">🗓️ '+expiryTxt+'</div>'):'');
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px;background:'+(expired?'#1a1010':'#11131f')+';border:1px solid '+(st?st.color+'44':'#1a1d2e')+';border-right:4px solid '+(st?st.color:'#1a1d2e')+';border-radius:7px;margin-bottom:6px">'
+      html += '<div id="batchcard-'+b.id+'" style="display:flex;justify-content:space-between;align-items:center;padding:9px;background:'+(expired?'#1a1010':'#11131f')+';border:1px solid '+(st?st.color+'44':'#1a1d2e')+';border-right:4px solid '+(st?st.color:'#1a1d2e')+';border-radius:7px;margin-bottom:6px;transition:box-shadow 0.3s,border-color 0.3s">'
         + '<div style="min-width:0;flex:1">'
         +   '<div style="font-size:13px;color:#e2e4f0;font-weight:600">'+(item?escapeHtml(item.name)+' — ':'')+escapeHtml(b.batchName||'بدون نام')+'</div>'
         +   (b.batchCode?('<div style="font-size:11px;color:#60a5fa;margin-top:2px;font-family:monospace">🔖 '+escapeHtml(b.batchCode)+'</div>'):'')
@@ -1601,6 +1601,31 @@ function renderBatchSection(itemId){
   }
   html += '</div>';
   host.innerHTML = html;
+}
+
+// اسکرول به یک بچ خاص در پروفایل + نوار رنگی موقت (برای پیدا کردن بچ از چت)
+function highlightBatch(batchId){
+  var el = document.getElementById('batchcard-'+batchId);
+  if(!el) return;
+  // اسکرول نرم به بچ
+  try { el.scrollIntoView({behavior:'smooth', block:'center'}); } catch(e){ el.scrollIntoView(); }
+  // نوار/درخشش رنگی موقت
+  var origShadow = el.style.boxShadow;
+  var origBorder = el.style.borderColor;
+  el.style.boxShadow = '0 0 0 3px #4f8ef7, 0 0 18px #4f8ef7aa';
+  el.style.borderColor = '#4f8ef7';
+  // چند بار پلک بزنه که توجه جلب شه
+  var on = true, blinks = 0;
+  var timer = setInterval(function(){
+    on = !on;
+    el.style.boxShadow = on ? '0 0 0 3px #4f8ef7, 0 0 18px #4f8ef7aa' : 'none';
+    blinks++;
+    if(blinks >= 5){
+      clearInterval(timer);
+      el.style.boxShadow = origShadow || 'none';
+      el.style.borderColor = origBorder || '';
+    }
+  }, 350);
 }
 
 // انتخابگر واحد برای مقدار بچ (فقط اگه کالا وزنی/حجمی باشه)
@@ -5012,7 +5037,7 @@ function showRelatedItemsByCodes(codes){
     card.style.cssText = 'background:#0d1525;border:1px solid #2a3550;border-right:4px solid '+(st?st.color:'#60a5fa')+';border-radius:10px;padding:10px 14px;max-width:85%;cursor:pointer';
     card.onclick = function(){
       gotoView('items', document.querySelector('.nav'));
-      setTimeout(function(){ if(item) openDetail(item.id); }, 100);
+      setTimeout(function(){ if(item){ openDetail(item.id); setTimeout(function(){ highlightBatch(b.id); }, 500); } }, 100);
     };
     card.innerHTML =
       '<div style="display:flex;align-items:center;gap:10px">'
