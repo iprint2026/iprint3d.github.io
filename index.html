@@ -635,7 +635,7 @@ function doPost(e){
           <div>
             <div style="font-weight:600;font-size:13px;margin-bottom:4px">وارد کردن لینک API</div>
             <div style="font-size:12px;color:#5a6080;margin-bottom:8px">لینک Deploy شده را اینجا وارد کنید:</div>
-            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbxzB95i0_eCxXUNO4bVW-0vIThLAt4zSZNQbcknofAYbuRgBVRb1C_fwT8wWrAidpyaUQ/exec" oninput="saveSheetUrl()" style="font-size:12px">
+            <input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycbx7a_1fcXGvWtaLulJ_lFFWIt7_rpHAvHp4q9eg8JEjTfDHESHr8XpiyU9NO8zgXKo2OQ/exec" oninput="saveSheetUrl()" style="font-size:12px">
             <div id="sheetStatus" style="font-size:12px;margin-top:6px;color:#5a6080"></div>
           </div>
         </div>
@@ -771,7 +771,7 @@ function saveSheetUrl(){
   localStorage.setItem('sheetUrl',document.getElementById('sheetUrl').value);
   document.getElementById('sheetStatus').textContent='✅ لینک ذخیره شد';
 }
-const SHEET_URL='https://script.google.com/macros/s/AKfycbxzB95i0_eCxXUNO4bVW-0vIThLAt4zSZNQbcknofAYbuRgBVRb1C_fwT8wWrAidpyaUQ/exec';
+const SHEET_URL='https://script.google.com/macros/s/AKfycbx7a_1fcXGvWtaLulJ_lFFWIt7_rpHAvHp4q9eg8JEjTfDHESHr8XpiyU9NO8zgXKo2OQ/exec';
 function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 
 // ═══════════════════════════════════════════════
@@ -966,8 +966,8 @@ function renderPending(){
     <div style="background:#0b0d14;border-radius:10px;padding:14px;margin-bottom:10px;border:1px solid #1a1d2e">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div>
-          <div style="font-weight:600;font-size:15px;color:#e2e4f0">@${p.user}</div>
-          <div style="color:#5a6080;font-size:12px;margin-top:3px">تاریخ درخواست: ${p.date}</div>
+          <div style="font-weight:600;font-size:15px;color:#e2e4f0">@${escapeHtml(p.user)}</div>
+          <div style="color:#5a6080;font-size:12px;margin-top:3px">تاریخ درخواست: ${escapeHtml(p.date)}</div>
         </div>
         <button class="btn btn-danger btn-sm" onclick="rejectPending('${p.id}')">❌ رد</button>
       </div>
@@ -1025,8 +1025,8 @@ function renderActiveUsers(){
     return `<div style="background:#0b0d14;border-radius:10px;padding:12px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div>
-          <span style="font-weight:600;font-size:13px">${u.name||u.user}</span>
-          <span style="color:#5a6080;font-size:12px;margin-right:8px">@${u.user}</span>
+          <span style="font-weight:600;font-size:13px">${escapeHtml(u.name||u.user)}</span>
+          <span style="color:#5a6080;font-size:12px;margin-right:8px">@${escapeHtml(u.user)}</span>
           <span style="background:${roleColor}22;color:${roleColor};padding:2px 8px;border-radius:10px;font-size:11px">${roleLabel}</span>
           ${u.lastSeen?`<div style="color:#5a6080;font-size:11px;margin-top:4px">🕐 آخرین حضور: ${u.lastSeen}</div>`:'<div style="color:#2e3350;font-size:11px;margin-top:4px">🕐 هنوز وارد نشده</div>'}
         </div>
@@ -1189,9 +1189,39 @@ function gotoView(v,el){
 // ═══════════════════════════════════════════════
 //  CODE GENERATOR
 // ═══════════════════════════════════════════════
+// نگاشت حروف فارسی به لاتین (برای ساخت پیشوند کد دسته‌های جدید)
+function faToLatinPrefix(name){
+  var clean = String(name||'').replace(/[\u200c\s]/g,''); // حذف فاصله و نیم‌فاصله
+  // کلمات رایج که ریشه‌ی لاتین دارند → پیشوند دلخواه
+  var known = {
+    'فیلامنت':'FIL', 'رزین':'RZN', 'پلا':'PLA', 'ابس':'ABS', 'نازل':'NOZ',
+    'چسب':'GLU', 'رنگ':'CLR', 'ابزار':'TOL', 'قطعات':'PRT', 'قطعه':'PRT'
+  };
+  if(known[clean]) return known[clean];
+  var map = {
+    'ا':'A','آ':'A','ب':'B','پ':'P','ت':'T','ث':'S','ج':'J','چ':'CH','ح':'H','خ':'KH',
+    'د':'D','ذ':'Z','ر':'R','ز':'Z','ژ':'ZH','س':'S','ش':'SH','ص':'S','ض':'Z','ط':'T',
+    'ظ':'Z','ع':'A','غ':'GH','ف':'F','ق':'GH','ک':'K','گ':'G','ل':'L','م':'M','ن':'N',
+    'و':'V','ه':'H','ی':'Y','ي':'Y','ك':'K','ة':'H'
+  };
+  var result = '';
+  for(var i=0; i<clean.length && result.length<3; i++){
+    var ch = clean[i];
+    if(/[A-Za-z]/.test(ch)){ result += ch.toUpperCase(); }
+    else if(map[ch]){ result += map[ch]; }
+  }
+  result = result.slice(0,3);
+  return result || 'GEN'; // اگه هیچی نشد، GEN (عمومی)
+}
+
 function genCode(cat){
-  const prefix=cat==='آزمایشگاه'?'LAB':cat==='یدکی'?'YDK':'RZN';
-  const nums=items.filter(i=>i.code.startsWith(prefix)).map(i=>parseInt(i.code.split('-')[1])||0);
+  // سه دسته‌ی اصلی پیشوند ثابت دارند (تغییر نکنند تا کدهای قبلی خراب نشوند)
+  var prefix;
+  if(cat==='آزمایشگاه') prefix='LAB';
+  else if(cat==='یدکی') prefix='YDK';
+  else if(cat==='رزین') prefix='RZN';
+  else prefix = faToLatinPrefix(cat); // دسته‌های جدید: پیشوند خودکار از اسم
+  const nums=items.filter(i=>i.code.startsWith(prefix+'-')).map(i=>parseInt(i.code.split('-')[1])||0);
   const next=(nums.length?Math.max(...nums):0)+1;
   return `${prefix}-${String(next).padStart(3,'0')}`;
 }
@@ -1277,7 +1307,7 @@ function renderItems(){
         + (canDel?'<td style="padding:8px" onclick="event.stopPropagation()"><input type="checkbox" class="item-cb" value="'+i.id+'" onchange="updateBulkBar()"></td>':'')
         + '<td style="padding:8px;max-width:180px">'
         + '<div style="display:flex;align-items:center;gap:8px">'
-        + (i.image?'<img src="'+i.image+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">':'<div style="width:36px;height:36px;background:#1e2235;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">📦</div>')
+        + (i.image?'<img src="'+escapeHtml(i.image)+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">':'<div style="width:36px;height:36px;background:#1e2235;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">📦</div>')
         + '<div><div style="font-weight:500;font-size:13px">'+escapeHtml(i.name)+'</div>'
         + (i.desc?'<div style="color:#5a6080;font-size:11px">'+escapeHtml(i.desc.slice(0,30))+'</div>':'')
         + (function(){ var sc=[]; try{sc=JSON.parse(i.subcats||'[]');}catch(e){} sc=sc.filter(function(s){return s.v && s.k!=='__batched__';}); return sc.length?'<div style="margin-top:3px">'+sc.map(function(s){return '<span style=\'background:#13151f;padding:0px 5px;border-radius:4px;font-size:9px;margin-left:3px;color:#6a7290\'>'+escapeHtml(s.v)+'</span>';}).join('')+'</div>':''; })()
@@ -1352,7 +1382,7 @@ function openDetail(id){
     </div>
 
     ${i.image?`<div style="text-align:center;margin-bottom:16px">
-      <img src="${i.image}" style="width:100%;max-height:320px;object-fit:contain;border-radius:12px;border:1px solid #1a1d2e;background:#0b0d14;cursor:pointer" onclick="openFullImage('${i.image}')">
+      <img src="${escapeHtml(i.image)}" style="width:100%;max-height:320px;object-fit:contain;border-radius:12px;border:1px solid #1a1d2e;background:#0b0d14;cursor:pointer" onclick="openFullImage('${escapeHtml(i.image)}')">
       <div style="font-size:11px;color:#5a6080;margin-top:4px">برای بزرگنمایی کلیک کنید</div>
     </div>`:''}
     ${i.desc?`<div style="background:#0b0d14;border-radius:8px;padding:12px;font-size:13px;color:#9aa3c2;margin-bottom:16px;line-height:1.6">${escapeHtml(i.desc)}</div>`:''}
@@ -1400,20 +1430,20 @@ function openDetail(id){
       <div id="editFormBody" style="display:none">
       <div class="form-group">
         <label>نام کالا</label>
-        <input class="inp" id="edit-name" value="${i.name}">
+        <input class="inp" id="edit-name" value="${escapeHtml(i.name)}">
       </div>
       <div class="form-group">
         <label>توضیحات</label>
-        <textarea class="inp" id="edit-desc" rows="3" style="resize:vertical">${i.desc||''}</textarea>
+        <textarea class="inp" id="edit-desc" rows="3" style="resize:vertical">${escapeHtml(i.desc||'')}</textarea>
       </div>
       <div class="grid2">
         <div class="form-group">
           <label>قفسه</label>
-          <input class="inp" id="edit-shelf" value="${i.shelf}">
+          <input class="inp" id="edit-shelf" value="${escapeHtml(i.shelf)}">
         </div>
         <div class="form-group">
           <label>ردیف</label>
-          <input class="inp" id="edit-row" value="${i.row}">
+          <input class="inp" id="edit-row" value="${escapeHtml(i.row)}">
         </div>
         <div class="form-group">
           <label>موجودی</label>
@@ -1443,7 +1473,7 @@ function openDetail(id){
       </div>
       <div class="form-group">
         <label>بارکد محصول</label>
-        <input class="inp" id="edit-barcode" value="${i.barcode||''}" placeholder="بارکد کارخانه (اختیاری)">
+        <input class="inp" id="edit-barcode" value="${escapeHtml(i.barcode||'')}" placeholder="بارکد کارخانه (اختیاری)">
       </div>
       <div class="form-group">
         ${isItemBatched(i) ? `
@@ -1558,7 +1588,7 @@ function renderBatchSection(itemId){
         +   (b.batchCode?('<div style="font-size:11px;color:#60a5fa;margin-top:2px;font-family:monospace">🔖 '+escapeHtml(b.batchCode)+'</div>'):'')
         +   '<div style="font-size:11px;color:#9aa3c2;margin-top:2px">📦 '+q+(unit?(' '+escapeHtml(unit)):'')+'</div>'
         +   statusBar
-        +   (b.note?('<div style="font-size:11px;color:#5a6080;margin-top:2px">📝 '+escapeHtml(b.note)+'</div>'):'')
+        +   (b.note?('<div style="font-size:11px;color:#5a6080;margin-top:2px;white-space:pre-wrap;line-height:1.6">📝 '+escapeHtml(b.note)+'</div>'):'')
         + '</div>'
         + '<div style="display:flex;gap:4px;flex-shrink:0">'
         +   (b.batchCode?'<button class="btn btn-ghost btn-sm" onclick="downloadBatchQR(\''+b.id+'\')" style="padding:4px 8px" title="دانلود برچسب QR بچ">🏷️</button>':'')
@@ -1716,20 +1746,20 @@ function showBatchModal(itemId, batch){
   var isEdit = !!batch;
   var html = '<div id="batchOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:700;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
     + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:400px;width:100%;margin-top:30px">'
-    + '<div style="font-size:16px;font-weight:700;color:#60a5fa;margin-bottom:16px">'+(isEdit?'✏️ ویرایش بچ':'➕ بچ جدید')+' — '+(item?item.name:'')+'</div>'
+    + '<div style="font-size:16px;font-weight:700;color:#60a5fa;margin-bottom:16px">'+(isEdit?'✏️ ویرایش بچ':'➕ بچ جدید')+' — '+escapeHtml(item?item.name:'')+'</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">نام/شماره بچ</label>'
-    + '<input class="inp" id="batch-name" value="'+(isEdit?(batch.batchName||''):'')+'" placeholder="مثلاً خرید مرداد یا بچ ۱" style="margin-bottom:12px">'
+    + '<input class="inp" id="batch-name" value="'+escapeHtml(isEdit?(batch.batchName||''):'')+'" placeholder="مثلاً خرید مرداد یا بچ ۱" style="margin-bottom:12px">'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">مقدار</label>'
     + '<div style="display:flex;gap:8px;margin-bottom:12px">'
-    +   '<input class="inp" id="batch-qty" type="number" step="any" min="0" value="'+(isEdit?(batch.qty||''):'')+'" placeholder="مثلاً 5" style="flex:1">'
+    +   '<input class="inp" id="batch-qty" type="number" step="any" min="0" value="'+escapeHtml(String(isEdit?(batch.qty||''):''))+'" placeholder="مثلاً 5" style="flex:1">'
     +   batchUnitSelectorHtml(unit)
     + '</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ انقضا</label>'
-    + '<input class="inp" id="batch-expiry" value="'+(isEdit?(batch.expiry||''):'')+'" placeholder="مثلاً 1405/12/29 یا 2027/03/20" oninput="previewBatchDate()" style="margin-bottom:4px">'
+    + '<input class="inp" id="batch-expiry" value="'+escapeHtml(isEdit?(batch.expiry||''):'')+'" placeholder="مثلاً 1405/12/29 یا 2027/03/20" oninput="previewBatchDate()" style="margin-bottom:4px">'
     + '<div id="batch-date-preview" style="font-size:11px;color:#60a5fa;margin-bottom:6px;min-height:14px"></div>'
     + '<div style="font-size:11px;color:#fbbf24;background:#1a1505;border:1px solid #4a3a0a;border-radius:7px;padding:7px 9px;margin-bottom:12px;line-height:1.6">⚠️ لطفاً تاریخ انقضا را حتماً بعداً بررسی کنید و در صورت نیاز ویرایش نمایید.</div>'
-    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">یادداشت (اختیاری)</label>'
-    + '<input class="inp" id="batch-note" value="'+(isEdit?(batch.note||''):'')+'" placeholder="توضیح..." style="margin-bottom:18px">'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">یادداشت (اختیاری — شامل تاریخچه‌ی مصرف)</label>'
+    + '<textarea class="inp" id="batch-note" placeholder="توضیح..." style="margin-bottom:18px;min-height:80px;resize:vertical;font-family:inherit;line-height:1.7">'+escapeHtml(isEdit?(batch.note||''):'')+'</textarea>'
     + '<div style="display:flex;gap:8px">'
     +   '<button class="btn btn-primary" style="flex:1" onclick="saveBatch(\''+itemId+'\','+(isEdit?('\''+batch.id+'\''):'null')+')">💾 ذخیره</button>'
     +   '<button class="btn btn-ghost" onclick="closeBatchModal()">انصراف</button>'
@@ -2346,7 +2376,7 @@ function renderUsageReport(){
   var summaryHtml = '<div class="card" style="margin-bottom:14px"><div style="font-weight:600;color:#4ade80;margin-bottom:10px">📦 جمع مصرف'+(fProj?' (فیلترشده)':'')+'</div>';
   Object.keys(byItem).forEach(function(name){
     var v = Math.round(byItem[name].sum*1000)/1000;
-    summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+name+'</span><span style="color:#f87171;font-weight:700">'+v+'</span></div>';
+    summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+escapeHtml(name)+'</span><span style="color:#f87171;font-weight:700">'+v+'</span></div>';
   });
   summaryHtml += '</div>';
   if(summaryEl) summaryEl.innerHTML = summaryHtml;
@@ -2362,20 +2392,21 @@ function renderUsageReport(){
       +   '<input type="checkbox" class="usage-chk" data-idx="'+o.idx+'" onchange="updateUsageSelectedCount()" onclick="event.stopPropagation()" style="width:17px;height:17px;cursor:pointer;flex-shrink:0">'
       +   '<div onclick="toggleUsageRow('+o.idx+')" style="flex:1;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0">'
       +     '<span style="font-size:13px;color:#e2e4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
-      +       '<b style="color:#f87171">'+amt+unit+'</b> کسر «'+(r.itemName||'-')+'»'
-      +       (r.project?(' • 📁 '+r.project):'')
+      +       '<b style="color:#f87171">'+amt+escapeHtml(unit)+'</b> کسر «'+escapeHtml(r.itemName||'-')+'»'
+      +       (r.project?(' • 📁 '+escapeHtml(r.project)):'')
       +     '</span>'
-      +     '<span style="font-size:11px;color:#5a6080;white-space:nowrap;flex-shrink:0">'+(r.date||'')+' ▼</span>'
+      +     '<span style="font-size:11px;color:#5a6080;white-space:nowrap;flex-shrink:0">'+escapeHtml(r.date||'')+' ▼</span>'
       +   '</div>'
       + '</div>'
       // جزئیات (مخفی)
       + '<div id="usage-detail-'+o.idx+'" style="display:none;padding:0 12px 12px 40px;font-size:12px;color:#9aa3c2;line-height:1.9;border-top:1px solid #1a1d2e">'
-      +   '<div style="padding-top:8px">📦 ماده/کالا: <b style="color:#c7cce0">'+(r.itemName||'-')+'</b></div>'
-      +   '<div>➖ مقدار کسر: <b style="color:#f87171">'+amt+unit+'</b></div>'
-      +   '<div>🗓️ تاریخ: '+(r.date||'-')+'</div>'
-      +   '<div>👤 فرد: '+(r.user||'-')+'</div>'
-      +   '<div>🏷️ دلیل: '+(r.reason||'-')+'</div>'
-      +   (r.project?('<div>📁 پروژه: '+r.project+'</div>'):'')
+      +   '<div style="padding-top:8px">📦 ماده/کالا: <b style="color:#c7cce0">'+escapeHtml(r.itemName||'-')+'</b></div>'
+      +   '<div>➖ مقدار کسر: <b style="color:#f87171">'+amt+escapeHtml(unit)+'</b></div>'
+      +   '<div>🗓️ تاریخ: '+escapeHtml(r.date||'-')+'</div>'
+      +   '<div>👤 فرد: '+escapeHtml(r.user||'-')+'</div>'
+      +   '<div>🏷️ دلیل: '+escapeHtml(r.reason||'-')+'</div>'
+      +   (r.project?('<div>📁 پروژه: '+escapeHtml(r.project)+'</div>'):'')
+      +   (canDo('users')?('<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171;padding:4px 10px" onclick="deleteUsageLogEntry('+o.idx+')">🗑️ حذف این گزارش</button></div>'):'')
       + '</div>'
       + '</div>';
   });
@@ -2388,6 +2419,29 @@ function renderUsageReport(){
 function toggleUsageRow(idx){
   var d = document.getElementById('usage-detail-'+idx);
   if(d) d.style.display = (d.style.display==='none') ? 'block' : 'none';
+}
+// حذف یک گزارش مصرف (فقط ادمین، با تأیید)
+function deleteUsageLogEntry(idx){
+  if(!canDo('users')){ showToast('فقط ادمین دسترسی دارد'); return; }
+  var r = USAGE_LOG[idx];
+  if(!r){ showToast('گزارش یافت نشد'); return; }
+  var amt = Math.abs(parseFloat(r.change||'0'))||0;
+  var msg = '⚠️ این گزارش برای همیشه حذف شود؟\n\n'
+    + '📦 کالا: ' + (r.itemName||'-') + '\n'
+    + '➖ مقدار: ' + amt + ' ' + (r.unit||'') + '\n'
+    + '🗓️ تاریخ: ' + (r.date||'-') + '\n'
+    + (r.project?('📁 پروژه: ' + r.project + '\n'):'')
+    + '\n⚠️ توجه: این فقط گزارش مصرف را پاک می‌کند و موجودی بچ/کالا را برنمی‌گرداند.';
+  if(!confirm(msg)) return;
+  showToast('⏳ در حال حذف گزارش...');
+  callSheet('deleteUsageLog', {rowIndex: idx, matchDate: r.date||''}, function(res){
+    if(res && res.status==='ok'){
+      showToast('🗑️ گزارش حذف شد');
+      loadUsageReport(); // بارگذاری مجدد از شیت
+    } else {
+      showToast('❌ خطا: ' + (res && res.message ? res.message : 'نامشخص'));
+    }
+  });
 }
 // انتخاب همه
 function toggleSelectAllUsage(){
@@ -2530,10 +2584,10 @@ function batchSelectorHtml(item){
       : '<span style="color:#5a6080">بدون تاریخ انقضا</span>';
     html += '<div onclick="selectConsumeBatch(this,\''+b.id+'\')" data-bid="'+b.id+'" style="cursor:pointer;padding:10px;border-radius:8px;margin-bottom:6px;border:2px solid '+(selected?'#60a5fa':'#1a1d2e')+';background:'+(selected?'#0d1525':'#0b0d14')+'">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
-      +   '<span style="font-size:13px;font-weight:700;color:#e2e4f0">📦 '+(item.name||'')+' — '+(b.batchName||'بدون نام')+'</span>'
-      +   '<span style="font-size:13px;color:#c7cce0;white-space:nowrap">'+q+(unit?(' '+unit):'')+'</span>'
+      +   '<span style="font-size:13px;font-weight:700;color:#e2e4f0">📦 '+escapeHtml(item.name||'')+' — '+escapeHtml(b.batchName||'بدون نام')+'</span>'
+      +   '<span style="font-size:13px;color:#c7cce0;white-space:nowrap">'+q+(unit?(' '+escapeHtml(unit)):'')+'</span>'
       + '</div>'
-      + (b.batchCode?('<div style="font-size:10px;color:#60a5fa;margin-top:2px;font-family:monospace">🔖 '+b.batchCode+'</div>'):'')
+      + (b.batchCode?('<div style="font-size:10px;color:#60a5fa;margin-top:2px;font-family:monospace">🔖 '+escapeHtml(b.batchCode)+'</div>'):'')
       + '<div style="font-size:11px;margin-top:4px">'+statusLine+(b.expiry?('<span style="color:#5a6080"> • '+b.expiry+'</span>'):'')+'</div>'
       + '</div>';
   });
@@ -2562,7 +2616,7 @@ function openConsumeModal(id){
     + '<div id="consumeOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
     + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:420px;width:100%;margin-top:30px">'
     + '<div style="font-size:16px;font-weight:700;color:#f87171;margin-bottom:4px">➖ ثبت مصرف / کاهش موجودی</div>'
-    + '<div style="font-size:13px;color:#9aa3c2;margin-bottom:16px">'+item.name+' (موجودی فعلی: '+item.qty+' '+unit+')</div>'
+    + '<div style="font-size:13px;color:#9aa3c2;margin-bottom:16px">'+escapeHtml(item.name)+' (موجودی فعلی: '+item.qty+' '+escapeHtml(unit)+')</div>'
     + batchSelectorHtml(item)
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">چه مقدار کم شد؟</label>'
     + '<div style="display:flex;gap:8px;margin-bottom:14px">'
@@ -2639,6 +2693,15 @@ function pickProject(label){
   document.getElementById('consume-project').value = decodeURIComponent(label);
   document.getElementById('consume-project-suggest').innerHTML='';
 }
+// افزودن یک خط مصرف به یادداشت قبلی بچ (با حفظ تاریخچه)
+function appendConsumeNote(oldNote, amt, unit, reason, project){
+  var today = new Date().toLocaleDateString('fa-IR');
+  var line = today + ' — مصرف ' + amt + (unit?(' '+unit):'') + ': ' + (reason||'');
+  if(project) line += ' (پروژه: ' + project + ')';
+  oldNote = (oldNote||'').trim();
+  return oldNote ? (oldNote + '\n' + line) : line;
+}
+
 function confirmConsume(id){
   var amtRaw = parseFloat(document.getElementById('consume-amt').value||'0');
   if(!amtRaw || isNaN(amtRaw) || amtRaw<=0){ showToast('مقدار را وارد کنید'); return; }
@@ -2686,7 +2749,8 @@ function confirmConsume(id){
             });
           });
         } else {
-          callSheet('updateBatch', {id:batchId, qty:String(newBq)}, function(res){
+          var newNote = appendConsumeNote(b.note, amt, unitTxt, reason, project);
+          callSheet('updateBatch', {id:batchId, qty:String(newBq), note:newNote}, function(res){
             loadBatches(function(){
               syncItemQtyFromBatches(id);
               callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:(b.batchName||'')},function(){ loadProjects(); });
@@ -2830,7 +2894,7 @@ function addBubble(role,text){
   div.style.cssText=`display:flex;justify-content:${isUser?'flex-start':'flex-end'}`;
   div.innerHTML=`<div style="max-width:80%;padding:10px 14px;border-radius:${isUser?'4px 14px 14px 14px':'14px 4px 14px 14px'};
     background:${isUser?'#1e2235':'linear-gradient(135deg,#4f8ef7,#7c5af5)'};
-    color:white;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word">${text}</div>`;
+    color:white;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word">${escapeHtml(text)}</div>`;
   box.appendChild(div);box.scrollTop=box.scrollHeight;
 }
 
@@ -3689,10 +3753,10 @@ function renderPendingChanges(){
             ? '<img src="'+itemImg+'" style="width:38px;height:38px;object-fit:cover;border-radius:8px;flex-shrink:0" onclick="event.stopPropagation();'+(itemObj?'openDetail(&quot;'+itemObj.id+'&quot;)':'')+'">'
             : '<div style="width:38px;height:38px;background:#1e2235;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;cursor:'+(itemObj?'pointer':'default')+'" onclick="event.stopPropagation();'+(itemObj?'openDetail(&quot;'+itemObj.id+'&quot;)':'')+'">📦</div>'))
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+summary+'</div>'
+      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(summary)+'</div>'
       + '<div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">'
-      + '<span style="font-size:11px;color:#5a6080">از: '+p.user+'</span>'
-      + '<span style="font-size:11px;color:#5a6080">'+p.date+'</span>'
+      + '<span style="font-size:11px;color:#5a6080">از: '+escapeHtml(p.user)+'</span>'
+      + '<span style="font-size:11px;color:#5a6080">'+escapeHtml(p.date)+'</span>'
       + '<span style="background:'+statusColor+'22;color:'+statusColor+';padding:1px 6px;border-radius:4px;font-size:11px">'+statusLabel+'</span>'
       + '</div>'
       + '</div>'
@@ -3786,7 +3850,8 @@ function approvePendingChange(id){
     if(newBq <= 0){
       callSheet('deleteBatch', {id:batchId}, function(){ finishApprove(); });
     } else {
-      callSheet('updateBatch', {id:batchId, qty:String(newBq)}, function(){ finishApprove(); });
+      var newNoteAppr = appendConsumeNote(b.note, amt, data._unit||'', data._reason||'', data._project||'');
+      callSheet('updateBatch', {id:batchId, qty:String(newBq), note:newNoteAppr}, function(){ finishApprove(); });
     }
     return;
   }
@@ -3986,9 +4051,9 @@ function renderMyChanges(){
     return '<div style="background:#0b0d14;border:1px solid #1a1d2e;border-radius:12px;margin-bottom:10px;overflow:hidden">'
       + '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer" onclick="toggleChangeDetail(&quot;'+detailId+'&quot;)">'
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0">'+summary+'</div>'
+      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0">'+escapeHtml(summary)+'</div>'
       + '<div style="display:flex;gap:6px;margin-top:3px">'
-      + '<span style="font-size:11px;color:#5a6080">'+c.date+'</span>'
+      + '<span style="font-size:11px;color:#5a6080">'+escapeHtml(c.date)+'</span>'
       + '<span style="background:'+statusColor+'22;color:'+statusColor+';padding:1px 6px;border-radius:4px;font-size:11px">'+statusLabel+'</span>'
       + '</div>'
       + '</div>'
@@ -4021,34 +4086,34 @@ function buildChangeDetail(type, data){
 
   if(type === 'message'){
     rows += '<div style="color:#c084fc;font-weight:600;margin-bottom:6px">💬 درخواست گفتگو</div>';
-    if(data.subject) rows += '<div><span style="color:#5a6080">موضوع: </span><span style="color:#e2e4f0">'+data.subject+'</span></div>';
-    if(data.from) rows += '<div><span style="color:#5a6080">از طرف: </span><span style="color:#e2e4f0">'+data.from+'</span></div>';
+    if(data.subject) rows += '<div><span style="color:#5a6080">موضوع: </span><span style="color:#e2e4f0">'+escapeHtml(data.subject)+'</span></div>';
+    if(data.from) rows += '<div><span style="color:#5a6080">از طرف: </span><span style="color:#e2e4f0">'+escapeHtml(data.from)+'</span></div>';
     rows += '<div style="margin-top:6px;color:#9aa3c2;font-size:11px">پیام‌ها را در بخش گفتگوی پایین ببینید</div>';
     return rows;
   }
 
   if(type === 'delete'){
     rows += '<div style="color:#f87171;font-weight:600;margin-bottom:6px">🗑️ این کالا حذف خواهد شد</div>';
-    if(data.name) rows += '<div><span style="color:#5a6080">نام: </span><span style="color:#e2e4f0">'+data.name+'</span></div>';
-    if(data.code) rows += '<div><span style="color:#5a6080">کد: </span><span style="color:#60a5fa;font-family:monospace">'+data.code+'</span></div>';
-    rows += '<div><span style="color:#5a6080">موجودی فعلی: </span><span style="color:#f87171">'+(data.qty||0)+' '+(data.unit||'')+'</span></div>';
+    if(data.name) rows += '<div><span style="color:#5a6080">نام: </span><span style="color:#e2e4f0">'+escapeHtml(data.name)+'</span></div>';
+    if(data.code) rows += '<div><span style="color:#5a6080">کد: </span><span style="color:#60a5fa;font-family:monospace">'+escapeHtml(data.code)+'</span></div>';
+    rows += '<div><span style="color:#5a6080">موجودی فعلی: </span><span style="color:#f87171">'+(data.qty||0)+' '+escapeHtml(data.unit||'')+'</span></div>';
     return rows;
   }
 
   if(type === 'add'){
     rows += '<div style="color:#4ade80;font-weight:600;margin-bottom:6px">➕ کالای جدید</div>';
-    if(data.name) rows += '<div><span style="color:#5a6080">نام: </span><span style="color:#e2e4f0">'+data.name+'</span></div>';
-    if(data.code) rows += '<div><span style="color:#5a6080">کد: </span><span style="color:#60a5fa;font-family:monospace">'+data.code+'</span></div>';
-    if(data.cat) rows += '<div><span style="color:#5a6080">دسته: </span><span style="color:#e2e4f0">'+data.cat+'</span></div>';
-    rows += '<div><span style="color:#5a6080">موجودی: </span><span style="color:#4ade80">'+(data.qty||0)+' '+(data.unit||'')+'</span></div>';
-    if(data.desc) rows += '<div><span style="color:#5a6080">توضیح: </span><span style="color:#e2e4f0">'+data.desc+'</span></div>';
-    if(data.shelf && data.shelf!=='-') rows += '<div><span style="color:#5a6080">قفسه: </span><span style="color:#e2e4f0">'+data.shelf+' / ردیف '+data.row+'</span></div>';
+    if(data.name) rows += '<div><span style="color:#5a6080">نام: </span><span style="color:#e2e4f0">'+escapeHtml(data.name)+'</span></div>';
+    if(data.code) rows += '<div><span style="color:#5a6080">کد: </span><span style="color:#60a5fa;font-family:monospace">'+escapeHtml(data.code)+'</span></div>';
+    if(data.cat) rows += '<div><span style="color:#5a6080">دسته: </span><span style="color:#e2e4f0">'+escapeHtml(data.cat)+'</span></div>';
+    rows += '<div><span style="color:#5a6080">موجودی: </span><span style="color:#4ade80">'+(data.qty||0)+' '+escapeHtml(data.unit||'')+'</span></div>';
+    if(data.desc) rows += '<div><span style="color:#5a6080">توضیح: </span><span style="color:#e2e4f0">'+escapeHtml(data.desc)+'</span></div>';
+    if(data.shelf && data.shelf!=='-') rows += '<div><span style="color:#5a6080">قفسه: </span><span style="color:#e2e4f0">'+escapeHtml(data.shelf)+' / ردیف '+escapeHtml(data.row)+'</span></div>';
     return rows;
   }
 
   // edit
   rows += '<div style="color:#60a5fa;font-weight:600;margin-bottom:6px">✏️ تغییرات درخواستی</div>';
-  if(data.name) rows += '<div><span style="color:#5a6080">کالا: </span><span style="color:#e2e4f0;font-weight:600">'+data.name+'</span>'+(data.code?' <span style="color:#60a5fa;font-family:monospace;font-size:11px">('+data.code+')</span>':'')+'</div>';
+  if(data.name) rows += '<div><span style="color:#5a6080">کالا: </span><span style="color:#e2e4f0;font-weight:600">'+escapeHtml(data.name)+'</span>'+(data.code?' <span style="color:#60a5fa;font-family:monospace;font-size:11px">('+escapeHtml(data.code)+')</span>':'')+'</div>';
 
   if(data._orig_qty !== null && data._orig_qty !== undefined && data._orig_qty !== ''){
     var origQty = parseInt(data._orig_qty)||0;
@@ -4076,10 +4141,10 @@ function buildChangeDetail(type, data){
     rows += '<div style="margin-top:8px">';
     changes.forEach(function(c){
       rows += '<div style="font-size:12px;margin-top:4px">';
-      rows += '<span style="color:#5a6080">'+c.label+': </span>';
-      rows += '<span style="color:#9aa3c2;text-decoration:line-through">'+c.old+'</span>';
+      rows += '<span style="color:#5a6080">'+escapeHtml(c.label)+': </span>';
+      rows += '<span style="color:#9aa3c2;text-decoration:line-through">'+escapeHtml(c.old)+'</span>';
       rows += '<span style="color:#5a6080"> → </span>';
-      rows += '<span style="color:#e2e4f0">'+c.new_+'</span>';
+      rows += '<span style="color:#e2e4f0">'+escapeHtml(c.new_)+'</span>';
       rows += '</div>';
     });
     rows += '</div>';
@@ -4279,10 +4344,10 @@ function renderChangeMessages(changeId, messages){
     var isAdmin = m.role==='admin';
     return '<div style="background:'+(isAdmin?'#1a2a3a':'#1e2235')+';border-radius:8px;padding:8px 10px;margin-bottom:6px">'
       + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
-      + '<span style="font-size:11px;color:'+(isAdmin?'#c084fc':'#4ade80')+';font-weight:600">'+(isAdmin?'👑 ':'')+m.user+'</span>'
-      + '<span style="font-size:10px;color:#5a6080">'+m.time+'</span>'
+      + '<span style="font-size:11px;color:'+(isAdmin?'#c084fc':'#4ade80')+';font-weight:600">'+(isAdmin?'👑 ':'')+escapeHtml(m.user)+'</span>'
+      + '<span style="font-size:10px;color:#5a6080">'+escapeHtml(m.time)+'</span>'
       + '</div>'
-      + '<div style="font-size:12px;color:#e2e4f0">'+m.text+'</div>'
+      + '<div style="font-size:12px;color:#e2e4f0">'+escapeHtml(m.text)+'</div>'
       + '</div>';
   }).join('');
   el.scrollTop = el.scrollHeight;
@@ -4804,8 +4869,8 @@ function buildNotifFeed(changes, isAdmin){
     return '<div '+clickAction+'display:flex;align-items:center;gap:10px;padding:10px;background:#0b0d14;border-radius:10px;margin-bottom:8px;border:1px solid #1a1d2e">'
       + '<div style="width:34px;height:34px;background:'+n.color+'22;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+n.icon+'</div>'
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-size:13px;color:#e2e4f0">'+n.text+'</div>'
-      + '<div style="font-size:11px;color:#5a6080;margin-top:2px">'+n.time+'</div>'
+      + '<div style="font-size:13px;color:#e2e4f0">'+escapeHtml(n.text)+'</div>'
+      + '<div style="font-size:11px;color:#5a6080;margin-top:2px">'+escapeHtml(n.time)+'</div>'
       + '</div>'
       + '<button class="btn btn-ghost btn-sm" style="font-size:11px;flex-shrink:0;padding:4px 10px" onclick="event.stopPropagation();dismissNotif(&quot;'+n.id+'&quot;)">👁️ مشاهده شد</button>'
       + '</div>';
@@ -4953,13 +5018,13 @@ function showRelatedItemsByCodes(codes){
       '<div style="display:flex;align-items:center;gap:10px">'
       + '<div style="width:36px;height:36px;background:#0b0d14;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px">📅</div>'
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0">'+(item?item.name+' — ':'')+(b.batchName||'بچ')+'</div>'
+      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0">'+(item?escapeHtml(item.name)+' — ':'')+escapeHtml(b.batchName||'بچ')+'</div>'
       + '<div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">'
-      + '<span style="font-family:monospace;font-size:11px;color:#60a5fa">'+(b.batchCode||'')+'</span>'
-      + '<span style="font-size:11px;color:#c7cce0">'+(parseFloat(b.qty)||0)+(unit?(' '+unit):'')+'</span>'
+      + '<span style="font-family:monospace;font-size:11px;color:#60a5fa">'+escapeHtml(b.batchCode||'')+'</span>'
+      + '<span style="font-size:11px;color:#c7cce0">'+(parseFloat(b.qty)||0)+(unit?(' '+escapeHtml(unit)):'')+'</span>'
       + (st?'<span style="font-size:11px;color:'+st.color+'">'+st.label+'</span>':'')
       + '</div>'
-      + (b.note?'<div style="font-size:11px;color:#9aa3c2;margin-top:3px">📝 '+b.note+'</div>':'')
+      + (b.note?'<div style="font-size:11px;color:#9aa3c2;margin-top:3px;white-space:pre-wrap;line-height:1.6">📝 '+escapeHtml(b.note)+'</div>':'')
       + '</div>'
       + '<span style="font-size:11px;color:#4f8ef7;white-space:nowrap">مشاهده ←</span>'
       + '</div>';
@@ -4978,14 +5043,14 @@ function showRelatedItemsByCodes(codes){
     };
     card.innerHTML =
       '<div style="display:flex;align-items:center;gap:10px">'
-      + (item.image ? '<img src="'+item.image+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">'
+      + (item.image ? '<img src="'+escapeHtml(item.image)+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">'
                     : '<div style="width:36px;height:36px;background:#0b0d14;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px">📦</div>')
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0">'+item.name+'</div>'
+      + '<div style="font-weight:600;font-size:13px;color:#e2e4f0">'+escapeHtml(item.name)+'</div>'
       + '<div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">'
-      + '<span style="font-family:monospace;font-size:11px;color:#60a5fa">'+item.code+'</span>'
-      + '<span style="font-size:11px;color:'+(low?'#f87171':'#4ade80')+'">'+item.qty+' '+item.unit+'</span>'
-      + '<span style="font-size:11px;color:#9aa3c2">'+(item.status||'نو')+'</span>'
+      + '<span style="font-family:monospace;font-size:11px;color:#60a5fa">'+escapeHtml(item.code)+'</span>'
+      + '<span style="font-size:11px;color:'+(low?'#f87171':'#4ade80')+'">'+item.qty+' '+escapeHtml(item.unit)+'</span>'
+      + '<span style="font-size:11px;color:#9aa3c2">'+escapeHtml(item.status||'نو')+'</span>'
       + '</div>'
       + '</div>'
       + '<span style="font-size:11px;color:#4f8ef7;white-space:nowrap">مشاهده ←</span>'
@@ -5009,7 +5074,7 @@ function renderCatManageList(){
     var count = items.filter(function(i){ return i.cat === c.name; }).length;
     html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0b0d14;border-radius:8px;margin-bottom:6px">'
       + '<span style="font-size:18px">'+(c.icon||'📦')+'</span>'
-      + '<div style="flex:1"><div style="font-size:13px;color:#e2e4f0">'+c.name+'</div>'
+      + '<div style="flex:1"><div style="font-size:13px;color:#e2e4f0">'+escapeHtml(c.name)+'</div>'
       + '<div style="font-size:11px;color:#5a6080">'+count+' کالا</div></div>'
       + '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171;padding:4px 10px" onclick="deleteCat(&quot;'+c.id+'&quot;,&quot;'+c.name+'&quot;,'+count+')">🗑️</button>'
       + '</div>';
@@ -5029,7 +5094,7 @@ function renderCatManageList(){
       var count = orphanCats[name];
       html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1a1505;border:1px solid #4a3a0a;border-radius:8px;margin-bottom:6px">'
         + '<span style="font-size:18px">⚠️</span>'
-        + '<div style="flex:1"><div style="font-size:13px;color:#e2e4f0">'+name+'</div>'
+        + '<div style="flex:1"><div style="font-size:13px;color:#e2e4f0">'+escapeHtml(name)+'</div>'
         + '<div style="font-size:11px;color:#f59e0b">'+count+' کالا — دسته وجود ندارد</div></div>'
         + '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#4ade80;padding:4px 8px" onclick="restoreCat(&quot;'+name+'&quot;)">↩️ بازگردانی</button>'
         + '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171;padding:4px 8px" onclick="moveOrphanItems(&quot;'+name+'&quot;,'+count+')">انتقال</button>'
