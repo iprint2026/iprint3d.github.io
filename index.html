@@ -736,6 +736,8 @@ function escapeHtml(s){
 let items = JSON.parse(localStorage.getItem('lab_items')||'[]');
 let chatHistory = [];
 let currentUser = null;
+// توکن نشست (Session Token) — بعد از لاگین موفق از سرور گرفته می‌شود
+let SESSION_TOKEN = localStorage.getItem('session_token') || '';
 
 let USERS = JSON.parse(localStorage.getItem('lab_users')||JSON.stringify([
   {user:'admin',pass:'lab1234',role:'admin',name:'مدیر سیستم',active:true},
@@ -785,30 +787,33 @@ function doLogin(){
   err.style.color='#9aa3c2';
   err.textContent='در حال بررسی...';
 
-  // ادمین اصلی همیشه کار می‌کنه
-  if(user==='admin'&&pass==='lab1234'){
-    enterApp({user:'admin',pass:'lab1234',role:'admin',name:'مدیر سیستم',active:'true'});
-    return;
-  }
-
-  // بقیه از Sheet
-  callSheet('getUsers',{t:Date.now()},function(data){
-    if(!Array.isArray(data)||data.length===0){
-      err.style.color='#f87171';
-      err.textContent='خطا در اتصال. دوباره تلاش کنید.';
+  // ورود امن سمت سرور — رمز در سرور چک می‌شود و توکن نشست برمی‌گردد
+  callSheet('login', {user:user, pass:pass}, function(res){
+    if(res && res.status==='ok' && res.token){
+      // ذخیره توکن
+      SESSION_TOKEN = res.token;
+      localStorage.setItem('session_token', res.token);
+      enterApp({user:res.user, role:res.role, name:res.name, active:'true'});
       return;
     }
-    const found=data.find(function(u){
-      return String(u.user).toLowerCase()===user &&
-             String(u.pass)===pass &&
-             String(u.active)==='true';
-    });
-    if(!found){
+    // اگر سرور رد کرد
+    if(res && res.status==='error'){
+      // پشتیبان اضطراری: ادمین اصلی (فقط اگر سرور در دسترس بود ولی رد کرد، این اجرا نمی‌شود مگر خطای اتصال)
       err.style.color='#f87171';
-      err.textContent='نام کاربری یا رمز اشتباه است';
+      err.textContent = res.message || 'نام کاربری یا رمز اشتباه است';
       return;
     }
-    enterApp(found);
+    // خطای اتصال — پشتیبان اضطراری ادمین اصلی
+    if(user==='admin' && pass==='lab1234'){
+      err.style.color='#f59e0b';
+      err.textContent='⚠️ اتصال به سرور برقرار نشد — ورود اضطراری ادمین';
+      setTimeout(function(){
+        enterApp({user:'admin', role:'admin', name:'مدیر سیستم', active:'true'});
+      }, 800);
+      return;
+    }
+    err.style.color='#f87171';
+    err.textContent='خطا در اتصال به سرور. دوباره تلاش کنید.';
   });
 }
 
@@ -855,6 +860,12 @@ function startHeartbeat(){
 }
 
 function doLogout(){
+  // باطل کردن توکن سمت سرور
+  if(SESSION_TOKEN){
+    callSheet('logout', {token: SESSION_TOKEN}, function(){});
+  }
+  SESSION_TOKEN = '';
+  localStorage.removeItem('session_token');
   currentUser=null;
   document.getElementById('loginScreen').classList.remove('hidden');
   document.getElementById('registerScreen').classList.add('hidden');
@@ -925,6 +936,8 @@ function callSheet(action,params,callback){
   const cbName='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
   const p=new URLSearchParams({action,callback:cbName});
   Object.keys(params).forEach(function(k){p.append(k,params[k]);});
+  // توکن نشست را به همه درخواست‌ها اضافه کن (برای احراز هویت سمت سرور)
+  if(SESSION_TOKEN){ p.append('token', SESSION_TOKEN); }
   window[cbName]=function(data){
     delete window[cbName];
     const s=document.getElementById(cbName);if(s)s.remove();
