@@ -3542,6 +3542,8 @@ function addItem(){
   } else {
     var initMsg = prompt('توضیح برای ادمین (اختیاری):\nمثلاً: این کالا برای پروژه X نیاز است') || '';
     window._pendingInitMsg = initMsg;
+    var niImgEarly = (document.getElementById('ni-image-url') ? document.getElementById('ni-image-url').value.trim() : '');
+    if(niImgEarly){ item.image = niImgEarly; }
     submitChange('add', '', item);
     clearAddForm();
     return;
