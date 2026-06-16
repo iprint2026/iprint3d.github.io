@@ -4052,6 +4052,8 @@ function submitChange(type, itemId, data){
   
   var script = document.createElement('script');
   script.id = cbName;
+  // توکن نشست را اضافه کن (addPending محافظت‌شده است)
+  if(SESSION_TOKEN){ params.append('token', SESSION_TOKEN); }
   script.src = url + '?' + params.toString();
   script.onerror = function(){ 
     delete window[cbName]; this.remove();
@@ -4566,6 +4568,7 @@ function submitChatRequest(){
 
   var script = document.createElement('script');
   script.id = cbName;
+  if(SESSION_TOKEN){ params.append('token', SESSION_TOKEN); }
   script.src = url + '?' + params.toString();
   script.onerror = function(){ delete window[cbName]; this.remove(); showToast('❌ خطا'); };
   document.head.appendChild(script);
