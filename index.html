@@ -1055,7 +1055,7 @@ function renderActiveUsers(){
           <span style="font-weight:600;font-size:13px">${escapeHtml(u.name||u.user)}</span>
           <span style="color:#5a6080;font-size:12px;margin-right:8px">@${escapeHtml(u.user)}</span>
           <span style="background:${roleColor}22;color:${roleColor};padding:2px 8px;border-radius:10px;font-size:11px">${roleLabel}</span>
-          ${u.lastSeen?`<div style="color:#5a6080;font-size:11px;margin-top:4px">🕐 آخرین حضور: ${u.lastSeen}</div>`:'<div style="color:#2e3350;font-size:11px;margin-top:4px">🕐 هنوز وارد نشده</div>'}
+          ${u.lastSeen?`<div style="color:#5a6080;font-size:11px;margin-top:4px">🕐 آخرین حضور: ${escapeHtml(u.lastSeen)}</div>`:'<div style="color:#2e3350;font-size:11px;margin-top:4px">🕐 هنوز وارد نشده</div>'}
         </div>
         ${i===0?'<span style="color:#2e3350;font-size:11px">مدیر اصلی</span>':`
         <div style="display:flex;gap:6px;align-items:center">
@@ -3220,7 +3220,7 @@ async function uploadToArvan(file, itemId, statusEl){
   function callGET(params, timeout){
     return new Promise(function(resolve){
       var cb = 'cb'+Date.now()+Math.random().toString(36).slice(2,5);
-      var url = loadSheetUrl()+'?'+params+'&callback='+cb;
+      var url = loadSheetUrl()+'?'+params+'&callback='+cb+(SESSION_TOKEN?('&token='+encodeURIComponent(SESSION_TOKEN)):'');
       window[cb]=function(res){
         delete window[cb];
         var s=document.getElementById(cb);if(s)s.remove();
@@ -4271,13 +4271,13 @@ function renderArchivedChanges(){
     var statusColor = st==='approved'?'#4ade80': st==='rejected'?'#f87171':'#9aa3c2';
     var detailId = 'archDetail_'+p.id;
     var msgHtml = msgs.length ? '<div style="margin-top:8px"><div style="font-size:11px;color:#5a6080;margin-bottom:4px">💬 گفتگو ('+msgs.length+' پیام)</div>'
-      + msgs.map(function(m){ var isA=m.role==='admin'; return '<div style="background:'+(isA?'#1a2a3a':'#1e2235')+';border-radius:6px;padding:6px 10px;margin-bottom:4px"><div style="display:flex;justify-content:space-between"><span style="font-size:11px;color:'+(isA?'#c084fc':'#4ade80')+'">'+(isA?'👑 ':'')+m.user+'</span><span style="font-size:10px;color:#5a6080">'+m.time+'</span></div><div style="font-size:12px;color:#e2e4f0">'+m.text+'</div></div>'; }).join('')+'</div>' : '';
+      + msgs.map(function(m){ var isA=m.role==='admin'; return '<div style="background:'+(isA?'#1a2a3a':'#1e2235')+';border-radius:6px;padding:6px 10px;margin-bottom:4px"><div style="display:flex;justify-content:space-between"><span style="font-size:11px;color:'+(isA?'#c084fc':'#4ade80')+'">'+(isA?'👑 ':'')+escapeHtml(m.user)+'</span><span style="font-size:10px;color:#5a6080">'+escapeHtml(m.time)+'</span></div><div style="font-size:12px;color:#e2e4f0">'+escapeHtml(m.text)+'</div></div>'; }).join('')+'</div>' : '';
 
     return '<div style="background:#0b0d14;border:1px solid #1a1d2e;border-radius:10px;margin-bottom:10px;overflow:hidden">'
       + '<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer" onclick="toggleChangeDetail(&quot;'+detailId+'&quot;)">'
       + '<input type="checkbox" class="chg-cb" value="'+p.id+'" onchange="event.stopPropagation();updateBulkChangeBar()" style="flex-shrink:0">'
-      + '<div style="flex:1"><div style="font-weight:600;font-size:13px;color:#9aa3c2">'+(data.name||p.itemId||'')+'</div>'
-      + '<div style="display:flex;gap:6px;margin-top:2px"><span style="font-size:11px;color:#5a6080">'+typeLabel+' | '+p.user+' | '+p.date+'</span>'
+      + '<div style="flex:1"><div style="font-weight:600;font-size:13px;color:#9aa3c2">'+escapeHtml(data.name||p.itemId||'')+'</div>'
+      + '<div style="display:flex;gap:6px;margin-top:2px"><span style="font-size:11px;color:#5a6080">'+typeLabel+' | '+escapeHtml(p.user)+' | '+escapeHtml(p.date)+'</span>'
       + '<span style="background:'+statusColor+'22;color:'+statusColor+';padding:1px 6px;border-radius:4px;font-size:11px">'+statusLabel+'</span></div></div>'
       + '<span style="color:#5a6080;font-size:14px" id="arrow_'+p.id+'">▼</span>'
       + '</div>'
@@ -5742,9 +5742,10 @@ function postToSheet(action, params, callback){
   var body = new URLSearchParams();
   body.append('action', action);
   Object.keys(params).forEach(function(k){ body.append(k, params[k]); });
+  if(SESSION_TOKEN){ body.append('token', SESSION_TOKEN); }
   fetch(url, { method:'POST', body: body })
     .then(function(r){ return r.json(); })
-    .then(function(data){ callback(data); })
+    .then(function(data){ if(data && data.authFail){ handleAuthFail(); return; } callback(data); })
     .catch(function(err){ callback({status:'error', message:'ارتباط ناموفق'}); });
 }
 
