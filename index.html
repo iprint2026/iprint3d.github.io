@@ -184,6 +184,12 @@ tr:hover td{background:#0e1018}
 <body>
 
 <!-- ══ LOGIN ════════════════════════════════════════ -->
+<div id="bootSplash" style="position:fixed;inset:0;background:linear-gradient(135deg,#0b0d14 0%,#131627 100%);display:none;align-items:center;justify-content:center;z-index:1500;flex-direction:column;gap:18px">
+  <div class="iprint-brand" style="font-size:40px;color:#fff">iprint3d</div>
+  <div style="color:#9aa3c2;font-size:14px">در حال بارگذاری...</div>
+  <div style="width:36px;height:36px;border:3px solid #1e2235;border-top-color:#4f8ef7;border-radius:50%;animation:bootspin 0.8s linear infinite"></div>
+</div>
+<style>@keyframes bootspin{to{transform:rotate(360deg)}}</style>
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-title iprint-brand" style="font-size:40px;color:#fff;-webkit-text-fill-color:#fff;background:none">iprint3d</div>
@@ -738,6 +744,17 @@ let chatHistory = [];
 let currentUser = null;
 // توکن نشست (Session Token) — بعد از لاگین موفق از سرور گرفته می‌شود
 let SESSION_TOKEN = localStorage.getItem('session_token') || '';
+// اگر توکن ذخیره داریم، فوراً صفحه لاگین را پنهان و اسپلش را نشان بده تا پرش یک‌ثانیه‌ای رخ ندهد
+(function(){
+  try {
+    if(SESSION_TOKEN){
+      var ls = document.getElementById('loginScreen');
+      var sp = document.getElementById('bootSplash');
+      if(ls) ls.classList.add('hidden');
+      if(sp) sp.style.display='flex';
+    }
+  } catch(e){}
+})();
 
 let USERS = JSON.parse(localStorage.getItem('lab_users')||JSON.stringify([
   {user:'admin',pass:'',role:'admin',name:'مدیر سیستم',active:true},
@@ -781,20 +798,31 @@ function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 // ═══════════════════════════════════════════════
 // ورود خودکار با توکن ذخیره‌شده (موقع باز شدن/رفرش صفحه) — اگر توکن معتبر بود رمز نمی‌خواهد
 function tryAutoLogin(){
-  if(!SESSION_TOKEN){ return; }
+  var splash = document.getElementById('bootSplash');
+  var login = document.getElementById('loginScreen');
+  if(!SESSION_TOKEN){
+    if(splash) splash.style.display='none';
+    if(login) login.classList.remove('hidden');
+    return;
+  }
   var url = loadSheetUrl();
-  if(!url){ return; }
-  // نمایش یک پیام کوتاه روی صفحه لاگین
-  var le = document.getElementById('loginErr');
-  if(le){ le.style.color='#9aa3c2'; le.textContent='در حال ورود خودکار...'; }
+  if(!url){
+    if(splash) splash.style.display='none';
+    if(login) login.classList.remove('hidden');
+    return;
+  }
+  if(splash) splash.style.display='flex';
+  if(login) login.classList.add('hidden');
   callSheet('checkSession', {token: SESSION_TOKEN}, function(res){
     if(res && res.status==='ok' && res.valid){
-      // توکن معتبر است — مستقیم وارد شو
       enterApp({user:res.user, role:res.role, name:res.user, active:'true'});
+      if(splash) splash.style.display='none';
     } else {
-      // توکن منقضی/نامعتبر — پاک کن و صفحه لاگین بماند
       SESSION_TOKEN = '';
       localStorage.removeItem('session_token');
+      if(splash) splash.style.display='none';
+      if(login) login.classList.remove('hidden');
+      var le = document.getElementById('loginErr');
       if(le){ le.textContent=''; }
     }
   });
