@@ -779,6 +779,27 @@ function loadSheetUrl(){return localStorage.getItem('sheetUrl')||SHEET_URL;}
 // ═══════════════════════════════════════════════
 //  AUTH
 // ═══════════════════════════════════════════════
+// ورود خودکار با توکن ذخیره‌شده (موقع باز شدن/رفرش صفحه) — اگر توکن معتبر بود رمز نمی‌خواهد
+function tryAutoLogin(){
+  if(!SESSION_TOKEN){ return; }
+  var url = loadSheetUrl();
+  if(!url){ return; }
+  // نمایش یک پیام کوتاه روی صفحه لاگین
+  var le = document.getElementById('loginErr');
+  if(le){ le.style.color='#9aa3c2'; le.textContent='در حال ورود خودکار...'; }
+  callSheet('checkSession', {token: SESSION_TOKEN}, function(res){
+    if(res && res.status==='ok' && res.valid){
+      // توکن معتبر است — مستقیم وارد شو
+      enterApp({user:res.user, role:res.role, name:res.user, active:'true'});
+    } else {
+      // توکن منقضی/نامعتبر — پاک کن و صفحه لاگین بماند
+      SESSION_TOKEN = '';
+      localStorage.removeItem('session_token');
+      if(le){ le.textContent=''; }
+    }
+  });
+}
+
 function doLogin(){
   const user = document.getElementById('loginUser').value.trim().toLowerCase();
   const pass = document.getElementById('loginPass').value;
@@ -3579,6 +3600,8 @@ function clearAddForm(keepResult){
   var scEl=document.getElementById('ni-subcats');if(scEl)scEl.innerHTML='';
   const niPrev = document.getElementById('ni-img-preview');
   if(niPrev) niPrev.style.display='none';
+  var niImgStatus = document.getElementById('ni-img-status');
+  if(niImgStatus) niImgStatus.textContent='';
   if(!keepResult){
     const r=document.getElementById('addResult');
     if(r)r.classList.add('hidden');
@@ -4713,6 +4736,11 @@ function exportArchiveToExcel(){
 
 function refreshAll(){
   showToast('🔄 در حال بروزرسانی کامل...');
+  setTimeout(function(){ location.reload(); }, 300);
+  return;
+}
+function refreshAllOld(){
+  showToast('🔄 در حال بروزرسانی...');
 
   // بستن همه مودال‌های باز
   document.querySelectorAll('.modal-bg').forEach(function(m){ m.classList.add('hidden'); });
@@ -5851,6 +5879,11 @@ function doRestore(){
     _restoreId = null;
   });
 }
+
+// ── اجرای ورود خودکار موقع باز شدن صفحه ──
+window.addEventListener('load', function(){
+  try { if(typeof tryAutoLogin === 'function') tryAutoLogin(); } catch(e){}
+});
 </script>
 </body>
 </html>
