@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+َ<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -740,7 +740,7 @@ let currentUser = null;
 let SESSION_TOKEN = localStorage.getItem('session_token') || '';
 
 let USERS = JSON.parse(localStorage.getItem('lab_users')||JSON.stringify([
-  {user:'admin',pass:'lab1234',role:'admin',name:'مدیر سیستم',active:true},
+  {user:'admin',pass:'',role:'admin',name:'مدیر سیستم',active:true},
 ]));
 let PENDING = JSON.parse(localStorage.getItem('lab_pending')||'[]');
 
@@ -798,22 +798,13 @@ function doLogin(){
     }
     // اگر سرور رد کرد
     if(res && res.status==='error'){
-      // پشتیبان اضطراری: ادمین اصلی (فقط اگر سرور در دسترس بود ولی رد کرد، این اجرا نمی‌شود مگر خطای اتصال)
       err.style.color='#f87171';
       err.textContent = res.message || 'نام کاربری یا رمز اشتباه است';
       return;
     }
-    // خطای اتصال — پشتیبان اضطراری ادمین اصلی
-    if(user==='admin' && pass==='lab1234'){
-      err.style.color='#f59e0b';
-      err.textContent='⚠️ اتصال به سرور برقرار نشد — ورود اضطراری ادمین';
-      setTimeout(function(){
-        enterApp({user:'admin', role:'admin', name:'مدیر سیستم', active:'true'});
-      }, 800);
-      return;
-    }
+    // خطای اتصال به سرور
     err.style.color='#f87171';
-    err.textContent='خطا در اتصال به سرور. دوباره تلاش کنید.';
+    err.textContent='خطا در اتصال به سرور. اینترنت را بررسی و دوباره تلاش کنید.';
   });
 }
 
