@@ -1,4 +1,4 @@
-َ<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -3015,7 +3015,7 @@ function sendChat(){
   // آخرین ۲ پیام رو به عنوان history بفرست (کمتر = تمرکز بیشتر روی سوال فعلی)
   var recentHistory = chatHistory.slice(-2);
   var historyJson = encodeURIComponent(JSON.stringify(recentHistory));
-  const finalUrl=loadSheetUrl()+'?action=ai&callback='+cbName+'&q='+encodeURIComponent(msg)+'&history='+historyJson;
+  const finalUrl=loadSheetUrl()+'?action=ai&callback='+cbName+'&q='+encodeURIComponent(msg)+'&history='+historyJson+(SESSION_TOKEN?('&token='+encodeURIComponent(SESSION_TOKEN)):'');
   script.src=finalUrl;
   script.onerror=function(){
     typing.remove();
