@@ -9,6 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Vazirmatn','Tahoma',sans-serif;direction:rtl;background:#0b0d14;color:#e2e4f0;min-height:100vh}
@@ -717,8 +719,13 @@ function doPost(e){
           <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
-            <div><label style="font-size:11px;color:#5a6080">ضریب ریسک</label><input class="inp" id="pr-d-matfactor" type="number" step="0.1"></div>
+            <div></div>
           </div>
+
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">فاکتور — لوگو و مهر (لینک Google Drive)</div>
+          <div style="font-size:11px;color:#5a6080;margin-bottom:8px">عکس لوگو و مهر را در Google Drive آپلود کن و لینک اشتراک هرکدام را اینجا بگذار. تصویرها فقط از سرور و برای ادمین خوانده می‌شوند (در فایل سایت ذخیره نمی‌شوند).</div>
+          <div><label style="font-size:11px;color:#5a6080">لینک/شناسه‌ی لوگو</label><input class="inp" id="pr-iv-logo" placeholder="https://drive.google.com/file/d/..."></div>
+          <div style="margin-top:8px"><label style="font-size:11px;color:#5a6080">لینک/شناسه‌ی مهر</label><input class="inp" id="pr-iv-stamp" placeholder="https://drive.google.com/file/d/..."></div>
 
           <div style="display:flex;gap:8px;margin-top:16px;align-items:center">
             <button class="btn btn-primary btn-sm" onclick="pricingSaveConfig()">💾 ذخیره‌ی تنظیمات</button>
@@ -756,9 +763,8 @@ function doPost(e){
 
           <div class="card">
             <div style="font-weight:600;font-size:14px;margin-bottom:14px">۳) پارامترهای سفارش</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
               <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-p-profit" type="number" step="0.1"></div>
-              <div><label style="font-size:11px;color:#5a6080">ضریب ریسک</label><input class="inp" id="pr-p-matfactor" type="number" step="0.1"></div>
               <div><label style="font-size:11px;color:#5a6080">درصد پژوهشگاه (٪)</label><input class="inp" id="pr-p-institute" type="number"></div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
@@ -781,6 +787,7 @@ function doPost(e){
                 <button class="btn btn-ghost btn-sm" style="flex:1" onclick="pricingCopy()">📋 کپی متن</button>
                 <button class="btn btn-primary btn-sm" style="flex:1" id="pr-btn-xlsx" onclick="pricingExportXlsx()">⬇ خروجی اکسل</button>
               </div>
+              <button class="btn btn-sm" style="background:#E2241A;border-color:#E2241A;color:#fff;font-weight:700" onclick="ivShowInvoice()">📄 صدور فاکتور رسمی</button>
               <div id="pr-warn" style="font-size:12px;color:#f59e0b"></div>
             </div>
           </div>
@@ -788,6 +795,186 @@ function doPost(e){
       </div>
     </div>
 
+  </div>
+</div>
+
+
+<!-- ════════ فاکتور رسمی (Phase 2) — لایه‌ی تمام‌صفحه، فقط ادمین ════════ -->
+<style>
+  #view-invoice{position:fixed;inset:0;z-index:4000;display:none;background:#e9e9ec;padding:0 162px 30px 0;overflow:auto;direction:rtl}
+  #view-invoice *{box-sizing:border-box}
+  #view-invoice .ivbar{position:fixed;top:0;right:0;bottom:0;width:154px;z-index:30;background:#fff;border-left:1px solid #ddd;padding:16px 12px;display:flex;flex-direction:column;gap:9px;align-items:stretch;overflow-y:auto}
+  #view-invoice .ivbar .btn{width:100%;text-align:center;padding:9px 8px;border-radius:9px;border:1px solid #d4d6e2;background:#f4f5fb;color:#222;font-size:12.5px;cursor:pointer;font-family:inherit}
+  #view-invoice .ivbar .btn:hover{background:#e9ebf6}
+  #view-invoice .red{background:#E2241A!important;border-color:#E2241A!important;color:#fff!important}
+  #view-invoice .red:hover{filter:brightness(.95)}
+  #view-invoice .page{width:210mm;max-width:100%;min-height:297mm;background:#fff;margin:18px auto;position:relative;box-shadow:0 6px 30px rgba(0,0,0,.18);overflow:hidden;display:flex;flex-direction:column;color:#111}
+  #view-invoice .ibody{flex:1;padding:0 14mm 6mm}
+  #view-invoice .top{position:relative;height:155px;margin:0 -14mm;overflow:hidden}
+  #view-invoice .topbg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #view-invoice .dnum{position:absolute;top:26px;right:26px;color:#fff;direction:rtl;font-weight:800;font-size:14px;line-height:2.15;z-index:2}
+  #view-invoice .logo{position:absolute;top:46px;left:16mm;direction:ltr;text-align:left;z-index:2}
+  #view-invoice .logo img.logoimg{height:74px;width:auto;display:none}
+  #view-invoice .logo .wm{display:flex;align-items:center;gap:9px}
+  #view-invoice .logo .wm .txt{font-size:32px;font-weight:800;letter-spacing:-1px;color:#fff;line-height:1}
+  #view-invoice .logo .wm .txt b{color:#fff}
+  #view-invoice .logo .tag{font-size:13px;color:#ffe;opacity:.85;margin-top:6px;margin-left:4px;font-style:italic}
+  #view-invoice .ictr{text-align:center;margin:0 0 10px}
+  #view-invoice .ictr .bm{font-size:13px}
+  #view-invoice .ictr .ttl{font-size:17px;font-weight:700;margin-top:2px}
+  #view-invoice table.doc{width:100%;border-collapse:collapse;table-layout:fixed}
+  #view-invoice table.doc td,#view-invoice table.doc th{border:1px solid #111}
+  #view-invoice .secthead{background:#efefef;text-align:center;font-weight:700;font-size:13.5px;padding:6px}
+  #view-invoice .kv{padding:8px 12px;font-size:12.5px;line-height:2.15;text-align:right;direction:rtl}
+  #view-invoice .kv b{font-weight:700}
+  #view-invoice .ih{background:#efefef;font-weight:700;font-size:12px;padding:8px 3px;text-align:center}
+  #view-invoice #inv-rows td{font-size:12.5px;padding:8px 6px;text-align:center;vertical-align:middle}
+  #view-invoice #inv-rows td.desc{text-align:right;line-height:1.9}
+  #view-invoice .sumrow td{font-weight:700;background:#fafafa;padding:8px}
+  #view-invoice #inv-grand,#view-invoice #inv-grand2{text-align:center}
+  #view-invoice td.label{text-align:right;font-weight:700;padding-right:14px}
+  #view-invoice .payrow td{font-weight:800;font-size:13px;background:#f5f5f5}
+  #view-invoice .erow td{height:26px}
+  #view-invoice .ed{outline:none;display:inline-block;min-width:48px;border:1px solid #cfd2e6;border-radius:6px;padding:1px 8px;background:#f6f8ff;direction:rtl;color:#111}
+  #view-invoice .ed:focus{border-color:#5b3fd6;background:#fffdf2;box-shadow:0 0 0 2px #e9e3ff}
+  #view-invoice .doc tbody .ed{min-width:30px}
+  #view-invoice .pen{border:none;background:none;cursor:pointer;color:#aab;font-size:12px;padding:2px 5px;margin-right:5px;border-radius:5px;vertical-align:middle}
+  #view-invoice .pen:hover{color:#5b3fd6;background:#eee9fc}
+  #view-invoice .fixed[contenteditable="true"]{outline:none;background:#fffdf2;box-shadow:0 0 0 2px #e9e3ff;border-radius:6px;padding:2px 5px}
+  #view-invoice.clean .ed{border:none;background:none;padding:0;min-width:0}
+  #view-invoice.clean .pen{display:none}
+  #view-invoice.clean .fixed[contenteditable]{background:none;box-shadow:none;padding:0}
+  #view-invoice .dnum .ed{color:#fff}
+  #view-invoice.editall [contenteditable="true"]{outline:1px dashed #c3c6ea;outline-offset:2px;border-radius:4px;cursor:text}
+  #view-invoice.editall [contenteditable="true"]:hover{background:#f5f3ff}
+  #view-invoice [contenteditable="true"]:focus{outline:1px solid #5b3fd6;background:#fffdf2}
+  #view-invoice.clean [contenteditable]{outline:none!important;background:none!important}
+  #view-invoice .notes{margin-top:16px;font-size:12px;line-height:2.3}
+  #view-invoice .notes .n{display:flex;gap:8px}
+  #view-invoice .notes .n::before{content:"\2731";color:#E2241A;font-size:11px;margin-top:6px}
+  #view-invoice .sign{margin-top:14px;display:flex;align-items:center;gap:10px;min-height:120px;justify-content:flex-end}
+  #view-invoice .sign .who{font-size:13px;line-height:2.1;font-weight:600}
+  #view-invoice .stamp{width:118px;height:118px;opacity:.88;transform:rotate(-11deg)}
+  #view-invoice img.stampimg{width:118px;height:auto;opacity:.9;transform:rotate(-11deg);display:none}
+  #view-invoice .foot{margin-top:auto;position:relative}
+  #view-invoice .frow{position:relative;z-index:2;padding:10px 14mm 4px;text-align:center}
+  #view-invoice .frow .icons{display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap;margin-bottom:5px}
+  #view-invoice .frow .it{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;direction:ltr;color:#222}
+  #view-invoice .frow .addr{font-size:11px;direction:rtl;color:#333;display:flex;gap:5px;align-items:center;justify-content:center;margin-top:12px}
+  #view-invoice .frow .ic{width:14px;height:14px;fill:#E2241A;flex:none}
+  #view-invoice .footband{position:relative;height:64px;margin:0 -14mm 0}
+  #view-invoice .footbg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  @media print{
+    @page{size:A4;margin:0}
+    body.inv-open > *:not(#view-invoice){display:none!important}
+    body.inv-open #view-invoice{position:absolute;inset:auto;padding:0;background:#fff;overflow:visible;display:block}
+    #view-invoice .ivbar{display:none!important}
+    #view-invoice .ed{border:none!important;background:none!important;padding:0!important;box-shadow:none!important}
+    #view-invoice .pen{display:none!important}
+    #view-invoice .fixed[contenteditable]{background:none!important;box-shadow:none!important;padding:0!important}
+    #view-invoice [contenteditable]{outline:none!important}
+    #view-invoice .page{box-shadow:none;margin:0 auto;width:210mm;max-width:none;min-height:auto}
+  }
+</style>
+
+<div id="view-invoice">
+  <div class="ivbar">
+    <button class="btn" onclick="ivClose()">→ بازگشت به برآورد</button>
+    <button class="btn" onclick="ivAdd('')">+ افزودن ردیف</button>
+    <button class="btn" id="iv-editall" onclick="ivToggleEditAll()">✎ ویرایش متن‌ها</button>
+    <button class="btn" id="iv-preview" onclick="ivTogglePreview()">پیش‌نمایش</button>
+    <button class="btn" onclick="ivExportPDF()">خروجی PDF</button>
+    <button class="btn" onclick="ivExportWord()">خروجی Word</button>
+    <button class="btn red" onclick="ivPrint()" style="font-weight:700">چاپ</button>
+  </div>
+
+  <div class="page">
+    <div class="ibody">
+      <div class="top">
+        <svg class="topbg" viewBox="0 0 1500 230" preserveAspectRatio="none">
+          <polygon points="0,0 1500,0 1500,16 0,16" fill="#E2241A"/>
+          <polygon points="0,16 1500,16 1500,64 505,64 372,225 0,225" fill="#111"/>
+          <polygon points="0,16 378,16 150,225 0,225" fill="#E2241A"/>
+        </svg>
+        <div class="dnum">
+          <div>تاریخ: <span class="ed" contenteditable="true" id="iv-date">—</span></div>
+          <div>شماره: <span class="ed" contenteditable="true" id="iv-no">—</span></div>
+        </div>
+        <div class="logo">
+          <img class="logoimg" id="iv-logo-img" alt="logo">
+          <div class="wm" id="iv-logo-fallback">
+            <div class="txt">ipr<b>i</b>nt3d</div>
+          </div>
+          <div class="tag">Visualize your ideas</div>
+        </div>
+      </div>
+
+      <div class="ictr"><div class="bm">بسمه تعالی</div><div class="ttl">فاکتور خدمات</div></div>
+
+      <table class="doc">
+        <colgroup><col style="width:7%"><col style="width:29%"><col style="width:23%"><col style="width:8%"><col style="width:16%"><col style="width:17%"></colgroup>
+        <tr><td class="secthead" colspan="6">مشخصات فروشنده</td></tr>
+        <tr><td class="kv" colspan="6"><span class="fixed" id="iv-seller">
+          <b>نام شخص حقیقی/حقوقی:</b> آی پرینت تری دی<br>
+          <b>نشانی:</b> کیلومتر ۱۵ اتوبان تهران - کرج، بلوار پژوهش، پژوهشگاه پلیمر و پتروشیمی ایران، آزمایشگاه آی پرینت.<br>
+          <b>کد پستی:</b> ۱۴۹۷۷۱۳۱۱۵ &nbsp;&nbsp;&nbsp; <b>تلفن:</b> ۰۲۱-۴۸۶۶۲۱۴۲
+        </span><button class="pen" title="ویرایش" onclick="ivTogglePen(this)">✎</button></td></tr>
+        <tr><td class="secthead" colspan="6">مشخصات خریدار</td></tr>
+        <tr><td class="kv" colspan="6" id="iv-buyerkv">
+          <b>نام شخص حقیقی/حقوقی (سازمان):</b> <span class="ed" contenteditable="true" id="iv-bname">—</span><br>
+          <b>کد اقتصادی:</b> <span class="ed" contenteditable="true" id="iv-beco">—</span> &nbsp;&nbsp;&nbsp; <b>شناسه ثبت:</b> <span class="ed" contenteditable="true" id="iv-breg">—</span><br>
+          <b>تلفن:</b> <span class="ed" contenteditable="true" id="iv-btel">—</span> &nbsp;&nbsp;&nbsp; <b>فکس:</b> <span class="ed" contenteditable="true" id="iv-bfax">—</span><br>
+          <b>نشانی:</b> <span class="ed" contenteditable="true" id="iv-baddr">—</span><br>
+          <b>کد پستی:</b> <span class="ed" contenteditable="true" id="iv-bpost">—</span>
+        </td></tr>
+        <tr><td class="secthead" colspan="6">مشخصات کالا یا خدمات مورد معامله</td></tr>
+        <tr>
+          <td class="ih">ردیف</td><td class="ih">کد کالا/خدمات</td><td class="ih">توضیحات</td>
+          <td class="ih">تعداد</td><td class="ih">قیمت واحد (تومان)</td><td class="ih">قیمت کل (تومان)</td>
+        </tr>
+        <tbody id="inv-rows"></tbody>
+        <tr class="sumrow"><td class="label" colspan="5">جمع کل:</td><td id="inv-grand">۰</td></tr>
+        <tr class="erow"><td colspan="6"></td></tr>
+        <tr class="payrow"><td class="label" colspan="5">مبلغ قابل پرداخت: <span id="inv-words">—</span></td><td id="inv-grand2">۰</td></tr>
+      </table>
+
+      <div class="notes">
+        <div class="n"><span class="fixed" id="iv-note1">خواهشمند است مبلغ فاکتور به شماره کارت ۵۰۴۱۷۲۱۱۱۲۳۳۳۴۸۰ به نام آقای اباذر اخوان بهابادی واریز گردد.</span><button class="pen" title="ویرایش" onclick="ivTogglePen(this)">✎</button></div>
+        <div class="n"><span class="fixed" id="iv-note2">شماره حساب ۱۰.۷۸۴۹۴۷۳.۳ بانک رسالت، شماره شبا IR۲۰۰۷۰۰۰۰۱۰۰۰۱۱۷۸۴۹۴۷۳۰۰۳</span><button class="pen" title="ویرایش" onclick="ivTogglePen(this)">✎</button></div>
+      </div>
+
+      <div class="sign">
+        <div class="who"><span class="fixed" id="iv-sign">بهراد کریمی<br>کارشناس فروش</span><button class="pen" title="ویرایش" onclick="ivTogglePen(this)">✎</button></div>
+        <img class="stampimg" id="iv-stamp-img" alt="stamp">
+        <svg class="stamp" id="iv-stamp-svg" viewBox="0 0 120 120">
+          <defs><path id="ivct" d="M60,9 a51,51 0 1,1 -0.1,0"/><path id="ivcb" d="M60,111 a51,51 0 1,1 0.1,0"/></defs>
+          <circle cx="60" cy="60" r="55" fill="none" stroke="#1f6fb2" stroke-width="2.5"/>
+          <circle cx="60" cy="60" r="43" fill="none" stroke="#1f6fb2" stroke-width="1.4"/>
+          <text fill="#1f6fb2" font-size="11" font-weight="700" font-family="Vazirmatn"><textPath href="#ivct" startOffset="50%" text-anchor="middle">آی پرینت تری دی</textPath></text>
+          <text fill="#1f6fb2" font-size="9" font-family="Vazirmatn"><textPath href="#ivcb" startOffset="50%" text-anchor="middle">www.iprint3d.ir</textPath></text>
+          <text x="60" y="57" fill="#1f6fb2" font-size="12" font-weight="800" text-anchor="middle" font-family="Vazirmatn">iPrint3D</text>
+          <text x="60" y="72" fill="#1f6fb2" font-size="8" text-anchor="middle" direction="ltr">021-44787052</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="frow">
+        <div class="icons">
+          <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.4 0 .8-.3 1z"/></svg>۰۲۱-۴۴۷۸۷۰۵۲</div>
+          <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 3.3.1 4.8 1.7 4.9 4.9.1 1.3.1 1.7.1 4.8s0 3.6-.1 4.9c-.1 3.2-1.7 4.8-4.9 4.9-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-3.3-.1-4.8-1.7-4.9-4.9C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9C2.4 3.9 4 2.4 7.1 2.3 8.4 2.2 8.8 2.2 12 2.2zm0 3.2a6.6 6.6 0 100 13.2 6.6 6.6 0 000-13.2zm0 10.9a4.3 4.3 0 110-8.6 4.3 4.3 0 010 8.6zM18.4 5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/></svg>iprint3d.ir</div>
+          <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.9 6h-2.9a15 15 0 00-1.3-3.6A8 8 0 0118.9 8zM12 4c.8 1.2 1.4 2.5 1.8 4h-3.6c.4-1.5 1-2.8 1.8-4zM4.3 14a8 8 0 010-4h3.3a16 16 0 000 4zm.8 2h2.9c.3 1.3.8 2.5 1.3 3.6A8 8 0 015.1 16zM8 8H5.1a8 8 0 014.2-3.6A15 15 0 008 8zm4 12c-.8-1.2-1.4-2.5-1.8-4h3.6c-.4 1.5-1 2.8-1.8 4zm2.2-6H9.8a14 14 0 010-4h4.4a14 14 0 010 4zm.5 5.6c.5-1.1 1-2.3 1.3-3.6h2.9a8 8 0 01-4.2 3.6zM16.4 14a16 16 0 000-4h3.3a8 8 0 010 4z"/></svg>www.iprint3d.ir</div>
+        </div>
+        <div class="addr"><svg class="ic" viewBox="0 0 24 24"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z"/></svg>تهران، بزرگراه شهید خرازی، بلوار پژوهش، پژوهشگاه پلیمر و پتروشیمی ایران، آزمایشگاه آی پرینت</div>
+      </div>
+      <div class="footband">
+        <svg class="footbg" viewBox="0 0 1500 130" preserveAspectRatio="none">
+          <polygon points="0,130 1500,35 1500,130" fill="#E2241A"/>
+          <polygon points="0,52 1500,4 1500,66 0,130" fill="#111"/>
+          <polygon points="1500,66 1500,130 700,130" fill="#E2241A"/>
+        </svg>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -6073,11 +6260,12 @@ function pricingInit(){
       prState.materials  = Array.isArray(c.materials)  ? c.materials  : [];
       prState.composites = Array.isArray(c.composites) ? c.composites : [];
       prState.rates      = c.rates    || {labor:0,finishing:0,modeling:0};
-      prState.defaults   = c.defaults || {profit:0,matFactor:0,institute:0,packaging:0,shipping:0};
+      prState.defaults   = c.defaults || {profit:0,institute:0,packaging:0,shipping:0};
+      prState.invoice    = c.invoice  || {logoFileId:'',stampFileId:''};
       // مقداردهی اولیه‌ی سفارش از پیش‌فرض‌ها
       var d = prState.defaults;
       prState.order = { customer:'', orderName:'', tel:'', qty:10,
-                        profit:(+d.profit||0), matFactor:(+d.matFactor||0),
+                        profit:(+d.profit||0),
                         institute:(+d.institute||0), packaging:(+d.packaging||0), shipping:(+d.shipping||0) };
       // یک ردیف نمونه برای شروع
       prState.lines = [];
@@ -6165,7 +6353,9 @@ function prRenderSettings(){
   document.getElementById('pr-r-finishing').value = prSep(+prState.rates.finishing||0);
   document.getElementById('pr-r-modeling').value  = prSep(+prState.rates.modeling||0);
   document.getElementById('pr-d-profit').value    = (prState.defaults.profit!=null?prState.defaults.profit:'');
-  document.getElementById('pr-d-matfactor').value = (prState.defaults.matFactor!=null?prState.defaults.matFactor:'');
+  var iv = prState.invoice || {};
+  document.getElementById('pr-iv-logo').value  = iv.logoFileId || '';
+  document.getElementById('pr-iv-stamp').value = iv.stampFileId || '';
 }
 
 // ── سفارش ──
@@ -6176,7 +6366,6 @@ function prRenderOrder(){
   document.getElementById('pr-o-tel').value       = o.tel||'';
   document.getElementById('pr-o-qty').value       = o.qty;
   document.getElementById('pr-p-profit').value    = o.profit;
-  document.getElementById('pr-p-matfactor').value = o.matFactor;
   document.getElementById('pr-p-institute').value = o.institute;
   document.getElementById('pr-p-packaging').value = prSep(+o.packaging||0);
   document.getElementById('pr-p-shipping').value  = prSep(+o.shipping||0);
@@ -6273,11 +6462,14 @@ function prOnInput(e){
     if(mt){ mt[t.dataset.prmatf] = (t.dataset.prmatf==='name') ? t.value : v; prCompositeRows(); prRenderLines(); }
     return;
   }
+  // آدرس لوگو و مهر فاکتور
+  if(t.id==='pr-iv-logo'){ prState.invoice=prState.invoice||{}; prState.invoice.logoFileId=t.value; return; }
+  if(t.id==='pr-iv-stamp'){ prState.invoice=prState.invoice||{}; prState.invoice.stampFileId=t.value; return; }
   // نرخ‌ها و پیش‌فرض‌ها (تنظیمات)
-  var rmap = {'pr-r-labor':['rates','labor'],'pr-r-finishing':['rates','finishing'],'pr-r-modeling':['rates','modeling'],'pr-d-profit':['defaults','profit'],'pr-d-matfactor':['defaults','matFactor']};
+  var rmap = {'pr-r-labor':['rates','labor'],'pr-r-finishing':['rates','finishing'],'pr-r-modeling':['rates','modeling'],'pr-d-profit':['defaults','profit']};
   if(rmap[t.id]){ var g=rmap[t.id]; prState[g[0]][g[1]] = v; return; }
   // اطلاعات سفارش و پارامترها
-  var omap = {'pr-o-customer':'customer','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-matfactor':'matFactor','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
+  var omap = {'pr-o-customer':'customer','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
   if(omap[t.id]){ prState.order[omap[t.id]] = v; prScheduleCompute(); return; }
 }
 
@@ -6303,7 +6495,7 @@ document.addEventListener('click', function(e){
 function pricingSaveConfig(){
   var st = document.getElementById('pr-settings-status');
   st.style.color = '#9aa3c2'; st.textContent = 'در حال ذخیره...';
-  var cfg = { machines:prState.machines, materials:prState.materials, composites:prState.composites, rates:prState.rates, defaults:prState.defaults };
+  var cfg = { machines:prState.machines, materials:prState.materials, composites:prState.composites, rates:prState.rates, defaults:prState.defaults, invoice:prState.invoice };
   callSheet('savePricingConfig', { config: JSON.stringify(cfg) }, function(res){
     if(res && res.status==='ok'){
       st.style.color = '#4ade80'; st.textContent = '✅ ذخیره شد — قیمت بازمحاسبه شد';
@@ -6354,15 +6546,15 @@ function prRenderTape(r){
   h += '<div class="pr-sec">هزینه‌ی ساخت هر عدد</div>';
   h += ln('دستگاه', r.cat.machine, 'muted');
   h += ln('نیروی انسانی (با فینیشینگ)', (r.cat.labor + r.cat.finishing), 'muted');
-  if(r.cat.modeling) h += ln('مدلسازی', r.cat.modeling, 'muted');
   h += ln('ماده (رزین)', r.material, 'muted');
   h += ln('جمع هر عدد', r.base, 'strong');
   h += '<div class="pr-sec">قیمت‌گذاری هر عدد</div>';
-  h += ln('با سود و ضریب ریسک', r.perPartMargin, 'muted');
+  h += ln('با ضریب سود', r.perPartMargin, 'muted');
   h += ln('+ درصد پژوهشگاه', r.institute, 'muted');
   h += ln('قیمت هر عدد', r.perPartAnnounced, 'strong');
   h += '<div class="pr-sec">کل سفارش</div>';
   h += ln(prToFa(prSep(r.qty)) + ' عدد × قیمت هر عدد', (r.perPartAnnounced * r.qty), 'muted');
+  if(r.modelingAnnounced) h += ln('+ مدلسازی (یک‌باره)', r.modelingAnnounced, 'muted');
   h += ln('+ بسته‌بندی و ارسال', packShip, 'muted');
   h += '<div class="pr-sec">سود پروژه</div>';
   h += ln('قیمت تمام‌شده (هزینه‌ی واقعی)', r.rawTotal, 'muted');
@@ -6387,16 +6579,16 @@ function pricingCopy(){
   L.push('— هزینه‌ی ساخت هر عدد —');
   L.push('دستگاه: ' + prFmt(r.cat.machine));
   L.push('نیروی انسانی (با فینیشینگ): ' + prFmt(r.cat.labor + r.cat.finishing));
-  if(r.cat.modeling) L.push('مدلسازی: ' + prFmt(r.cat.modeling));
   L.push('ماده (رزین): ' + prFmt(r.material));
   L.push('جمع هر عدد: ' + prFmt(r.base));
   L.push('');
   L.push('— قیمت‌گذاری هر عدد —');
-  L.push('با سود و ضریب ریسک: ' + prFmt(r.perPartMargin));
+  L.push('با ضریب سود: ' + prFmt(r.perPartMargin));
   L.push('+ درصد پژوهشگاه: ' + prFmt(r.institute));
   L.push('قیمت هر عدد: ' + prFmt(r.perPartAnnounced));
   L.push('');
   L.push('— کل سفارش —');
+  if(r.modelingAnnounced) L.push('مدلسازی (یک‌باره): ' + prFmt(r.modelingAnnounced));
   L.push('قیمت نهایی (کل): ' + prFmt(r.orderTotal));
   L.push('قیمت هر عدد (نهایی): ' + prFmt(r.perUnit));
   var txt = L.join('\n');
@@ -6434,6 +6626,189 @@ function pricingExportXlsx(){
       showToast((res && res.message) ? res.message : 'خطا در ساخت اکسل');
     }
   });
+}
+
+// ════════════════════════════════════════════════════════════
+//  فاکتور رسمی — منطق (Phase 2)
+//  داده از برآورد فعلی پر می‌شود و قابل ویرایش است. لوگو/مهر از Drive.
+// ════════════════════════════════════════════════════════════
+var ivItems = [];
+var ivAssetsLoaded = false;
+function ivEnDigits(s){ return String(s).replace(/[۰-۹]/g, function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[^\d]/g,''); }
+function ivNum2fa(n){
+  n=Math.round(n); if(n===0) return 'صفر';
+  var yek=['','یک','دو','سه','چهار','پنج','شش','هفت','هشت','نه'];
+  var dah=['ده','یازده','دوازده','سیزده','چهارده','پانزده','شانزده','هفده','هجده','نوزده'];
+  var dahgan=['','','بیست','سی','چهل','پنجاه','شصت','هفتاد','هشتاد','نود'];
+  var sad=['','صد','دویست','سیصد','چهارصد','پانصد','ششصد','هفتصد','هشتصد','نهصد'];
+  var scale=['','هزار','میلیون','میلیارد','هزار میلیارد'];
+  function three(num){ var out=[]; var s=Math.floor(num/100), rem=num%100;
+    if(s>0) out.push(sad[s]);
+    if(rem>=10&&rem<=19) out.push(dah[rem-10]);
+    else { var d=Math.floor(rem/10), y=rem%10; if(d>0) out.push(dahgan[d]); if(y>0) out.push(yek[y]); }
+    return out.join(' و '); }
+  var parts=[], i=0;
+  while(n>0){ var ch=n%1000; if(ch>0) parts.unshift(three(ch)+(scale[i]?(' '+scale[i]):'')); n=Math.floor(n/1000); i++; }
+  return parts.join(' و ');
+}
+function ivRowTotal(it){ return (it.total!=null && it.total!=='') ? (+it.total||0) : ((+it.qty||0)*(+it.unit||0)); }
+function ivRecalc(){
+  var g = ivItems.reduce(function(s,it){ return s+ivRowTotal(it); },0);
+  document.getElementById('inv-grand').textContent = prToFa(prSep(g));
+  document.getElementById('inv-grand2').textContent = prToFa(prSep(g));
+  document.getElementById('inv-words').textContent = ivNum2fa(g)+' تومان';
+}
+function ivRender(){
+  document.getElementById('inv-rows').innerHTML = ivItems.map(function(it,i){
+    return '<tr data-ii="'+i+'">'
+      +'<td>'+prToFa(i+1)+'</td>'
+      +'<td class="desc"><span class="ed" contenteditable="true" data-if="code">'+escapeHtml(it.code||'')+'</span></td>'
+      +'<td class="desc"><span class="ed" contenteditable="true" data-if="desc">'+escapeHtml(it.desc||'')+'</span></td>'
+      +'<td><span class="ed" contenteditable="true" data-if="qty">'+prToFa(it.qty)+'</span></td>'
+      +'<td><span class="ed" contenteditable="true" data-if="unit">'+prToFa(prSep(it.unit))+'</span></td>'
+      +'<td><span class="ed" contenteditable="true" data-if="total">'+prToFa(prSep(ivRowTotal(it)))+'</span></td></tr>';
+  }).join('');
+  ivRecalc();
+}
+function ivAdd(code){ ivItems.push({code:code||'',desc:'',qty:1,unit:0}); ivRender(); }
+
+function ivShowInvoice(){
+  if(typeof prLastResult==='undefined' || !prLastResult){ showToast('اول یک برآورد بساز تا فاکتور از روی آن پر شود'); return; }
+  var r=prLastResult, o=(prState&&prState.order)||{};
+  var code = (o.orderName && o.orderName.trim()) ? o.orderName.trim() : 'پرینت قطعه (مطابق برآورد iPrint3D)';
+  ivItems = [{ code:code, desc:'', qty:Math.max(1,+o.qty||1), unit:Math.round(r.perUnit) }];
+  document.getElementById('iv-bname').textContent = o.customer || '—';
+  var tel=document.getElementById('iv-btel'); if(tel) tel.textContent = o.tel || '—';
+  try{ document.getElementById('iv-date').textContent = new Intl.DateTimeFormat('fa-IR').format(new Date()); }catch(e){}
+  ivRender();
+  document.getElementById('view-invoice').style.display='block';
+  document.body.classList.add('inv-open');
+  document.getElementById('view-invoice').scrollTop=0;
+  ivLoadAssets();
+}
+function ivClose(){
+  document.getElementById('view-invoice').style.display='none';
+  document.body.classList.remove('inv-open');
+}
+function ivLoadAssets(){
+  if(ivAssetsLoaded) return;
+  callSheet('getInvoiceAssets', { t:Date.now() }, function(res){
+    if(res && res.status==='ok'){
+      if(res.logo){ var li=document.getElementById('iv-logo-img'); li.src=res.logo; li.style.display='block'; var lf=document.getElementById('iv-logo-fallback'); if(lf) lf.style.display='none'; }
+      if(res.stamp){ var si=document.getElementById('iv-stamp-img'); si.src=res.stamp; si.style.display='inline-block'; var sv=document.getElementById('iv-stamp-svg'); if(sv) sv.style.display='none'; }
+      ivAssetsLoaded = true;
+    }
+  });
+}
+
+// ویرایش ردیف‌های جدول فاکتور
+document.addEventListener('input', function(e){
+  var t=e.target; if(!t || !t.closest) return;
+  var tr=t.closest('#view-invoice tr[data-ii]');
+  if(tr && t.dataset && t.dataset.if){
+    var it=ivItems[+tr.getAttribute('data-ii')], f=t.dataset.if;
+    if(f==='qty'){ it.qty=+ivEnDigits(t.textContent)||0; it.total=null; }
+    else if(f==='unit'){ it.unit=+ivEnDigits(t.textContent)||0; it.total=null; }
+    else if(f==='total'){ it.total=+ivEnDigits(t.textContent)||0; }
+    else it[f]=t.textContent;
+    if(f==='qty'||f==='unit'){ var ts=tr.children[5].querySelector('.ed'); if(ts) ts.textContent=prToFa(prSep(ivRowTotal(it))); }
+    ivRecalc();
+  }
+});
+
+function ivTogglePreview(){
+  var v=document.getElementById('view-invoice');
+  var on=v.classList.toggle('clean');
+  document.getElementById('iv-preview').textContent = on?'حالت ویرایش':'پیش‌نمایش';
+}
+function ivTogglePen(btn){
+  var f=btn.parentElement.querySelector('.fixed'); if(!f) return;
+  var on=f.getAttribute('contenteditable')==='true';
+  f.setAttribute('contenteditable', on?'false':'true');
+  if(!on) f.focus();
+}
+var IV_EDIT_SEL='#view-invoice .secthead, #view-invoice .ih, #view-invoice .ictr .bm, #view-invoice .ictr .ttl, #view-invoice td.label, #view-invoice .kv b, #view-invoice .logo .tag, #view-invoice .frow .it, #view-invoice .frow .addr, #view-invoice .fixed, #view-invoice .dnum > div';
+function ivToggleEditAll(){
+  var v=document.getElementById('view-invoice');
+  var on=v.classList.toggle('editall');
+  document.querySelectorAll(IV_EDIT_SEL).forEach(function(el){ el.setAttribute('contenteditable', on?'true':'false'); });
+  document.getElementById('iv-editall').textContent = on?'✓ پایان ویرایش':'✎ ویرایش متن‌ها';
+}
+function ivPrint(){ window.print(); }
+
+function ivExportPDF(){
+  if(!window.html2canvas || !window.jspdf){ showToast('کتابخانه‌ی PDF بارگذاری نشد. اینترنت را بررسی کن.'); return; }
+  var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean');
+  v.classList.add('clean');
+  var el=v.querySelector('.page');
+  var prevW=el.style.width, prevMax=el.style.maxWidth;
+  el.style.width='210mm'; el.style.maxWidth='none';
+  html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
+    el.style.width=prevW; el.style.maxWidth=prevMax;
+    var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm','a4');
+    var pw=210, ph=297, w=pw, h=canvas.height*pw/canvas.width;
+    if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
+    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,0,w,h);
+    pdf.save('فاکتور_iPrint3D.pdf');
+    if(!wasClean) v.classList.remove('clean');
+  }).catch(function(err){ el.style.width=prevW; el.style.maxWidth=prevMax; if(!wasClean) v.classList.remove('clean'); showToast('خطا در ساخت PDF'); });
+}
+
+async function ivExportWord(){
+  var v=document.getElementById('view-invoice');
+  var el=v.querySelector('.page');
+  var T=function(id){ var e=document.getElementById(id); return e?e.innerHTML:''; };
+  var g=ivItems.reduce(function(s,it){ return s+ivRowTotal(it); },0);
+  var topImg='',footImg='',stampImg='';
+  if(window.html2canvas){
+    var wasClean=v.classList.contains('clean'); v.classList.add('clean');
+    var pw=el.style.width, pmax=el.style.maxWidth; el.style.width='210mm'; el.style.maxWidth='none';
+    try{
+      topImg=(await html2canvas(v.querySelector('.top'),{scale:2,backgroundColor:'#ffffff',useCORS:true})).toDataURL('image/png');
+      footImg=(await html2canvas(v.querySelector('.foot'),{scale:2,backgroundColor:'#ffffff',useCORS:true})).toDataURL('image/png');
+      var stImgEl=document.getElementById('iv-stamp-img');
+      if(stImgEl && stImgEl.style.display!=='none' && stImgEl.src){ stampImg=stImgEl.src; }
+      else { var sv=document.getElementById('iv-stamp-svg'); if(sv) stampImg=(await html2canvas(sv,{scale:3,backgroundColor:null,useCORS:true})).toDataURL('image/png'); }
+    }catch(e){}
+    el.style.width=pw; el.style.maxWidth=pmax; if(!wasClean) v.classList.remove('clean');
+  }
+  var itemRows=ivItems.map(function(it,i){
+    return '<tr><td style="text-align:center">'+prToFa(i+1)+'</td><td>'+escapeHtml(it.code||'')+'</td><td>'+escapeHtml(it.desc||'')+'</td>'
+      +'<td style="text-align:center">'+prToFa(it.qty)+'</td><td style="text-align:center">'+prToFa(prSep(it.unit))+'</td>'
+      +'<td style="text-align:center">'+prToFa(prSep(ivRowTotal(it)))+'</td></tr>';
+  }).join('');
+  var head='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">'
+    +'<style>@page{size:A4;margin:0} body{font-family:Tahoma,Arial;direction:rtl;font-size:11pt;margin:0} '
+    +'.pad{padding:0 1.2cm} table{border-collapse:collapse;width:100%;margin-top:6px;direction:rtl} td,th{border:1px solid #000;padding:6px} '
+    +'.sec{background:#eeeeee;text-align:center;font-weight:bold} '
+    +'.kvw{text-align:right;padding:9px 16px 9px 9px;line-height:2} '
+    +'.c{text-align:center} .ttl{text-align:center;font-size:15pt;font-weight:bold;margin:10px 0} img{display:block}</style></head><body>';
+  var banner=function(d){ return d?'<img src="'+d+'" style="width:100%"/>':''; };
+  var html=head
+    +banner(topImg)
+    +'<div class="pad">'
+    +'<div class="ttl">بسمه تعالی<br>فاکتور خدمات</div>'
+    +'<table dir="rtl">'
+    +'<tr><td class="sec" colspan="6">مشخصات فروشنده</td></tr><tr><td class="kvw" colspan="6">'+T('iv-seller')+'</td></tr>'
+    +'<tr><td class="sec" colspan="6">مشخصات خریدار</td></tr><tr><td class="kvw" colspan="6">'
+      +'<b>نام شخص حقیقی/حقوقی (سازمان):</b> '+T('iv-bname')+'<br><b>کد اقتصادی:</b> '+T('iv-beco')+' &nbsp;&nbsp; <b>شناسه ثبت:</b> '+T('iv-breg')
+      +'<br><b>تلفن:</b> '+T('iv-btel')+' &nbsp;&nbsp; <b>فکس:</b> '+T('iv-bfax')+'<br><b>نشانی:</b> '+T('iv-baddr')+'<br><b>کد پستی:</b> '+T('iv-bpost')+'</td></tr>'
+    +'<tr><td class="sec" colspan="6">مشخصات کالا یا خدمات مورد معامله</td></tr>'
+    +'<tr><th>ردیف</th><th>کد کالا/خدمات</th><th>توضیحات</th><th>تعداد</th><th>قیمت واحد (تومان)</th><th>قیمت کل (تومان)</th></tr>'
+    +itemRows
+    +'<tr><td colspan="5" style="text-align:left;font-weight:bold">جمع کل:</td><td class="c">'+prToFa(prSep(g))+'</td></tr>'
+    +'<tr><td colspan="5" style="text-align:left;font-weight:bold">مبلغ قابل پرداخت: '+ivNum2fa(g)+' تومان</td><td class="c">'+prToFa(prSep(g))+'</td></tr>'
+    +'</table>'
+    +'<p>* '+T('iv-note1')+'</p><p>* '+T('iv-note2')+'</p>'
+    +'<table style="border:none;width:100%;margin-top:18px"><tr>'
+      +'<td style="border:none;width:35%;text-align:center">'+(stampImg?'<img src="'+stampImg+'" style="width:4cm;display:inline-block"/>':'')+'</td>'
+      +'<td style="border:none;text-align:right;vertical-align:middle">'+T('iv-sign')+'</td></tr></table>'
+    +'</div>'
+    +banner(footImg)
+    +'</body></html>';
+  var blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='فاکتور_iPrint3D.doc'; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
 }
 </script>
 </body>
