@@ -239,6 +239,7 @@ tr:hover td{background:#0e1018}
     <div class="nav" onclick="gotoView('add',this)"><span class="nav-icon">➕</span><span>افزودن کالا</span></div>
     <div class="nav" onclick="gotoView('ai',this)"><span class="nav-icon">🤖</span><span>جستجوی AI</span></div>
     <div class="nav" onclick="gotoView('usage',this)"><span class="nav-icon">📊</span><span>گزارش مصرف</span></div>
+    <div class="nav" onclick="gotoView('pricing',this)"><span class="nav-icon">🧮</span><span>برآورد قیمت</span></div>
 
     <div class="nav" onclick="gotoView('users',this)"><span class="nav-icon">👥</span><span>کاربران</span><span id="usersBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
     <div class="nav" id="notifNav" onclick="gotoView('notif',this)"><span class="nav-icon">📋</span><span>درخواست‌ها</span><span id="notifBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
@@ -659,6 +660,132 @@ function doPost(e){
         </div>
       </div>
 
+    </div>
+
+    <!-- ── PRICING (برآورد قیمت) — فقط ادمین ── -->
+    <div id="view-pricing" class="hidden">
+      <style>
+        #view-pricing .pr-grid-r{display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start}
+        @media(max-width:900px){#view-pricing .pr-grid-r{grid-template-columns:1fr}}
+        #view-pricing .pr-ln{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dotted #1a1d2e}
+        #view-pricing .pr-ln span:last-child{font-variant-numeric:tabular-nums}
+        #view-pricing .pr-ln.muted span{color:#9aa3c2}
+        #view-pricing .pr-ln.strong{font-weight:600;color:#e2e4f0}
+        #view-pricing .pr-sec{font-size:10.5px;font-weight:700;color:#5a6080;letter-spacing:.3px;margin:12px 0 4px}
+        #view-pricing .pr-row{border:1px solid #1a1d2e;border-radius:10px;padding:10px;margin-bottom:8px;background:#0e1018}
+        #view-pricing .pr-rowhead{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600;color:#c084fc;margin-bottom:8px}
+        #view-pricing .pr-mini{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;margin-bottom:6px}
+        #view-pricing .pr-x{background:none;border:none;color:#5a6080;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:6px}
+        #view-pricing .pr-x:hover{color:#f87171;background:#2a1414}
+        #view-pricing label{display:block;margin-bottom:4px}
+        #view-pricing .inp{margin-bottom:0}
+      </style>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div class="page-title" style="margin:0">🧮 برآورد قیمت</div>
+        <span style="font-size:11.5px;color:#fbbf24;background:#3a2e0a;border:1px solid #5c4a12;padding:4px 10px;border-radius:20px">مرحله ۱ — ماشین‌حساب + خروجی اکسل</span>
+      </div>
+
+      <!-- تنظیمات -->
+      <div class="card" style="margin-bottom:16px">
+        <div onclick="pricingToggleSettings()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+          <div style="font-weight:600;font-size:15px;color:#c084fc">⚙️ تنظیمات — نرخ‌ها، مواد و رزین ترکیبی</div>
+          <span id="pr-settings-chev" style="color:#5a6080">▾</span>
+        </div>
+        <div id="pr-settings-body" style="display:none;margin-top:16px">
+          <div style="font-size:12px;color:#5a6080;margin-bottom:14px">نرخ‌ها روی سرور ذخیره می‌شوند و در محاسبه پنهان می‌مانند. بعد از تغییر، حتماً «ذخیره‌ی تنظیمات» را بزنید تا در قیمت اعمال شود.</div>
+
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:6px 0 8px">دستگاه‌ها — نرخ ساعتی (تومان/ساعت)</div>
+          <div id="pr-machines"></div>
+          <button class="btn btn-ghost btn-sm" onclick="pricingAddMachine()" style="margin-top:8px">+ دستگاه</button>
+
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">مواد پایه — قیمت هر کیلو و چگالی</div>
+          <div id="pr-materials"></div>
+          <button class="btn btn-ghost btn-sm" onclick="pricingAddMaterial()" style="margin-top:8px">+ ماده</button>
+
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">رزین ترکیبی — قیمت هر کیلو از درصد اجزا</div>
+          <div id="pr-composites"></div>
+          <button class="btn btn-ghost btn-sm" onclick="pricingAddComposite()" style="margin-top:8px">+ رزین ترکیبی</button>
+
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">نرخ نیروی کار (تومان/ساعت)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <div><label style="font-size:11px;color:#5a6080">نیروی انسانی</label><input class="inp pr-money" id="pr-r-labor"></div>
+            <div><label style="font-size:11px;color:#5a6080">فینیشینگ</label><input class="inp pr-money" id="pr-r-finishing"></div>
+            <div><label style="font-size:11px;color:#5a6080">مدلسازی</label><input class="inp pr-money" id="pr-r-modeling"></div>
+          </div>
+
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
+            <div><label style="font-size:11px;color:#5a6080">ضریب ریسک</label><input class="inp" id="pr-d-matfactor" type="number" step="0.1"></div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:16px;align-items:center">
+            <button class="btn btn-primary btn-sm" onclick="pricingSaveConfig()">💾 ذخیره‌ی تنظیمات</button>
+            <span id="pr-settings-status" style="font-size:12px;color:#4ade80"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pr-grid-r">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div style="font-weight:600;font-size:14px;margin-bottom:14px">۱) اطلاعات سفارش</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+              <div><label style="font-size:11px;color:#5a6080">نام مشتری / سازمان</label><input class="inp" id="pr-o-customer" placeholder="مثلاً شرکت ..."></div>
+              <div><label style="font-size:11px;color:#5a6080">اسم سفارش</label><input class="inp" id="pr-o-ordername" placeholder="مثلاً پرینت قطعه ..."></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
+              <div><label style="font-size:11px;color:#5a6080">شماره تماس</label><input class="inp" id="pr-o-tel" placeholder="۰۲۱-..."></div>
+              <div><label style="font-size:11px;color:#5a6080">تعداد سفارش</label><input class="inp" id="pr-o-qty" type="number" min="1"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px">
+            <div style="font-weight:600;font-size:14px;margin-bottom:14px">۲) ردیف‌های هزینه</div>
+            <div id="pr-lines"></div>
+            <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;padding-top:14px;border-top:1px dashed #1a1d2e">
+              <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('machine_fdm')">+ دستگاه FDM</button>
+              <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('machine_dlp')">+ دستگاه DLP</button>
+              <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('material')">+ ماده</button>
+              <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('labor')">+ نیروی انسانی</button>
+              <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('finishing')">+ فینیشینگ</button>
+              <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('modeling')">+ مدلسازی</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:600;font-size:14px;margin-bottom:14px">۳) پارامترهای سفارش</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px">
+              <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-p-profit" type="number" step="0.1"></div>
+              <div><label style="font-size:11px;color:#5a6080">ضریب ریسک</label><input class="inp" id="pr-p-matfactor" type="number" step="0.1"></div>
+              <div><label style="font-size:11px;color:#5a6080">درصد پژوهشگاه (٪)</label><input class="inp" id="pr-p-institute" type="number"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
+              <div><label style="font-size:11px;color:#5a6080">بسته‌بندی (تومان)</label><input class="inp pr-money" id="pr-p-packaging"></div>
+              <div><label style="font-size:11px;color:#5a6080">ارسال (تومان)</label><input class="inp pr-money" id="pr-p-shipping"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:sticky;top:16px">
+          <div class="card" style="padding:0;overflow:hidden">
+            <div style="padding:14px 18px;border-bottom:1px solid #1a1d2e;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:14px">خروجی قیمت</span><span id="pr-calc-status" style="font-size:11px;color:#5a6080"></span></div>
+            <div id="pr-tape" style="padding:10px 18px;font-size:13px"></div>
+            <div style="padding:8px 18px 4px;border-top:1px solid #1a1d2e">
+              <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#9aa3c2">قیمت اعلامی یک عدد</span><span id="pr-final-unit" style="font-weight:700;color:#fbbf24">—</span></div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#9aa3c2">قیمت اعلامی کل پروژه</span><span id="pr-final-total" style="font-weight:700;color:#fbbf24">—</span></div>
+            </div>
+            <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-ghost btn-sm" style="flex:1" onclick="pricingCopy()">📋 کپی متن</button>
+                <button class="btn btn-primary btn-sm" style="flex:1" id="pr-btn-xlsx" onclick="pricingExportXlsx()">⬇ خروجی اکسل</button>
+              </div>
+              <div id="pr-warn" style="font-size:12px;color:#f59e0b"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -1185,6 +1312,7 @@ function applyRoleUI(){
     if(txt.includes('تنظیمات'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('افزودن کالا'))n.style.display=canAdd?'flex':'none';
     if(txt.includes('گزارش مصرف'))n.style.display=isAdmin?'flex':'none';
+    if(txt.includes('برآورد قیمت'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('جستجوی AI'))n.style.display='flex';
   });
   // دکمه خروجی Excel فقط برای ادمین
@@ -1240,6 +1368,7 @@ function gotoView(v,el){
     }
   }
   else if(v==='ai'){}
+  else if(v==='pricing'){ if(!canDo('users')){alert('دسترسی ندارید');return;} pricingInit(); }
   else if(v==='usage'){ loadUsageReport(); loadProjects(); }
   else if(v==='users'){
     if(!canDo('users')){alert('دسترسی ندارید');return;}
@@ -5912,6 +6041,400 @@ function doRestore(){
 window.addEventListener('load', function(){
   try { if(typeof tryAutoLogin === 'function') tryAutoLogin(); } catch(e){}
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  ماژول برآورد قیمت (Pricing) — کلاینت
+//  امنیت: هیچ فرمولی اینجا نیست؛ محاسبه و اکسل روی سرور انجام می‌شود.
+//  این کلاینت فقط ورودی‌ها را می‌فرستد و نتیجه را نمایش می‌دهد.
+// ═══════════════════════════════════════════════════════════════
+var prState = { machines:[], materials:[], composites:[], rates:{}, defaults:{},
+                order:{}, lines:[], loaded:false };
+var prUid = 1;
+function prNid(){ return 'p' + (prUid++); }
+var prLastResult = null;
+var prComputeTimer = null;
+var prBound = false;
+
+function prSep(n){ try{ return new Intl.NumberFormat('en-US').format(Math.round(n)); }catch(e){ return String(n); } }
+function prFmt(n){ return isFinite(n) ? (prSep(n) + ' تومان') : '—'; }
+function prParseMoney(s){ var r = String(s).replace(/[^\d]/g,''); return r===''?0:+r; }
+var prFaD = '۰۱۲۳۴۵۶۷۸۹';
+function prToFa(s){ return String(s).replace(/\d/g, function(d){ return prFaD[d]; }); }
+
+// ── راه‌اندازی صفحه (با باز شدن از منو صدا زده می‌شود) ──
+function pricingInit(){
+  prBindOnce();
+  if(prState.loaded){ return; }
+  document.getElementById('pr-tape').innerHTML = '<div style="color:#5a6080;text-align:center;padding:20px">در حال بارگذاری تنظیمات...</div>';
+  callSheet('getPricingConfig', { t: Date.now() }, function(res){
+    if(res && res.status==='ok' && res.config){
+      var c = res.config;
+      prState.machines   = Array.isArray(c.machines)   ? c.machines   : [];
+      prState.materials  = Array.isArray(c.materials)  ? c.materials  : [];
+      prState.composites = Array.isArray(c.composites) ? c.composites : [];
+      prState.rates      = c.rates    || {labor:0,finishing:0,modeling:0};
+      prState.defaults   = c.defaults || {profit:0,matFactor:0,institute:0,packaging:0,shipping:0};
+      // مقداردهی اولیه‌ی سفارش از پیش‌فرض‌ها
+      var d = prState.defaults;
+      prState.order = { customer:'', orderName:'', tel:'', qty:10,
+                        profit:(+d.profit||0), matFactor:(+d.matFactor||0),
+                        institute:(+d.institute||0), packaging:(+d.packaging||0), shipping:(+d.shipping||0) };
+      // یک ردیف نمونه برای شروع
+      prState.lines = [];
+      prState.loaded = true;
+      prRenderSettings();
+      prRenderOrder();
+      prRenderLines();
+      prDoCompute();
+    } else {
+      document.getElementById('pr-tape').innerHTML = '<div style="color:#f87171;text-align:center;padding:20px">خطا در بارگذاری تنظیمات. اینترنت را بررسی و دوباره وارد این صفحه شوید.</div>';
+    }
+  });
+}
+
+function prBindOnce(){
+  if(prBound) return;
+  var pv = document.getElementById('view-pricing');
+  if(!pv) return;
+  pv.addEventListener('input', prOnInput);
+  pv.addEventListener('change', prOnInput);
+  pv.addEventListener('focusout', function(e){
+    var t = e.target;
+    if(t.classList && t.classList.contains('pr-money')){
+      var n = prParseMoney(t.value);
+      t.value = n ? prSep(n) : '';
+    }
+  });
+  prBound = true;
+}
+
+// ── تنظیمات ──
+function pricingToggleSettings(){
+  var b = document.getElementById('pr-settings-body');
+  var ch = document.getElementById('pr-settings-chev');
+  var open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : 'block';
+  if(ch) ch.textContent = open ? '▾' : '▴';
+}
+
+function prMachineRows(){
+  var box = document.getElementById('pr-machines');
+  box.innerHTML = prState.machines.map(function(m){
+    return '<div class="pr-mini" data-prmid="'+m.id+'">'
+      + '<input class="inp" data-prmf="name" value="'+escapeHtml(m.name)+'" placeholder="نام دستگاه">'
+      + '<select class="inp" data-prmf="type"><option'+(m.type==='FDM'?' selected':'')+'>FDM</option><option'+(m.type==='DLP'?' selected':'')+'>DLP</option></select>'
+      + '<input class="inp pr-money" data-prmf="rate" value="'+prSep(+m.rate||0)+'" style="width:120px">'
+      + '<button class="pr-x" data-prdelm="'+m.id+'">✕</button>'
+      + '</div>';
+  }).join('') || '<div style="color:#5a6080;font-size:12px">دستگاهی تعریف نشده.</div>';
+}
+function prMaterialRows(){
+  var box = document.getElementById('pr-materials');
+  box.innerHTML = prState.materials.map(function(m){
+    return '<div class="pr-mini" data-prmatid="'+m.id+'" style="grid-template-columns:1fr 1fr 90px auto">'
+      + '<input class="inp" data-prmatf="name" value="'+escapeHtml(m.name)+'" placeholder="نام ماده">'
+      + '<input class="inp pr-money" data-prmatf="price" value="'+prSep(+m.price||0)+'">'
+      + '<input class="inp" type="number" step="0.01" data-prmatf="density" value="'+(m.density!=null?m.density:'')+'" placeholder="چگالی">'
+      + '<button class="pr-x" data-prdelmat="'+m.id+'">✕</button>'
+      + '</div>';
+  }).join('') || '<div style="color:#5a6080;font-size:12px">ماده‌ای تعریف نشده.</div>';
+}
+function prBaseMatOpts(sel){
+  return prState.materials.map(function(m){ return '<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }).join('');
+}
+function prCompositeRows(){
+  var box = document.getElementById('pr-composites');
+  box.innerHTML = prState.composites.map(function(c){
+    var parts = (c.parts||[]).map(function(p,i){
+      return '<div class="pr-mini" data-prpi="'+i+'">'
+        + '<select class="inp" data-prcf="materialId">'+prBaseMatOpts(p.materialId)+'</select>'
+        + '<input class="inp" type="number" data-prcf="pct" value="'+(p.pct!=null?p.pct:'')+'" placeholder="٪">'
+        + '<button class="pr-x" data-prdelpart="'+i+'">✕</button>'
+        + '</div>';
+    }).join('');
+    return '<div class="pr-row" data-prcid="'+c.id+'">'
+      + '<div class="pr-rowhead"><input class="inp" data-prcname value="'+escapeHtml(c.name)+'" style="max-width:70%"><button class="pr-x" data-prdelcomp="'+c.id+'">✕</button></div>'
+      + parts
+      + '<button class="btn btn-ghost btn-sm" data-praddpart="'+c.id+'" style="margin-top:4px">+ جزء</button>'
+      + '</div>';
+  }).join('') || '<div style="color:#5a6080;font-size:12px">رزین ترکیبی‌ای تعریف نشده.</div>';
+}
+function prRenderSettings(){
+  prMachineRows(); prMaterialRows(); prCompositeRows();
+  document.getElementById('pr-r-labor').value     = prSep(+prState.rates.labor||0);
+  document.getElementById('pr-r-finishing').value = prSep(+prState.rates.finishing||0);
+  document.getElementById('pr-r-modeling').value  = prSep(+prState.rates.modeling||0);
+  document.getElementById('pr-d-profit').value    = (prState.defaults.profit!=null?prState.defaults.profit:'');
+  document.getElementById('pr-d-matfactor').value = (prState.defaults.matFactor!=null?prState.defaults.matFactor:'');
+}
+
+// ── سفارش ──
+function prRenderOrder(){
+  var o = prState.order;
+  document.getElementById('pr-o-customer').value  = o.customer||'';
+  document.getElementById('pr-o-ordername').value = o.orderName||'';
+  document.getElementById('pr-o-tel').value       = o.tel||'';
+  document.getElementById('pr-o-qty').value       = o.qty;
+  document.getElementById('pr-p-profit').value    = o.profit;
+  document.getElementById('pr-p-matfactor').value = o.matFactor;
+  document.getElementById('pr-p-institute').value = o.institute;
+  document.getElementById('pr-p-packaging').value = prSep(+o.packaging||0);
+  document.getElementById('pr-p-shipping').value  = prSep(+o.shipping||0);
+}
+
+// ── ردیف‌های هزینه ──
+function prMachineOptsByType(type, sel){
+  return prState.machines.filter(function(m){ return !type || m.type===type; })
+    .map(function(m){ return '<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }).join('');
+}
+function prMaterialOpts(sel){
+  var h = '<optgroup label="مواد پایه">' + prState.materials.map(function(m){ return '<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }).join('') + '</optgroup>';
+  if(prState.composites.length) h += '<optgroup label="رزین ترکیبی">' + prState.composites.map(function(c){ return '<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+escapeHtml(c.name)+'</option>'; }).join('') + '</optgroup>';
+  return h;
+}
+var prKindLabel = {machine_fdm:'دستگاه FDM',machine_dlp:'دستگاه DLP',material:'ماده',labor:'نیروی انسانی',finishing:'فینیشینگ',modeling:'مدلسازی'};
+function prRenderLines(){
+  var box = document.getElementById('pr-lines');
+  if(!prState.lines.length){ box.innerHTML = '<div style="color:#5a6080;font-size:13px;text-align:center;padding:18px;border:1px dashed #1a1d2e;border-radius:10px">هنوز ردیفی اضافه نشده. از دکمه‌های پایین استفاده کنید.</div>'; return; }
+  box.innerHTML = prState.lines.map(function(l){
+    var body='';
+    if(l.kind==='machine_fdm'){
+      body = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+        + '<div><label style="font-size:11px;color:#5a6080">دستگاه</label><select class="inp" data-prf="machineId">'+prMachineOptsByType('FDM',l.machineId)+'</select></div>'
+        + '<div><label style="font-size:11px;color:#5a6080">زمان هر قطعه (ساعت)</label><input class="inp" type="number" step="0.1" data-prf="hours" value="'+(l.hours!=null?l.hours:'')+'"></div></div>';
+    } else if(l.kind==='machine_dlp'){
+      body = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+        + '<div><label style="font-size:11px;color:#5a6080">دستگاه</label><select class="inp" data-prf="machineId">'+prMachineOptsByType('DLP',l.machineId)+'</select></div>'
+        + '<div><label style="font-size:11px;color:#5a6080">زمان هر صفحه (ساعت)</label><input class="inp" type="number" step="0.1" data-prf="plateTime" value="'+(l.plateTime!=null?l.plateTime:'')+'"></div>'
+        + '<div><label style="font-size:11px;color:#5a6080">تعداد در صفحه</label><input class="inp" type="number" min="1" data-prf="perPlate" value="'+(l.perPlate!=null?l.perPlate:'')+'"></div></div>';
+    } else if(l.kind==='material'){
+      body = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+        + '<div><label style="font-size:11px;color:#5a6080">ماده</label><select class="inp" data-prf="materialId">'+prMaterialOpts(l.materialId)+'</select></div>'
+        + '<div><label style="font-size:11px;color:#5a6080">مقدار</label><input class="inp" type="number" step="0.1" data-prf="amount" value="'+(l.amount!=null?l.amount:'')+'"></div>'
+        + '<div><label style="font-size:11px;color:#5a6080">واحد</label><select class="inp" data-prf="unit"><option value="g"'+(l.unit==='g'?' selected':'')+'>گرم</option><option value="ml"'+(l.unit==='ml'?' selected':'')+'>میلی‌لیتر</option></select></div></div>';
+    } else {
+      body = '<div><label style="font-size:11px;color:#5a6080">زمان (دقیقه)</label><input class="inp" type="number" data-prf="minutes" value="'+(l.minutes!=null?l.minutes:'')+'"></div>';
+    }
+    return '<div class="pr-row" data-prlid="'+l.id+'"><div class="pr-rowhead"><span>'+prKindLabel[l.kind]+'</span><button class="pr-x" data-prdel="'+l.id+'">✕</button></div>'+body+'</div>';
+  }).join('');
+}
+
+function pricingAddLine(kind){
+  var l = { id:prNid(), kind:kind };
+  if(kind==='machine_fdm'){ var f=prState.machines.filter(function(m){return m.type==='FDM';})[0]; l.machineId=f?f.id:(prState.machines[0]||{}).id; l.hours=1; }
+  else if(kind==='machine_dlp'){ var d=prState.machines.filter(function(m){return m.type==='DLP';})[0]; l.machineId=d?d.id:(prState.machines[0]||{}).id; l.plateTime=2; l.perPlate=1; }
+  else if(kind==='material'){ l.materialId=(prState.materials[0]||{}).id; l.amount=10; l.unit='g'; }
+  else { l.minutes=10; }
+  prState.lines.push(l);
+  prRenderLines();
+  prScheduleCompute();
+}
+function pricingAddMachine(){ prState.machines.push({id:prNid(),name:'دستگاه جدید',type:'FDM',rate:30000}); prMachineRows(); prRenderLines(); }
+function pricingAddMaterial(){ prState.materials.push({id:prNid(),name:'ماده جدید',price:1000000,density:1.0}); prMaterialRows(); prCompositeRows(); prRenderLines(); }
+function pricingAddComposite(){
+  var a=(prState.materials[0]||{}).id, b=(prState.materials[1]||prState.materials[0]||{}).id;
+  prState.composites.push({id:prNid(),name:'رزین ترکیبی جدید',parts:[{materialId:a,pct:50},{materialId:b,pct:50}]});
+  prCompositeRows(); prRenderLines();
+}
+
+// ── ورودی‌ها ──
+function prOnInput(e){
+  var t = e.target;
+  var v = (t.classList && t.classList.contains('pr-money')) ? prParseMoney(t.value) : t.value;
+
+  // ردیف هزینه
+  var lineEl = t.closest && t.closest('[data-prlid]');
+  if(lineEl && t.dataset && t.dataset.prf){
+    var l = prFindLine(lineEl.getAttribute('data-prlid'));
+    if(l){ l[t.dataset.prf] = v; prScheduleCompute(); }
+    return;
+  }
+  // رزین ترکیبی
+  var compEl = t.closest && t.closest('[data-prcid]');
+  if(compEl){
+    var c = prFindComposite(compEl.getAttribute('data-prcid'));
+    if(c){
+      if(t.hasAttribute('data-prcname')){ c.name=t.value; prRenderLines(); return; }
+      var pe = t.closest('[data-prpi]');
+      if(pe && t.dataset.prcf){ var p=c.parts[+pe.getAttribute('data-prpi')]; if(p){ p[t.dataset.prcf] = (t.dataset.prcf==='pct')?(+t.value||0):t.value; } return; }
+    }
+  }
+  // دستگاه‌ها (تنظیمات)
+  var mr = t.closest && t.closest('[data-prmid]');
+  if(mr && t.dataset && t.dataset.prmf){
+    var m = prFindMachine(mr.getAttribute('data-prmid'));
+    if(m){ m[t.dataset.prmf] = (t.dataset.prmf==='rate') ? v : t.value; prRenderLines(); }
+    return;
+  }
+  // مواد (تنظیمات)
+  var matr = t.closest && t.closest('[data-prmatid]');
+  if(matr && t.dataset && t.dataset.prmatf){
+    var mt = prFindMaterial(matr.getAttribute('data-prmatid'));
+    if(mt){ mt[t.dataset.prmatf] = (t.dataset.prmatf==='name') ? t.value : v; prCompositeRows(); prRenderLines(); }
+    return;
+  }
+  // نرخ‌ها و پیش‌فرض‌ها (تنظیمات)
+  var rmap = {'pr-r-labor':['rates','labor'],'pr-r-finishing':['rates','finishing'],'pr-r-modeling':['rates','modeling'],'pr-d-profit':['defaults','profit'],'pr-d-matfactor':['defaults','matFactor']};
+  if(rmap[t.id]){ var g=rmap[t.id]; prState[g[0]][g[1]] = v; return; }
+  // اطلاعات سفارش و پارامترها
+  var omap = {'pr-o-customer':'customer','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-matfactor':'matFactor','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
+  if(omap[t.id]){ prState.order[omap[t.id]] = v; prScheduleCompute(); return; }
+}
+
+function prFindLine(id){ for(var i=0;i<prState.lines.length;i++) if(prState.lines[i].id===id) return prState.lines[i]; return null; }
+function prFindComposite(id){ for(var i=0;i<prState.composites.length;i++) if(prState.composites[i].id===id) return prState.composites[i]; return null; }
+function prFindMachine(id){ for(var i=0;i<prState.machines.length;i++) if(prState.machines[i].id===id) return prState.machines[i]; return null; }
+function prFindMaterial(id){ for(var i=0;i<prState.materials.length;i++) if(prState.materials[i].id===id) return prState.materials[i]; return null; }
+
+// حذف‌ها (با delegation روی کلیک)
+document.addEventListener('click', function(e){
+  var t = e.target;
+  if(!t || !t.getAttribute) return;
+  var id;
+  if((id=t.getAttribute('data-prdel'))){ prState.lines = prState.lines.filter(function(x){return x.id!==id;}); prRenderLines(); prScheduleCompute(); }
+  else if((id=t.getAttribute('data-prdelm'))){ prState.machines = prState.machines.filter(function(x){return x.id!==id;}); prMachineRows(); prRenderLines(); }
+  else if((id=t.getAttribute('data-prdelmat'))){ prState.materials = prState.materials.filter(function(x){return x.id!==id;}); prMaterialRows(); prCompositeRows(); prRenderLines(); }
+  else if((id=t.getAttribute('data-prdelcomp'))){ prState.composites = prState.composites.filter(function(x){return x.id!==id;}); prCompositeRows(); prRenderLines(); }
+  else if((id=t.getAttribute('data-praddpart'))){ var c=prFindComposite(id); if(c){ c.parts.push({materialId:(prState.materials[0]||{}).id,pct:0}); prCompositeRows(); } }
+  else if(t.getAttribute('data-prdelpart')!==null && t.closest && t.closest('[data-prcid]')){ var cc=prFindComposite(t.closest('[data-prcid]').getAttribute('data-prcid')); if(cc){ cc.parts.splice(+t.getAttribute('data-prdelpart'),1); prCompositeRows(); prRenderLines(); } }
+});
+
+// ── ذخیره‌ی تنظیمات روی سرور ──
+function pricingSaveConfig(){
+  var st = document.getElementById('pr-settings-status');
+  st.style.color = '#9aa3c2'; st.textContent = 'در حال ذخیره...';
+  var cfg = { machines:prState.machines, materials:prState.materials, composites:prState.composites, rates:prState.rates, defaults:prState.defaults };
+  callSheet('savePricingConfig', { config: JSON.stringify(cfg) }, function(res){
+    if(res && res.status==='ok'){
+      st.style.color = '#4ade80'; st.textContent = '✅ ذخیره شد — قیمت بازمحاسبه شد';
+      prDoCompute();
+      setTimeout(function(){ st.textContent=''; }, 3000);
+    } else {
+      st.style.color = '#f87171'; st.textContent = '❌ خطا در ذخیره';
+    }
+  });
+}
+
+// ── محاسبه روی سرور (با تأخیر کوتاه) ──
+function prScheduleCompute(){
+  if(prComputeTimer) clearTimeout(prComputeTimer);
+  var cs = document.getElementById('pr-calc-status'); if(cs) cs.textContent = '…';
+  prComputeTimer = setTimeout(prDoCompute, 450);
+}
+function prPayload(){
+  return JSON.stringify({ order: prState.order, lines: prState.lines });
+}
+function prDoCompute(){
+  var cs = document.getElementById('pr-calc-status');
+  if(!prState.lines.length){
+    prLastResult = null;
+    document.getElementById('pr-tape').innerHTML = '';
+    document.getElementById('pr-final-unit').textContent = '—';
+    document.getElementById('pr-final-total').textContent = '—';
+    document.getElementById('pr-warn').textContent = 'برای محاسبه، حداقل یک ردیف هزینه اضافه کنید.';
+    if(cs) cs.textContent = '';
+    return;
+  }
+  document.getElementById('pr-warn').textContent = '';
+  if(cs){ cs.style.color='#5a6080'; cs.textContent = 'در حال محاسبه...'; }
+  callSheet('computePrice', { payload: prPayload() }, function(res){
+    if(res && res.status==='ok' && res.result){
+      prLastResult = res.result;
+      prRenderTape(res.result);
+      if(cs) cs.textContent = '';
+    } else {
+      if(cs){ cs.style.color='#f87171'; cs.textContent='خطا در محاسبه'; }
+    }
+  });
+}
+function prRenderTape(r){
+  var ln = function(label,val,cls){ return '<div class="pr-ln '+(cls||'')+'"><span>'+label+'</span><span>'+prFmt(val)+'</span></div>'; };
+  var packShip = (+r.packaging||0) + (+r.shipping||0);
+  var h = '';
+  h += '<div class="pr-sec">هزینه‌ی ساخت هر عدد</div>';
+  h += ln('دستگاه', r.cat.machine, 'muted');
+  h += ln('نیروی انسانی (با فینیشینگ)', (r.cat.labor + r.cat.finishing), 'muted');
+  if(r.cat.modeling) h += ln('مدلسازی', r.cat.modeling, 'muted');
+  h += ln('ماده (رزین)', r.material, 'muted');
+  h += ln('جمع هر عدد', r.base, 'strong');
+  h += '<div class="pr-sec">قیمت‌گذاری هر عدد</div>';
+  h += ln('با سود و ضریب ریسک', r.perPartMargin, 'muted');
+  h += ln('+ درصد پژوهشگاه', r.institute, 'muted');
+  h += ln('قیمت هر عدد', r.perPartAnnounced, 'strong');
+  h += '<div class="pr-sec">کل سفارش</div>';
+  h += ln(prToFa(prSep(r.qty)) + ' عدد × قیمت هر عدد', (r.perPartAnnounced * r.qty), 'muted');
+  h += ln('+ بسته‌بندی و ارسال', packShip, 'muted');
+  h += '<div class="pr-sec">سود پروژه</div>';
+  h += ln('قیمت تمام‌شده (هزینه‌ی واقعی)', r.rawTotal, 'muted');
+  h += ln('قیمت نهایی (فروش)', r.orderTotal, 'muted');
+  h += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>' + prFmt(r.orderTotal - r.rawTotal) + '</span></div>';
+  document.getElementById('pr-tape').innerHTML = h;
+  document.getElementById('pr-final-unit').textContent  = prFmt(r.perUnit);
+  document.getElementById('pr-final-total').textContent = prFmt(r.orderTotal);
+}
+
+// ── کپی متن خروجی ──
+function pricingCopy(){
+  if(!prLastResult){ showToast('اول یک برآورد بسازید'); return; }
+  var r = prLastResult, o = prState.order;
+  var packShip = (+r.packaging||0)+(+r.shipping||0);
+  var L = [];
+  L.push('برآورد قیمت — iPrint3D');
+  if(o.customer) L.push('مشتری: ' + o.customer);
+  if(o.orderName) L.push('سفارش: ' + o.orderName);
+  L.push('تعداد: ' + prSep(r.qty) + ' عدد');
+  L.push('');
+  L.push('— هزینه‌ی ساخت هر عدد —');
+  L.push('دستگاه: ' + prFmt(r.cat.machine));
+  L.push('نیروی انسانی (با فینیشینگ): ' + prFmt(r.cat.labor + r.cat.finishing));
+  if(r.cat.modeling) L.push('مدلسازی: ' + prFmt(r.cat.modeling));
+  L.push('ماده (رزین): ' + prFmt(r.material));
+  L.push('جمع هر عدد: ' + prFmt(r.base));
+  L.push('');
+  L.push('— قیمت‌گذاری هر عدد —');
+  L.push('با سود و ضریب ریسک: ' + prFmt(r.perPartMargin));
+  L.push('+ درصد پژوهشگاه: ' + prFmt(r.institute));
+  L.push('قیمت هر عدد: ' + prFmt(r.perPartAnnounced));
+  L.push('');
+  L.push('— کل سفارش —');
+  L.push('قیمت نهایی (کل): ' + prFmt(r.orderTotal));
+  L.push('قیمت هر عدد (نهایی): ' + prFmt(r.perUnit));
+  var txt = L.join('\n');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ showToast('✅ متن کپی شد'); }).catch(function(){ prCopyFallback(txt); });
+  } else { prCopyFallback(txt); }
+}
+function prCopyFallback(txt){
+  try{ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast('✅ متن کپی شد'); }
+  catch(e){ showToast('کپی نشد'); }
+}
+
+// ── خروجی اکسل (ساخت روی سرور) ──
+function pricingExportXlsx(){
+  if(!prState.lines.length){ showToast('اول حداقل یک ردیف هزینه اضافه کنید'); return; }
+  var btn = document.getElementById('pr-btn-xlsx');
+  var old = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'در حال ساخت...';
+  callSheet('exportEstimateXlsx', { payload: prPayload() }, function(res){
+    btn.disabled = false; btn.innerHTML = old;
+    if(res && res.status==='ok' && res.base64){
+      try{
+        var bin = atob(res.base64);
+        var len = bin.length;
+        var bytes = new Uint8Array(len);
+        for(var i=0;i<len;i++) bytes[i] = bin.charCodeAt(i);
+        var blob = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = res.filename || 'برآورد.xlsx';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+        showToast('✅ فایل اکسل ساخته شد');
+      }catch(e){ showToast('خطا در دانلود فایل'); }
+    } else {
+      showToast((res && res.message) ? res.message : 'خطا در ساخت اکسل');
+    }
+  });
+}
 </script>
 </body>
 </html>
