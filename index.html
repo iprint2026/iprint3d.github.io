@@ -1337,7 +1337,7 @@ function handleAuthFail(){
   setTimeout(function(){ _authFailHandled = false; }, 2000);
 }
 
-function callSheet(action,params,callback){
+function callSheet(action,params,callback,timeoutMs){
   const url=loadSheetUrl();
   if(!url){callback({error:'no url'});return;}
   const cbName='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
@@ -1361,7 +1361,7 @@ function callSheet(action,params,callback){
   script.onerror=function(){delete window[cbName];this.remove();callback({error:true});};
   setTimeout(function(){
     if(window[cbName]){delete window[cbName];const s=document.getElementById(cbName);if(s)s.remove();callback({error:'timeout'});}
-  },12000);
+  },timeoutMs||12000);
   document.head.appendChild(script);
 }
 
@@ -6885,9 +6885,17 @@ function pricingSaveEstimate(){
   var btn=document.getElementById('pr-btn-save'); var old=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.innerHTML='در حال ذخیره...'; }
   callSheet('saveEstimate', { payload: prPayload() }, function(res){
-    if(btn){ btn.disabled=false; btn.innerHTML=old; }
-    if(res && res.status==='ok'){ showToast('✅ سفارش ذخیره شد (اکسل و فایل متنی در Drive)'); }
-    else { showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); }
+    if(!(res && res.status==='ok')){
+      if(btn){ btn.disabled=false; btn.innerHTML=old; }
+      showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); return;
+    }
+    showToast('✅ سفارش و فایل متنی ذخیره شد');
+    if(btn){ btn.innerHTML='در حال ساخت اکسل...'; }
+    callSheet('saveEstimateXlsx', { id: res.id }, function(r2){
+      if(btn){ btn.disabled=false; btn.innerHTML=old; }
+      if(r2 && r2.status==='ok'){ showToast('✅ اکسل هم در پوشه‌ی Drive ذخیره شد'); }
+      else { showToast('سفارش ذخیره شد، ولی ساخت اکسل ناموفق بود'); }
+    }, 70000);
   });
 }
 
