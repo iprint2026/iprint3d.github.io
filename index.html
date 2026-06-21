@@ -789,7 +789,7 @@ function doPost(e){
                 <button class="btn btn-primary btn-sm" style="flex:1" id="pr-btn-xlsx" onclick="pricingExportXlsx()">⬇ خروجی اکسل</button>
               </div>
               <button class="btn btn-sm" style="background:#E2241A;border-color:#E2241A;color:#fff;font-weight:700" onclick="ivShowInvoice()">📄 صدور فاکتور رسمی</button>
-              <button class="btn btn-ghost btn-sm" onclick="pricingSaveEstimate()">💾 ذخیره در گزارش ماه</button>
+              <button class="btn btn-ghost btn-sm" id="pr-btn-save" onclick="pricingSaveEstimate()">💾 ذخیره‌ی سفارش</button>
               <div id="pr-warn" style="font-size:12px;color:#f59e0b"></div>
             </div>
           </div>
@@ -6882,8 +6882,11 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 function pricingSaveEstimate(){
   if(typeof prState==='undefined' || !prState.lines || !prState.lines.length){ showToast('اول یک برآورد بساز'); return; }
+  var btn=document.getElementById('pr-btn-save'); var old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='در حال ذخیره...'; }
   callSheet('saveEstimate', { payload: prPayload() }, function(res){
-    if(res && res.status==='ok'){ showToast('✅ در گزارش ماه ذخیره شد'); }
+    if(btn){ btn.disabled=false; btn.innerHTML=old; }
+    if(res && res.status==='ok'){ showToast('✅ سفارش ذخیره شد (اکسل و فایل متنی در Drive)'); }
     else { showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); }
   });
 }
@@ -6910,9 +6913,17 @@ function archiveRender(){
   box.innerHTML = order.map(function(mk){
     var g=groups[mk];
     var ests = g.items.map(function(e){
-      return '<div class="ar-est"><div><div class="nm">'+escapeHtml(e.projectName||'—')+'</div>'
-        +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+'</div></div>'
-        +'<div style="display:flex;gap:12px;align-items:center"><span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+'</span>'
+      var inProd = e.status==='در جریان ساخت';
+      var badge = inProd
+        ? '<span style="font-size:10.5px;color:#34d399;background:#0c2a20;border:1px solid #14543d;padding:2px 8px;border-radius:20px">در جریان ساخت</span>'
+        : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>';
+      var prodBtn = inProd
+        ? '<button class="btn btn-ghost btn-sm" onclick="archiveSetStatus(\''+e.id+'\',\'برآورد\')">↩ بازگشت به برآورد</button>'
+        : '<button class="btn btn-sm" style="background:#0c2a20;border-color:#14543d;color:#34d399" onclick="archiveSetStatus(\''+e.id+'\',\'در جریان ساخت\')">▶ در جریان ساخت</button>';
+      var folderBtn = e.folderUrl ? '<a href="'+e.folderUrl+'" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">📂 پوشه</a>' : '';
+      return '<div class="ar-est"><div style="flex:1"><div class="nm">'+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
+        +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span></div></div>'
+        +'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">'+prodBtn+folderBtn
         +'<button class="ar-del" title="حذف" onclick="archiveDelete(\''+e.id+'\')">✕</button></div></div>';
     }).join('');
     return '<div class="ar-month">'
@@ -6931,10 +6942,16 @@ function archiveToggle(mk){
   var b=document.getElementById('ar-m-'+mk), c=document.getElementById('ar-chev-'+mk);
   if(!b) return; var open=b.style.display==='block'; b.style.display=open?'none':'block'; if(c) c.textContent=open?'▾':'▴';
 }
+function archiveSetStatus(id, value){
+  callSheet('setEstimateStatus', { id:id, value:value }, function(res){
+    if(res && res.status==='ok'){ showToast('✅ وضعیت به‌روز شد'); archiveInit(); }
+    else showToast('خطا در تغییر وضعیت');
+  });
+}
 function archiveDelete(id){
-  if(!confirm('این برآورد از آرشیو حذف شود؟')) return;
+  if(!confirm('⚠️ هشدار: این سفارش برای همیشه حذف می‌شود و دیگر برنمی‌گردد.\nپوشه‌ی آن در Google Drive (اکسل، فایل متنی، فاکتور و تصویر) هم پاک می‌شود.\n\nمطمئنی؟')) return;
   callSheet('deleteEstimate', { id:id }, function(res){
-    if(res && res.status==='ok'){ showToast('حذف شد'); archiveInit(); }
+    if(res && res.status==='ok'){ showToast('سفارش حذف شد'); archiveInit(); }
     else showToast('خطا در حذف');
   });
 }
