@@ -6794,23 +6794,63 @@ function ivExportPDF(){
 }
 
 async function ivExportWord(){
-  if(!window.html2canvas){ showToast('کتابخانه‌ی Word بارگذاری نشد. اینترنت را بررسی کن.'); return; }
-  var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean');
-  v.classList.add('clean');
-  var el=v.querySelector('.page');
-  var prevW=el.style.width, prevMax=el.style.maxWidth;
-  el.style.width='210mm'; el.style.maxWidth='none';
-  try{
-    var canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true});
-    var img=canvas.toDataURL('image/png');
-    var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
-      +'<head><meta charset="utf-8"><style>@page{size:A4;margin:0} body{margin:0} img{width:100%;display:block}</style></head>'
-      +'<body><img src="'+img+'"/></body></html>';
-    var blob=new Blob(['\ufeff'+html],{type:'application/msword'});
-    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='فاکتور_iPrint3D.doc'; a.click();
-    setTimeout(function(){ URL.revokeObjectURL(a.href); },3000);
-  }catch(err){ showToast('خطا در ساخت Word'); }
-  el.style.width=prevW; el.style.maxWidth=prevMax; if(!wasClean) v.classList.remove('clean');
+  var v=document.getElementById('view-invoice'), el=v.querySelector('.page');
+  var T=function(id){ var e=document.getElementById(id); return e?e.innerHTML:''; };
+  var g=ivItems.reduce(function(s,it){ return s+ivRowTotal(it); },0);
+  var topImg='', footImg='', stampImg='';
+  if(window.html2canvas){
+    var wasClean=v.classList.contains('clean'); v.classList.add('clean');
+    var pw=el.style.width, pmax=el.style.maxWidth; el.style.width='210mm'; el.style.maxWidth='none';
+    try{
+      topImg=(await html2canvas(v.querySelector('.top'),{scale:2,backgroundColor:'#ffffff',useCORS:true})).toDataURL('image/png');
+      footImg=(await html2canvas(v.querySelector('.foot'),{scale:2,backgroundColor:'#ffffff',useCORS:true})).toDataURL('image/png');
+      var stImgEl=document.getElementById('iv-stamp-img');
+      if(stImgEl && stImgEl.style.display!=='none' && stImgEl.src){ stampImg=stImgEl.src; }
+      else { var sv=document.getElementById('iv-stamp-svg'); if(sv) stampImg=(await html2canvas(sv,{scale:3,backgroundColor:null,useCORS:true})).toDataURL('image/png'); }
+    }catch(e){}
+    el.style.width=pw; el.style.maxWidth=pmax; if(!wasClean) v.classList.remove('clean');
+  }
+  var itemRows=ivItems.map(function(it,i){
+    return '<tr><td class="c">'+prToFa(i+1)+'</td><td>'+escapeHtml(it.code||'')+'</td><td>'+escapeHtml(it.desc||'')+'</td>'
+      +'<td class="c">'+prToFa(it.qty)+'</td><td class="c">'+prToFa(prSep(it.unit))+'</td>'
+      +'<td class="c">'+prToFa(prSep(ivRowTotal(it)))+'</td></tr>';
+  }).join('');
+  var noteHtml=ivNotes.map(function(t){ return '<p style="margin:5px 0;line-height:1.9">&#10033; '+escapeHtml(t)+'</p>'; }).join('');
+  var head='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">'
+    +'<style>@page{size:A4;margin:0} body{font-family:Tahoma,Arial;direction:rtl;font-size:11pt;margin:0;color:#111} '
+    +'.pad{padding:2px 1.2cm 0} .ttl{text-align:center;font-size:14pt;font-weight:bold;margin:8px 0 6px;line-height:1.7} '
+    +'table.doc{border-collapse:collapse;width:100%;direction:rtl;table-layout:fixed} table.doc td,table.doc th{border:1px solid #000;padding:6px;font-size:10.5pt} '
+    +'.sec{background:#efefef;text-align:center;font-weight:bold} .kvw{text-align:right;padding:9px 14px;line-height:2} '
+    +'.ih{background:#efefef;font-weight:bold;text-align:center} .c{text-align:center} '
+    +'.sum{font-weight:bold;background:#fafafa} .pay{font-weight:bold;background:#f5f5f5} '
+    +'img{display:block} .signtab{border:none;width:100%;margin-top:14px} .signtab td{border:none;vertical-align:middle}</style></head><body>';
+  var banner=function(d){ return d?'<img src="'+d+'" style="width:100%"/>':''; };
+  var html=head
+    +banner(topImg)
+    +'<div class="pad">'
+    +'<div class="ttl">بسمه تعالی<br>فاکتور خدمات</div>'
+    +'<table class="doc">'
+    +'<colgroup><col style="width:7%"><col style="width:29%"><col style="width:23%"><col style="width:8%"><col style="width:16%"><col style="width:17%"></colgroup>'
+    +'<tr><td class="sec" colspan="6">مشخصات فروشنده</td></tr><tr><td class="kvw" colspan="6">'+T('iv-seller')+'</td></tr>'
+    +'<tr><td class="sec" colspan="6">مشخصات خریدار</td></tr><tr><td class="kvw" colspan="6">'
+      +'<b>نام شخص حقیقی/حقوقی (سازمان):</b> '+T('iv-bname')+'<br><b>کد اقتصادی:</b> '+T('iv-beco')+' &nbsp;&nbsp; <b>شناسه ثبت:</b> '+T('iv-breg')
+      +'<br><b>تلفن:</b> '+T('iv-btel')+' &nbsp;&nbsp; <b>فکس:</b> '+T('iv-bfax')+'<br><b>نشانی:</b> '+T('iv-baddr')+'<br><b>کد پستی:</b> '+T('iv-bpost')+'</td></tr>'
+    +'<tr><td class="sec" colspan="6">مشخصات کالا یا خدمات مورد معامله</td></tr>'
+    +'<tr><th class="ih">ردیف</th><th class="ih">کد کالا/خدمات</th><th class="ih">توضیحات</th><th class="ih">تعداد</th><th class="ih">قیمت واحد (تومان)</th><th class="ih">قیمت کل (تومان)</th></tr>'
+    +itemRows
+    +'<tr class="sum"><td colspan="5" style="text-align:left">جمع کل:</td><td class="c">'+prToFa(prSep(g))+'</td></tr>'
+    +'<tr class="pay"><td colspan="5" style="text-align:left">مبلغ قابل پرداخت: '+ivNum2fa(g)+' تومان</td><td class="c">'+prToFa(prSep(g))+'</td></tr>'
+    +'</table>'
+    +'<div style="margin-top:10px;font-size:10.5pt">'+noteHtml+'</div>'
+    +'<table class="signtab"><tr>'
+      +'<td style="width:38%;text-align:center">'+(stampImg?'<img src="'+stampImg+'" style="width:3.4cm;display:inline-block"/>':'')+'</td>'
+      +'<td style="text-align:right;font-weight:bold;line-height:2">'+T('iv-sign')+'</td></tr></table>'
+    +'</div>'
+    +banner(footImg)
+    +'</body></html>';
+  var blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='فاکتور_iPrint3D.doc'; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
 }
 </script>
 </body>
