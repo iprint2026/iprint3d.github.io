@@ -920,6 +920,7 @@ function doPost(e){
     <button class="btn" id="iv-editall" onclick="ivToggleEditAll()">✎ ویرایش متن‌ها</button>
     <button class="btn" id="iv-preview" onclick="ivTogglePreview()">پیش‌نمایش</button>
     <button class="btn" onclick="ivExportPDF()">خروجی PDF</button>
+    <button class="btn" id="iv-btn-savefolder" style="display:none;background:#6366f1;border-color:#6366f1;color:#fff" onclick="ivSaveInvoiceToFolder()">💾 ذخیره‌ی فاکتور در پوشه‌ی سفارش</button>
     <button class="btn" onclick="ivExportWord()">خروجی Word</button>
     <button class="btn red" onclick="ivPrint()" style="font-weight:700">چاپ</button>
   </div>
@@ -6726,14 +6727,17 @@ function ivAddNote(t){ ivNotes.push(t||''); ivRenderNotes();
 }
 function ivRemoveNote(i){ ivNotes.splice(i,1); ivRenderNotes(); }
 
-function ivShowInvoice(){
-  if(typeof prLastResult==='undefined' || !prLastResult){ showToast('اول یک برآورد بساز تا فاکتور از روی آن پر شود'); return; }
-  var r=prLastResult, o=(prState&&prState.order)||{};
-  var code = (o.orderName && o.orderName.trim()) ? o.orderName.trim() : 'پرینت قطعه (مطابق برآورد iPrint3D)';
-  ivItems = [{ code:code, desc:'', qty:Math.max(1,+o.qty||1), unit:Math.round(r.perUnit) }];
-  document.getElementById('iv-bname').textContent = o.customer || '—';
-  var tel=document.getElementById('iv-btel'); if(tel) tel.textContent = o.tel || '—';
-  try{ document.getElementById('iv-date').textContent = new Intl.DateTimeFormat('fa-IR').format(new Date()); }catch(e){}
+var ivCurrentEstimateId='', ivCurrentFolderId='';
+function ivOpenInvoice(opts){
+  opts=opts||{};
+  var code=(opts.code && String(opts.code).trim()) ? String(opts.code).trim() : 'پرینت قطعه (مطابق برآورد iPrint3D)';
+  ivItems = [{ code:code, desc:'', qty:Math.max(1,+opts.qty||1), unit:Math.round(+opts.unit||0) }];
+  document.getElementById('iv-bname').textContent = opts.customer || '—';
+  var tel=document.getElementById('iv-btel'); if(tel) tel.textContent = opts.tel || '—';
+  try{ document.getElementById('iv-date').textContent = opts.dateStr || new Intl.DateTimeFormat('fa-IR').format(new Date()); }catch(e){}
+  ivCurrentEstimateId = opts.estimateId || '';
+  ivCurrentFolderId   = opts.folderId   || '';
+  var sb=document.getElementById('iv-btn-savefolder'); if(sb) sb.style.display = ivCurrentEstimateId ? 'inline-block' : 'none';
   ivRender();
   ivRenderNotes();
   var ov=document.getElementById('view-invoice');
@@ -6742,6 +6746,11 @@ function ivShowInvoice(){
   document.body.classList.add('inv-open');
   ov.scrollTop=0;
   ivLoadAssets();
+}
+function ivShowInvoice(){
+  if(typeof prLastResult==='undefined' || !prLastResult){ showToast('اول یک برآورد بساز تا فاکتور از روی آن پر شود'); return; }
+  var r=prLastResult, o=(prState&&prState.order)||{};
+  ivOpenInvoice({ code:o.orderName, qty:o.qty, unit:r.perUnit, customer:o.customer, tel:o.tel, estimateId:'', folderId:'' });
 }
 function ivClose(){
   var ov=document.getElementById('view-invoice');
@@ -6929,9 +6938,10 @@ function archiveRender(){
         ? '<button class="btn btn-ghost btn-sm" onclick="archiveSetStatus(\''+e.id+'\',\'برآورد\')">↩ بازگشت به برآورد</button>'
         : '<button class="btn btn-sm" style="background:#0c2a20;border-color:#14543d;color:#34d399" onclick="archiveSetStatus(\''+e.id+'\',\'در جریان ساخت\')">▶ در جریان ساخت</button>';
       var folderBtn = e.folderUrl ? '<a href="'+e.folderUrl+'" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">📂 پوشه</a>' : '';
+      var invBtn = '<button class="btn btn-sm" style="background:#3a1d52;border-color:#5b3fd6;color:#c4b5fd" onclick="archiveOpenInvoice(\''+e.id+'\')">🧾 فاکتور</button>';
       return '<div class="ar-est"><div style="flex:1"><div class="nm">'+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
         +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span></div></div>'
-        +'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">'+prodBtn+folderBtn
+        +'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">'+invBtn+prodBtn+folderBtn
         +'<button class="ar-del" title="حذف" onclick="archiveDelete(\''+e.id+'\')">✕</button></div></div>';
     }).join('');
     return '<div class="ar-month">'
@@ -6955,6 +6965,49 @@ function archiveSetStatus(id, value){
     if(res && res.status==='ok'){ showToast('✅ وضعیت به‌روز شد'); archiveInit(); }
     else showToast('خطا در تغییر وضعیت');
   });
+}
+function archiveOpenInvoice(id){
+  showToast('در حال باز کردن فاکتور...');
+  callSheet('getEstimate', { id:id, t:Date.now() }, function(res){
+    if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در بارگذاری سفارش'); return; }
+    ivOpenInvoice({ code:res.orderName, qty:res.qty, unit:res.perUnit, customer:res.customer,
+      dateStr:res.dateStr, estimateId:id, folderId:res.folderId });
+  });
+}
+async function ivSaveInvoiceToFolder(){
+  if(!ivCurrentEstimateId){ showToast('این فاکتور به سفارشی وصل نیست. اول سفارش را در آرشیو ذخیره کن.'); return; }
+  if(!window.html2canvas || !window.jspdf){ showToast('کتابخانه‌ی PDF بارگذاری نشد'); return; }
+  var btn=document.getElementById('iv-btn-savefolder'); var old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='در حال ساخت PDF...'; }
+  var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean');
+  var el=v.querySelector('.page'); var prevW=el.style.width, prevMax=el.style.maxWidth;
+  try{
+    v.classList.add('clean'); el.style.width='210mm'; el.style.maxWidth='none';
+    var canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true});
+    el.style.width=prevW; el.style.maxWidth=prevMax; if(!wasClean) v.classList.remove('clean');
+    var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm','a4');
+    var pw=210, ph=297, w=pw, h=canvas.height*pw/canvas.width;
+    if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
+    pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(pw-w)/2,0,w,h);
+    var b64=(pdf.output('datauristring')||'').split(',')[1]||'';
+    if(!b64) throw 'pdf-empty';
+    if(btn) btn.innerHTML='در حال آپلود...';
+    var url=loadSheetUrl();
+    await fetch(url, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'uploadInvoicePdf', token:SESSION_TOKEN, id:ivCurrentEstimateId, base64:b64 }) });
+    if(btn) btn.innerHTML='در حال تأیید...';
+    setTimeout(function(){
+      callSheet('orderHasInvoice', { id:ivCurrentEstimateId, t:Date.now() }, function(r){
+        if(btn){ btn.disabled=false; btn.innerHTML=old; }
+        if(r && r.status==='ok' && r.hasInvoice){ showToast('✅ فاکتور در پوشه‌ی سفارش ذخیره شد'); }
+        else { showToast('آپلود انجام شد ولی تأیید نشد — پوشه‌ی Drive را بررسی کن'); }
+      });
+    }, 4000);
+  }catch(err){
+    el.style.width=prevW; el.style.maxWidth=prevMax; if(!wasClean) v.classList.remove('clean');
+    if(btn){ btn.disabled=false; btn.innerHTML=old; }
+    showToast('خطا در ساخت یا آپلود PDF');
+  }
 }
 function archiveDelete(id){
   if(!confirm('⚠️ هشدار: این سفارش برای همیشه حذف می‌شود و دیگر برنمی‌گردد.\nپوشه‌ی آن در Google Drive (اکسل، فایل متنی، فاکتور و تصویر) هم پاک می‌شود.\n\nمطمئنی؟')) return;
