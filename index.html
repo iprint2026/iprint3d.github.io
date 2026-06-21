@@ -1096,6 +1096,17 @@ function doPost(e){
   </div>
 </div>
 
+<!-- ── ORDER PROFILE MODAL (پروفایل سفارش) ── -->
+<div id="order-modal" style="display:none;position:fixed;inset:0;z-index:4400;background:rgba(0,0,0,.62);align-items:flex-start;justify-content:center;padding:18px;overflow:auto">
+  <div style="background:#13151f;border:1px solid #1a1d2e;border-radius:16px;max-width:640px;width:100%;margin:auto;overflow:hidden">
+    <div style="padding:18px 20px;border-bottom:1px solid #1a1d2e;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="flex:1"><div id="om-title" style="font-weight:800;font-size:18px;color:#e2e4f0"></div><div id="om-sub" style="font-size:12px;color:#9aa3c2;margin-top:6px"></div></div>
+      <button class="btn btn-ghost btn-sm" onclick="orderModalClose()">بستن</button>
+    </div>
+    <div style="padding:18px 20px" id="om-body"></div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════
 //  STATE
@@ -6963,16 +6974,14 @@ function archiveRender(){
       var badge = inProd
         ? '<span style="font-size:10.5px;color:#34d399;background:#0c2a20;border:1px solid #14543d;padding:2px 8px;border-radius:20px">در جریان ساخت</span>'
         : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>';
-      var prodBtn = inProd
-        ? '<button class="btn btn-ghost btn-sm" onclick="archiveSetStatus(\''+e.id+'\',\'برآورد\')">↩ بازگشت به برآورد</button>'
-        : '<button class="btn btn-sm" style="background:#0c2a20;border-color:#14543d;color:#34d399" onclick="archiveSetStatus(\''+e.id+'\',\'در جریان ساخت\')">▶ در جریان ساخت</button>';
-      var folderBtn = e.folderUrl ? '<a href="'+e.folderUrl+'" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">📂 پوشه</a>' : '';
-      var invBtn = '<button class="btn btn-sm" style="background:#3a1d52;border-color:#5b3fd6;color:#c4b5fd" onclick="archiveOpenInvoice(\''+e.id+'\')">🧾 فاکتور</button>';
-      var imgBtn = '<button class="btn btn-ghost btn-sm" onclick="archiveImage(\''+e.id+'\')">🖼 تصویر</button>';
-      return '<div class="ar-est"><div style="flex:1"><div class="nm">'+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
-        +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span></div></div>'
-        +'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">'+invBtn+imgBtn+prodBtn+folderBtn
-        +'<button class="ar-del" title="حذف" onclick="archiveDelete(\''+e.id+'\')">✕</button></div></div>';
+      var thumb = (inProd && e.imageThumb)
+        ? '<img src="'+e.imageThumb+'" referrerpolicy="no-referrer" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #232539;flex:none">'
+        : '';
+      return '<div class="ar-est" style="cursor:pointer" onclick="archiveProfile(\''+e.id+'\')">'
+        +'<div style="flex:1;display:flex;align-items:center;gap:10px">'+thumb
+        +'<div><div class="nm">'+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
+        +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span></div></div></div>'
+        +'<span style="color:#5a6080;font-size:18px">‹</span></div>';
     }).join('');
     return '<div class="ar-month">'
       +'<div class="ar-head" onclick="archiveToggle(\''+mk+'\')">'
@@ -7133,9 +7142,15 @@ function imgDoUpload(){
   }
   var btn=document.getElementById('img-upload-btn'); var old=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.innerHTML='در حال آپلود...'; }
+  var pid=imgModalId;
   imgUploadBase64(imgModalId, imgModalDataUrl, imgModalMime, function(ok){
     if(btn){ btn.disabled=false; btn.innerHTML=old; }
-    if(ok){ showToast('✅ تصویر سفارش ذخیره شد'); imgModalClose(); if(typeof archiveInit==='function') archiveInit(); }
+    if(ok){
+      showToast('✅ تصویر سفارش ذخیره شد'); imgModalClose();
+      if(typeof archiveInit==='function') archiveInit();
+      var om=document.getElementById('order-modal');
+      if(om && om.style.display!=='none' && typeof archiveProfile==='function' && pid) archiveProfile(pid);
+    }
     else { showToast('آپلود انجام شد ولی تأیید نشد — Drive را بررسی کن'); }
   });
 }
@@ -7143,6 +7158,67 @@ function imgDoUpload(){
 function pricingPickImage(){ imgModalOpen('__PENDING__'); }
 // دکمه‌ی تصویر در آرشیو
 function archiveImage(id){ imgModalOpen(id); }
+
+// ════════════════════════════════════════════════════════════
+//  پروفایل سفارش (Phase 3) — نمایش کاملِ یک سفارش
+// ════════════════════════════════════════════════════════════
+function orderModalClose(){ document.getElementById('order-modal').style.display='none'; }
+function archiveProfile(id){
+  var e=null; for(var i=0;i<arData.length;i++){ if(arData[i].id===id){ e=arData[i]; break; } }
+  if(!e){ showToast('سفارش پیدا نشد'); return; }
+  var inProd = e.status==='در جریان ساخت';
+  document.getElementById('om-title').textContent = e.projectName || '—';
+  var badge = inProd ? '<span style="color:#34d399">● در جریان ساخت</span>' : '<span style="color:#9aa3c2">● برآورد</span>';
+  document.getElementById('om-sub').innerHTML =
+    escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span> · '+badge;
+  var prodBtn = inProd
+    ? '<button class="btn btn-ghost btn-sm" onclick="omSetStatus(\''+id+'\',\'برآورد\')">↩ بازگشت به برآورد</button>'
+    : '<button class="btn btn-sm" style="background:#0c2a20;border-color:#14543d;color:#34d399" onclick="omSetStatus(\''+id+'\',\'در جریان ساخت\')">▶ در جریان ساخت</button>';
+  document.getElementById('om-body').innerHTML =
+    '<div id="om-image" style="margin-bottom:16px"></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">'
+      +'<button class="btn btn-sm" style="background:#3a1d52;border-color:#5b3fd6;color:#c4b5fd" onclick="orderModalClose();archiveOpenInvoice(\''+id+'\')">🧾 ساخت/ویرایش فاکتور</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="archiveImage(\''+id+'\')">🖼 افزودن/تغییر تصویر</button>'
+      +prodBtn
+      +(e.folderUrl?'<a href="'+e.folderUrl+'" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">📂 پوشه‌ی Drive</a>':'')
+      +'<button class="btn btn-sm" style="background:#2a1414;border-color:#5b2020;color:#f87171" onclick="omDelete(\''+id+'\')">✕ حذف سفارش</button>'
+    +'</div>'
+    +'<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">فایل‌های پوشه‌ی سفارش</div>'
+    +'<div id="om-files" style="color:#5a6080;font-size:13px">در حال بارگذاری...</div>';
+  document.getElementById('order-modal').style.display='flex';
+  document.getElementById('order-modal').scrollTop=0;
+  callSheet('getOrderFiles', { id:id, t:Date.now() }, function(res){
+    var imgEl=document.getElementById('om-image'), filesEl=document.getElementById('om-files');
+    if(!imgEl || !filesEl) return;
+    if(!(res && res.status==='ok')){ filesEl.textContent='خطا در بارگذاری فایل‌ها'; return; }
+    if(res.image){
+      imgEl.innerHTML='<a href="'+res.image.viewUrl+'" target="_blank"><img src="'+res.image.thumbUrl+'" referrerpolicy="no-referrer" style="max-width:100%;max-height:300px;border-radius:12px;border:1px solid #232539;display:block;margin:auto"></a>';
+    } else {
+      imgEl.innerHTML='<div style="border:1px dashed #2a2d40;border-radius:12px;padding:24px;text-align:center;color:#5a6080;font-size:12px">بدون تصویر — از دکمه‌ی «افزودن/تغییر تصویر» اضافه کن</div>';
+    }
+    var files=res.files||[];
+    if(!files.length){ filesEl.textContent='هنوز فایلی در پوشه نیست.'; return; }
+    var icon=function(k){ return k==='pdf'?'📄':(k==='xlsx'?'📊':(k==='txt'?'📝':(k==='image'?'🖼':'📎'))); };
+    filesEl.innerHTML = files.map(function(f){
+      return '<a href="'+f.url+'" target="_blank" style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #1a1d2e;border-radius:9px;margin-bottom:6px;text-decoration:none;color:#e2e4f0;font-size:12.5px;background:#0e1018">'+icon(f.kind)+' <span style="flex:1">'+escapeHtml(f.name)+'</span><span style="color:#5a6080">باز کردن ›</span></a>';
+    }).join('');
+  });
+}
+function omSetStatus(id, value){
+  callSheet('setEstimateStatus', { id:id, value:value }, function(res){
+    if(res && res.status==='ok'){
+      for(var i=0;i<arData.length;i++){ if(arData[i].id===id){ arData[i].status=value; break; } }
+      showToast('✅ وضعیت به‌روز شد'); archiveRender(); archiveProfile(id);
+    } else showToast('خطا در تغییر وضعیت');
+  });
+}
+function omDelete(id){
+  if(!confirm('⚠️ هشدار: این سفارش برای همیشه حذف می‌شود و دیگر برنمی‌گردد.\nپوشه‌ی آن در Google Drive (اکسل، متن، فاکتور و تصویر) هم پاک می‌شود.\n\nمطمئنی؟')) return;
+  callSheet('deleteEstimate', { id:id }, function(res){
+    if(res && res.status==='ok'){ showToast('سفارش حذف شد'); orderModalClose(); archiveInit(); }
+    else showToast('خطا در حذف');
+  });
+}
 </script>
 </body>
 </html>
