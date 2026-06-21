@@ -584,7 +584,7 @@ tr:hover td{background:#0e1018}
           <button class="btn btn-primary btn-sm" onclick="createBackup()">+ گرفتن بکاپ جدید</button>
         </div>
         <div style="font-size:12px;color:#5a6080;margin-bottom:12px;line-height:1.7">
-          بکاپ شامل همه داده‌ها (کالاها، کاربران، درخواست‌ها، دسته‌ها) است. در Google Sheet و هر هفته خودکار روی Google Drive (پوشه iPrint3D-backups) ذخیره می‌شود.
+          بکاپ شامل همه داده‌ها (کالاها، کاربران، درخواست‌ها، دسته‌ها، تنظیمات و سفارش‌های مالی) است. در Google Sheet و هر هفته خودکار روی Google Drive (پوشه iPrint3D-backups) ذخیره می‌شود.
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
           <button class="btn btn-ghost btn-sm" onclick="downloadBackupFile()">⬇️ دانلود فایل بکاپ</button>
@@ -818,10 +818,7 @@ function doPost(e){
       </style>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
         <div class="page-title" style="margin:0">📁 آرشیو و گزارش‌ها</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-sm" style="background:#0c2a20;border-color:#14543d;color:#34d399" onclick="archiveBackup(this)">🛟 بکاپ کامل</button>
-          <button class="btn btn-ghost btn-sm" onclick="archiveInit()">↻ تازه‌سازی</button>
-        </div>
+        <button class="btn btn-ghost btn-sm" onclick="archiveInit()">↻ تازه‌سازی</button>
       </div>
       <div id="ar-body"><div style="color:#5a6080;text-align:center;padding:30px">در حال بارگذاری...</div></div>
     </div>
@@ -6614,14 +6611,24 @@ function prDoCompute(){
     }
   });
 }
+function prNameOf(list,id){ for(var i=0;i<(list||[]).length;i++){ if(list[i].id===id) return list[i].name; } return ''; }
+function prUsedLabels(){
+  var mach=[], mat=[];
+  (prState.lines||[]).forEach(function(l){
+    if(String(l.kind).indexOf('machine')===0){ var n=prNameOf(prState.machines,l.machineId); if(n && mach.indexOf(n)<0) mach.push(n); }
+    else if(l.kind==='material'){ var nm=prNameOf(prState.materials,l.materialId)||prNameOf(prState.composites,l.materialId); if(nm && mat.indexOf(nm)<0) mat.push(nm); }
+  });
+  return { machine: mach.length?('دستگاه ('+mach.join('، ')+')'):'دستگاه', material: mat.length?('ماده ('+mat.join('، ')+')'):'ماده' };
+}
 function prRenderTape(r){
   var ln = function(label,val,cls){ return '<div class="pr-ln '+(cls||'')+'"><span>'+label+'</span><span>'+prFmt(val)+'</span></div>'; };
+  var lbl = prUsedLabels();
   var packShip = (+r.packaging||0) + (+r.shipping||0);
   var h = '';
   h += '<div class="pr-sec">هزینه‌ی ساخت هر عدد</div>';
-  h += ln('دستگاه', r.cat.machine, 'muted');
+  h += ln(lbl.machine, r.cat.machine, 'muted');
   h += ln('نیروی انسانی (با فینیشینگ)', (r.cat.labor + r.cat.finishing), 'muted');
-  h += ln('ماده (رزین)', r.material, 'muted');
+  h += ln(lbl.material, r.material, 'muted');
   h += ln('جمع هر عدد', r.base, 'strong');
   h += '<div class="pr-sec">قیمت‌گذاری هر عدد</div>';
   h += ln('با ضریب سود', r.perPartMargin, 'muted');
@@ -6651,10 +6658,11 @@ function pricingCopy(){
   if(o.orderName) L.push('سفارش: ' + o.orderName);
   L.push('تعداد: ' + prSep(r.qty) + ' عدد');
   L.push('');
+  var lbl = prUsedLabels();
   L.push('— هزینه‌ی ساخت هر عدد —');
-  L.push('دستگاه: ' + prFmt(r.cat.machine));
+  L.push(lbl.machine + ': ' + prFmt(r.cat.machine));
   L.push('نیروی انسانی (با فینیشینگ): ' + prFmt(r.cat.labor + r.cat.finishing));
-  L.push('ماده (رزین): ' + prFmt(r.material));
+  L.push(lbl.material + ': ' + prFmt(r.material));
   L.push('جمع هر عدد: ' + prFmt(r.base));
   L.push('');
   L.push('— قیمت‌گذاری هر عدد —');
