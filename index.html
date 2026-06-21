@@ -242,6 +242,7 @@ tr:hover td{background:#0e1018}
     <div class="nav" onclick="gotoView('ai',this)"><span class="nav-icon">🤖</span><span>جستجوی AI</span></div>
     <div class="nav" onclick="gotoView('usage',this)"><span class="nav-icon">📊</span><span>گزارش مصرف</span></div>
     <div class="nav" onclick="gotoView('pricing',this)"><span class="nav-icon">🧮</span><span>برآورد قیمت</span></div>
+    <div class="nav" onclick="gotoView('archive',this)"><span class="nav-icon">📁</span><span>آرشیو و گزارش‌ها</span></div>
 
     <div class="nav" onclick="gotoView('users',this)"><span class="nav-icon">👥</span><span>کاربران</span><span id="usersBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
     <div class="nav" id="notifNav" onclick="gotoView('notif',this)"><span class="nav-icon">📋</span><span>درخواست‌ها</span><span id="notifBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
@@ -788,6 +789,7 @@ function doPost(e){
                 <button class="btn btn-primary btn-sm" style="flex:1" id="pr-btn-xlsx" onclick="pricingExportXlsx()">⬇ خروجی اکسل</button>
               </div>
               <button class="btn btn-sm" style="background:#E2241A;border-color:#E2241A;color:#fff;font-weight:700" onclick="ivShowInvoice()">📄 صدور فاکتور رسمی</button>
+              <button class="btn btn-ghost btn-sm" onclick="pricingSaveEstimate()">💾 ذخیره در گزارش ماه</button>
               <div id="pr-warn" style="font-size:12px;color:#f59e0b"></div>
             </div>
           </div>
@@ -795,8 +797,29 @@ function doPost(e){
       </div>
     </div>
 
-  </div>
-</div>
+    <!-- ── آرشیو و گزارش‌ها (Phase 3) — فقط ادمین ── -->
+    <div id="view-archive" class="hidden">
+      <style>
+        #view-archive .ar-month{border:1px solid #1a1d2e;border-radius:14px;background:#13151f;margin-bottom:14px;overflow:hidden}
+        #view-archive .ar-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;cursor:pointer;gap:12px}
+        #view-archive .ar-head:hover{background:#161827}
+        #view-archive .ar-ml{font-weight:700;font-size:16px;color:#e2e4f0}
+        #view-archive .ar-sub{font-size:12px;color:#9aa3c2;margin-top:3px}
+        #view-archive .ar-accent{width:4px;align-self:stretch;border-radius:4px;background:linear-gradient(180deg,#6366f1,#c084fc)}
+        #view-archive .ar-body{padding:0 18px 14px;display:none}
+        #view-archive .ar-est{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1px solid #1a1d2e;border-radius:10px;margin-bottom:7px;background:#0e1018}
+        #view-archive .ar-est .nm{font-weight:600;font-size:13px;color:#e2e4f0}
+        #view-archive .ar-est .meta{font-size:11px;color:#9aa3c2;margin-top:2px}
+        #view-archive .ar-del{background:none;border:none;color:#5a6080;cursor:pointer;font-size:14px;padding:3px 7px;border-radius:6px}
+        #view-archive .ar-del:hover{color:#f87171;background:#2a1414}
+        #view-archive .ar-chev{color:#5a6080;font-size:13px}
+      </style>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div class="page-title" style="margin:0">📁 آرشیو و گزارش‌ها</div>
+        <button class="btn btn-ghost btn-sm" onclick="archiveInit()">↻ تازه‌سازی</button>
+      </div>
+      <div id="ar-body"><div style="color:#5a6080;text-align:center;padding:30px">در حال بارگذاری...</div></div>
+    </div>
 
 
 <!-- ════════ فاکتور رسمی (Phase 2) — لایه‌ی تمام‌صفحه، فقط ادمین ════════ -->
@@ -814,7 +837,7 @@ function doPost(e){
   #view-invoice .topbg{position:absolute;inset:0;width:100%;height:100%;display:block}
   #view-invoice .dnum{position:absolute;top:26px;left:26px;color:#fff;direction:rtl;font-weight:800;font-size:14px;line-height:2.15;z-index:2}
   #view-invoice .logo{position:absolute;top:46px;right:16mm;direction:ltr;text-align:left;z-index:2}
-  #view-invoice .logo img.logoimg{height:74px;width:auto;display:none}
+  #view-invoice .logo img.logoimg{height:104px;width:auto;display:none}
   #view-invoice .logo .wm{display:flex;align-items:center;gap:9px}
   #view-invoice .logo .wm .txt{font-size:32px;font-weight:800;letter-spacing:-1px;color:#1a1a1a;line-height:1}
   #view-invoice .logo .wm .txt b{color:#E2241A}
@@ -916,9 +939,8 @@ function doPost(e){
         <div class="logo">
           <img class="logoimg" id="iv-logo-img" alt="logo">
           <div class="wm" id="iv-logo-fallback">
-            <div class="txt">ipr<b>i</b>nt3d</div>
+            <div class="txt" style="font-size:40px">ipr<b>i</b>nt3d</div>
           </div>
-          <div class="tag">Visualize your ideas</div>
         </div>
       </div>
 
@@ -1513,6 +1535,7 @@ function applyRoleUI(){
     if(txt.includes('افزودن کالا'))n.style.display=canAdd?'flex':'none';
     if(txt.includes('گزارش مصرف'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('برآورد قیمت'))n.style.display=isAdmin?'flex':'none';
+    if(txt.includes('آرشیو و گزارش'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('جستجوی AI'))n.style.display='flex';
   });
   // دکمه خروجی Excel فقط برای ادمین
@@ -1569,6 +1592,7 @@ function gotoView(v,el){
   }
   else if(v==='ai'){}
   else if(v==='pricing'){ if(!canDo('users')){alert('دسترسی ندارید');return;} pricingInit(); }
+  else if(v==='archive'){ if(!canDo('users')){alert('دسترسی ندارید');return;} archiveInit(); }
   else if(v==='usage'){ loadUsageReport(); loadProjects(); }
   else if(v==='users'){
     if(!canDo('users')){alert('دسترسی ندارید');return;}
@@ -6793,23 +6817,16 @@ function ivExportPDF(){
   }).catch(function(err){ el.style.width=prevW; el.style.maxWidth=prevMax; if(!wasClean) v.classList.remove('clean'); showToast('خطا در ساخت PDF'); });
 }
 
-async function ivExportWord(){
-  var v=document.getElementById('view-invoice'), el=v.querySelector('.page');
+function ivExportWord(){
   var T=function(id){ var e=document.getElementById(id); return e?e.innerHTML:''; };
+  var Tx=function(id){ var e=document.getElementById(id); return e?e.textContent:''; };
   var g=ivItems.reduce(function(s,it){ return s+ivRowTotal(it); },0);
-  var topImg='', footImg='', stampImg='';
-  if(window.html2canvas){
-    var wasClean=v.classList.contains('clean'); v.classList.add('clean');
-    var pw=el.style.width, pmax=el.style.maxWidth; el.style.width='210mm'; el.style.maxWidth='none';
-    try{
-      topImg=(await html2canvas(v.querySelector('.top'),{scale:2,backgroundColor:'#ffffff',useCORS:true})).toDataURL('image/png');
-      footImg=(await html2canvas(v.querySelector('.foot'),{scale:2,backgroundColor:'#ffffff',useCORS:true})).toDataURL('image/png');
-      var stImgEl=document.getElementById('iv-stamp-img');
-      if(stImgEl && stImgEl.style.display!=='none' && stImgEl.src){ stampImg=stImgEl.src; }
-      else { var sv=document.getElementById('iv-stamp-svg'); if(sv) stampImg=(await html2canvas(sv,{scale:3,backgroundColor:null,useCORS:true})).toDataURL('image/png'); }
-    }catch(e){}
-    el.style.width=pw; el.style.maxWidth=pmax; if(!wasClean) v.classList.remove('clean');
-  }
+  var logoEl=document.getElementById('iv-logo-img');
+  var logoSrc=(logoEl && logoEl.style.display!=='none' && logoEl.src)?logoEl.src:'';
+  var stampEl=document.getElementById('iv-stamp-img');
+  var stampSrc=(stampEl && stampEl.style.display!=='none' && stampEl.src)?stampEl.src:'';
+  var logoCell=logoSrc?('<img src="'+logoSrc+'" style="height:80px"/>'):'<span style="font-size:26pt;font-weight:bold;color:#111">iprint3d</span>';
+  var stampCell=stampSrc?('<img src="'+stampSrc+'" style="width:3.2cm"/>'):'';
   var itemRows=ivItems.map(function(it,i){
     return '<tr><td class="c">'+prToFa(i+1)+'</td><td>'+escapeHtml(it.code||'')+'</td><td>'+escapeHtml(it.desc||'')+'</td>'
       +'<td class="c">'+prToFa(it.qty)+'</td><td class="c">'+prToFa(prSep(it.unit))+'</td>'
@@ -6818,15 +6835,19 @@ async function ivExportWord(){
   var noteHtml=ivNotes.map(function(t){ return '<p style="margin:5px 0;line-height:1.9">&#10033; '+escapeHtml(t)+'</p>'; }).join('');
   var head='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">'
     +'<style>@page{size:A4;margin:0} body{font-family:Tahoma,Arial;direction:rtl;font-size:11pt;margin:0;color:#111} '
-    +'.pad{padding:2px 1.2cm 0} .ttl{text-align:center;font-size:14pt;font-weight:bold;margin:8px 0 6px;line-height:1.7} '
+    +'.pad{padding:4px 1.2cm 0} .ttl{text-align:center;font-size:14pt;font-weight:bold;margin:10px 0 6px;line-height:1.7} '
     +'table.doc{border-collapse:collapse;width:100%;direction:rtl;table-layout:fixed} table.doc td,table.doc th{border:1px solid #000;padding:6px;font-size:10.5pt} '
     +'.sec{background:#efefef;text-align:center;font-weight:bold} .kvw{text-align:right;padding:9px 14px;line-height:2} '
     +'.ih{background:#efefef;font-weight:bold;text-align:center} .c{text-align:center} '
-    +'.sum{font-weight:bold;background:#fafafa} .pay{font-weight:bold;background:#f5f5f5} '
-    +'img{display:block} .signtab{border:none;width:100%;margin-top:14px} .signtab td{border:none;vertical-align:middle}</style></head><body>';
-  var banner=function(d){ return d?'<img src="'+d+'" style="width:100%"/>':''; };
+    +'.sum{font-weight:bold;background:#fafafa} .pay{font-weight:bold;background:#f5f5f5} img{display:inline-block} '
+    +'.signtab{border:none;width:100%;margin-top:14px} .signtab td{border:none;vertical-align:middle}</style></head><body>';
   var html=head
-    +banner(topImg)
+    +'<table dir="rtl" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse">'
+      +'<tr><td colspan="2" bgcolor="#E2241A" style="height:7px;line-height:7px;font-size:1px">&nbsp;</td></tr>'
+      +'<tr>'
+        +'<td style="padding:12px 22px;text-align:left;vertical-align:middle">'+logoCell+'</td>'
+        +'<td width="42%" bgcolor="#111111" style="color:#ffffff;padding:14px 22px;font-weight:bold;line-height:2.1;vertical-align:middle">تاریخ: '+escapeHtml(Tx("iv-date"))+'<br>شماره: '+escapeHtml(Tx("iv-no"))+'</td>'
+      +'</tr></table>'
     +'<div class="pad">'
     +'<div class="ttl">بسمه تعالی<br>فاکتور خدمات</div>'
     +'<table class="doc">'
@@ -6843,14 +6864,96 @@ async function ivExportWord(){
     +'</table>'
     +'<div style="margin-top:10px;font-size:10.5pt">'+noteHtml+'</div>'
     +'<table class="signtab"><tr>'
-      +'<td style="width:38%;text-align:center">'+(stampImg?'<img src="'+stampImg+'" style="width:3.4cm;display:inline-block"/>':'')+'</td>'
+      +'<td style="width:38%;text-align:center">'+stampCell+'</td>'
       +'<td style="text-align:right;font-weight:bold;line-height:2">'+T('iv-sign')+'</td></tr></table>'
     +'</div>'
-    +banner(footImg)
+    +'<table dir="rtl" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-top:16px">'
+      +'<tr><td bgcolor="#E2241A" style="height:7px;line-height:7px;font-size:1px">&nbsp;</td></tr>'
+      +'<tr><td bgcolor="#111111" style="color:#ffffff;text-align:center;padding:9px;font-size:9pt;line-height:1.9">۰۲۱-۴۴۷۸۷۰۵۲ &nbsp;|&nbsp; iprint3d.ir &nbsp;|&nbsp; www.iprint3d.ir<br>تهران، بزرگراه شهید خرازی، بلوار پژوهش، پژوهشگاه پلیمر و پتروشیمی ایران، آزمایشگاه آی پرینت</td></tr>'
+    +'</table>'
     +'</body></html>';
   var blob=new Blob(['\ufeff'+html],{type:'application/msword'});
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='فاکتور_iPrint3D.doc'; a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+}
+
+// ════════════════════════════════════════════════════════════
+//  آرشیو برآوردها و گزارش ماهانه (Phase 3)
+// ════════════════════════════════════════════════════════════
+function pricingSaveEstimate(){
+  if(typeof prState==='undefined' || !prState.lines || !prState.lines.length){ showToast('اول یک برآورد بساز'); return; }
+  callSheet('saveEstimate', { payload: prPayload() }, function(res){
+    if(res && res.status==='ok'){ showToast('✅ در گزارش ماه ذخیره شد'); }
+    else { showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); }
+  });
+}
+
+var arData = [];
+function archiveInit(){
+  var box=document.getElementById('ar-body'); if(!box) return;
+  box.innerHTML='<div style="color:#5a6080;text-align:center;padding:30px">در حال بارگذاری...</div>';
+  callSheet('getEstimates', { t:Date.now() }, function(res){
+    if(!(res && res.status==='ok')){ box.innerHTML='<div style="color:#f87171;text-align:center;padding:30px">خطا در بارگذاری</div>'; return; }
+    arData = res.estimates || [];
+    archiveRender();
+  });
+}
+function archiveRender(){
+  var box=document.getElementById('ar-body');
+  if(!arData.length){ box.innerHTML='<div style="color:#5a6080;text-align:center;padding:40px;border:1px dashed #1a1d2e;border-radius:14px">هنوز برآوردی ذخیره نشده.<br><span style="font-size:12px">از صفحه‌ی برآورد، دکمه‌ی «ذخیره در گزارش ماه» را بزن.</span></div>'; return; }
+  var groups={}, order=[];
+  arData.forEach(function(e){
+    if(!groups[e.monthKey]){ groups[e.monthKey]={label:e.monthLabel, items:[], total:0}; order.push(e.monthKey); }
+    groups[e.monthKey].items.push(e); groups[e.monthKey].total += (+e.total||0);
+  });
+  order.sort(function(a,b){ return a<b?1:(a>b?-1:0); });
+  box.innerHTML = order.map(function(mk){
+    var g=groups[mk];
+    var ests = g.items.map(function(e){
+      return '<div class="ar-est"><div><div class="nm">'+escapeHtml(e.projectName||'—')+'</div>'
+        +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+'</div></div>'
+        +'<div style="display:flex;gap:12px;align-items:center"><span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+'</span>'
+        +'<button class="ar-del" title="حذف" onclick="archiveDelete(\''+e.id+'\')">✕</button></div></div>';
+    }).join('');
+    return '<div class="ar-month">'
+      +'<div class="ar-head" onclick="archiveToggle(\''+mk+'\')">'
+        +'<div style="display:flex;gap:12px;align-items:center"><div class="ar-accent"></div>'
+        +'<div><div class="ar-ml">'+escapeHtml(g.label||mk)+'</div><div class="ar-sub">'+prToFa(g.items.length)+' برآورد · جمع '+prToFa(prSep(g.total))+' تومان</div></div></div>'
+        +'<div style="display:flex;gap:8px;align-items:center">'
+        +'<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();archiveDownload(\''+mk+'\',this)">⬇ دانلود گزارش ماه</button>'
+        +'<span class="ar-chev" id="ar-chev-'+mk+'">▾</span></div>'
+      +'</div>'
+      +'<div class="ar-body" id="ar-m-'+mk+'">'+ests+'</div>'
+    +'</div>';
+  }).join('');
+}
+function archiveToggle(mk){
+  var b=document.getElementById('ar-m-'+mk), c=document.getElementById('ar-chev-'+mk);
+  if(!b) return; var open=b.style.display==='block'; b.style.display=open?'none':'block'; if(c) c.textContent=open?'▾':'▴';
+}
+function archiveDelete(id){
+  if(!confirm('این برآورد از آرشیو حذف شود؟')) return;
+  callSheet('deleteEstimate', { id:id }, function(res){
+    if(res && res.status==='ok'){ showToast('حذف شد'); archiveInit(); }
+    else showToast('خطا در حذف');
+  });
+}
+function archiveDownload(mk, btn){
+  var old=btn.innerHTML; btn.disabled=true; btn.innerHTML='در حال ساخت...';
+  callSheet('exportMonthlyXlsx', { monthKey:mk }, function(res){
+    btn.disabled=false; btn.innerHTML=old;
+    if(res && res.status==='ok' && res.base64){
+      try{
+        var bin=atob(res.base64), len=bin.length, bytes=new Uint8Array(len);
+        for(var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
+        var blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=res.filename||'گزارش ماه.xlsx';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
+        showToast('✅ فایل گزارش ماه ساخته شد');
+      }catch(e){ showToast('خطا در دانلود فایل'); }
+    } else { showToast((res&&res.message)?res.message:'خطا در ساخت گزارش'); }
+  });
 }
 </script>
 </body>
