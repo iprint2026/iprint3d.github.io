@@ -818,7 +818,10 @@ function doPost(e){
       </style>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
         <div class="page-title" style="margin:0">📁 آرشیو و گزارش‌ها</div>
-        <button class="btn btn-ghost btn-sm" onclick="archiveInit()">↻ تازه‌سازی</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm" style="background:#0c2a20;border-color:#14543d;color:#34d399" onclick="archiveBackup(this)">🛟 بکاپ کامل</button>
+          <button class="btn btn-ghost btn-sm" onclick="archiveInit()">↻ تازه‌سازی</button>
+        </div>
       </div>
       <div id="ar-body"><div style="color:#5a6080;text-align:center;padding:30px">در حال بارگذاری...</div></div>
     </div>
@@ -7055,6 +7058,15 @@ function archiveDelete(id){
     else showToast('خطا در حذف');
   });
 }
+function archiveBackup(btn){
+  if(!confirm('یک نسخه‌ی کاملِ پشتیبان از همه‌ی داده‌ها (موجودی، تنظیمات، سفارش‌ها) در پوشه‌ی «iPrint3D - بکاپ‌ها» ساخته شود؟')) return;
+  var old=btn?btn.innerHTML:''; if(btn){ btn.disabled=true; btn.innerHTML='در حال بکاپ...'; }
+  callSheet('backupNow', { t:Date.now() }, function(res){
+    if(btn){ btn.disabled=false; btn.innerHTML=old; }
+    if(res && res.status==='ok'){ showToast('✅ بکاپ کامل ساخته شد'); if(res.url) window.open(res.url,'_blank'); }
+    else { showToast((res&&res.message)?res.message:'خطا در بکاپ'); }
+  }, 90000);
+}
 function archiveDownload(mk, btn){
   var old=btn.innerHTML; btn.disabled=true; btn.innerHTML='در حال ساخت...';
   callSheet('exportMonthlyXlsx', { monthKey:mk }, function(res){
@@ -7070,7 +7082,7 @@ function archiveDownload(mk, btn){
         showToast('✅ فایل گزارش ماه ساخته شد');
       }catch(e){ showToast('خطا در دانلود فایل'); }
     } else { showToast((res&&res.message)?res.message:'خطا در ساخت گزارش'); }
-  });
+  }, 120000);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -7183,6 +7195,7 @@ function archiveProfile(id){
       +(e.folderUrl?'<a href="'+e.folderUrl+'" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">📂 پوشه‌ی Drive</a>':'')
       +'<button class="btn btn-sm" style="background:#2a1414;border-color:#5b2020;color:#f87171" onclick="omDelete(\''+id+'\')">✕ حذف سفارش</button>'
     +'</div>'
+    +'<div id="om-summary" style="margin-bottom:18px"></div>'
     +'<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">فایل‌های پوشه‌ی سفارش</div>'
     +'<div id="om-files" style="color:#5a6080;font-size:13px">در حال بارگذاری...</div>';
   document.getElementById('order-modal').style.display='flex';
@@ -7191,6 +7204,22 @@ function archiveProfile(id){
     var imgEl=document.getElementById('om-image'), filesEl=document.getElementById('om-files');
     if(!imgEl || !filesEl) return;
     if(!(res && res.status==='ok')){ filesEl.textContent='خطا در بارگذاری فایل‌ها'; return; }
+    var sumEl=document.getElementById('om-summary');
+    if(sumEl && res.summary){
+      var s=res.summary;
+      var row=function(label,val,strong){ return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #161827'+(strong?';font-weight:700':'')+'"><span style="color:'+(strong?'#e2e4f0':'#9aa3c2')+'">'+label+'</span><span style="color:'+(strong?'#fbbf24':'#e2e4f0')+'">'+prToFa(prSep(val))+' تومان</span></div>'; };
+      sumEl.innerHTML='<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">خلاصه‌ی برآورد</div>'
+        +'<div style="background:#0e1018;border:1px solid #1a1d2e;border-radius:11px;padding:12px 14px;font-size:12.5px">'
+        +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #161827"><span style="color:#9aa3c2">تعداد</span><span style="color:#e2e4f0">'+prToFa(s.qty)+' عدد</span></div>'
+        +row('استهلاک دستگاه (هر عدد)', s.machine)
+        +row('مواد مصرفی (هر عدد)', s.material)
+        +row('نیروی انسانی (هر عدد)', s.labor)
+        +row('هزینه‌ی تمام‌شده هر عدد', s.base)
+        +(s.modeling?row('مدلسازی (یک‌باره)', s.modeling):'')
+        +row('قیمت هر عدد (نهایی)', s.perUnit, true)
+        +row('مبلغ کل سفارش', s.total, true)
+        +'</div>';
+    }
     if(res.image){
       imgEl.innerHTML='<a href="'+res.image.viewUrl+'" target="_blank"><img src="'+res.image.thumbUrl+'" referrerpolicy="no-referrer" style="max-width:100%;max-height:300px;border-radius:12px;border:1px solid #232539;display:block;margin:auto"></a>';
     } else {
