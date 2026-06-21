@@ -6379,25 +6379,31 @@ function pricingToggleSettings(){
 
 function prMachineRows(){
   var box = document.getElementById('pr-machines');
-  box.innerHTML = prState.machines.map(function(m){
-    return '<div class="pr-mini" data-prmid="'+m.id+'">'
+  var head = '<div class="pr-mini" style="grid-template-columns:1fr 110px 120px auto;font-size:10.5px;color:#9aa3c2;margin-bottom:3px">'
+    + '<div>نام دستگاه</div><div>نوع</div><div>نرخ ساعتی (تومان)</div><div></div></div>';
+  var rows = prState.machines.map(function(m){
+    return '<div class="pr-mini" data-prmid="'+m.id+'" style="grid-template-columns:1fr 110px 120px auto">'
       + '<input class="inp" data-prmf="name" value="'+escapeHtml(m.name)+'" placeholder="نام دستگاه">'
       + '<select class="inp" data-prmf="type"><option'+(m.type==='FDM'?' selected':'')+'>FDM</option><option'+(m.type==='DLP'?' selected':'')+'>DLP</option></select>'
-      + '<input class="inp pr-money" data-prmf="rate" value="'+prSep(+m.rate||0)+'" style="width:120px">'
+      + '<input class="inp pr-money" data-prmf="rate" value="'+prSep(+m.rate||0)+'" placeholder="نرخ ساعتی">'
       + '<button class="pr-x" data-prdelm="'+m.id+'">✕</button>'
       + '</div>';
-  }).join('') || '<div style="color:#5a6080;font-size:12px">دستگاهی تعریف نشده.</div>';
+  }).join('');
+  box.innerHTML = (rows ? head + rows : '<div style="color:#5a6080;font-size:12px">دستگاهی تعریف نشده.</div>');
 }
 function prMaterialRows(){
   var box = document.getElementById('pr-materials');
-  box.innerHTML = prState.materials.map(function(m){
+  var head = '<div class="pr-mini" style="grid-template-columns:1fr 1fr 90px auto;font-size:10.5px;color:#9aa3c2;margin-bottom:3px">'
+    + '<div>نام ماده</div><div>قیمت هر کیلو (تومان)</div><div>چگالی (g/cm³)</div><div></div></div>';
+  var rows = prState.materials.map(function(m){
     return '<div class="pr-mini" data-prmatid="'+m.id+'" style="grid-template-columns:1fr 1fr 90px auto">'
       + '<input class="inp" data-prmatf="name" value="'+escapeHtml(m.name)+'" placeholder="نام ماده">'
-      + '<input class="inp pr-money" data-prmatf="price" value="'+prSep(+m.price||0)+'">'
+      + '<input class="inp pr-money" data-prmatf="price" value="'+prSep(+m.price||0)+'" placeholder="قیمت هر کیلو">'
       + '<input class="inp" type="number" step="0.01" data-prmatf="density" value="'+(m.density!=null?m.density:'')+'" placeholder="چگالی">'
       + '<button class="pr-x" data-prdelmat="'+m.id+'">✕</button>'
       + '</div>';
-  }).join('') || '<div style="color:#5a6080;font-size:12px">ماده‌ای تعریف نشده.</div>';
+  }).join('');
+  box.innerHTML = (rows ? head + rows : '<div style="color:#5a6080;font-size:12px">ماده‌ای تعریف نشده.</div>');
 }
 function prBaseMatOpts(sel){
   return prState.materials.map(function(m){ return '<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }).join('');
