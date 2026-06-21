@@ -790,6 +790,8 @@ function doPost(e){
               </div>
               <button class="btn btn-sm" style="background:#E2241A;border-color:#E2241A;color:#fff;font-weight:700" onclick="ivShowInvoice()">📄 صدور فاکتور رسمی</button>
               <button class="btn btn-ghost btn-sm" id="pr-btn-save" onclick="pricingSaveEstimate()">💾 ذخیره‌ی سفارش</button>
+              <button class="btn btn-ghost btn-sm" onclick="pricingPickImage()">🖼 تصویر سفارش</button>
+              <span id="pr-image-ind" style="font-size:11.5px;color:#34d399"></span>
               <div id="pr-warn" style="font-size:12px;color:#f59e0b"></div>
             </div>
           </div>
@@ -1071,6 +1073,27 @@ function doPost(e){
 <!-- ── DETAIL MODAL ── -->
 <div id="modal-detail" class="modal-bg hidden">
   <div class="modal"><div id="detailContent"></div></div>
+</div>
+
+<!-- ── IMAGE MODAL (تصویر سفارش) ── -->
+<div id="img-modal" style="display:none;position:fixed;inset:0;z-index:4500;background:rgba(0,0,0,.62);align-items:center;justify-content:center;padding:18px">
+  <div style="background:#13151f;border:1px solid #1a1d2e;border-radius:16px;max-width:560px;width:100%;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-weight:700;font-size:15px;color:#e2e4f0">🖼 تصویر سفارش</div>
+      <button class="btn btn-ghost btn-sm" onclick="imgModalClose()">بستن</button>
+    </div>
+    <div id="img-preview-wrap" style="border:1px dashed #2a2d40;border-radius:12px;min-height:190px;display:flex;align-items:center;justify-content:center;background:#0e1018;overflow:hidden;margin-bottom:12px">
+      <span id="img-empty" style="color:#5a6080;font-size:13px;text-align:center;padding:24px;line-height:1.9">تصویری انتخاب نشده<br><span style="font-size:11px">یک فایل انتخاب کن، یا اسکرین‌شات را همین‌جا Paste کن (Ctrl+V)</span></span>
+      <img id="img-preview" alt="preview" style="max-width:100%;max-height:340px;display:none">
+    </div>
+    <input type="file" id="img-file" accept="image/*" style="display:none" onchange="imgPickFile(event)">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('img-file').click()">📁 انتخاب فایل</button>
+      <button class="btn btn-primary btn-sm" id="img-upload-btn" onclick="imgDoUpload()">⬆ آپلود و ذخیره</button>
+      <a id="img-view-link" href="#" target="_blank" class="btn btn-ghost btn-sm" style="display:none;text-decoration:none">دیدن در Drive</a>
+    </div>
+    <div style="font-size:11px;color:#5a6080;margin-top:10px">برای پیست کردن اسکرین‌شات: این پنجره باز باشد و Ctrl+V بزن.</div>
+  </div>
 </div>
 
 <script>
@@ -6899,6 +6922,12 @@ function pricingSaveEstimate(){
       showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); return;
     }
     showToast('✅ سفارش و فایل متنی ذخیره شد');
+    if(prPendingImage){
+      imgUploadBase64(res.id, prPendingImage.dataUrl, prPendingImage.mime, function(ok){
+        if(ok){ showToast('✅ تصویر سفارش هم ذخیره شد'); }
+        prPendingImage=null; var ind=document.getElementById('pr-image-ind'); if(ind) ind.textContent='';
+      });
+    }
     if(btn){ btn.innerHTML='در حال ساخت اکسل...'; }
     callSheet('saveEstimateXlsx', { id: res.id }, function(r2){
       if(btn){ btn.disabled=false; btn.innerHTML=old; }
@@ -6939,9 +6968,10 @@ function archiveRender(){
         : '<button class="btn btn-sm" style="background:#0c2a20;border-color:#14543d;color:#34d399" onclick="archiveSetStatus(\''+e.id+'\',\'در جریان ساخت\')">▶ در جریان ساخت</button>';
       var folderBtn = e.folderUrl ? '<a href="'+e.folderUrl+'" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">📂 پوشه</a>' : '';
       var invBtn = '<button class="btn btn-sm" style="background:#3a1d52;border-color:#5b3fd6;color:#c4b5fd" onclick="archiveOpenInvoice(\''+e.id+'\')">🧾 فاکتور</button>';
+      var imgBtn = '<button class="btn btn-ghost btn-sm" onclick="archiveImage(\''+e.id+'\')">🖼 تصویر</button>';
       return '<div class="ar-est"><div style="flex:1"><div class="nm">'+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
         +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span></div></div>'
-        +'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">'+invBtn+prodBtn+folderBtn
+        +'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">'+invBtn+imgBtn+prodBtn+folderBtn
         +'<button class="ar-del" title="حذف" onclick="archiveDelete(\''+e.id+'\')">✕</button></div></div>';
     }).join('');
     return '<div class="ar-month">'
@@ -7033,6 +7063,86 @@ function archiveDownload(mk, btn){
     } else { showToast((res&&res.message)?res.message:'خطا در ساخت گزارش'); }
   });
 }
+
+// ════════════════════════════════════════════════════════════
+//  تصویر سفارش (Phase 3C) — انتخاب فایل / پیست / آپلود / نمایش
+// ════════════════════════════════════════════════════════════
+var imgModalId = '';            // id سفارش، یا '__PENDING__' برای صفحه‌ی برآورد
+var imgModalDataUrl = '';
+var imgModalMime = 'image/png';
+var prPendingImage = null;      // تصویرِ ضمیمه‌ی برآوردِ ذخیره‌نشده
+
+function imgModalOpen(id){
+  imgModalId = id; imgModalDataUrl=''; imgModalMime='image/png';
+  var pv=document.getElementById('img-preview'), em=document.getElementById('img-empty'), vl=document.getElementById('img-view-link');
+  pv.style.display='none'; pv.src=''; em.style.display='block'; if(vl) vl.style.display='none';
+  document.getElementById('img-file').value='';
+  document.getElementById('img-modal').style.display='flex';
+  if(id && id!=='__PENDING__'){
+    em.innerHTML='در حال بررسی تصویرِ موجود...';
+    callSheet('getOrderImage', { id:id, t:Date.now() }, function(res){
+      if(res && res.status==='ok' && res.hasImage){
+        pv.src=res.thumbUrl; pv.style.display='block'; em.style.display='none';
+        if(vl){ vl.href=res.viewUrl; vl.style.display='inline-block'; }
+      } else {
+        em.innerHTML='تصویری ثبت نشده<br><span style="font-size:11px">یک فایل انتخاب کن، یا اسکرین‌شات را Paste کن (Ctrl+V)</span>';
+      }
+    });
+  }
+}
+function imgModalClose(){ document.getElementById('img-modal').style.display='none'; imgModalId=''; imgModalDataUrl=''; }
+function imgReadFile(file){
+  if(!file){ return; }
+  if(!/^image\//.test(file.type)){ showToast('فقط فایل تصویری'); return; }
+  var fr=new FileReader();
+  fr.onload=function(){
+    imgModalDataUrl=fr.result; imgModalMime=file.type||'image/png';
+    var pv=document.getElementById('img-preview'), em=document.getElementById('img-empty');
+    pv.src=imgModalDataUrl; pv.style.display='block'; em.style.display='none';
+  };
+  fr.readAsDataURL(file);
+}
+function imgPickFile(ev){ var f=ev.target.files && ev.target.files[0]; imgReadFile(f); }
+document.addEventListener('paste', function(e){
+  var modal=document.getElementById('img-modal');
+  if(!modal || modal.style.display==='none') return;
+  var items=(e.clipboardData && e.clipboardData.items) || [];
+  for(var i=0;i<items.length;i++){
+    if(items[i].type && items[i].type.indexOf('image')===0){ imgReadFile(items[i].getAsFile()); e.preventDefault(); break; }
+  }
+});
+function imgUploadBase64(id, dataUrl, mime, cb){
+  var b64=(dataUrl||'').split(',')[1]||'';
+  if(!b64){ if(cb) cb(false); return; }
+  var url=loadSheetUrl();
+  fetch(url, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'uploadOrderImage', token:SESSION_TOKEN, id:id, base64:b64, mime:mime||'image/png' }) })
+    .then(function(){ setTimeout(function(){
+      callSheet('getOrderImage', { id:id, t:Date.now() }, function(r){ if(cb) cb(!!(r && r.status==='ok' && r.hasImage), r); });
+    }, 3500); })
+    .catch(function(){ if(cb) cb(false); });
+}
+function imgDoUpload(){
+  if(!imgModalDataUrl){ showToast('اول یک تصویر انتخاب یا پیست کن'); return; }
+  // حالت صفحه‌ی برآورد: تصویر را نگه دار تا هنگام ذخیره آپلود شود
+  if(imgModalId==='__PENDING__'){
+    prPendingImage={ dataUrl:imgModalDataUrl, mime:imgModalMime };
+    var ind=document.getElementById('pr-image-ind'); if(ind) ind.textContent='🖼 تصویر ضمیمه شد';
+    showToast('تصویر ضمیمه شد — هنگام ذخیره‌ی سفارش آپلود می‌شود');
+    imgModalClose(); return;
+  }
+  var btn=document.getElementById('img-upload-btn'); var old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='در حال آپلود...'; }
+  imgUploadBase64(imgModalId, imgModalDataUrl, imgModalMime, function(ok){
+    if(btn){ btn.disabled=false; btn.innerHTML=old; }
+    if(ok){ showToast('✅ تصویر سفارش ذخیره شد'); imgModalClose(); if(typeof archiveInit==='function') archiveInit(); }
+    else { showToast('آپلود انجام شد ولی تأیید نشد — Drive را بررسی کن'); }
+  });
+}
+// دکمه‌ی تصویر در صفحه‌ی برآورد
+function pricingPickImage(){ imgModalOpen('__PENDING__'); }
+// دکمه‌ی تصویر در آرشیو
+function archiveImage(id){ imgModalOpen(id); }
 </script>
 </body>
 </html>
