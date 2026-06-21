@@ -6681,13 +6681,17 @@ function ivShowInvoice(){
   var tel=document.getElementById('iv-btel'); if(tel) tel.textContent = o.tel || '—';
   try{ document.getElementById('iv-date').textContent = new Intl.DateTimeFormat('fa-IR').format(new Date()); }catch(e){}
   ivRender();
-  document.getElementById('view-invoice').style.display='block';
+  var ov=document.getElementById('view-invoice');
+  ov.classList.remove('hidden');
+  ov.style.display='block';
   document.body.classList.add('inv-open');
-  document.getElementById('view-invoice').scrollTop=0;
+  ov.scrollTop=0;
   ivLoadAssets();
 }
 function ivClose(){
-  document.getElementById('view-invoice').style.display='none';
+  var ov=document.getElementById('view-invoice');
+  ov.style.display='none';
+  ov.classList.add('hidden');
   document.body.classList.remove('inv-open');
 }
 function ivLoadAssets(){
