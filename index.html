@@ -6980,6 +6980,36 @@ function pricingSaveEstimate(){
 }
 
 var arData = [];
+var arThumbCache = {};
+function arSetThumb(id, src){
+  var b=document.getElementById('arthumb-'+id);
+  if(b){ b.style.background='transparent'; b.innerHTML='<img src="'+src+'" style="width:100%;height:100%;object-fit:cover">'; }
+}
+function arPersistThumb(id, thumb){
+  try{
+    fetch(loadSheetUrl(), { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'setOrderThumb', token:SESSION_TOKEN, id:id, thumb:thumb }) });
+  }catch(e){}
+}
+function arLazyThumbs(){
+  var nodes=document.querySelectorAll('[data-lazy]'), ids=[];
+  for(var k=0;k<nodes.length;k++){ var id=nodes[k].getAttribute('data-lazy'); if(id) ids.push(id); }
+  var i=0;
+  function next(){
+    if(i>=ids.length) return;
+    var id=ids[i++];
+    if(arThumbCache[id]){ arSetThumb(id, arThumbCache[id]); return next(); }
+    callSheet('getOrderImage', { id:id, t:Date.now() }, function(res){
+      if(res && res.status==='ok' && res.hasImage && res.dataUrl){
+        makeThumb(res.dataUrl, function(thumb){
+          if(thumb){ arThumbCache[id]=thumb; arSetThumb(id, thumb); arPersistThumb(id, thumb); }
+          next();
+        });
+      } else { next(); }
+    }, 60000);
+  }
+  next();
+}
 function archiveInit(){
   var box=document.getElementById('ar-body'); if(!box) return;
   box.innerHTML='<div style="color:#5a6080;text-align:center;padding:30px">در حال بارگذاری...</div>';
@@ -7014,9 +7044,10 @@ function archiveRender(){
         ? '<span style="font-size:10.5px;color:#34d399;background:#0c2a20;border:1px solid #14543d;padding:2px 8px;border-radius:20px">در جریان ساخت</span>'
         : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>';
       var codeChip = e.code ? '<span style="font-size:10px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">'+escapeHtml(e.code)+'</span>' : '';
-      var thumb = e.thumb
-        ? '<img src="'+e.thumb+'" style="width:42px;height:42px;border-radius:8px;object-fit:cover;border:1px solid #232539;flex:none">'
-        : (e.hasImage ? '<div style="width:42px;height:42px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;flex:none;font-size:16px">🖼</div>' : '');
+      var tsrc = e.thumb || arThumbCache[e.id] || '';
+      var thumb = tsrc
+        ? '<img src="'+tsrc+'" style="width:42px;height:42px;border-radius:8px;object-fit:cover;border:1px solid #232539;flex:none">'
+        : (e.hasImage ? '<div id="arthumb-'+e.id+'" data-lazy="'+e.id+'" style="width:42px;height:42px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;flex:none;font-size:15px;overflow:hidden">🖼</div>' : '');
       return '<div class="ar-est" style="cursor:pointer" onclick="archiveProfile(\''+e.id+'\')">'
         +'<div style="flex:1;display:flex;align-items:center;gap:10px">'+thumb
         +'<div><div class="nm">'+codeChip+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
@@ -7034,6 +7065,7 @@ function archiveRender(){
       +'<div class="ar-body" id="ar-m-'+mk+'"'+(q?' style="display:block"':'')+'>'+ests+'</div>'
     +'</div>';
   }).join('');
+  arLazyThumbs();
 }
 function archiveToggle(mk){
   var b=document.getElementById('ar-m-'+mk), c=document.getElementById('ar-chev-'+mk);
