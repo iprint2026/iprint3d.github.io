@@ -795,6 +795,11 @@ function doPost(e){
               <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#9aa3c2">قیمت اعلامی یک عدد</span><span id="pr-final-unit" style="font-weight:700;color:#fbbf24">—</span></div>
               <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#9aa3c2">قیمت اعلامی کل پروژه</span><span id="pr-final-total" style="font-weight:700;color:#fbbf24">—</span></div>
             </div>
+            <div style="padding:6px 18px 10px;border-top:1px dashed #1a1d2e">
+              <label style="font-size:11px;color:#5a6080;display:block;margin-bottom:4px">قیمت اعلامیِ دستی هر عدد (اختیاری) — اگر پر شود جایگزینِ محاسبهٔ سایت می‌شود</label>
+              <input class="inp pr-money" id="pr-manual-unit" placeholder="مثلاً ۲۵۰٬۰۰۰">
+              <div id="pr-manual-note" style="font-size:11px;color:#34d399;margin-top:5px;display:none">✔ قیمت اعلامی دستی فعال است</div>
+            </div>
             <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px">
               <div style="display:flex;gap:8px">
                 <button class="btn btn-ghost btn-sm" style="flex:1" onclick="pricingCopy()">📋 کپی متن</button>
@@ -6501,6 +6506,8 @@ function prRenderOrder(){
   document.getElementById('pr-p-packaging').value = prSep(+o.packaging||0);
   document.getElementById('pr-p-shipping').value  = prSep(+o.shipping||0);
   var nt=document.getElementById('pr-o-notes'); if(nt) nt.value = o.notes||'';
+  var mu=document.getElementById('pr-manual-unit'); if(mu) mu.value = (+o.manualUnit>0)?prSep(+o.manualUnit):'';
+  var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display=((+o.manualUnit>0)?'block':'none');
 }
 
 // ── ردیف‌های هزینه ──
@@ -6602,6 +6609,7 @@ function prOnInput(e){
   if(rmap[t.id]){ var g=rmap[t.id]; prState[g[0]][g[1]] = v; return; }
   // اطلاعات سفارش و پارامترها
   if(t.id==='pr-o-notes'){ prState.order.notes = t.value; return; }
+  if(t.id==='pr-manual-unit'){ prState.order.manualUnit = v; var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display=(v>0?'block':'none'); prScheduleCompute(); return; }
   var omap = {'pr-o-customer':'customer','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
   if(omap[t.id]){ prState.order[omap[t.id]] = v; prScheduleCompute(); return; }
 }
@@ -6727,6 +6735,7 @@ function prRenderTape(r){
   var packShip = (+r.packaging||0) + (+r.shipping||0);
   var h = '';
   if(prState.savedCode){ h += '<div class="pr-ln strong" style="background:#0c1c3a;border:1px solid #1e3a6e;border-radius:8px;padding:8px 10px;margin-bottom:8px"><span style="color:#7ab8ff">کد سفارش</span><span style="color:#7ab8ff;letter-spacing:1px">'+escapeHtml(prState.savedCode)+'</span></div>'; }
+  if(r && r.manual){ h += '<div class="pr-ln" style="background:#0c2a20;border:1px solid #14543d;border-radius:8px;padding:7px 10px;margin-bottom:8px"><span style="color:#34d399">قیمت اعلامی (دستی)</span><span style="color:#34d399;font-weight:700">'+prFmt(r.manualUnit)+' / عدد</span></div>'; }
   h += '<div class="pr-sec">هزینه‌ی ساخت هر عدد</div>';
   h += ln(lbl.machine, r.cat.machine, 'muted');
   h += ln('نیروی انسانی (با فینیشینگ)', (r.cat.labor + r.cat.finishing), 'muted');
