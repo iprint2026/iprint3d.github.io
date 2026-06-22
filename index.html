@@ -7014,9 +7014,9 @@ function archiveRender(){
         ? '<span style="font-size:10.5px;color:#34d399;background:#0c2a20;border:1px solid #14543d;padding:2px 8px;border-radius:20px">در جریان ساخت</span>'
         : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>';
       var codeChip = e.code ? '<span style="font-size:10px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">'+escapeHtml(e.code)+'</span>' : '';
-      var thumb = (inProd && e.hasImage)
-        ? '<div style="width:40px;height:40px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;flex:none;font-size:16px">🖼</div>'
-        : '';
+      var thumb = e.thumb
+        ? '<img src="'+e.thumb+'" style="width:42px;height:42px;border-radius:8px;object-fit:cover;border:1px solid #232539;flex:none">'
+        : (e.hasImage ? '<div style="width:42px;height:42px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;flex:none;font-size:16px">🖼</div>' : '');
       return '<div class="ar-est" style="cursor:pointer" onclick="archiveProfile(\''+e.id+'\')">'
         +'<div style="flex:1;display:flex;align-items:center;gap:10px">'+thumb
         +'<div><div class="nm">'+codeChip+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
@@ -7169,16 +7169,33 @@ document.addEventListener('paste', function(e){
     if(items[i].type && items[i].type.indexOf('image')===0){ imgReadFile(items[i].getAsFile()); e.preventDefault(); break; }
   }
 });
+function makeThumb(dataUrl, cb){
+  try{
+    var img=new Image();
+    img.onload=function(){
+      var max=240, w=img.width||1, h=img.height||1;
+      var scale=Math.min(1, max/Math.max(w,h));
+      var cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
+      var c=document.createElement('canvas'); c.width=cw; c.height=ch;
+      c.getContext('2d').drawImage(img,0,0,cw,ch);
+      try{ cb(c.toDataURL('image/jpeg',0.6)); }catch(e){ cb(''); }
+    };
+    img.onerror=function(){ cb(''); };
+    img.src=dataUrl;
+  }catch(e){ cb(''); }
+}
 function imgUploadBase64(id, dataUrl, mime, cb){
   var b64=(dataUrl||'').split(',')[1]||'';
   if(!b64){ if(cb) cb(false); return; }
-  var url=loadSheetUrl();
-  fetch(url, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({ action:'uploadOrderImage', token:SESSION_TOKEN, id:id, base64:b64, mime:mime||'image/png' }) })
-    .then(function(){ setTimeout(function(){
-      callSheet('getOrderImage', { id:id, t:Date.now() }, function(r){ if(cb) cb(!!(r && r.status==='ok' && r.hasImage), r); });
-    }, 3500); })
-    .catch(function(){ if(cb) cb(false); });
+  makeThumb(dataUrl, function(thumbDataUrl){
+    var url=loadSheetUrl();
+    fetch(url, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'uploadOrderImage', token:SESSION_TOKEN, id:id, base64:b64, mime:mime||'image/png', thumb:(thumbDataUrl||'') }) })
+      .then(function(){ setTimeout(function(){
+        callSheet('getOrderImage', { id:id, t:Date.now() }, function(r){ if(cb) cb(!!(r && r.status==='ok' && r.hasImage), r); });
+      }, 3500); })
+      .catch(function(){ if(cb) cb(false); });
+  });
 }
 function imgDoUpload(){
   if(!imgModalDataUrl){ showToast('اول یک تصویر انتخاب یا پیست کن'); return; }
