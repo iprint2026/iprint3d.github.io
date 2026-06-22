@@ -737,6 +737,10 @@ function doPost(e){
 
       <div class="pr-grid-r">
         <div>
+          <div id="pr-edit-banner" style="display:none;margin-bottom:16px;background:#10233f;border:1px solid #1e4e7e;border-radius:12px;padding:12px 14px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div style="color:#7ab8ff;font-size:13px;font-weight:600">✏️ حالت ویرایش — کد <span id="pr-edit-code" style="letter-spacing:1px"></span> · نرخ‌ها ثابتِ زمانِ همان سفارش است</div>
+            <button class="btn btn-ghost btn-sm" onclick="pricingNewOrder()">➕ سفارش جدید</button>
+          </div>
           <div class="card" style="margin-bottom:16px">
             <div style="font-weight:600;font-size:14px;margin-bottom:14px">۱) اطلاعات سفارش</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
@@ -746,6 +750,10 @@ function doPost(e){
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
               <div><label style="font-size:11px;color:#5a6080">شماره تماس</label><input class="inp" id="pr-o-tel" placeholder="۰۲۱-..."></div>
               <div><label style="font-size:11px;color:#5a6080">تعداد سفارش</label><input class="inp" id="pr-o-qty" type="number" min="1"></div>
+            </div>
+            <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" onclick="pricingPickImage()">🖼 افزودن تصویر سفارش</button>
+              <span id="pr-image-ind" style="font-size:11.5px;color:#34d399"></span>
             </div>
           </div>
 
@@ -772,6 +780,10 @@ function doPost(e){
               <div><label style="font-size:11px;color:#5a6080">بسته‌بندی (تومان)</label><input class="inp pr-money" id="pr-p-packaging"></div>
               <div><label style="font-size:11px;color:#5a6080">ارسال (تومان)</label><input class="inp pr-money" id="pr-p-shipping"></div>
             </div>
+            <div style="margin-top:11px">
+              <label style="font-size:11px;color:#5a6080">توضیحات سفارش (اختیاری)</label>
+              <textarea class="inp" id="pr-o-notes" rows="3" placeholder="هر توضیحی که لازم است؛ در فایل متنی، اکسل و پروفایل سفارش ذخیره و نمایش داده می‌شود..." style="resize:vertical;line-height:1.8"></textarea>
+            </div>
           </div>
         </div>
 
@@ -788,10 +800,8 @@ function doPost(e){
                 <button class="btn btn-ghost btn-sm" style="flex:1" onclick="pricingCopy()">📋 کپی متن</button>
                 <button class="btn btn-primary btn-sm" style="flex:1" id="pr-btn-xlsx" onclick="pricingExportXlsx()">⬇ خروجی اکسل</button>
               </div>
-              <button class="btn btn-sm" style="background:#E2241A;border-color:#E2241A;color:#fff;font-weight:700" onclick="ivShowInvoice()">📄 صدور فاکتور رسمی</button>
-              <button class="btn btn-ghost btn-sm" id="pr-btn-save" onclick="pricingSaveEstimate()">💾 ذخیره‌ی سفارش</button>
-              <button class="btn btn-ghost btn-sm" onclick="pricingPickImage()">🖼 تصویر سفارش</button>
-              <span id="pr-image-ind" style="font-size:11.5px;color:#34d399"></span>
+              <button class="btn btn-sm" style="background:#E2241A;border-color:#E2241A;color:#fff;font-weight:700" onclick="ivShowInvoice()">📄 صدور فاکتور</button>
+              <button class="btn btn-sm" id="pr-btn-save" onclick="pricingSaveEstimate()" style="background:#0c2a20;border-color:#14543d;color:#34d399;font-weight:700">💾 ذخیره‌ی سفارش</button>
               <div id="pr-warn" style="font-size:12px;color:#f59e0b"></div>
             </div>
           </div>
@@ -6451,6 +6461,7 @@ function prRenderOrder(){
   document.getElementById('pr-p-institute').value = o.institute;
   document.getElementById('pr-p-packaging').value = prSep(+o.packaging||0);
   document.getElementById('pr-p-shipping').value  = prSep(+o.shipping||0);
+  var nt=document.getElementById('pr-o-notes'); if(nt) nt.value = o.notes||'';
 }
 
 // ── ردیف‌های هزینه ──
@@ -6551,6 +6562,7 @@ function prOnInput(e){
   var rmap = {'pr-r-labor':['rates','labor'],'pr-r-finishing':['rates','finishing'],'pr-r-modeling':['rates','modeling'],'pr-d-profit':['defaults','profit']};
   if(rmap[t.id]){ var g=rmap[t.id]; prState[g[0]][g[1]] = v; return; }
   // اطلاعات سفارش و پارامترها
+  if(t.id==='pr-o-notes'){ prState.order.notes = t.value; return; }
   var omap = {'pr-o-customer':'customer','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
   if(omap[t.id]){ prState.order[omap[t.id]] = v; prScheduleCompute(); return; }
 }
@@ -6595,13 +6607,50 @@ function prScheduleCompute(){
   var cs = document.getElementById('pr-calc-status'); if(cs) cs.textContent = '…';
   prComputeTimer = setTimeout(prDoCompute, 450);
 }
+function prCurrentConfig(){ return { machines:prState.machines, materials:prState.materials, composites:prState.composites, rates:prState.rates, defaults:prState.defaults, invoice:prState.invoice }; }
 function prPayload(){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
-  return JSON.stringify({ order: ord, lines: prState.lines });
+  var pl = { order: ord, lines: prState.lines };
+  if(prState.editId){ pl.editId = prState.editId; pl.config = prCurrentConfig(); }
+  return JSON.stringify(pl);
+}
+function prRenderEditBanner(){
+  var b=document.getElementById('pr-edit-banner'); if(!b) return;
+  if(prState.editId){ b.style.display='flex'; var c=document.getElementById('pr-edit-code'); if(c) c.textContent=prState.savedCode||''; }
+  else b.style.display='none';
+}
+function pricingNewOrder(){
+  prState.editId = null; prState.savedCode = '';
+  prState.loaded = false;
+  prRenderEditBanner();
+  pricingInit();
+  showToast('سفارش جدید — نرخ‌ها به امروز برگشت');
+}
+function pricingEditOrder(id){
+  callSheet('getEstimateForEdit', { id:id, t:Date.now() }, function(res){
+    if(!(res && res.status==='ok')){ showToast('خطا در بارگذاری سفارش برای ویرایش'); return; }
+    var c = res.config||{};
+    prState.machines   = Array.isArray(c.machines)?c.machines:[];
+    prState.materials  = Array.isArray(c.materials)?c.materials:[];
+    prState.composites = Array.isArray(c.composites)?c.composites:[];
+    prState.rates      = c.rates||{labor:0,finishing:0,modeling:0};
+    prState.defaults   = c.defaults||{profit:0,institute:0,packaging:0,shipping:0};
+    prState.invoice    = c.invoice||{logoFileId:'',stampFileId:''};
+    prState.order      = res.order||{};
+    prState.lines      = (res.lines||[]).map(function(l){ if(!l.id) l.id=prNid(); return l; });
+    prState.editId     = res.id;
+    prState.savedCode  = res.code||'';
+    prState.loaded     = true;
+    if(typeof orderModalClose==='function') orderModalClose();
+    gotoView('pricing');
+    prRenderEditBanner();
+    prRenderSettings(); prRenderOrder(); prRenderLines(); prDoCompute();
+    showToast('حالت ویرایش فعال شد — کد '+(res.code||''));
+  });
 }
 function prDoCompute(){
-  if(typeof prState!=='undefined') prState.savedCode='';
+  if(typeof prState!=='undefined' && !prState.editId) prState.savedCode='';
   var cs = document.getElementById('pr-calc-status');
   if(!prState.lines.length){
     prLastResult = null;
@@ -6689,6 +6738,9 @@ function pricingCopy(){
   if(r.modelingAnnounced) L.push('مدلسازی (یک‌باره): ' + prFmt(r.modelingAnnounced));
   L.push('قیمت نهایی (کل): ' + prFmt(r.orderTotal));
   L.push('قیمت هر عدد (نهایی): ' + prFmt(r.perUnit));
+  if(prState.order && prState.order.notes && String(prState.order.notes).trim()){
+    L.push(''); L.push('— توضیحات —'); L.push(String(prState.order.notes).trim());
+  }
   var txt = L.join('\n');
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(txt).then(function(){ showToast('✅ متن کپی شد'); }).catch(function(){ prCopyFallback(txt); });
@@ -6962,8 +7014,10 @@ function pricingSaveEstimate(){
       showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); return;
     }
     prState.savedCode = (res.code||'');
+    prState.editId = res.id;
+    if(typeof prRenderEditBanner==='function') prRenderEditBanner();
     if(prState.savedCode && typeof prLastResult!=='undefined' && prLastResult){ try{ prRenderTape(prLastResult); }catch(e){} }
-    showToast(prState.savedCode ? ('✅ ذخیره شد · کد سفارش: '+prState.savedCode) : '✅ سفارش و فایل متنی ذخیره شد');
+    showToast(res.edited ? ('✅ ویرایش ذخیره شد · کد '+prState.savedCode) : (prState.savedCode ? ('✅ ذخیره شد · کد سفارش: '+prState.savedCode) : '✅ سفارش ذخیره شد'));
     if(prPendingImage){
       imgUploadBase64(res.id, prPendingImage.dataUrl, prPendingImage.mime, function(ok){
         if(ok){ showToast('✅ تصویر سفارش هم ذخیره شد'); }
@@ -7010,13 +7064,14 @@ function arLazyThumbs(){
   }
   next();
 }
-function archiveInit(){
+function archiveInit(cb){
   var box=document.getElementById('ar-body'); if(!box) return;
   box.innerHTML='<div style="color:#5a6080;text-align:center;padding:30px">در حال بارگذاری...</div>';
   callSheet('getEstimates', { t:Date.now() }, function(res){
     if(!(res && res.status==='ok')){ box.innerHTML='<div style="color:#f87171;text-align:center;padding:30px">خطا در بارگذاری</div>'; return; }
     arData = res.estimates || [];
     archiveRender();
+    if(typeof cb==='function') cb();
   });
 }
 function archiveRender(){
@@ -7040,9 +7095,12 @@ function archiveRender(){
     var g=groups[mk];
     var ests = g.items.map(function(e){
       var inProd = e.status==='در جریان ساخت';
-      var badge = inProd
-        ? '<span style="font-size:10.5px;color:#34d399;background:#0c2a20;border:1px solid #14543d;padding:2px 8px;border-radius:20px">در جریان ساخت</span>'
-        : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>';
+      var done = e.status==='تمام‌شده';
+      var badge = done
+        ? '<span style="font-size:10.5px;color:#60a5fa;background:#0c1c3a;border:1px solid #1e4e7e;padding:2px 8px;border-radius:20px">تمام‌شده</span>'
+        : (inProd
+          ? '<span style="font-size:10.5px;color:#34d399;background:#0c2a20;border:1px solid #14543d;padding:2px 8px;border-radius:20px">در جریان ساخت</span>'
+          : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>');
       var codeChip = e.code ? '<span style="font-size:10px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">'+escapeHtml(e.code)+'</span>' : '';
       var tsrc = e.thumb || arThumbCache[e.id] || '';
       var thumb = tsrc
@@ -7264,20 +7322,28 @@ function orderModalClose(){ document.getElementById('order-modal').style.display
 function archiveProfile(id){
   var e=null; for(var i=0;i<arData.length;i++){ if(arData[i].id===id){ e=arData[i]; break; } }
   if(!e){ showToast('سفارش پیدا نشد'); return; }
-  var inProd = e.status==='در جریان ساخت';
+  var st = e.status||'برآورد';
+  var inProd = st==='در جریان ساخت';
+  var done = st==='تمام‌شده';
   document.getElementById('om-title').innerHTML = (e.code?'<span style="color:#7ab8ff;font-size:13px;font-weight:700;letter-spacing:1px;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 8px;border-radius:6px;margin-left:8px">'+escapeHtml(e.code)+'</span>':'') + escapeHtml(e.projectName || '—');
-  var badge = inProd ? '<span style="color:#34d399">● در جریان ساخت</span>' : '<span style="color:#9aa3c2">● برآورد</span>';
+  var badge = done ? '<span style="color:#60a5fa">● تمام‌شده</span>' : (inProd ? '<span style="color:#34d399">● در جریان ساخت</span>' : '<span style="color:#9aa3c2">● برآورد</span>');
+  var dates = '';
+  if(e.startDate) dates += ' · شروع ساخت: '+escapeHtml(e.startDate);
+  if(e.endDate)   dates += ' · پایان ساخت: '+escapeHtml(e.endDate);
   document.getElementById('om-sub').innerHTML =
-    escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span> · '+badge;
-  var prodBtn = inProd
-    ? '<button class="btn btn-ghost btn-sm" onclick="omSetStatus(\''+id+'\',\'برآورد\')">↩ بازگشت به برآورد</button>'
-    : '<button class="btn btn-sm" style="background:#0c2a20;border-color:#14543d;color:#34d399" onclick="omSetStatus(\''+id+'\',\'در جریان ساخت\')">▶ در جریان ساخت</button>';
+    escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span> · '+badge+dates;
+  var lc='';
+  if(st==='برآورد') lc = '<button class="btn btn-sm" style="background:#0c2a20;border-color:#14543d;color:#34d399" onclick="omSetStatus(\''+id+'\',\'در جریان ساخت\')">▶ شروع ساخت</button>';
+  else if(inProd) lc = '<button class="btn btn-sm" style="background:#0c1c3a;border-color:#1e4e7e;color:#60a5fa" onclick="omSetStatus(\''+id+'\',\'تمام‌شده\')">✅ پایان ساخت</button>'
+                     + '<button class="btn btn-ghost btn-sm" onclick="omSetStatus(\''+id+'\',\'برآورد\')">↩ بازگشت به برآورد</button>';
+  else if(done) lc = '<button class="btn btn-ghost btn-sm" onclick="omSetStatus(\''+id+'\',\'در جریان ساخت\')">↩ بازگشت به ساخت</button>';
   document.getElementById('om-body').innerHTML =
     '<div id="om-image" style="margin-bottom:16px"></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">'
+      +'<button class="btn btn-sm" style="background:#10233f;border-color:#1e4e7e;color:#7ab8ff" onclick="pricingEditOrder(\''+id+'\')">✏️ ویرایش سفارش</button>'
       +'<button class="btn btn-sm" style="background:#3a1d52;border-color:#5b3fd6;color:#c4b5fd" onclick="orderModalClose();archiveOpenInvoice(\''+id+'\')">🧾 ساخت/ویرایش فاکتور</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="archiveImage(\''+id+'\')">🖼 افزودن/تغییر تصویر</button>'
-      +prodBtn
+      +lc
       +'<button class="btn btn-sm" style="background:#2a1414;border-color:#5b2020;color:#f87171" onclick="omDelete(\''+id+'\')">✕ حذف سفارش</button>'
     +'</div>'
     +'<div id="om-summary" style="margin-bottom:18px"></div>'
@@ -7305,6 +7371,10 @@ function archiveProfile(id){
         +row('مبلغ کل سفارش', s.total, true)
         +'</div>';
     }
+    if(sumEl && res.notes && String(res.notes).trim()){
+      sumEl.innerHTML += '<div style="margin-top:12px"><div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">توضیحات</div>'
+        +'<div style="background:#16140a;border:1px solid #3a3410;border-radius:11px;padding:12px 14px;font-size:12.5px;color:#e8e3c8;white-space:pre-wrap;line-height:1.9">'+escapeHtml(String(res.notes).trim())+'</div></div>';
+    }
     if(res.image && res.image.dataUrl){
       imgEl.innerHTML='<img src="'+res.image.dataUrl+'" style="max-width:100%;max-height:300px;border-radius:12px;border:1px solid #232539;display:block;margin:auto">';
     } else {
@@ -7314,15 +7384,40 @@ function archiveProfile(id){
     if(!files.length){ filesEl.textContent='هنوز فایلی در پوشه نیست.'; return; }
     var icon=function(k){ return k==='pdf'?'📄':(k==='xlsx'?'📊':(k==='txt'?'📝':(k==='image'?'🖼':'📎'))); };
     filesEl.innerHTML = files.map(function(f){
-      return '<div onclick="arDownloadFile(\''+f.fileId+'\',this)" data-fname="'+escapeHtml(f.name)+'" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #1a1d2e;border-radius:9px;margin-bottom:6px;color:#e2e4f0;font-size:12.5px;background:#0e1018">'+icon(f.kind)+' <span style="flex:1">'+escapeHtml(f.name)+'</span><span style="color:#5a6080">دانلود ⬇</span></div>';
+      var actions='';
+      if(f.kind==='txt') actions += '<button class="btn btn-ghost btn-sm" style="padding:3px 9px;font-size:11.5px" onclick="arCopyTextFile(\''+f.fileId+'\',this)">📋 کپی متن</button>';
+      actions += '<button class="btn btn-ghost btn-sm" style="padding:3px 9px;font-size:11.5px" onclick="arDownloadFile(\''+f.fileId+'\',this)">⬇ دانلود</button>';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #1a1d2e;border-radius:9px;margin-bottom:6px;color:#e2e4f0;font-size:12.5px;background:#0e1018">'+icon(f.kind)+' <span style="flex:1">'+escapeHtml(f.name)+'</span>'+actions+'</div>';
     }).join('');
   });
 }
+function arCopyTextFile(fileId, el){
+  if(!fileId) return;
+  var old = el ? el.textContent : '';
+  if(el) el.textContent='...';
+  callSheet('getOrderFileBlob', { fileId:fileId, t:Date.now() }, function(res){
+    if(el) el.textContent=old;
+    if(!(res && res.status==='ok')){ showToast('خطا در خواندن فایل'); return; }
+    try{
+      var bin=atob(res.base64), bytes=new Uint8Array(bin.length);
+      for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      var text=new TextDecoder('utf-8').decode(bytes);
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){ showToast('✅ متن کپی شد'); }, function(){ arCopyFallback(text); });
+      } else arCopyFallback(text);
+    }catch(e){ showToast('خطا در کپی متن'); }
+  }, 60000);
+}
+function arCopyFallback(text){
+  try{ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast('✅ متن کپی شد'); }
+  catch(e){ showToast('کپی نشد'); }
+}
 function arDownloadFile(fileId, el){
   if(!fileId) return;
-  var label = el ? el.querySelector('span:last-child') : null;
+  var isBtn = el && el.tagName==='BUTTON';
+  var label = isBtn ? el : (el ? el.querySelector('span:last-child') : null);
   var oldL = label ? label.textContent : '';
-  if(label) label.textContent='در حال دانلود...';
+  if(label) label.textContent='...';
   callSheet('getOrderFileBlob', { fileId:fileId, t:Date.now() }, function(res){
     if(label) label.textContent=oldL;
     if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در دانلود فایل'); return; }
@@ -7340,8 +7435,9 @@ function arDownloadFile(fileId, el){
 function omSetStatus(id, value){
   callSheet('setEstimateStatus', { id:id, value:value }, function(res){
     if(res && res.status==='ok'){
-      for(var i=0;i<arData.length;i++){ if(arData[i].id===id){ arData[i].status=value; break; } }
-      showToast('✅ وضعیت به‌روز شد'); archiveRender(); archiveProfile(id);
+      showToast('✅ وضعیت به‌روز شد');
+      var stillOpen = document.getElementById('order-modal').style.display!=='none';
+      archiveInit(function(){ if(stillOpen) archiveProfile(id); });
     } else showToast('خطا در تغییر وضعیت');
   });
 }
