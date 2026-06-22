@@ -816,9 +816,12 @@ function doPost(e){
         #view-archive .ar-del:hover{color:#f87171;background:#2a1414}
         #view-archive .ar-chev{color:#5a6080;font-size:13px}
       </style>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <div class="page-title" style="margin:0">📁 آرشیو و گزارش‌ها</div>
         <button class="btn btn-ghost btn-sm" onclick="archiveInit()">↻ تازه‌سازی</button>
+      </div>
+      <div style="position:relative;margin-bottom:16px">
+        <input id="ar-search" class="inp" placeholder="🔍 جستجو بر اساس کد سفارش، نام پروژه یا مشتری..." oninput="archiveRender()" style="width:100%">
       </div>
       <div id="ar-body"><div style="color:#5a6080;text-align:center;padding:30px">در حال بارگذاری...</div></div>
     </div>
@@ -938,6 +941,7 @@ function doPost(e){
         <div class="dnum">
           <div>تاریخ: <span class="ed" contenteditable="true" id="iv-date">—</span></div>
           <div>شماره: <span class="ed" contenteditable="true" id="iv-no">—</span></div>
+          <div id="iv-code-wrap" style="display:none">کد سفارش: <span id="iv-code" style="letter-spacing:1px;font-weight:bold">—</span></div>
         </div>
         <div class="logo">
           <img class="logoimg" id="iv-logo-img" alt="logo">
@@ -6592,9 +6596,12 @@ function prScheduleCompute(){
   prComputeTimer = setTimeout(prDoCompute, 450);
 }
 function prPayload(){
-  return JSON.stringify({ order: prState.order, lines: prState.lines });
+  var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
+  if(prState.savedCode) ord.code = prState.savedCode;
+  return JSON.stringify({ order: ord, lines: prState.lines });
 }
 function prDoCompute(){
+  if(typeof prState!=='undefined') prState.savedCode='';
   var cs = document.getElementById('pr-calc-status');
   if(!prState.lines.length){
     prLastResult = null;
@@ -6631,6 +6638,7 @@ function prRenderTape(r){
   var lbl = prUsedLabels();
   var packShip = (+r.packaging||0) + (+r.shipping||0);
   var h = '';
+  if(prState.savedCode){ h += '<div class="pr-ln strong" style="background:#0c1c3a;border:1px solid #1e3a6e;border-radius:8px;padding:8px 10px;margin-bottom:8px"><span style="color:#7ab8ff">کد سفارش</span><span style="color:#7ab8ff;letter-spacing:1px">'+escapeHtml(prState.savedCode)+'</span></div>'; }
   h += '<div class="pr-sec">هزینه‌ی ساخت هر عدد</div>';
   h += ln(lbl.machine, r.cat.machine, 'muted');
   h += ln('نیروی انسانی (با فینیشینگ)', (r.cat.labor + r.cat.finishing), 'muted');
@@ -6660,6 +6668,7 @@ function pricingCopy(){
   var packShip = (+r.packaging||0)+(+r.shipping||0);
   var L = [];
   L.push('برآورد قیمت — iPrint3D');
+  if(prState.savedCode) L.push('کد سفارش: ' + prState.savedCode);
   if(o.customer) L.push('مشتری: ' + o.customer);
   if(o.orderName) L.push('سفارش: ' + o.orderName);
   L.push('تعداد: ' + prSep(r.qty) + ' عدد');
@@ -6788,6 +6797,9 @@ function ivOpenInvoice(opts){
   try{ document.getElementById('iv-date').textContent = opts.dateStr || new Intl.DateTimeFormat('fa-IR').format(new Date()); }catch(e){}
   ivCurrentEstimateId = opts.estimateId || '';
   ivCurrentFolderId   = opts.folderId   || '';
+  var ocode = (opts.orderCode && String(opts.orderCode).trim()) || '';
+  var cw=document.getElementById('iv-code-wrap'), ce=document.getElementById('iv-code');
+  if(cw && ce){ if(ocode){ ce.textContent=ocode; cw.style.display='block'; var no=document.getElementById('iv-no'); if(no && (!no.textContent || no.textContent==='—')) no.textContent=ocode; } else { cw.style.display='none'; } }
   var sb=document.getElementById('iv-btn-savefolder'); if(sb) sb.style.display = ivCurrentEstimateId ? 'inline-block' : 'none';
   ivRender();
   ivRenderNotes();
@@ -6801,7 +6813,7 @@ function ivOpenInvoice(opts){
 function ivShowInvoice(){
   if(typeof prLastResult==='undefined' || !prLastResult){ showToast('اول یک برآورد بساز تا فاکتور از روی آن پر شود'); return; }
   var r=prLastResult, o=(prState&&prState.order)||{};
-  ivOpenInvoice({ code:o.orderName, qty:o.qty, unit:r.perUnit, customer:o.customer, tel:o.tel, estimateId:'', folderId:'' });
+  ivOpenInvoice({ code:o.orderName, qty:o.qty, unit:r.perUnit, customer:o.customer, tel:o.tel, estimateId:'', folderId:'', orderCode:(prState&&prState.savedCode)||'' });
 }
 function ivClose(){
   var ov=document.getElementById('view-invoice');
@@ -6949,7 +6961,9 @@ function pricingSaveEstimate(){
       if(btn){ btn.disabled=false; btn.innerHTML=old; }
       showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); return;
     }
-    showToast('✅ سفارش و فایل متنی ذخیره شد');
+    prState.savedCode = (res.code||'');
+    if(prState.savedCode && typeof prLastResult!=='undefined' && prLastResult){ try{ prRenderTape(prLastResult); }catch(e){} }
+    showToast(prState.savedCode ? ('✅ ذخیره شد · کد سفارش: '+prState.savedCode) : '✅ سفارش و فایل متنی ذخیره شد');
     if(prPendingImage){
       imgUploadBase64(res.id, prPendingImage.dataUrl, prPendingImage.mime, function(ok){
         if(ok){ showToast('✅ تصویر سفارش هم ذخیره شد'); }
@@ -6978,8 +6992,16 @@ function archiveInit(){
 function archiveRender(){
   var box=document.getElementById('ar-body');
   if(!arData.length){ box.innerHTML='<div style="color:#5a6080;text-align:center;padding:40px;border:1px dashed #1a1d2e;border-radius:14px">هنوز برآوردی ذخیره نشده.<br><span style="font-size:12px">از صفحه‌ی برآورد، دکمه‌ی «ذخیره در گزارش ماه» را بزن.</span></div>'; return; }
+  var qEl=document.getElementById('ar-search'); var q=qEl?String(qEl.value||'').trim().toLowerCase():'';
+  var rows = arData;
+  if(q){ rows = arData.filter(function(e){
+    return (String(e.code||'').toLowerCase().indexOf(q)>=0)
+        || (String(e.projectName||'').toLowerCase().indexOf(q)>=0)
+        || (String(e.customer||'').toLowerCase().indexOf(q)>=0);
+  }); }
+  if(!rows.length){ box.innerHTML='<div style="color:#5a6080;text-align:center;padding:34px;border:1px dashed #1a1d2e;border-radius:14px">نتیجه‌ای برای «'+escapeHtml(q)+'» پیدا نشد.</div>'; return; }
   var groups={}, order=[];
-  arData.forEach(function(e){
+  rows.forEach(function(e){
     if(!groups[e.monthKey]){ groups[e.monthKey]={label:e.monthLabel, items:[], total:0}; order.push(e.monthKey); }
     groups[e.monthKey].items.push(e); groups[e.monthKey].total += (+e.total||0);
   });
@@ -6991,12 +7013,13 @@ function archiveRender(){
       var badge = inProd
         ? '<span style="font-size:10.5px;color:#34d399;background:#0c2a20;border:1px solid #14543d;padding:2px 8px;border-radius:20px">در جریان ساخت</span>'
         : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>';
-      var thumb = (inProd && e.imageThumb)
-        ? '<img src="'+e.imageThumb+'" referrerpolicy="no-referrer" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #232539;flex:none">'
+      var codeChip = e.code ? '<span style="font-size:10px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">'+escapeHtml(e.code)+'</span>' : '';
+      var thumb = (inProd && e.hasImage)
+        ? '<div style="width:40px;height:40px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;flex:none;font-size:16px">🖼</div>'
         : '';
       return '<div class="ar-est" style="cursor:pointer" onclick="archiveProfile(\''+e.id+'\')">'
         +'<div style="flex:1;display:flex;align-items:center;gap:10px">'+thumb
-        +'<div><div class="nm">'+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
+        +'<div><div class="nm">'+codeChip+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
         +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span></div></div></div>'
         +'<span style="color:#5a6080;font-size:18px">‹</span></div>';
     }).join('');
@@ -7008,7 +7031,7 @@ function archiveRender(){
         +'<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();archiveDownload(\''+mk+'\',this)">⬇ دانلود گزارش ماه</button>'
         +'<span class="ar-chev" id="ar-chev-'+mk+'">▾</span></div>'
       +'</div>'
-      +'<div class="ar-body" id="ar-m-'+mk+'">'+ests+'</div>'
+      +'<div class="ar-body" id="ar-m-'+mk+'"'+(q?' style="display:block"':'')+'>'+ests+'</div>'
     +'</div>';
   }).join('');
 }
@@ -7027,7 +7050,7 @@ function archiveOpenInvoice(id){
   callSheet('getEstimate', { id:id, t:Date.now() }, function(res){
     if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در بارگذاری سفارش'); return; }
     ivOpenInvoice({ code:res.orderName, qty:res.qty, unit:res.perUnit, customer:res.customer,
-      dateStr:res.dateStr, estimateId:id, folderId:res.folderId });
+      dateStr:res.dateStr, estimateId:id, folderId:res.folderId, orderCode:res.code });
   });
 }
 async function ivSaveInvoiceToFolder(){
@@ -7116,9 +7139,9 @@ function imgModalOpen(id){
   if(id && id!=='__PENDING__'){
     em.innerHTML='در حال بررسی تصویرِ موجود...';
     callSheet('getOrderImage', { id:id, t:Date.now() }, function(res){
-      if(res && res.status==='ok' && res.hasImage){
-        pv.src=res.thumbUrl; pv.style.display='block'; em.style.display='none';
-        if(vl){ vl.href=res.viewUrl; vl.style.display='inline-block'; }
+      if(res && res.status==='ok' && res.hasImage && res.dataUrl){
+        pv.src=res.dataUrl; pv.style.display='block'; em.style.display='none';
+        if(vl){ vl.style.display='none'; }
       } else {
         em.innerHTML='تصویری ثبت نشده<br><span style="font-size:11px">یک فایل انتخاب کن، یا اسکرین‌شات را Paste کن (Ctrl+V)</span>';
       }
@@ -7193,7 +7216,7 @@ function archiveProfile(id){
   var e=null; for(var i=0;i<arData.length;i++){ if(arData[i].id===id){ e=arData[i]; break; } }
   if(!e){ showToast('سفارش پیدا نشد'); return; }
   var inProd = e.status==='در جریان ساخت';
-  document.getElementById('om-title').textContent = e.projectName || '—';
+  document.getElementById('om-title').innerHTML = (e.code?'<span style="color:#7ab8ff;font-size:13px;font-weight:700;letter-spacing:1px;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 8px;border-radius:6px;margin-left:8px">'+escapeHtml(e.code)+'</span>':'') + escapeHtml(e.projectName || '—');
   var badge = inProd ? '<span style="color:#34d399">● در جریان ساخت</span>' : '<span style="color:#9aa3c2">● برآورد</span>';
   document.getElementById('om-sub').innerHTML =
     escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span> · '+badge;
@@ -7206,7 +7229,6 @@ function archiveProfile(id){
       +'<button class="btn btn-sm" style="background:#3a1d52;border-color:#5b3fd6;color:#c4b5fd" onclick="orderModalClose();archiveOpenInvoice(\''+id+'\')">🧾 ساخت/ویرایش فاکتور</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="archiveImage(\''+id+'\')">🖼 افزودن/تغییر تصویر</button>'
       +prodBtn
-      +(e.folderUrl?'<a href="'+e.folderUrl+'" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">📂 پوشه‌ی Drive</a>':'')
       +'<button class="btn btn-sm" style="background:#2a1414;border-color:#5b2020;color:#f87171" onclick="omDelete(\''+id+'\')">✕ حذف سفارش</button>'
     +'</div>'
     +'<div id="om-summary" style="margin-bottom:18px"></div>'
@@ -7234,8 +7256,8 @@ function archiveProfile(id){
         +row('مبلغ کل سفارش', s.total, true)
         +'</div>';
     }
-    if(res.image){
-      imgEl.innerHTML='<a href="'+res.image.viewUrl+'" target="_blank"><img src="'+res.image.thumbUrl+'" referrerpolicy="no-referrer" style="max-width:100%;max-height:300px;border-radius:12px;border:1px solid #232539;display:block;margin:auto"></a>';
+    if(res.image && res.image.dataUrl){
+      imgEl.innerHTML='<img src="'+res.image.dataUrl+'" style="max-width:100%;max-height:300px;border-radius:12px;border:1px solid #232539;display:block;margin:auto">';
     } else {
       imgEl.innerHTML='<div style="border:1px dashed #2a2d40;border-radius:12px;padding:24px;text-align:center;color:#5a6080;font-size:12px">بدون تصویر — از دکمه‌ی «افزودن/تغییر تصویر» اضافه کن</div>';
     }
@@ -7243,9 +7265,28 @@ function archiveProfile(id){
     if(!files.length){ filesEl.textContent='هنوز فایلی در پوشه نیست.'; return; }
     var icon=function(k){ return k==='pdf'?'📄':(k==='xlsx'?'📊':(k==='txt'?'📝':(k==='image'?'🖼':'📎'))); };
     filesEl.innerHTML = files.map(function(f){
-      return '<a href="'+f.url+'" target="_blank" style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #1a1d2e;border-radius:9px;margin-bottom:6px;text-decoration:none;color:#e2e4f0;font-size:12.5px;background:#0e1018">'+icon(f.kind)+' <span style="flex:1">'+escapeHtml(f.name)+'</span><span style="color:#5a6080">باز کردن ›</span></a>';
+      return '<div onclick="arDownloadFile(\''+f.fileId+'\',this)" data-fname="'+escapeHtml(f.name)+'" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #1a1d2e;border-radius:9px;margin-bottom:6px;color:#e2e4f0;font-size:12.5px;background:#0e1018">'+icon(f.kind)+' <span style="flex:1">'+escapeHtml(f.name)+'</span><span style="color:#5a6080">دانلود ⬇</span></div>';
     }).join('');
   });
+}
+function arDownloadFile(fileId, el){
+  if(!fileId) return;
+  var label = el ? el.querySelector('span:last-child') : null;
+  var oldL = label ? label.textContent : '';
+  if(label) label.textContent='در حال دانلود...';
+  callSheet('getOrderFileBlob', { fileId:fileId, t:Date.now() }, function(res){
+    if(label) label.textContent=oldL;
+    if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در دانلود فایل'); return; }
+    try{
+      var bin=atob(res.base64), len=bin.length, bytes=new Uint8Array(len);
+      for(var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
+      var blob=new Blob([bytes], {type:res.mime||'application/octet-stream'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a'); a.href=url; a.download=res.name||'file';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    }catch(e){ showToast('خطا در ساخت فایل'); }
+  }, 90000);
 }
 function omSetStatus(id, value){
   callSheet('setEstimateStatus', { id:id, value:value }, function(res){
