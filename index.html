@@ -7066,18 +7066,24 @@ function pricingSaveEstimate(){
     if(typeof prRenderEditBanner==='function') prRenderEditBanner();
     if(prState.savedCode && typeof prLastResult!=='undefined' && prLastResult){ try{ prRenderTape(prLastResult); }catch(e){} }
     showToast(res.edited ? ('✅ ویرایش ذخیره شد · کد '+prState.savedCode) : (prState.savedCode ? ('✅ ذخیره شد · کد سفارش: '+prState.savedCode) : '✅ سفارش ذخیره شد'));
+    var buildXlsx = function(){
+      if(btn){ btn.innerHTML='در حال ساخت اکسل...'; }
+      callSheet('saveEstimateXlsx', { id: res.id }, function(r2){
+        if(btn){ btn.disabled=false; btn.innerHTML=old; }
+        if(r2 && r2.status==='ok'){ showToast('✅ اکسل هم در پوشه‌ی Drive ذخیره شد'); }
+        else { showToast('سفارش ذخیره شد، ولی ساخت اکسل ناموفق بود'); }
+      }, 70000);
+    };
     if(prPendingImage){
+      if(btn){ btn.innerHTML='در حال آپلود تصویر...'; }
       imgUploadBase64(res.id, prPendingImage.dataUrl, prPendingImage.mime, function(ok){
         if(ok){ showToast('✅ تصویر سفارش هم ذخیره شد'); }
         prPendingImage=null; var ind=document.getElementById('pr-image-ind'); if(ind) ind.textContent='';
+        buildXlsx(); // اکسل بعد از آپلود تصویر ساخته شود تا عکس داخلش بیاید
       });
+    } else {
+      buildXlsx();
     }
-    if(btn){ btn.innerHTML='در حال ساخت اکسل...'; }
-    callSheet('saveEstimateXlsx', { id: res.id }, function(r2){
-      if(btn){ btn.disabled=false; btn.innerHTML=old; }
-      if(r2 && r2.status==='ok'){ showToast('✅ اکسل هم در پوشه‌ی Drive ذخیره شد'); }
-      else { showToast('سفارش ذخیره شد، ولی ساخت اکسل ناموفق بود'); }
-    }, 70000);
   });
 }
 
@@ -7350,7 +7356,8 @@ function imgDoUpload(){
   imgUploadBase64(imgModalId, imgModalDataUrl, imgModalMime, function(ok){
     if(btn){ btn.disabled=false; btn.innerHTML=old; }
     if(ok){
-      showToast('✅ تصویر سفارش ذخیره شد'); imgModalClose();
+      showToast('✅ تصویر سفارش ذخیره شد — اکسل به‌روزرسانی می‌شود'); imgModalClose();
+      if(pid) callSheet('saveEstimateXlsx', { id: pid }, function(){}, 70000); // اکسل با عکسِ جدید بازسازی شود
       if(typeof archiveInit==='function') archiveInit();
       var om=document.getElementById('order-modal');
       if(om && om.style.display!=='none' && typeof archiveProfile==='function' && pid) archiveProfile(pid);
