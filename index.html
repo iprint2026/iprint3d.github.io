@@ -856,11 +856,11 @@ function doPost(e){
   #view-invoice .red:hover{filter:brightness(.95)}
   #view-invoice .page{width:210mm;max-width:100%;min-height:297mm;background:#fff;margin:18px auto;position:relative;box-shadow:0 6px 30px rgba(0,0,0,.18);overflow:hidden;display:flex;flex-direction:column;color:#111}
   #view-invoice .ibody{flex:1;padding:0 14mm 6mm}
-  #view-invoice .top{position:relative;height:155px;margin:0 -14mm;overflow:hidden}
+  #view-invoice .top{position:relative;height:120px;margin:0 -14mm;overflow:hidden}
   #view-invoice .topbg{position:absolute;inset:0;width:100%;height:100%;display:block}
-  #view-invoice .dnum{position:absolute;top:26px;left:26px;color:#fff;direction:rtl;font-weight:800;font-size:14px;line-height:2.15;z-index:2}
-  #view-invoice .logo{position:absolute;top:46px;right:16mm;direction:ltr;text-align:left;z-index:2}
-  #view-invoice .logo img.logoimg{height:104px;width:auto;display:none}
+  #view-invoice .dnum{position:absolute;top:16px;left:26px;color:#fff;direction:rtl;font-weight:800;font-size:14px;line-height:2.05;z-index:2}
+  #view-invoice .logo{position:absolute;top:22px;right:16mm;direction:ltr;text-align:left;z-index:2}
+  #view-invoice .logo img.logoimg{height:82px;width:auto;display:none}
   #view-invoice .logo .wm{display:flex;align-items:center;gap:9px}
   #view-invoice .logo .wm .txt{font-size:32px;font-weight:800;letter-spacing:-1px;color:#1a1a1a;line-height:1}
   #view-invoice .logo .wm .txt b{color:#E2241A}
@@ -912,7 +912,7 @@ function doPost(e){
   #view-invoice.clean .nrm,#view-invoice.clean .iv-addnote{display:none!important}
   #view-invoice.clean .notes .n:hover{background:none}
   #view-invoice .sign{margin-top:14px;display:flex;align-items:center;gap:10px;min-height:120px;justify-content:flex-end}
-  #view-invoice .sign .who{font-size:13px;line-height:2.1;font-weight:600}
+  #view-invoice .sign .who{font-size:14px;line-height:2.1;font-weight:600;text-align:center;font-family:'Vazirmatn',Tahoma,sans-serif}
   #view-invoice .stamp{width:118px;height:118px;opacity:.88;transform:rotate(-11deg)}
   #view-invoice img.stampimg{width:118px;height:auto;opacity:.9;transform:rotate(-11deg);display:none}
   #view-invoice .foot{margin-top:auto;position:relative}
@@ -959,7 +959,6 @@ function doPost(e){
         <div class="dnum">
           <div>تاریخ: <span class="ed" contenteditable="true" id="iv-date">—</span></div>
           <div>شماره: <span class="ed" contenteditable="true" id="iv-no">—</span></div>
-          <div id="iv-code-wrap" style="display:none">کد سفارش: <span id="iv-code" style="letter-spacing:1px;font-weight:bold">—</span></div>
         </div>
         <div class="logo">
           <img class="logoimg" id="iv-logo-img" alt="logo">
@@ -6912,8 +6911,7 @@ function ivOpenInvoice(opts){
   ivCurrentEstimateId = opts.estimateId || '';
   ivCurrentFolderId   = opts.folderId   || '';
   var ocode = (opts.orderCode && String(opts.orderCode).trim()) || '';
-  var cw=document.getElementById('iv-code-wrap'), ce=document.getElementById('iv-code');
-  if(cw && ce){ if(ocode){ ce.textContent=ocode; cw.style.display='block'; var no=document.getElementById('iv-no'); if(no && (!no.textContent || no.textContent==='—')) no.textContent=ocode; } else { cw.style.display='none'; } }
+  var no=document.getElementById('iv-no'); if(no) no.textContent = ocode || '—';
   var sb=document.getElementById('iv-btn-savefolder'); if(sb) sb.style.display = ivCurrentEstimateId ? 'inline-block' : 'none';
   ivRender();
   ivRenderNotes();
@@ -7051,7 +7049,7 @@ function ivExportWord(){
     +'<div style="margin-top:10px;font-size:10.5pt">'+noteHtml+'</div>'
     +'<table class="signtab"><tr>'
       +'<td style="width:38%;text-align:center">'+stampCell+'</td>'
-      +'<td style="text-align:right;font-weight:bold;line-height:2">'+T('iv-sign')+'</td></tr></table>'
+      +'<td style="text-align:center;font-weight:bold;line-height:2;font-family:Tahoma,Arial,sans-serif">'+T('iv-sign')+'</td></tr></table>'
     +'</div>'
     +'<table dir="rtl" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-top:16px">'
       +'<tr><td bgcolor="#E2241A" style="height:7px;line-height:7px;font-size:1px">&nbsp;</td></tr>'
