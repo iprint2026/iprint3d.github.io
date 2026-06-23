@@ -6379,6 +6379,20 @@ var prFaD = '۰۱۲۳۴۵۶۷۸۹';
 function prToFa(s){ return String(s).replace(/\d/g, function(d){ return prFaD[d]; }); }
 
 // ── راه‌اندازی صفحه (با باز شدن از منو صدا زده می‌شود) ──
+function pricingResetForNext(){
+  var d = prState.defaults || {profit:0,institute:0,packaging:0,shipping:0};
+  prState.order = { customer:'', orderName:'', tel:'', qty:10,
+    profit:(+d.profit||0), institute:(+d.institute||0),
+    packaging:(+d.packaging||0), shipping:(+d.shipping||0), notes:'', manualUnit:0 };
+  prState.lines = [];
+  prState.editId = null;
+  prState.savedCode = '';
+  prPendingImage = null;
+  var ind=document.getElementById('pr-image-ind'); if(ind) ind.textContent='';
+  if(typeof prRenderEditBanner==='function') prRenderEditBanner();
+  prRenderOrder(); prRenderLines(); prDoCompute();
+  try { window.scrollTo({top:0, behavior:'smooth'}); } catch(e){}
+}
 function pricingInit(){
   prBindOnce();
   if(prState.loaded){ return; }
@@ -7061,17 +7075,15 @@ function pricingSaveEstimate(){
       if(btn){ btn.disabled=false; btn.innerHTML=old; }
       showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); return;
     }
-    prState.savedCode = (res.code||'');
-    prState.editId = res.id;
-    if(typeof prRenderEditBanner==='function') prRenderEditBanner();
-    if(prState.savedCode && typeof prLastResult!=='undefined' && prLastResult){ try{ prRenderTape(prLastResult); }catch(e){} }
-    showToast(res.edited ? ('✅ ویرایش ذخیره شد · کد '+prState.savedCode) : (prState.savedCode ? ('✅ ذخیره شد · کد سفارش: '+prState.savedCode) : '✅ سفارش ذخیره شد'));
+    var savedCode = res.code||'';
+    showToast(res.edited ? ('✅ ویرایش ذخیره شد · کد '+savedCode) : (savedCode ? ('✅ ذخیره شد · کد سفارش: '+savedCode) : '✅ سفارش ذخیره شد'));
     var buildXlsx = function(){
       if(btn){ btn.innerHTML='در حال ساخت اکسل...'; }
       callSheet('saveEstimateXlsx', { id: res.id }, function(r2){
         if(btn){ btn.disabled=false; btn.innerHTML=old; }
-        if(r2 && r2.status==='ok'){ showToast('✅ اکسل هم در پوشه‌ی Drive ذخیره شد'); }
+        if(r2 && r2.status==='ok'){ showToast('✅ ذخیره کامل شد (کد '+savedCode+') — صفحه برای سفارش بعدی آماده شد'); }
         else { showToast('سفارش ذخیره شد، ولی ساخت اکسل ناموفق بود'); }
+        pricingResetForNext();
       }, 70000);
     };
     if(prPendingImage){
