@@ -6,6 +6,7 @@
 <title>سیستم مدیریت هوشمند کالا iPrint3D</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo&family=Almarai&family=Changa&family=El+Messiri&family=Markazi+Text&family=Lalezar&family=Amiri&family=Reem+Kufi&family=Tajawal&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -931,6 +932,9 @@ function doPost(e){
   #view-invoice.iv-designing .iv-rz{display:block}
   #view-invoice .iv-rz-h{display:none;position:absolute;left:0;right:0;height:10px;cursor:ns-resize;background:rgba(91,63,214,.4);z-index:6}
   #view-invoice.iv-designing .iv-rz-h{display:block}
+  #view-invoice .sign .stampwrap img,#view-invoice .sign .stampwrap svg{transform:none!important}
+  #view-invoice.iv-designing [data-iv-el].iv-active{outline:2px solid #22c55e!important;outline-offset:2px}
+  #view-invoice .iv-vtx{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;background:#22c55e;border:2px solid #fff;border-radius:50%;cursor:grab;z-index:30;box-shadow:0 1px 5px rgba(0,0,0,.4);touch-action:none}
   #view-invoice.iv-designing .pen{display:none!important}
   #view-invoice.iv-designing .ed,#view-invoice.iv-designing [contenteditable]{pointer-events:none}
   #view-invoice .stamp{width:118px;height:118px;opacity:.88;transform:rotate(-11deg)}
@@ -973,27 +977,53 @@ function doPost(e){
     <button class="btn red" onclick="ivPrint()" style="font-weight:700">چاپ</button>
   </div>
 
-  <div id="iv-design-bar" style="display:none;position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:5000;background:#1b1430;border:1px solid #5b3fd6;border-radius:12px;padding:8px 12px;gap:8px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.4)">
-    <span style="color:#cbb8ff;font-size:12px;font-weight:700">🎨 حالت طراحی: بکش، گوشه را برای تغییراندازه، و لبه‌ی نوارها را برای ارتفاع بکش</span>
-    <span style="display:inline-flex;align-items:center;gap:4px;color:#cbb8ff;font-size:12px">فونت
-      <select id="iv-fs-target" onchange="ivApplyLayout()" style="background:#0e1018;color:#e2e4f0;border:1px solid #3a3f86;border-radius:6px;padding:3px">
-        <option value="ttl">عنوان فاکتور</option><option value="bm">بسمه تعالی</option><option value="sign">امضا</option>
-      </select>
-      <button class="btn btn-sm btn-ghost" onclick="ivFs(-1)">A−</button>
-      <span id="iv-fs-val" style="min-width:18px;text-align:center">—</span>
-      <button class="btn btn-sm btn-ghost" onclick="ivFs(1)">A+</button>
-    </span>
-    <button class="btn btn-sm" style="background:#22c55e;border-color:#22c55e;color:#fff" onclick="ivSaveLayout()">💾 ذخیره چیدمان</button>
-    <button class="btn btn-sm btn-ghost" onclick="ivResetLayout()">↩ پیش‌فرض</button>
-    <button class="btn btn-sm" onclick="ivToggleDesign()">✓ پایان</button>
+  <div id="iv-design-bar" style="display:none;position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:5000;background:#1b1430;border:1px solid #5b3fd6;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.45);width:520px;max-width:94vw">
+    <div id="iv-bar-head" onpointerdown="ivBarDrag(event)" style="cursor:move;display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:#2a1f4d;border-radius:12px 12px 0 0">
+      <span style="color:#cbb8ff;font-size:12px;font-weight:700">🎨 حالت طراحی — این پنل را از همین‌جا بکش و جابه‌جا کن</span>
+      <button class="btn btn-sm" onclick="ivToggleDesign()" style="padding:2px 8px">✓ پایان</button>
+    </div>
+    <div style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+      <span style="display:inline-flex;align-items:center;gap:5px;color:#cbb8ff;font-size:12px">عنصر
+        <select id="iv-target" onchange="ivSelectTarget(this.value)" style="background:#0e1018;color:#e2e4f0;border:1px solid #3a3f86;border-radius:6px;padding:4px">
+          <option value="logo">لوگو</option>
+          <option value="stamp">مهر</option>
+          <option value="dnum">تاریخ/شماره</option>
+          <option value="sign">امضا</option>
+          <option value="ttl">عنوان فاکتور</option>
+          <option value="bm">بسمه تعالی</option>
+          <option value="top">سربرگ بالا</option>
+          <option value="bot">ته‌برگ پایین</option>
+          <option value="all">کل فاکتور (فونت)</option>
+        </select>
+      </span>
+      <!-- تصویر: عرض/ارتفاع/چرخش -->
+      <span id="iv-g-img" style="display:none;align-items:center;gap:6px;color:#cbb8ff;font-size:12px;flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:center;gap:3px">عرض<button class="btn btn-sm btn-ghost" onclick="ivAdjImg('width',-1)">−</button><span id="iv-w-val" style="min-width:22px;text-align:center">—</span><button class="btn btn-sm btn-ghost" onclick="ivAdjImg('width',1)">+</button></span>
+        <span style="display:inline-flex;align-items:center;gap:3px">ارتفاع<button class="btn btn-sm btn-ghost" onclick="ivAdjImg('height',-1)">−</button><span id="iv-h-val" style="min-width:34px;text-align:center">—</span><button class="btn btn-sm btn-ghost" onclick="ivAdjImg('height',1)">+</button></span>
+        <span style="display:inline-flex;align-items:center;gap:4px">چرخش<input id="iv-rot-range" type="range" min="-180" max="180" value="0" oninput="ivRot(this.value)" style="width:90px"><span id="iv-rot-val" style="min-width:34px;text-align:center">۰°</span></span>
+      </span>
+      <!-- نوار: ارتفاع + زاویه -->
+      <span id="iv-g-band" style="display:none;align-items:center;gap:6px;color:#cbb8ff;font-size:12px">
+        <span style="display:inline-flex;align-items:center;gap:3px">ارتفاع<button class="btn btn-sm btn-ghost" onclick="ivAdjBand(-4)">−</button><span id="iv-bh-val" style="min-width:30px;text-align:center">—</span><button class="btn btn-sm btn-ghost" onclick="ivAdjBand(4)">+</button></span>
+        <button id="iv-angle-btn" class="btn btn-sm btn-ghost" onclick="ivToggleAngle()">✎ ویرایش زاویه</button>
+      </span>
+      <!-- متن: اندازه فونت -->
+      <span id="iv-g-text" style="display:none;align-items:center;gap:4px;color:#cbb8ff;font-size:12px">اندازه<button class="btn btn-sm btn-ghost" onclick="ivFs(-1)">A−</button><span id="iv-fs-val" style="min-width:18px;text-align:center">—</span><button class="btn btn-sm btn-ghost" onclick="ivFs(1)">A+</button></span>
+      <!-- فونت -->
+      <span id="iv-g-font" style="display:none;align-items:center;gap:4px;color:#cbb8ff;font-size:12px">فونت
+        <select id="iv-font-sel" onchange="ivSetFont(this.value)" style="background:#0e1018;color:#e2e4f0;border:1px solid #3a3f86;border-radius:6px;padding:4px"></select>
+      </span>
+      <button class="btn btn-sm" style="background:#22c55e;border-color:#22c55e;color:#fff" onclick="ivSaveLayout()">💾 ذخیره</button>
+      <button class="btn btn-sm btn-ghost" onclick="ivResetLayout()">↩ پیش‌فرض</button>
+    </div>
   </div>
 
   <div class="page">
     <div class="ibody">
       <div class="top">
         <svg class="topbg" viewBox="0 0 1500 230" preserveAspectRatio="none">
-          <polygon points="0,0 1500,0 1500,56 540,56 0,140" fill="#111"/>
-          <polygon points="540,56 590,56 40,140 0,140" fill="#E2241A"/>
+          <polygon data-iv-poly="topBlack" points="0,0 1500,0 1500,56 540,56 0,140" fill="#111"/>
+          <polygon data-iv-poly="topRed" points="540,56 590,56 40,140 0,140" fill="#E2241A"/>
         </svg>
         <span class="iv-rz-h" data-iv-h="top" style="bottom:-5px"></span>
         <div class="dnum" data-iv-el="dnum">
@@ -1065,8 +1095,8 @@ function doPost(e){
       <div class="footband">
         <span class="iv-rz-h" data-iv-h="bot" style="top:-5px"></span>
         <svg class="footbg" viewBox="0 0 1500 150" preserveAspectRatio="none">
-          <polygon points="0,55 1500,0 1500,150 0,150" fill="#E2241A"/>
-          <polygon points="0,74 1500,20 1500,150 0,150" fill="#111"/>
+          <polygon data-iv-poly="botRed" points="0,55 1500,0 1500,150 0,150" fill="#E2241A"/>
+          <polygon data-iv-poly="botBlack" points="0,74 1500,20 1500,150 0,150" fill="#111"/>
         </svg>
         <div class="frow">
           <div class="icons">
@@ -7028,100 +7058,203 @@ function ivToggleEditAll(){
   document.getElementById('iv-editall').textContent = on?'✓ پایان ویرایش':'✎ ویرایش متن‌ها';
 }
 function ivPrint(){ window.print(); }
-// ───── ابزار چیدمان آزاد فاکتور ─────
+// ───── ابزار طراحی آزاد فاکتور ─────
+var IV_FONTS = [
+  {v:"'Vazirmatn',sans-serif",t:"وزیر"},
+  {v:"'Cairo',sans-serif",t:"کایرو"},
+  {v:"'Almarai',sans-serif",t:"المرعی"},
+  {v:"'Changa',sans-serif",t:"چنگا"},
+  {v:"'El Messiri',serif",t:"المسیری"},
+  {v:"'Markazi Text',serif",t:"مرکزی"},
+  {v:"'Lalezar',cursive",t:"لاله‌زار"},
+  {v:"'Amiri',serif",t:"امیری"},
+  {v:"'Reem Kufi',sans-serif",t:"کوفی"},
+  {v:"'Tajawal',sans-serif",t:"تجوال"}
+];
 var IV_LAYOUT_DEFAULT = {
-  logo:  {left:54, top:30, width:40},
+  logo:  {left:54, top:30, width:40, height:0, rot:0},
   dnum:  {left:3,  top:10},
-  stamp: {left:4,  top:6,  width:22},
+  stamp: {left:4,  top:6,  width:22, height:0, rot:-11},
   sign:  {left:30, top:34},
-  topH:  165, botH: 150,
-  fs:    {ttl:17, bm:13, sign:14}
+  topH:165, botH:150,
+  fs:{ttl:17, bm:13, sign:14, dnum:14},
+  font:{all:"'Vazirmatn',sans-serif"},
+  poly:{
+    topBlack:"0,0 1500,0 1500,56 540,56 0,140",
+    topRed:"540,56 590,56 40,140 0,140",
+    botRed:"0,55 1500,0 1500,150 0,150",
+    botBlack:"0,74 1500,20 1500,150 0,150"
+  }
 };
 var ivLayout = JSON.parse(JSON.stringify(IV_LAYOUT_DEFAULT));
-var ivDesign = false;
+var ivDesign = false, ivSel = 'logo';
+var IV_TYPE = { logo:'img', stamp:'img', dnum:'text', sign:'text', ttl:'text', bm:'text', top:'band', bot:'band', all:'font' };
 function ivEl(key){ return document.querySelector('#view-invoice [data-iv-el="'+key+'"]'); }
 function ivApplyLayout(){
   var L=ivLayout;
-  var lo=ivEl('logo'); if(lo&&L.logo){ lo.style.left=L.logo.left+'%'; lo.style.top=L.logo.top+'%'; lo.style.right='auto'; if(L.logo.width) lo.style.width=L.logo.width+'%'; }
-  var dn=ivEl('dnum'); if(dn&&L.dnum){ dn.style.left=L.dnum.left+'%'; dn.style.top=L.dnum.top+'%'; }
-  var st=ivEl('stamp'); if(st&&L.stamp){ st.style.left=L.stamp.left+'%'; st.style.top=L.stamp.top+'%'; if(L.stamp.width) st.style.width=L.stamp.width+'%'; }
-  var sg=ivEl('sign'); if(sg&&L.sign){ sg.style.left=L.sign.left+'%'; sg.style.top=L.sign.top+'%'; }
-  var isA5 = (typeof ivPageSize!=='undefined' && ivPageSize==='a5');
-  var tp=document.querySelector('#view-invoice .top'); if(tp){ tp.style.height = (isA5? '' : ((L.topH||165)+'px')); }
-  var fb=document.querySelector('#view-invoice .footband'); if(fb){ fb.style.height = (isA5? '' : ((L.botH||150)+'px')); }
-  if(L.fs){
-    var t1=document.querySelector('#view-invoice .ttl'); if(t1&&L.fs.ttl) t1.style.fontSize=L.fs.ttl+'px';
-    var t2=document.querySelector('#view-invoice .bm'); if(t2&&L.fs.bm) t2.style.fontSize=L.fs.bm+'px';
-    var t3=document.querySelector('#view-invoice #iv-sign'); if(t3&&L.fs.sign) t3.style.fontSize=L.fs.sign+'px';
+  function img(key){
+    var el=ivEl(key), o=L[key]; if(!el||!o) return;
+    el.style.left=o.left+'%'; el.style.top=o.top+'%'; el.style.right='auto';
+    if(o.width) el.style.width=o.width+'%';
+    var cont=el.offsetParent;
+    if(o.height && cont){ el.style.height=(o.height/100*cont.clientHeight)+'px'; } else { el.style.height='auto'; }
+    el.style.transform='rotate('+(o.rot||0)+'deg)';
+    var media=el.querySelector('img,svg'); if(media){ media.style.width='100%'; media.style.height=(o.height? '100%':'auto'); }
   }
-  var fv=document.getElementById('iv-fs-val'); if(fv){ var k=(document.getElementById('iv-fs-target')||{}).value||'ttl'; fv.textContent=(L.fs&&L.fs[k])?L.fs[k]:''; }
-}
-function ivFs(d){
-  var sel=document.getElementById('iv-fs-target'); if(!sel) return;
-  var k=sel.value; ivLayout.fs=ivLayout.fs||{}; var cur=ivLayout.fs[k]||IV_LAYOUT_DEFAULT.fs[k]||14;
-  ivLayout.fs[k]=Math.max(7, Math.min(60, cur + d));
-  ivApplyLayout();
+  img('logo'); img('stamp');
+  var dn=ivEl('dnum'); if(dn&&L.dnum){ dn.style.left=L.dnum.left+'%'; dn.style.top=L.dnum.top+'%'; }
+  var sg=ivEl('sign'); if(sg&&L.sign){ sg.style.left=L.sign.left+'%'; sg.style.top=L.sign.top+'%'; }
+  var isA5=(typeof ivPageSize!=='undefined'&&ivPageSize==='a5');
+  var tp=document.querySelector('#view-invoice .top'); if(tp) tp.style.height=(isA5?'':((L.topH||165)+'px'));
+  var fb=document.querySelector('#view-invoice .footband'); if(fb) fb.style.height=(isA5?'':((L.botH||150)+'px'));
+  if(L.fs){
+    var mp={ttl:'.ttl',bm:'.bm',sign:'#iv-sign',dnum:'.dnum'};
+    for(var k in mp){ if(L.fs[k]){ var e=document.querySelector('#view-invoice '+mp[k]); if(e) e.style.fontSize=L.fs[k]+'px'; } }
+  }
+  if(L.font){
+    var pg=document.querySelector('#view-invoice .page'); if(pg&&L.font.all) pg.style.fontFamily=L.font.all;
+    ['ttl','bm','sign','dnum'].forEach(function(k){ if(L.font[k]){ var sel=({ttl:'.ttl',bm:'.bm',sign:'#iv-sign',dnum:'.dnum'})[k]; var e=document.querySelector('#view-invoice '+sel); if(e) e.style.fontFamily=L.font[k]; } });
+  }
+  if(L.poly){ for(var pk in L.poly){ var pe=document.querySelector('#view-invoice [data-iv-poly="'+pk+'"]'); if(pe) pe.setAttribute('points', L.poly[pk]); } }
+  ivSyncBar();
+  if(ivDesign && (ivSel==='top'||ivSel==='bot') && ivAngleOn) ivRenderVertices();
 }
 function ivLoadLayout(){
   try{
-    var saved = (typeof prState!=='undefined' && prState.invoice && prState.invoice.layout) ? prState.invoice.layout : null;
-    var L = JSON.parse(JSON.stringify(IV_LAYOUT_DEFAULT));
-    if(saved){ ['logo','dnum','stamp','sign'].forEach(function(k){ if(saved[k]) L[k]=Object.assign(L[k]||{}, saved[k]); }); }
-    ivLayout = L;
-  }catch(e){ ivLayout = JSON.parse(JSON.stringify(IV_LAYOUT_DEFAULT)); }
+    var saved=(typeof prState!=='undefined'&&prState.invoice&&prState.invoice.layout)?prState.invoice.layout:null;
+    var L=JSON.parse(JSON.stringify(IV_LAYOUT_DEFAULT));
+    if(saved){ for(var k in saved){ if(typeof saved[k]==='object'&&!Array.isArray(saved[k])) L[k]=Object.assign(L[k]||{},saved[k]); else L[k]=saved[k]; } }
+    ivLayout=L;
+  }catch(e){ ivLayout=JSON.parse(JSON.stringify(IV_LAYOUT_DEFAULT)); }
   ivApplyLayout();
 }
 function ivToggleDesign(){
-  ivDesign = !ivDesign;
-  var v=document.getElementById('view-invoice');
-  if(v) v.classList.toggle('iv-designing', ivDesign);
-  var bar=document.getElementById('iv-design-bar'); if(bar) bar.style.display = ivDesign?'flex':'none';
+  ivDesign=!ivDesign;
+  var v=document.getElementById('view-invoice'); if(v) v.classList.toggle('iv-designing',ivDesign);
+  var bar=document.getElementById('iv-design-bar'); if(bar) bar.style.display=ivDesign?'block':'none';
   var btn=document.getElementById('iv-design-btn'); if(btn){ btn.style.background=ivDesign?'#22c55e':'#5b3fd6'; btn.style.borderColor=ivDesign?'#22c55e':'#5b3fd6'; btn.textContent=ivDesign?'🎨 در حال طراحی…':'🎨 حالت طراحی'; }
+  if(!ivDesign){ ivAngleOn=false; ivClearVertices(); }
+  if(ivDesign) ivInitFontSelect();
+  ivSelectTarget(ivSel);
 }
+function ivInitFontSelect(){
+  var sel=document.getElementById('iv-font-sel'); if(!sel||sel.getAttribute('data-init')) return;
+  sel.innerHTML=IV_FONTS.map(function(f){ return '<option value="'+f.v.replace(/"/g,'&quot;')+'">'+f.t+'</option>'; }).join('');
+  sel.setAttribute('data-init','1');
+}
+function ivSelectTarget(key){
+  ivSel=key; ivAngleOn=false; ivClearVertices();
+  var t=IV_TYPE[key]||'text';
+  ['g-img','g-text','g-band','g-font'].forEach(function(g){ var e=document.getElementById('iv-'+g); if(e) e.style.display='none'; });
+  if(t==='img'){ show('iv-g-img'); }
+  else if(t==='band'){ show('iv-g-band'); }
+  else if(t==='font'){ show('iv-g-font'); }
+  else { show('iv-g-text'); show('iv-g-font'); }
+  function show(id){ var e=document.getElementById(id); if(e) e.style.display='inline-flex'; }
+  var sel=document.getElementById('iv-target'); if(sel&&sel.value!==key) sel.value=key;
+  // برجسته‌سازی عنصر انتخاب‌شده
+  document.querySelectorAll('#view-invoice [data-iv-el]').forEach(function(n){ n.classList.toggle('iv-active', n.getAttribute('data-iv-el')===key); });
+  ivSyncBar();
+}
+function ivSyncBar(){
+  var L=ivLayout, o=L[ivSel]||{};
+  function setv(id,val){ var e=document.getElementById(id); if(e) e.textContent=(val==null?'—':val); }
+  if(IV_TYPE[ivSel]==='img'){ setv('iv-w-val',Math.round(o.width||0)); setv('iv-h-val', o.height?Math.round(o.height):'خودکار'); setv('iv-rot-val',Math.round(o.rot||0)+'°'); var rs=document.getElementById('iv-rot-range'); if(rs) rs.value=(o.rot||0); }
+  if(IV_TYPE[ivSel]==='band'){ setv('iv-bh-val', Math.round(ivSel==='top'?(L.topH||165):(L.botH||150))); }
+  if(IV_TYPE[ivSel]==='text'){ setv('iv-fs-val', (L.fs&&L.fs[ivSel])?L.fs[ivSel]:'—'); }
+  // فونتِ جاری
+  var fsel=document.getElementById('iv-font-sel');
+  if(fsel){ var cur=(ivSel==='all')?(L.font&&L.font.all):((L.font&&L.font[ivSel])||(L.font&&L.font.all)); if(cur) fsel.value=cur; }
+}
+// تغییرات از نوار ابزار
+function ivAdjImg(prop,d){ var o=ivLayout[ivSel]; if(!o) return; if(prop==='width'){ o.width=Math.max(4,Math.min(96,(o.width||20)+d)); } else if(prop==='height'){ o.height=Math.max(0,Math.min(100,(o.height||0)+d)); } ivApplyLayout(); }
+function ivRot(val){ var o=ivLayout[ivSel]; if(!o) return; o.rot=+val; ivApplyLayout(); }
+function ivAdjBand(d){ if(ivSel==='top') ivLayout.topH=Math.max(50,Math.min(360,(ivLayout.topH||165)+d)); else ivLayout.botH=Math.max(50,Math.min(360,(ivLayout.botH||150)+d)); ivApplyLayout(); }
+function ivFs(d){ ivLayout.fs=ivLayout.fs||{}; var cur=ivLayout.fs[ivSel]||IV_LAYOUT_DEFAULT.fs[ivSel]||14; ivLayout.fs[ivSel]=Math.max(7,Math.min(60,cur+d)); ivApplyLayout(); }
+function ivSetFont(v){ ivLayout.font=ivLayout.font||{}; if(ivSel==='all') ivLayout.font.all=v; else ivLayout.font[ivSel]=v; ivApplyLayout(); }
+// انتخاب با کلیک روی عنصر + جابه‌جایی/تغییراندازه
 function ivDesignDown(e){
   if(!ivDesign) return;
-  var hh = e.target.closest('#view-invoice .iv-rz-h');
-  if(hh){
-    e.preventDefault();
-    var which=hh.getAttribute('data-iv-h'), sy=e.clientY;
-    var sH = which==='top' ? (ivLayout.topH||165) : (ivLayout.botH||150);
-    function mvh(ev){ var d=ev.clientY-sy; var nv = which==='top' ? (sH+d) : (sH-d); nv=Math.max(60,Math.min(360,nv)); if(which==='top') ivLayout.topH=nv; else ivLayout.botH=nv; ivApplyLayout(); }
+  var dot=e.target.closest('#view-invoice .iv-vtx');
+  if(dot){ ivVertexDrag(e,dot); return; }
+  var hh=e.target.closest('#view-invoice .iv-rz-h');
+  if(hh){ e.preventDefault(); var which=hh.getAttribute('data-iv-h'); ivSelectTarget(which); var sy=e.clientY, sH=which==='top'?(ivLayout.topH||165):(ivLayout.botH||150);
+    function mvh(ev){ var d=ev.clientY-sy; var nv=which==='top'?(sH+d):(sH-d); nv=Math.max(50,Math.min(360,nv)); if(which==='top')ivLayout.topH=nv; else ivLayout.botH=nv; ivApplyLayout(); }
     function uph(){ document.removeEventListener('pointermove',mvh); document.removeEventListener('pointerup',uph); }
-    document.addEventListener('pointermove',mvh); document.addEventListener('pointerup',uph);
-    return;
-  }
-  var node = e.target.closest('#view-invoice [data-iv-el]');
+    document.addEventListener('pointermove',mvh); document.addEventListener('pointerup',uph); return; }
+  var node=e.target.closest('#view-invoice [data-iv-el]');
   if(!node) return;
   e.preventDefault();
-  var key = node.getAttribute('data-iv-el');
-  var cont = node.offsetParent || node.parentElement;
-  var crect = cont.getBoundingClientRect();
-  var resizing = !!e.target.closest('.iv-rz');
+  var key=node.getAttribute('data-iv-el'); ivSelectTarget(key);
+  var cont=node.offsetParent||node.parentElement, crect=cont.getBoundingClientRect();
+  var resizing=!!e.target.closest('.iv-rz');
   var sx=e.clientX, sy=e.clientY, L=ivLayout[key];
   var sLeft=(L.left||0), sTop=(L.top!=null?L.top:0), sW=(L.width||0);
   function mv(ev){
     var dxp=(ev.clientX-sx)/crect.width*100, dyp=(ev.clientY-sy)/crect.height*100;
-    if(resizing && L.width!=null){ L.width=Math.max(4, Math.min(96, sW + dxp)); }
-    else { L.left=Math.max(-5, Math.min(99, sLeft+dxp)); if(L.top!=null) L.top=Math.max(-5, Math.min(99, sTop+dyp)); }
+    if(resizing&&L.width!=null){ L.width=Math.max(4,Math.min(96,sW+dxp)); }
+    else { L.left=Math.max(-8,Math.min(99,sLeft+dxp)); if(L.top!=null) L.top=Math.max(-8,Math.min(99,sTop+dyp)); }
     ivApplyLayout();
   }
   function up(){ document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); }
-  document.addEventListener('pointermove',mv);
-  document.addEventListener('pointerup',up);
+  document.addEventListener('pointermove',mv); document.addEventListener('pointerup',up);
 }
 document.addEventListener('pointerdown', ivDesignDown, true);
-function ivSaveLayout(){
-  callSheet('saveInvoiceLayout', { layout: JSON.stringify(ivLayout) }, function(res){
-    if(res && res.status==='ok'){
-      showToast('✅ چیدمان ذخیره شد و روی همه‌ی فاکتورها اعمال می‌شود');
-      try{ if(typeof prState!=='undefined'){ prState.invoice = prState.invoice||{}; prState.invoice.layout = JSON.parse(JSON.stringify(ivLayout)); } }catch(e){}
-    } else { showToast('خطا در ذخیره‌ی چیدمان'); }
+// ───── ویرایش زاویه‌ی نوارها (رئوس متحرک) ─────
+var ivAngleOn=false;
+var IV_BANDPOLY={ top:['topBlack','topRed'], bot:['botRed','botBlack'] };
+function ivToggleAngle(){ ivAngleOn=!ivAngleOn; if(ivAngleOn) ivRenderVertices(); else ivClearVertices(); var b=document.getElementById('iv-angle-btn'); if(b){ b.style.background=ivAngleOn?'#22c55e':''; b.style.color=ivAngleOn?'#fff':''; } }
+function ivClearVertices(){ document.querySelectorAll('#view-invoice .iv-vtx').forEach(function(d){ d.remove(); }); }
+function ivRenderVertices(){
+  ivClearVertices();
+  var page=document.querySelector('#view-invoice .page'); if(!page) return;
+  var polys=IV_BANDPOLY[ivSel]||[]; if(!polys.length) return;
+  var svg=document.querySelector('#view-invoice [data-iv-poly="'+polys[0]+'"]').ownerSVGElement;
+  var vb=svg.viewBox.baseVal, srect=svg.getBoundingClientRect(), prect=page.getBoundingClientRect();
+  polys.forEach(function(pk){
+    var pts=(ivLayout.poly[pk]||'').trim().split(/\s+/);
+    pts.forEach(function(p,idx){
+      var xy=p.split(','); var vx=+xy[0], vy=+xy[1];
+      var sx=srect.left + vx/vb.width*srect.width, sy=srect.top + vy/vb.height*srect.height;
+      var dot=document.createElement('div'); dot.className='iv-vtx';
+      dot.style.left=(sx-prect.left)+'px'; dot.style.top=(sy-prect.top)+'px';
+      dot.setAttribute('data-poly',pk); dot.setAttribute('data-idx',idx);
+      page.appendChild(dot);
+    });
   });
 }
-function ivResetLayout(){
-  ivLayout = JSON.parse(JSON.stringify(IV_LAYOUT_DEFAULT));
-  ivApplyLayout();
-  showToast('چیدمان به پیش‌فرض برگشت — برای ماندگاری «ذخیره چیدمان» را بزن');
+function ivVertexDrag(e,dot){
+  e.preventDefault();
+  var pk=dot.getAttribute('data-poly'), idx=+dot.getAttribute('data-idx');
+  var poly=document.querySelector('#view-invoice [data-iv-poly="'+pk+'"]'); var svg=poly.ownerSVGElement;
+  var vb=svg.viewBox.baseVal, srect=svg.getBoundingClientRect();
+  function mv(ev){
+    var vx=(ev.clientX-srect.left)/srect.width*vb.width, vy=(ev.clientY-srect.top)/srect.height*vb.height;
+    vx=Math.max(0,Math.min(vb.width,vx)); vy=Math.max(0,Math.min(vb.height,vy));
+    var arr=(ivLayout.poly[pk]||'').trim().split(/\s+/);
+    arr[idx]=Math.round(vx)+','+Math.round(vy);
+    ivLayout.poly[pk]=arr.join(' ');
+    poly.setAttribute('points',ivLayout.poly[pk]);
+    ivRenderVertices();
+  }
+  function up(){ document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); }
+  document.addEventListener('pointermove',mv); document.addEventListener('pointerup',up);
+}
+function ivSaveLayout(){
+  callSheet('saveInvoiceLayout', { layout: JSON.stringify(ivLayout) }, function(res){
+    if(res&&res.status==='ok'){ showToast('✅ چیدمان ذخیره شد و روی همه‌ی فاکتورها اعمال می‌شود'); try{ if(typeof prState!=='undefined'){ prState.invoice=prState.invoice||{}; prState.invoice.layout=JSON.parse(JSON.stringify(ivLayout)); } }catch(e){} }
+    else { showToast('خطا در ذخیره‌ی چیدمان'); }
+  });
+}
+function ivResetLayout(){ ivLayout=JSON.parse(JSON.stringify(IV_LAYOUT_DEFAULT)); ivClearVertices(); ivApplyLayout(); showToast('چیدمان به پیش‌فرض برگشت — برای ماندگاری «ذخیره چیدمان» را بزن'); }
+// نوار ابزار شناور و جابه‌جاشونده
+function ivBarDrag(e){
+  var bar=document.getElementById('iv-design-bar'); if(!bar) return;
+  e.preventDefault();
+  var r=bar.getBoundingClientRect(), ox=e.clientX-r.left, oy=e.clientY-r.top;
+  function mv(ev){ bar.style.left=Math.max(0,Math.min(window.innerWidth-60,ev.clientX-ox))+'px'; bar.style.top=Math.max(0,Math.min(window.innerHeight-30,ev.clientY-oy))+'px'; bar.style.transform='none'; }
+  function up(){ document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); }
+  document.addEventListener('pointermove',mv); document.addEventListener('pointerup',up);
 }
 var ivPageSize = 'a4';
 function ivSetSize(s){
