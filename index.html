@@ -855,14 +855,22 @@ function doPost(e){
   #view-invoice .red{background:#E2241A!important;border-color:#E2241A!important;color:#fff!important}
   #view-invoice .red:hover{filter:brightness(.95)}
   #view-invoice .page{width:210mm;max-width:100%;min-height:297mm;background:#fff;margin:18px auto;position:relative;box-shadow:0 6px 30px rgba(0,0,0,.18);overflow:hidden;display:flex;flex-direction:column;color:#111}
+  #view-invoice.size-a5 .page{width:148mm;min-height:210mm}
+  #view-invoice.size-a5 .ibody{padding:0 9mm 5mm}
+  #view-invoice.size-a5 .top{height:104px;margin:0 -9mm}
+  #view-invoice.size-a5 .footband{height:108px;margin:0 -9mm}
+  #view-invoice.size-a5 .dnum{font-size:11.5px;top:12px;left:20px;line-height:1.95}
+  #view-invoice.size-a5 .logo img.logoimg{height:72px}
+  #view-invoice.size-a5 .logo .wm .txt{font-size:28px}
+  #view-invoice.size-a5 .logo{top:30px;right:9mm}
   #view-invoice .ibody{flex:1;padding:0 14mm 6mm}
-  #view-invoice .top{position:relative;height:135px;margin:0 -14mm;overflow:hidden}
+  #view-invoice .top{position:relative;height:150px;margin:0 -14mm;overflow:hidden}
   #view-invoice .topbg{position:absolute;inset:0;width:100%;height:100%;display:block}
   #view-invoice .dnum{position:absolute;top:16px;left:30px;color:#fff;direction:rtl;font-weight:800;font-size:14px;line-height:2.05;z-index:2}
-  #view-invoice .logo{position:absolute;top:42px;right:16mm;direction:ltr;text-align:left;z-index:2}
-  #view-invoice .logo img.logoimg{height:76px;width:auto;display:none}
+  #view-invoice .logo{position:absolute;top:40px;right:14mm;direction:ltr;text-align:left;z-index:2}
+  #view-invoice .logo img.logoimg{height:100px;width:auto;display:none}
   #view-invoice .logo .wm{display:flex;align-items:center;gap:9px}
-  #view-invoice .logo .wm .txt{font-size:32px;font-weight:800;letter-spacing:-1px;color:#1a1a1a;line-height:1}
+  #view-invoice .logo .wm .txt{font-size:40px;font-weight:800;letter-spacing:-1px;color:#1a1a1a;line-height:1}
   #view-invoice .logo .wm .txt b{color:#E2241A}
   #view-invoice .logo .tag{font-size:13px;color:#8a8a8a;margin-top:6px;margin-left:4px;font-style:italic}
   #view-invoice .ictr{text-align:center;margin:0 0 10px}
@@ -943,6 +951,10 @@ function doPost(e){
     <button class="btn" onclick="ivAdd('')">+ افزودن ردیف</button>
     <button class="btn" id="iv-editall" onclick="ivToggleEditAll()">✎ ویرایش متن‌ها</button>
     <button class="btn" id="iv-preview" onclick="ivTogglePreview()">پیش‌نمایش</button>
+    <span style="display:inline-flex;border:1px solid #2a2e44;border-radius:8px;overflow:hidden;margin:0 4px">
+      <button class="btn" id="iv-size-a4" onclick="ivSetSize('a4')" style="border:none;border-radius:0;background:#3b3fae;color:#fff">A4</button>
+      <button class="btn" id="iv-size-a5" onclick="ivSetSize('a5')" style="border:none;border-radius:0">A5</button>
+    </span>
     <button class="btn" onclick="ivExportPDF()">خروجی PDF</button>
     <button class="btn" id="iv-btn-savefolder" style="display:none;background:#6366f1;border-color:#6366f1;color:#fff" onclick="ivSaveInvoiceToFolder()">💾 ذخیره‌ی فاکتور در پوشه‌ی سفارش</button>
     <button class="btn" onclick="ivExportWord()">خروجی Word</button>
@@ -6982,6 +6994,18 @@ function ivToggleEditAll(){
   document.getElementById('iv-editall').textContent = on?'✓ پایان ویرایش':'✎ ویرایش متن‌ها';
 }
 function ivPrint(){ window.print(); }
+var ivPageSize = 'a4';
+function ivSetSize(s){
+  ivPageSize = (s==='a5') ? 'a5' : 'a4';
+  var v=document.getElementById('view-invoice');
+  if(v){ v.classList.toggle('size-a5', ivPageSize==='a5'); }
+  var b4=document.getElementById('iv-size-a4'), b5=document.getElementById('iv-size-a5');
+  if(b4){ b4.style.background = ivPageSize==='a4'?'#3b3fae':'transparent'; b4.style.color = ivPageSize==='a4'?'#fff':''; }
+  if(b5){ b5.style.background = ivPageSize==='a5'?'#3b3fae':'transparent'; b5.style.color = ivPageSize==='a5'?'#fff':''; }
+  // برای چاپ، اندازه‌ی صفحه را هم‌خوان کن
+  var st=document.getElementById('iv-print-size'); if(!st){ st=document.createElement('style'); st.id='iv-print-size'; document.head.appendChild(st); }
+  st.textContent='@media print{@page{size:'+(ivPageSize==='a5'?'A5':'A4')+';margin:0}}';
+}
 
 function ivExportPDF(){
   if(!window.html2canvas || !window.jspdf){ showToast('کتابخانه‌ی PDF بارگذاری نشد. اینترنت را بررسی کن.'); return; }
@@ -6989,11 +7013,13 @@ function ivExportPDF(){
   v.classList.add('clean');
   var el=v.querySelector('.page');
   var prevW=el.style.width, prevMax=el.style.maxWidth;
-  el.style.width='210mm'; el.style.maxWidth='none';
+  var isA5=(ivPageSize==='a5');
+  var pw=isA5?148:210, ph=isA5?210:297;
+  el.style.width=pw+'mm'; el.style.maxWidth='none';
   html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
     el.style.width=prevW; el.style.maxWidth=prevMax;
-    var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm','a4');
-    var pw=210, ph=297, w=pw, h=canvas.height*pw/canvas.width;
+    var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm',isA5?'a5':'a4');
+    var w=pw, h=canvas.height*pw/canvas.width;
     if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
     pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,0,w,h);
     pdf.save('فاکتور_iPrint3D.pdf');
@@ -7215,11 +7241,12 @@ async function ivSaveInvoiceToFolder(){
   var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean');
   var el=v.querySelector('.page'); var prevW=el.style.width, prevMax=el.style.maxWidth;
   try{
-    v.classList.add('clean'); el.style.width='210mm'; el.style.maxWidth='none';
+    var isA5b=(ivPageSize==='a5'); var pwb=isA5b?148:210;
+    v.classList.add('clean'); el.style.width=pwb+'mm'; el.style.maxWidth='none';
     var canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true});
     el.style.width=prevW; el.style.maxWidth=prevMax; if(!wasClean) v.classList.remove('clean');
-    var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm','a4');
-    var pw=210, ph=297, w=pw, h=canvas.height*pw/canvas.width;
+    var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm',isA5b?'a5':'a4');
+    var pw=pwb, ph=isA5b?210:297, w=pw, h=canvas.height*pw/canvas.width;
     if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
     pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',(pw-w)/2,0,w,h);
     var b64=(pdf.output('datauristring')||'').split(',')[1]||'';
