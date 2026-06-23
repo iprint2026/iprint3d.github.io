@@ -858,9 +858,9 @@ function doPost(e){
   #view-invoice .ibody{flex:1;padding:0 14mm 6mm}
   #view-invoice .top{position:relative;height:135px;margin:0 -14mm;overflow:hidden}
   #view-invoice .topbg{position:absolute;inset:0;width:100%;height:100%;display:block}
-  #view-invoice .dnum{position:absolute;top:20px;left:30px;color:#fff;direction:rtl;font-weight:800;font-size:14px;line-height:2.1;z-index:2}
-  #view-invoice .logo{position:absolute;top:28px;right:16mm;direction:ltr;text-align:left;z-index:2}
-  #view-invoice .logo img.logoimg{height:80px;width:auto;display:none}
+  #view-invoice .dnum{position:absolute;top:16px;left:30px;color:#fff;direction:rtl;font-weight:800;font-size:14px;line-height:2.05;z-index:2}
+  #view-invoice .logo{position:absolute;top:42px;right:16mm;direction:ltr;text-align:left;z-index:2}
+  #view-invoice .logo img.logoimg{height:76px;width:auto;display:none}
   #view-invoice .logo .wm{display:flex;align-items:center;gap:9px}
   #view-invoice .logo .wm .txt{font-size:32px;font-weight:800;letter-spacing:-1px;color:#1a1a1a;line-height:1}
   #view-invoice .logo .wm .txt b{color:#E2241A}
@@ -953,8 +953,9 @@ function doPost(e){
     <div class="ibody">
       <div class="top">
         <svg class="topbg" viewBox="0 0 1500 230" preserveAspectRatio="none">
-          <polygon points="0,0 700,0 520,230 0,230" fill="#E2241A"/>
-          <polygon points="20,0 660,0 488,230 20,230" fill="#111"/>
+          <polygon points="0,0 1500,0 1500,56 540,56 360,230 0,230" fill="#111"/>
+          <polygon points="540,56 590,56 410,230 360,230" fill="#E2241A"/>
+          <polygon points="0,0 22,0 22,230 0,230" fill="#E2241A"/>
         </svg>
         <div class="dnum">
           <div>تاریخ: <span class="ed" contenteditable="true" id="iv-date">—</span></div>
