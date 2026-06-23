@@ -956,7 +956,11 @@ function doPost(e){
     #view-invoice .pen{display:none!important}
     #view-invoice .fixed[contenteditable]{background:none!important;box-shadow:none!important;padding:0!important}
     #view-invoice [contenteditable]{outline:none!important}
+    #iv-design-bar{display:none!important}
+    #view-invoice .iv-rz,#view-invoice .iv-rz-h,#view-invoice .iv-vtx{display:none!important}
+    #view-invoice [data-iv-el]{outline:none!important;background:none!important}
     #view-invoice .page{box-shadow:none;margin:0 auto;width:210mm;max-width:none;min-height:auto}
+    #view-invoice.size-a5 .page{width:148mm}
   }
 </style>
 
@@ -6975,6 +6979,15 @@ function ivAddNote(t){ ivNotes.push(t||''); ivRenderNotes();
 function ivRemoveNote(i){ ivNotes.splice(i,1); ivRenderNotes(); }
 
 var ivCurrentEstimateId='', ivCurrentFolderId='';
+var ivMeta = { customer:'', orderName:'', dateStr:'' };
+function ivFileName(ext){
+  function clean(s){ return String(s||'').replace(/[\\\/:*?"<>|\[\]]/g,'').replace(/\s+/g,' ').trim(); }
+  var cust=clean(ivMeta.customer).slice(0,40);
+  var ord=clean(ivMeta.orderName||'سفارش').slice(0,50)||'سفارش';
+  var dt=clean((document.getElementById('iv-date')||{}).textContent||ivMeta.dateStr).replace(/\//g,'-');
+  var parts=[]; if(cust&&cust!=='—') parts.push(cust); parts.push(ord); if(dt&&dt!=='—') parts.push(dt);
+  return 'فاکتور - ' + parts.join(' - ') + '.' + ext;
+}
 function ivOpenInvoice(opts){
   opts=opts||{};
   var code=(opts.code && String(opts.code).trim()) ? String(opts.code).trim() : 'پرینت قطعه (مطابق برآورد iPrint3D)';
@@ -6984,6 +6997,7 @@ function ivOpenInvoice(opts){
   try{ document.getElementById('iv-date').textContent = opts.dateStr || new Intl.DateTimeFormat('fa-IR').format(new Date()); }catch(e){}
   ivCurrentEstimateId = opts.estimateId || '';
   ivCurrentFolderId   = opts.folderId   || '';
+  ivMeta = { customer: opts.customer||'', orderName: (opts.code&&String(opts.code).indexOf('مطابق')<0)?opts.code:'سفارش', dateStr: opts.dateStr||'' };
   var ocode = (opts.orderCode && String(opts.orderCode).trim()) || '';
   var no=document.getElementById('iv-no'); if(no) no.textContent = ocode || '—';
   var sb=document.getElementById('iv-btn-savefolder'); if(sb) sb.style.display = ivCurrentEstimateId ? 'inline-block' : 'none';
@@ -7272,22 +7286,23 @@ function ivSetSize(s){
 
 function ivExportPDF(){
   if(!window.html2canvas || !window.jspdf){ showToast('کتابخانه‌ی PDF بارگذاری نشد. اینترنت را بررسی کن.'); return; }
-  var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean');
-  v.classList.add('clean');
+  var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean'), wasDesign=v.classList.contains('iv-designing');
   var el=v.querySelector('.page');
-  var prevW=el.style.width, prevMax=el.style.maxWidth;
-  var isA5=(ivPageSize==='a5');
-  var pw=isA5?148:210, ph=isA5?210:297;
-  el.style.width=pw+'mm'; el.style.maxWidth='none';
-  html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
-    el.style.width=prevW; el.style.maxWidth=prevMax;
-    var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm',isA5?'a5':'a4');
-    var w=pw, h=canvas.height*pw/canvas.width;
-    if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,0,w,h);
-    pdf.save('فاکتور_iPrint3D.pdf');
-    if(!wasClean) v.classList.remove('clean');
-  }).catch(function(err){ el.style.width=prevW; el.style.maxWidth=prevMax; if(!wasClean) v.classList.remove('clean'); showToast('خطا در ساخت PDF'); });
+  var isA5=(ivPageSize==='a5'), pw=isA5?148:210, ph=isA5?210:297;
+  v.classList.add('clean'); v.classList.remove('iv-designing');
+  var dots=el.querySelectorAll('.iv-vtx'); for(var i=0;i<dots.length;i++) dots[i].style.visibility='hidden';
+  function restore(){ if(!wasClean) v.classList.remove('clean'); if(wasDesign) v.classList.add('iv-designing'); for(var j=0;j<dots.length;j++) dots[j].style.visibility=''; }
+  function go(){
+    html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
+      restore();
+      var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm',isA5?'a5':'a4');
+      var w=pw, h=canvas.height*pw/canvas.width;
+      if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,0,w,h);
+      pdf.save(ivFileName('pdf'));
+    }).catch(function(err){ restore(); showToast('خطا در ساخت PDF'); });
+  }
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(go,80); }); } else { setTimeout(go,80); }
 }
 
 function ivExportWord(){
@@ -7346,7 +7361,7 @@ function ivExportWord(){
     +'</table>'
     +'</body></html>';
   var blob=new Blob(['\ufeff'+html],{type:'application/msword'});
-  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='فاکتور_iPrint3D.doc'; a.click();
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=ivFileName('doc'); a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
 }
 
@@ -7501,13 +7516,15 @@ async function ivSaveInvoiceToFolder(){
   if(!window.html2canvas || !window.jspdf){ showToast('کتابخانه‌ی PDF بارگذاری نشد'); return; }
   var btn=document.getElementById('iv-btn-savefolder'); var old=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.innerHTML='در حال ساخت PDF...'; }
-  var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean');
-  var el=v.querySelector('.page'); var prevW=el.style.width, prevMax=el.style.maxWidth;
+  var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean'), wasDesign=v.classList.contains('iv-designing');
+  var el=v.querySelector('.page');
   try{
     var isA5b=(ivPageSize==='a5'); var pwb=isA5b?148:210;
-    v.classList.add('clean'); el.style.width=pwb+'mm'; el.style.maxWidth='none';
+    v.classList.add('clean'); v.classList.remove('iv-designing');
+    var _dots=el.querySelectorAll('.iv-vtx'); for(var _i=0;_i<_dots.length;_i++) _dots[_i].style.visibility='hidden';
+    if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
     var canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true});
-    el.style.width=prevW; el.style.maxWidth=prevMax; if(!wasClean) v.classList.remove('clean');
+    if(!wasClean) v.classList.remove('clean'); if(wasDesign) v.classList.add('iv-designing'); for(var _j=0;_j<_dots.length;_j++) _dots[_j].style.visibility='';
     var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm',isA5b?'a5':'a4');
     var pw=pwb, ph=isA5b?210:297, w=pw, h=canvas.height*pw/canvas.width;
     if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
