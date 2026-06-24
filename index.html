@@ -3573,9 +3573,13 @@ function addBubble(role,text){
   const isUser=role==='user';
   const div=document.createElement('div');
   div.style.cssText=`display:flex;justify-content:${isUser?'flex-start':'flex-end'}`;
+  // متن را امن می‌کنیم و بعد لینک‌ها را کلیک‌شدنی می‌کنیم
+  var safe = escapeHtml(text).replace(/(https?:\/\/[^\s<]+)/g, function(u){
+    return '<a href="'+u+'" target="_blank" rel="noopener" style="color:#bfe0ff;text-decoration:underline;word-break:break-all">'+u+'</a>';
+  });
   div.innerHTML=`<div style="max-width:80%;padding:10px 14px;border-radius:${isUser?'4px 14px 14px 14px':'14px 4px 14px 14px'};
     background:${isUser?'#1e2235':'linear-gradient(135deg,#4f8ef7,#7c5af5)'};
-    color:white;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word">${escapeHtml(text)}</div>`;
+    color:white;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word">${safe}</div>`;
   box.appendChild(div);box.scrollTop=box.scrollHeight;
 }
 
@@ -3655,12 +3659,12 @@ function sendChat(){
   setTimeout(function(){
     if(window[cbName]){
       typing.remove();
-      addBubble('assistant','⏱ زمان پاسخ تمام شد (۱۵ ثانیه). دوباره تلاش کنید.');
+      addBubble('assistant','⏱ زمان پاسخ تمام شد (۲۵ ثانیه). دوباره تلاش کنید.');
       delete window[cbName];
       const s=document.getElementById(cbName);if(s)s.remove();
       resetBtn();
     }
-  },15000);
+  },25000);
   document.head.appendChild(script);
 }
 
@@ -7845,25 +7849,54 @@ function archiveProfile(id){
     }
     var files=res.files||[];
     if(!files.length){ filesEl.innerHTML='<div style="text-align:center;color:#5a6080;font-size:12.5px;padding:18px;border:1px dashed #20243a;border-radius:12px">هنوز فایلی در پوشه نیست — از کارت‌های بالا آپلود کن</div>'; return; }
-    var meta=function(k,name){
-      if(k==='pdf') return {ic:'📄',bg:'#2a1414',cl:'#f87171',label:'PDF'};
-      if(k==='xlsx') return {ic:'📊',bg:'#0c2a18',cl:'#5fe39a',label:'اکسل'};
-      if(k==='txt') return {ic:'📝',bg:'#16140a',cl:'#fbbf24',label:'متن'};
-      if(k==='image') return {ic:'🖼',bg:'#10233f',cl:'#7ab8ff',label:'تصویر'};
-      if(/رسید/.test(name)) return {ic:'🧾',bg:'#0c2a18',cl:'#6ee7a8',label:'رسید'};
-      if(/\.(stl|step|stp|sldprt|sldasm|obj|3mf|igs|iges|x_t)$/i.test(name)) return {ic:'📦',bg:'#10233f',cl:'#7ec5ff',label:'مدل سه‌بعدی'};
-      return {ic:'📎',bg:'#171a28',cl:'#9aa3c2',label:'فایل'};
+    function cat(f){
+      var n=f.name||'';
+      if(n.indexOf('رسید پرداخت')===0) return 'receipt';
+      if(n.indexOf('دفترچه پروژه')===0) return 'log';
+      if(n.indexOf('فاکتور')===0 || f.kind==='pdf') return 'invoice';
+      if(n.indexOf('برآورد')===0 && f.kind==='xlsx') return 'xlsx';
+      if(n.indexOf('برآورد')===0 && f.kind==='txt') return 'esttext';
+      if(n.indexOf('تصویر سفارش')===0) return 'orderimg';
+      if(/\.(stl|step|stp|sldprt|sldasm|obj|3mf|igs|iges|x_t)$/i.test(n) || f.kind==='other') return 'project';
+      if(f.kind==='image') return 'orderimg';
+      return 'project';
+    }
+    var groups=[
+      {key:'project', ic:'📦', cl:'#7ec5ff', title:'فایل‌های پروژه'},
+      {key:'receipt', ic:'🧾', cl:'#6ee7a8', title:'رسید پرداخت'},
+      {key:'invoice', ic:'📄', cl:'#f87171', title:'فاکتور'},
+      {key:'xlsx',    ic:'📊', cl:'#5fe39a', title:'اکسل برآورد'},
+      {key:'esttext', ic:'📝', cl:'#fbbf24', title:'متن برآورد'},
+      {key:'orderimg',ic:'🖼', cl:'#7ab8ff', title:'تصویر سفارش'},
+      {key:'log',     ic:'📒', cl:'#a99bf5', title:'دفترچه پروژه'}
+    ];
+    var badge=function(c){
+      if(c==='project') return {ic:'📦',bg:'#10233f',cl:'#7ec5ff'};
+      if(c==='receipt') return {ic:'🧾',bg:'#0c2a18',cl:'#6ee7a8'};
+      if(c==='invoice') return {ic:'📄',bg:'#2a1414',cl:'#f87171'};
+      if(c==='xlsx') return {ic:'📊',bg:'#0c2a18',cl:'#5fe39a'};
+      if(c==='esttext') return {ic:'📝',bg:'#16140a',cl:'#fbbf24'};
+      if(c==='orderimg') return {ic:'🖼',bg:'#10233f',cl:'#7ab8ff'};
+      if(c==='log') return {ic:'📒',bg:'#171430',cl:'#a99bf5'};
+      return {ic:'📎',bg:'#171a28',cl:'#9aa3c2'};
     };
-    filesEl.innerHTML = files.map(function(f){
-      var m=meta(f.kind, f.name||'');
-      var acts='';
-      if(f.kind==='txt') acts += '<div class="fl-ic" title="کپی متن" onclick="arCopyTextFile(\''+f.fileId+'\',this)">📋</div>';
-      acts += '<div class="fl-ic" title="دانلود" onclick="arDownloadFile(\''+f.fileId+'\',this)">⬇</div>';
-      acts += '<div class="fl-ic del" title="حذف" onclick="omDeleteFile(\''+f.fileId+'\')">✕</div>';
-      return '<div class="fl-row"><div class="fl-badge" style="background:'+m.bg+';color:'+m.cl+'">'+m.ic+'</div>'
-        +'<div style="flex:1;min-width:0"><div class="fl-name">'+escapeHtml(f.name)+'</div><div class="fl-kind">'+m.label+'</div></div>'
-        +'<div class="fl-acts">'+acts+'</div></div>';
-    }).join('');
+    var buckets={}; files.forEach(function(f){ var c=cat(f); (buckets[c]=buckets[c]||[]).push(f); });
+    var html='';
+    groups.forEach(function(g){
+      var arr=buckets[g.key]; if(!arr||!arr.length) return;
+      html += '<div style="display:flex;align-items:center;gap:7px;margin:14px 0 8px;font-size:12px;font-weight:800;color:'+g.cl+'"><span style="opacity:.9">'+g.ic+'</span>'+g.title+'<span style="flex:1;height:1px;background:linear-gradient(90deg,#1d2236,transparent);margin-right:4px"></span><span style="color:#5a6080;font-weight:600;font-size:10.5px">'+prToFa(arr.length)+' فایل</span></div>';
+      html += arr.map(function(f){
+        var m=badge(cat(f));
+        var acts='';
+        if(f.kind==='txt') acts += '<div class="fl-ic" title="کپی متن" onclick="arCopyTextFile(\''+f.fileId+'\',this)">📋</div>';
+        acts += '<div class="fl-ic" title="دانلود" onclick="arDownloadFile(\''+f.fileId+'\',this)">⬇</div>';
+        acts += '<div class="fl-ic del" title="حذف" onclick="omDeleteFile(\''+f.fileId+'\')">✕</div>';
+        return '<div class="fl-row"><div class="fl-badge" style="background:'+m.bg+';color:'+m.cl+'">'+m.ic+'</div>'
+          +'<div style="flex:1;min-width:0"><div class="fl-name">'+escapeHtml(f.name)+'</div></div>'
+          +'<div class="fl-acts">'+acts+'</div></div>';
+      }).join('');
+    });
+    filesEl.innerHTML = html;
   });
 }
 var omCurrentId = '';
@@ -7952,38 +7985,43 @@ function omUploadOne(file, done){
 }
 function omChunkUpload(sessionUri, file, onProgress, cb){
   var CHUNK = 8*256*1024; // ~۲ مگابایت، مضربی از ۲۵۶ کیلوبایت
-  var total = file.size, offset = 0, startT = Date.now();
-  function next(){
+  var total = file.size, offset = 0, startT = Date.now(), finished=false;
+  function finish(ok, id){ if(finished) return; finished=true; cb(ok, id||''); }
+  function send(){
     var end = Math.min(offset+CHUNK, total);
     var slice = file.slice(offset, end);
+    var chunkLen = end - offset, sent = 0;
     var xhr = new XMLHttpRequest();
     xhr.open('PUT', sessionUri, true);
     xhr.setRequestHeader('Content-Range', 'bytes '+offset+'-'+(end-1)+'/'+total);
     xhr.upload.onprogress = function(ev){
-      var sent = offset + (ev.loaded||0);
-      var pct = total ? (sent/total*100) : 0;
+      sent = ev.loaded||0;
+      var doneBytes = offset + sent;
+      var pct = total ? (doneBytes/total*100) : 0;
       var elapsed = (Date.now()-startT)/1000;
-      var speed = elapsed>0 ? sent/elapsed : 0; // بایت بر ثانیه
-      var remain = speed>0 ? (total-sent)/speed : 0;
-      onProgress(pct, '⚡ '+omFmtSize(speed)+'/ث · ⏱ '+omFmtTime(remain)+' باقی‌مانده · '+omFmtSize(sent)+' از '+omFmtSize(total));
+      var speed = elapsed>0 ? doneBytes/elapsed : 0;
+      var remain = speed>0 ? (total-doneBytes)/speed : 0;
+      onProgress(pct, '⚡ '+omFmtSize(speed)+'/ث · ⏱ '+omFmtTime(remain)+' باقی‌مانده · '+omFmtSize(doneBytes)+' از '+omFmtSize(total));
     };
-    xhr.onload = function(){
-      if(xhr.status===308){ // تکه پذیرفته شد، ادامه بده
-        offset = end;
-        if(offset<total){ next(); }
-        else { onProgress(100,'در حال نهایی‌سازی…'); }
-      } else if(xhr.status===200 || xhr.status===201){
+    function chunkSentFully(){ return sent >= chunkLen - 1024; } // کل تکه رفت؟
+    function proceed(){
+      if(end >= total){ // آخرین تکه
         onProgress(100,'✅ تمام شد');
         var id=''; try{ id=JSON.parse(xhr.responseText).id||''; }catch(e){}
-        cb(true, id);
-      } else {
-        cb(false, '');
-      }
+        finish(true, id);
+      } else { offset = end; send(); }
+    }
+    xhr.onload = function(){
+      var s = xhr.status;
+      if(s===308 || (s>=200 && s<300)) { proceed(); }
+      else if(s===0 && chunkSentFully()) { proceed(); } // CORS پاسخ را پنهان کرده ولی تکه رفته
+      else { finish(false); }
     };
-    xhr.onerror = function(){ cb(false,''); };
+    // CORS ممکن است پاسخ را مسدود کند و onerror صدا شود، در حالی که تکه ارسال شده
+    xhr.onerror = function(){ if(chunkSentFully()) proceed(); else finish(false); };
     xhr.send(slice);
   }
-  next();
+  send();
 }
 function omDeleteFile(fileId){
   if(!fileId) return;
