@@ -154,6 +154,15 @@ tr:hover td{background:#0e1018}
 .ai-ord .ao-part{font-size:12.5px;color:#e2e4f0;font-weight:600;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ai-ord .ao-meta{font-size:11px;color:#8089a6;margin-top:2px}
 .ai-ord .ao-go{color:#5a6480;font-size:15px;flex-shrink:0}
+/* ── دسته‌های جمع‌شونده‌ی فایل ── */
+.grp{margin-bottom:8px;border:1px solid #181c2c;border-radius:12px;overflow:hidden;background:#0c0f18}
+.grp-head{display:flex;align-items:center;gap:8px;padding:11px 13px;cursor:pointer;user-select:none;transition:background .15s}
+.grp-head:hover{background:#11151f}
+.grp-ic{font-size:16px}
+.grp-title{font-size:12.5px;font-weight:800;flex:1}
+.grp-count{font-size:10.5px;color:#5a6080;font-weight:600;background:#10131e;border:1px solid #1c2030;padding:2px 8px;border-radius:20px}
+.grp-chev{color:#6b7390;font-size:13px;transition:transform .2s;display:inline-block}
+.grp-body{padding:4px 10px 10px}
 @media print{
   .no-print{display:none!important}
   body{background:white;color:black}
@@ -3596,12 +3605,16 @@ function showRelatedOrders(codes, ordersIndex){
   if(any){ box.appendChild(wrap); box.scrollTop=box.scrollHeight; }
 }
 function aiOpenOrder(o){
-  // اگر سفارش در آرشیوِ بارگذاری‌شده باشد، پروفایلش را باز کن؛ وگرنه پوشه‌ی Drive
-  if(o.id && typeof arData!=='undefined' && arData.some(function(e){return e.id===o.id;})){
-    if(typeof archiveProfile==='function'){ archiveProfile(o.id); return; }
-  }
-  if(o.url){ window.open(o.url,'_blank','noopener'); return; }
-  if(o.id && typeof archiveProfile==='function'){ archiveProfile(o.id); }
+  if(!o || !o.id){ if(o&&o.url) window.open(o.url,'_blank','noopener'); return; }
+  // اگر در آرشیو نیست، یک ورودیِ موقت بساز تا پروفایل داخلِ سایت باز شود (بدون نیاز به لینک گوگل)
+  try{
+    if(typeof arData!=='undefined'){
+      var exists=false; for(var i=0;i<arData.length;i++){ if(arData[i].id===o.id){ exists=true; break; } }
+      if(!exists){ arData.push({ id:o.id, code:o.code||'', projectName:o.part||'', customer:o.customer||'', dateStr:o.date||'', total:o.total||0, status:o.status||'برآورد', startDate:'', endDate:'' }); }
+    }
+  }catch(e){}
+  if(typeof archiveProfile==='function'){ archiveProfile(o.id); }
+  else if(o.url){ window.open(o.url,'_blank','noopener'); }
 }
 function addBubble(role,text){
   const ph=document.getElementById('chatPlaceholder');
@@ -7928,7 +7941,15 @@ function archiveProfile(id){
     var html='';
     groups.forEach(function(g){
       var arr=buckets[g.key]; if(!arr||!arr.length) return;
-      html += '<div style="display:flex;align-items:center;gap:7px;margin:14px 0 8px;font-size:12px;font-weight:800;color:'+g.cl+'"><span style="opacity:.9">'+g.ic+'</span>'+g.title+'<span style="flex:1;height:1px;background:linear-gradient(90deg,#1d2236,transparent);margin-right:4px"></span><span style="color:#5a6080;font-weight:600;font-size:10.5px">'+prToFa(arr.length)+' فایل</span></div>';
+      var gid='grp-'+g.key;
+      html += '<div class="grp" data-grp="'+g.key+'">'
+        +'<div class="grp-head" onclick="omToggleGrp(\''+gid+'\')">'
+          +'<span class="grp-ic" style="color:'+g.cl+'">'+g.ic+'</span>'
+          +'<span class="grp-title" style="color:'+g.cl+'">'+g.title+'</span>'
+          +'<span class="grp-count">'+prToFa(arr.length)+' فایل</span>'
+          +'<span class="grp-chev" id="'+gid+'-chev">▾</span>'
+        +'</div>'
+        +'<div class="grp-body" id="'+gid+'" style="display:none">';
       html += arr.map(function(f){
         var m=badge(cat(f));
         var acts='';
@@ -7939,6 +7960,7 @@ function archiveProfile(id){
           +'<div style="flex:1;min-width:0"><div class="fl-name">'+escapeHtml(f.name)+'</div></div>'
           +'<div class="fl-acts">'+acts+'</div></div>';
       }).join('');
+      html += '</div></div>';
     });
     filesEl.innerHTML = html;
   });
@@ -8074,6 +8096,13 @@ function omDeleteFile(fileId){
     if(res && res.status==='ok'){ showToast('فایل حذف شد'); archiveProfile(omCurrentId); }
     else showToast((res&&res.message)?res.message:'خطا در حذف فایل');
   });
+}
+function omToggleGrp(gid){
+  var b=document.getElementById(gid), c=document.getElementById(gid+'-chev');
+  if(!b) return;
+  var open = b.style.display!=='none';
+  b.style.display = open ? 'none' : 'block';
+  if(c) c.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 function arCopyTextFile(fileId, el){
   var old = el ? el.textContent : '';
