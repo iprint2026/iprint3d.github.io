@@ -88,6 +88,63 @@ tr:hover td{background:#0e1018}
 .qr-name{font-size:11px;font-weight:700;color:#111;direction:rtl;line-height:1.4;max-width:150px}
 .qr-code-text{font-size:10px;color:#555;font-family:monospace}
 .qr-loc{font-size:10px;color:#666}
+/* ── آپلود/فایل‌های سفارش (خلاقانه) ── */
+.up-zones{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:560px){.up-zones{grid-template-columns:1fr}}
+.up-zone{position:relative;border:1.5px dashed #2a3550;border-radius:16px;padding:18px 16px;cursor:pointer;text-align:center;overflow:hidden;background:#0d1018;transition:transform .15s,border-color .2s,box-shadow .2s}
+.up-zone:hover{transform:translateY(-2px)}
+.up-zone:active{transform:translateY(0)}
+.up-zone .uz-ic{font-size:30px;display:block;margin-bottom:8px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
+.up-zone .uz-t{font-weight:800;font-size:13.5px;margin-bottom:3px}
+.up-zone .uz-s{font-size:11px;color:#6b7390;line-height:1.6}
+.up-zone .uz-glow{position:absolute;inset:0;opacity:0;transition:opacity .25s;pointer-events:none}
+.up-zone:hover .uz-glow{opacity:1}
+.uz-proj{border-color:#1e4e7e}
+.uz-proj:hover{border-color:#3b8fd4;box-shadow:0 8px 26px -10px rgba(59,143,212,.5)}
+.uz-proj .uz-t{color:#7ec5ff}
+.uz-proj .uz-glow{background:radial-gradient(120px 80px at 50% 0,rgba(59,143,212,.18),transparent)}
+.uz-rcpt{border-color:#1e7e4e}
+.uz-rcpt:hover{border-color:#34c97d;box-shadow:0 8px 26px -10px rgba(52,201,125,.5)}
+.uz-rcpt .uz-t{color:#6ee7a8}
+.uz-rcpt .uz-glow{background:radial-gradient(120px 80px at 50% 0,rgba(52,201,125,.18),transparent)}
+.up-card{background:#0e1018;border:1px solid #16314a;border-radius:13px;padding:13px 15px;margin-bottom:11px;box-shadow:0 4px 16px -10px rgba(0,0,0,.6)}
+.up-card .uc-head{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:#e2e4f0;margin-bottom:9px;gap:10px}
+.up-card .uc-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.up-card .uc-pct{color:#67d4f5;font-weight:800;font-variant-numeric:tabular-nums}
+.up-track{height:11px;background:#11151f;border-radius:8px;overflow:hidden;position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
+.up-fill{height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,#1d7e9e,#36d6c4,#3fd67e);background-size:200% 100%;transition:width .25s ease;position:relative;animation:upflow 1.4s linear infinite}
+.up-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);transform:translateX(-100%);animation:upshine 1.6s ease-in-out infinite}
+@keyframes upflow{0%{background-position:0 0}100%{background-position:200% 0}}
+@keyframes upshine{0%{transform:translateX(-100%)}60%,100%{transform:translateX(200%)}}
+.up-eta{font-size:11px;color:#7a8099;margin-top:7px;display:flex;align-items:center;gap:6px}
+.up-done .up-fill{animation:none;background:linear-gradient(90deg,#1e9e6e,#3fd67e)}
+.up-done .up-fill::after{display:none}
+.fl-row{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid #1a1d2e;border-radius:12px;margin-bottom:8px;background:linear-gradient(135deg,#0e1018,#0d111c);transition:border-color .2s,transform .12s}
+.fl-row:hover{border-color:#2a3550;transform:translateX(-2px)}
+.fl-badge{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.fl-name{flex:1;color:#e2e4f0;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fl-kind{font-size:10.5px;color:#6b7390;margin-top:2px;font-weight:500}
+.fl-acts{display:flex;gap:5px;flex-shrink:0}
+.fl-ic{width:30px;height:30px;border-radius:8px;border:1px solid #232742;background:#12151f;color:#9aa3c2;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:all .15s}
+.fl-ic:hover{background:#1a1f30;color:#e2e4f0}
+.fl-ic.del:hover{background:#2a1414;border-color:#5b2020;color:#f87171}
+/* ── دفترچه‌ی پروژه ── */
+.log-add{display:flex;gap:8px;align-items:flex-end;margin-bottom:14px}
+.log-ta{flex:1;background:#0d1018;border:1px solid #232742;border-radius:11px;color:#e2e4f0;font-family:inherit;font-size:12.5px;padding:10px 12px;resize:vertical;min-height:42px;line-height:1.7}
+.log-ta:focus{outline:none;border-color:#3b8fd4;box-shadow:0 0 0 3px rgba(59,143,212,.12)}
+.log-btn{background:linear-gradient(135deg,#7c5af5,#5b8cf5);border:none;color:#fff;font-weight:800;font-size:12.5px;padding:11px 16px;border-radius:11px;cursor:pointer;white-space:nowrap;transition:transform .12s,box-shadow .2s}
+.log-btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px -10px rgba(124,90,245,.7)}
+.log-btn:active{transform:translateY(0)}
+.log-line{position:relative;padding:0 22px 4px 0;margin:0}
+.log-item{position:relative;padding:0 22px 16px 0}
+.log-item::before{content:"";position:absolute;right:5px;top:18px;bottom:-2px;width:2px;background:linear-gradient(#2a3550,transparent)}
+.log-item:last-child::before{display:none}
+.log-dot{position:absolute;right:0;top:5px;width:12px;height:12px;border-radius:50%;background:#7c5af5;box-shadow:0 0 0 3px rgba(124,90,245,.18)}
+.log-card{background:linear-gradient(135deg,#0e1018,#0d111c);border:1px solid #1d2236;border-radius:12px;padding:11px 13px;margin-right:6px}
+.log-date{font-size:11px;color:#a99bf5;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.log-text{font-size:12.5px;color:#dfe2ee;line-height:1.85;white-space:pre-wrap;word-break:break-word}
+.log-del{float:left;color:#5a6080;cursor:pointer;font-size:12px;padding:2px 6px;border-radius:6px;transition:all .15s}
+.log-del:hover{background:#2a1414;color:#f87171}
 @media print{
   .no-print{display:none!important}
   body{background:white;color:black}
@@ -6853,33 +6910,43 @@ function prRenderTape(r){
 function pricingCopy(){
   if(!prLastResult){ showToast('اول یک برآورد بسازید'); return; }
   var r = prLastResult, o = prState.order;
-  var packShip = (+r.packaging||0)+(+r.shipping||0);
-  var L = [];
-  L.push('برآورد قیمت — iPrint3D');
-  if(prState.savedCode) L.push('کد سفارش: ' + prState.savedCode);
-  if(o.customer) L.push('مشتری: ' + o.customer);
-  if(o.orderName) L.push('سفارش: ' + o.orderName);
-  L.push('تعداد: ' + prSep(r.qty) + ' عدد');
-  L.push('');
   var lbl = prUsedLabels();
-  L.push('— هزینه‌ی ساخت هر عدد —');
-  L.push(lbl.machine + ': ' + prFmt(r.cat.machine));
-  L.push('نیروی انسانی (با فینیشینگ): ' + prFmt(r.cat.labor + r.cat.finishing));
-  L.push(lbl.material + ': ' + prFmt(r.material));
-  L.push('جمع هر عدد: ' + prFmt(r.base));
+  var manual = r.manual;
+  var L = [];
+  L.push('🧾 برآورد قیمت — iPrint3D');
+  L.push('━━━━━━━━━━━━━━━━━━━━');
+  if(prState.savedCode) L.push('🔖 کد سفارش: ' + prState.savedCode);
+  if(o.customer) L.push('👤 مشتری: ' + o.customer);
+  if(o.orderName) L.push('📦 سفارش: ' + o.orderName);
+  if(o.tel) L.push('📞 تماس: ' + o.tel);
+  L.push('🔢 تعداد: ' + prSep(r.qty) + ' عدد');
   L.push('');
-  L.push('— قیمت‌گذاری هر عدد —');
-  L.push('با ضریب سود: ' + prFmt(r.perPartMargin));
-  L.push('+ درصد پژوهشگاه: ' + prFmt(r.institute));
-  L.push('قیمت هر عدد: ' + prFmt(r.perPartAnnounced));
-  L.push('');
-  L.push('— کل سفارش —');
-  if(r.modelingAnnounced) L.push('مدلسازی (یک‌باره): ' + prFmt(r.modelingAnnounced));
-  L.push('قیمت نهایی (کل): ' + prFmt(r.orderTotal));
-  L.push('قیمت هر عدد (نهایی): ' + prFmt(r.perUnit));
-  if(prState.order && prState.order.notes && String(prState.order.notes).trim()){
-    L.push(''); L.push('— توضیحات —'); L.push(String(prState.order.notes).trim());
+  L.push('▌هزینه‌ی ساخت (هر عدد)');
+  L.push('• ' + lbl.machine + ': ' + prFmt(r.cat.machine));
+  L.push('• نیروی انسانی (با فینیشینگ): ' + prFmt(r.cat.labor + r.cat.finishing));
+  L.push('• ' + lbl.material + ': ' + prFmt(r.material));
+  L.push('➖ جمع هر عدد: ' + prFmt(r.base));
+  if(!manual){
+    L.push('');
+    L.push('▌قیمت‌گذاری (هر عدد)');
+    L.push('• با ضریب سود: ' + prFmt(r.perPartMargin));
+    L.push('• سهم پژوهشگاه: ' + prFmt(r.institute));
+    L.push('✅ قیمت هر عدد: ' + prFmt(r.perPartAnnounced));
   }
+  L.push('');
+  L.push('▌جمع‌بندی سفارش');
+  if(r.modelingAnnounced) L.push('• مدلسازی (یک‌باره): ' + prFmt(r.modelingAnnounced));
+  if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
+  if(r.shipping) L.push('• ارسال: ' + prFmt(r.shipping));
+  if(manual) L.push('• قیمت اعلامیِ دستی هر عدد: ' + prFmt(r.perUnit));
+  L.push('💰 قیمت کل: ' + prFmt(r.orderTotal));
+  L.push('💵 قیمت هر عدد: ' + prFmt(r.perUnit));
+  if(o.notes && String(o.notes).trim()){
+    L.push('');
+    L.push('▌توضیحات');
+    L.push(String(o.notes).trim());
+  }
+  L.push('━━━━━━━━━━━━━━━━━━━━');
   var txt = L.join('\n');
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(txt).then(function(){ showToast('✅ متن کپی شد'); }).catch(function(){ prCopyFallback(txt); });
@@ -7285,6 +7352,14 @@ function ivSetSize(s){
 }
 
 function ivExportPDF(){
+  // خروجیِ مو‌به‌مو مثلِ پیش‌نمایش = چاپِ خودِ مرورگر
+  if(ivDesign) ivToggleDesign();
+  var st=document.getElementById('iv-print-size'); if(!st){ st=document.createElement('style'); st.id='iv-print-size'; document.head.appendChild(st); }
+  st.textContent='@media print{@page{size:'+(ivPageSize==='a5'?'A5':'A4')+';margin:0}}';
+  showToast('در پنجره‌ی چاپ: مقصد = «Save as PDF» · Margins = None · Background graphics = روشن');
+  setTimeout(function(){ window.print(); }, 400);
+}
+function ivExportPDF_canvas(){
   if(!window.html2canvas || !window.jspdf){ showToast('کتابخانه‌ی PDF بارگذاری نشد. اینترنت را بررسی کن.'); return; }
   var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean'), wasDesign=v.classList.contains('iv-designing');
   var el=v.querySelector('.page');
@@ -7719,10 +7794,26 @@ function archiveProfile(id){
       +'<button class="btn btn-sm" style="background:#2a1414;border-color:#5b2020;color:#f87171" onclick="omDelete(\''+id+'\')">✕ حذف سفارش</button>'
     +'</div>'
     +'<div id="om-summary" style="margin-bottom:18px"></div>'
-    +'<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">فایل‌های پوشه‌ی سفارش</div>'
-    +'<div id="om-files" style="color:#5a6080;font-size:13px">در حال بارگذاری...</div>';
+    +'<div class="up-zones">'
+      +'<div class="up-zone uz-proj" onclick="omPickUpload(\'project\')"><span class="uz-glow"></span>'
+        +'<span class="uz-ic">📦</span><div class="uz-t">فایل‌های پروژه</div>'
+        +'<div class="uz-s">STL · STEP · SolidPart<br>چند فایل · حجم بالا</div></div>'
+      +'<div class="up-zone uz-rcpt" onclick="omPickUpload(\'receipt\')"><span class="uz-glow"></span>'
+        +'<span class="uz-ic">🧾</span><div class="uz-t">رسید پرداخت</div>'
+        +'<div class="uz-s">تصویر رسید<br>با نام خودکارِ سفارش</div></div>'
+      +'<input type="file" id="om-up-input" style="display:none" multiple>'
+    +'</div>'
+    +'<div id="om-up-progress"></div>'
+    +'<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin:4px 0 8px">فایل‌های پوشه‌ی سفارش</div>'
+    +'<div id="om-files" style="color:#5a6080;font-size:13px">در حال بارگذاری...</div>'
+    +'<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin:20px 0 10px;display:flex;align-items:center;gap:7px">📒 دفترچه‌ی پروژه <span style="font-weight:500;font-size:11px;color:#5a6080">(تجربه‌ها، رزین، ضرایب، رنگ…)</span></div>'
+    +'<div class="log-add"><textarea id="om-log-input" class="log-ta" placeholder="یک یادداشت بنویس… (مثلاً: رزین ABS-Like، لایه ۰٫۰۵، رنگ مشکی مات)"></textarea>'
+      +'<button class="log-btn" onclick="omAddLog()">+ افزودن</button></div>'
+    +'<div id="om-log" style="color:#5a6080;font-size:12.5px"></div>';
+  omCurrentId = id;
   document.getElementById('order-modal').style.display='flex';
   document.getElementById('order-modal').scrollTop=0;
+  omLoadLog();
   callSheet('getOrderFiles', { id:id, t:Date.now() }, function(res){
     var imgEl=document.getElementById('om-image'), filesEl=document.getElementById('om-files');
     if(!imgEl || !filesEl) return;
@@ -7753,18 +7844,156 @@ function archiveProfile(id){
       imgEl.innerHTML='<div style="border:1px dashed #2a2d40;border-radius:12px;padding:24px;text-align:center;color:#5a6080;font-size:12px">بدون تصویر — از دکمه‌ی «افزودن/تغییر تصویر» اضافه کن</div>';
     }
     var files=res.files||[];
-    if(!files.length){ filesEl.textContent='هنوز فایلی در پوشه نیست.'; return; }
-    var icon=function(k){ return k==='pdf'?'📄':(k==='xlsx'?'📊':(k==='txt'?'📝':(k==='image'?'🖼':'📎'))); };
+    if(!files.length){ filesEl.innerHTML='<div style="text-align:center;color:#5a6080;font-size:12.5px;padding:18px;border:1px dashed #20243a;border-radius:12px">هنوز فایلی در پوشه نیست — از کارت‌های بالا آپلود کن</div>'; return; }
+    var meta=function(k,name){
+      if(k==='pdf') return {ic:'📄',bg:'#2a1414',cl:'#f87171',label:'PDF'};
+      if(k==='xlsx') return {ic:'📊',bg:'#0c2a18',cl:'#5fe39a',label:'اکسل'};
+      if(k==='txt') return {ic:'📝',bg:'#16140a',cl:'#fbbf24',label:'متن'};
+      if(k==='image') return {ic:'🖼',bg:'#10233f',cl:'#7ab8ff',label:'تصویر'};
+      if(/رسید/.test(name)) return {ic:'🧾',bg:'#0c2a18',cl:'#6ee7a8',label:'رسید'};
+      if(/\.(stl|step|stp|sldprt|sldasm|obj|3mf|igs|iges|x_t)$/i.test(name)) return {ic:'📦',bg:'#10233f',cl:'#7ec5ff',label:'مدل سه‌بعدی'};
+      return {ic:'📎',bg:'#171a28',cl:'#9aa3c2',label:'فایل'};
+    };
     filesEl.innerHTML = files.map(function(f){
-      var actions='';
-      if(f.kind==='txt') actions += '<button class="btn btn-ghost btn-sm" style="padding:3px 9px;font-size:11.5px" onclick="arCopyTextFile(\''+f.fileId+'\',this)">📋 کپی متن</button>';
-      actions += '<button class="btn btn-ghost btn-sm" style="padding:3px 9px;font-size:11.5px" onclick="arDownloadFile(\''+f.fileId+'\',this)">⬇ دانلود</button>';
-      return '<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #1a1d2e;border-radius:9px;margin-bottom:6px;color:#e2e4f0;font-size:12.5px;background:#0e1018">'+icon(f.kind)+' <span style="flex:1">'+escapeHtml(f.name)+'</span>'+actions+'</div>';
+      var m=meta(f.kind, f.name||'');
+      var acts='';
+      if(f.kind==='txt') acts += '<div class="fl-ic" title="کپی متن" onclick="arCopyTextFile(\''+f.fileId+'\',this)">📋</div>';
+      acts += '<div class="fl-ic" title="دانلود" onclick="arDownloadFile(\''+f.fileId+'\',this)">⬇</div>';
+      acts += '<div class="fl-ic del" title="حذف" onclick="omDeleteFile(\''+f.fileId+'\')">✕</div>';
+      return '<div class="fl-row"><div class="fl-badge" style="background:'+m.bg+';color:'+m.cl+'">'+m.ic+'</div>'
+        +'<div style="flex:1;min-width:0"><div class="fl-name">'+escapeHtml(f.name)+'</div><div class="fl-kind">'+m.label+'</div></div>'
+        +'<div class="fl-acts">'+acts+'</div></div>';
     }).join('');
   });
 }
-function arCopyTextFile(fileId, el){
+var omCurrentId = '';
+var omUpKind = 'project';
+function omRenderLog(log){
+  var el=document.getElementById('om-log'); if(!el) return;
+  log = log||[];
+  if(!log.length){ el.innerHTML='<div style="text-align:center;color:#5a6080;font-size:12px;padding:14px;border:1px dashed #20243a;border-radius:12px">هنوز یادداشتی ثبت نشده — اولین تجربه‌ی این پروژه را بنویس</div>'; return; }
+  var items = log.slice().reverse();
+  el.innerHTML = items.map(function(e){
+    return '<div class="log-item"><span class="log-dot"></span><div class="log-card">'
+      +'<div class="log-date">🗓 '+escapeHtml(e.date||'')+'<span class="log-del" title="حذف" onclick="omDeleteLog(\''+e.ts+'\')">✕</span></div>'
+      +'<div class="log-text">'+escapeHtml(e.text||'')+'</div></div></div>';
+  }).join('');
+}
+function omLoadLog(){
+  callSheet('getOrderLog', { id:omCurrentId, t:Date.now() }, function(res){
+    if(res && res.status==='ok') omRenderLog(res.log);
+  });
+}
+function omAddLog(){
+  var ta=document.getElementById('om-log-input'); if(!ta) return;
+  var txt=ta.value.trim(); if(!txt){ showToast('یادداشت خالی است'); return; }
+  ta.disabled=true;
+  callSheet('addOrderLog', { id:omCurrentId, text:txt, t:Date.now() }, function(res){
+    ta.disabled=false;
+    if(res && res.status==='ok'){ ta.value=''; omRenderLog(res.log); showToast('✅ یادداشت ثبت شد'); }
+    else showToast((res&&res.message)?res.message:'خطا در ثبت یادداشت');
+  }, 30000);
+}
+function omDeleteLog(ts){
+  if(!confirm('این یادداشت حذف شود؟')) return;
+  callSheet('deleteOrderLog', { id:omCurrentId, ts:ts, t:Date.now() }, function(res){
+    if(res && res.status==='ok'){ omRenderLog(res.log); showToast('یادداشت حذف شد'); }
+    else showToast('خطا در حذف');
+  });
+}
+function omPickUpload(kind){
+  omUpKind = kind;
+  var inp = document.getElementById('om-up-input');
+  if(!inp) return;
+  // نوع فایل مجاز
+  inp.accept = (kind==='receipt') ? 'image/*' : '.stl,.step,.stp,.sldprt,.sldasm,.obj,.3mf,.zip,.rar,.x_t,.igs,.iges,application/octet-stream,*/*';
+  inp.multiple = (kind!=='receipt'); // رسید تک‌فایل، فایل پروژه چندتایی
+  inp.value='';
+  inp.onchange = function(){
+    var files = Array.prototype.slice.call(inp.files||[]);
+    if(!files.length) return;
+    omUploadQueue(files, 0);
+  };
+  inp.click();
+}
+function omFmtSize(b){ if(b>=1048576) return (b/1048576).toFixed(1)+' مگابایت'; if(b>=1024) return (b/1024).toFixed(0)+' کیلوبایت'; return b+' بایت'; }
+function omFmtTime(sec){ sec=Math.round(sec); if(sec<60) return sec+' ثانیه'; var m=Math.floor(sec/60), s=sec%60; return m+' دقیقه'+(s?(' و '+s+' ثانیه'):''); }
+function omUploadQueue(files, i){
+  if(i>=files.length){ // همه تمام شد
+    var box=document.getElementById('om-up-progress'); if(box) box.innerHTML='';
+    showToast('✅ آپلود کامل شد'); archiveProfile(omCurrentId); return;
+  }
+  omUploadOne(files[i], function(){ omUploadQueue(files, i+1); });
+}
+function omUploadOne(file, done){
+  var box=document.getElementById('om-up-progress');
+  var rowId='up-'+Date.now();
+  if(box){
+    box.innerHTML = '<div id="'+rowId+'" class="up-card">'
+      +'<div class="uc-head"><span class="uc-name">'+escapeHtml(file.name)+'</span><span id="'+rowId+'-pct" class="uc-pct">۰٪</span></div>'
+      +'<div class="up-track"><div id="'+rowId+'-bar" class="up-fill"></div></div>'
+      +'<div id="'+rowId+'-eta" class="up-eta">⏳ در حال آماده‌سازی…</div>'
+      +'</div>';
+  }
+  function setPct(p, etaText){
+    var pe=document.getElementById(rowId+'-pct'), be=document.getElementById(rowId+'-bar'), ee=document.getElementById(rowId+'-eta'), card=document.getElementById(rowId);
+    if(pe) pe.textContent=prToFa(Math.round(p))+'٪'; if(be) be.style.width=p+'%'; if(ee && etaText!=null) ee.textContent=etaText;
+    if(card && p>=100) card.classList.add('up-done');
+  }
+  // ۱) گرفتن نشست آپلود از سرور
+  callSheet('createUploadSession', { id:omCurrentId, filename:file.name, mime:(file.type||'application/octet-stream'), size:file.size, kind:omUpKind, t:Date.now() }, function(res){
+    if(!(res && res.status==='ok' && res.sessionUri)){ setPct(0,'خطا در شروع آپلود'); showToast((res&&res.message)?res.message:'خطا در شروع آپلود'); if(done) done(); return; }
+    omChunkUpload(res.sessionUri, file, setPct, function(ok, fileId){
+      if(!ok){ showToast('آپلود ناتمام ماند'); if(done) done(); return; }
+      // ۳) ثبت در سرور (بررسی امنیتی)
+      callSheet('registerOrderFile', { id:omCurrentId, fileId:fileId||'', kind:omUpKind, t:Date.now() }, function(){ if(done) done(); });
+    });
+  }, 60000);
+}
+function omChunkUpload(sessionUri, file, onProgress, cb){
+  var CHUNK = 8*256*1024; // ~۲ مگابایت، مضربی از ۲۵۶ کیلوبایت
+  var total = file.size, offset = 0, startT = Date.now();
+  function next(){
+    var end = Math.min(offset+CHUNK, total);
+    var slice = file.slice(offset, end);
+    var xhr = new XMLHttpRequest();
+    xhr.open('PUT', sessionUri, true);
+    xhr.setRequestHeader('Content-Range', 'bytes '+offset+'-'+(end-1)+'/'+total);
+    xhr.upload.onprogress = function(ev){
+      var sent = offset + (ev.loaded||0);
+      var pct = total ? (sent/total*100) : 0;
+      var elapsed = (Date.now()-startT)/1000;
+      var speed = elapsed>0 ? sent/elapsed : 0; // بایت بر ثانیه
+      var remain = speed>0 ? (total-sent)/speed : 0;
+      onProgress(pct, '⚡ '+omFmtSize(speed)+'/ث · ⏱ '+omFmtTime(remain)+' باقی‌مانده · '+omFmtSize(sent)+' از '+omFmtSize(total));
+    };
+    xhr.onload = function(){
+      if(xhr.status===308){ // تکه پذیرفته شد، ادامه بده
+        offset = end;
+        if(offset<total){ next(); }
+        else { onProgress(100,'در حال نهایی‌سازی…'); }
+      } else if(xhr.status===200 || xhr.status===201){
+        onProgress(100,'✅ تمام شد');
+        var id=''; try{ id=JSON.parse(xhr.responseText).id||''; }catch(e){}
+        cb(true, id);
+      } else {
+        cb(false, '');
+      }
+    };
+    xhr.onerror = function(){ cb(false,''); };
+    xhr.send(slice);
+  }
+  next();
+}
+function omDeleteFile(fileId){
   if(!fileId) return;
+  if(!confirm('این فایل از پوشه‌ی سفارش حذف شود؟')) return;
+  callSheet('deleteOrderFile', { fileId:fileId, t:Date.now() }, function(res){
+    if(res && res.status==='ok'){ showToast('فایل حذف شد'); archiveProfile(omCurrentId); }
+    else showToast((res&&res.message)?res.message:'خطا در حذف فایل');
+  });
+}
+function arCopyTextFile(fileId, el){
   var old = el ? el.textContent : '';
   if(el) el.textContent='...';
   callSheet('getOrderFileBlob', { fileId:fileId, t:Date.now() }, function(res){
