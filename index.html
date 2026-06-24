@@ -145,6 +145,15 @@ tr:hover td{background:#0e1018}
 .log-text{font-size:12.5px;color:#dfe2ee;line-height:1.85;white-space:pre-wrap;word-break:break-word}
 .log-del{float:left;color:#5a6080;cursor:pointer;font-size:12px;padding:2px 6px;border-radius:6px;transition:all .15s}
 .log-del:hover{background:#2a1414;color:#f87171}
+/* ── کارت‌های سفارش در پاسخ دستیار ── */
+.ai-ords{display:flex;flex-direction:column;gap:8px;margin:8px 0 4px;align-items:flex-end}
+.ai-ord{display:flex;align-items:center;gap:10px;width:80%;max-width:80%;background:linear-gradient(135deg,#10182c,#0d1422);border:1px solid #21304e;border-radius:13px;padding:10px 13px;cursor:pointer;transition:transform .12s,border-color .2s,box-shadow .2s;text-align:right}
+.ai-ord:hover{transform:translateY(-2px);border-color:#3b8fd4;box-shadow:0 8px 22px -12px rgba(59,143,212,.6)}
+.ai-ord .ao-ic{width:40px;height:40px;border-radius:11px;background:#0c1c3a;border:1px solid #1e3a6e;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.ai-ord .ao-code{font-size:12px;font-weight:800;color:#7ab8ff;letter-spacing:.5px}
+.ai-ord .ao-part{font-size:12.5px;color:#e2e4f0;font-weight:600;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-ord .ao-meta{font-size:11px;color:#8089a6;margin-top:2px}
+.ai-ord .ao-go{color:#5a6480;font-size:15px;flex-shrink:0}
 @media print{
   .no-print{display:none!important}
   body{background:white;color:black}
@@ -3566,6 +3575,34 @@ function buildContext(){
     })();
 }
 
+function showRelatedOrders(codes, ordersIndex){
+  if(!codes || !codes.length) return;
+  var box=document.getElementById('chatBox'); if(!box) return;
+  var byCode={}; (ordersIndex||[]).forEach(function(o){ if(o.code) byCode[o.code]=o; });
+  var wrap=document.createElement('div'); wrap.className='ai-ords';
+  var any=false;
+  codes.forEach(function(c){
+    var o=byCode[c]; if(!o) return; any=true;
+    var stColor = o.status==='تمام‌شده'?'#60a5fa':(o.status==='در جریان ساخت'?'#34d399':'#9aa3c2');
+    var card=document.createElement('div'); card.className='ai-ord';
+    card.innerHTML='<span class="ao-go">↗</span>'
+      +'<div style="flex:1;min-width:0"><div class="ao-code">'+escapeHtml(o.code)+'</div>'
+      +'<div class="ao-part">'+escapeHtml(o.part||'—')+'</div>'
+      +'<div class="ao-meta">'+escapeHtml(o.customer||'')+' · '+prToFa(prSep(o.total||0))+' تومان · <span style="color:'+stColor+'">'+escapeHtml(o.status||'')+'</span></div></div>'
+      +'<div class="ao-ic">🗂</div>';
+    card.onclick=function(){ aiOpenOrder(o); };
+    wrap.appendChild(card);
+  });
+  if(any){ box.appendChild(wrap); box.scrollTop=box.scrollHeight; }
+}
+function aiOpenOrder(o){
+  // اگر سفارش در آرشیوِ بارگذاری‌شده باشد، پروفایلش را باز کن؛ وگرنه پوشه‌ی Drive
+  if(o.id && typeof arData!=='undefined' && arData.some(function(e){return e.id===o.id;})){
+    if(typeof archiveProfile==='function'){ archiveProfile(o.id); return; }
+  }
+  if(o.url){ window.open(o.url,'_blank','noopener'); return; }
+  if(o.id && typeof archiveProfile==='function'){ archiveProfile(o.id); }
+}
 function addBubble(role,text){
   const ph=document.getElementById('chatPlaceholder');
   if(ph)ph.remove();
@@ -3626,12 +3663,19 @@ function sendChat(){
       var match = rawAnswer.match(/\[\[CODES:([^\]]*)\]\]/);
       if(match){
         codes = match[1].split(',').map(function(c){ return c.trim(); }).filter(function(c){ return c; });
-        // حذف تگ از متن نمایشی
         rawAnswer = rawAnswer.replace(/\[\[CODES:[^\]]*\]\]/g, '').trim();
+      }
+      // استخراج کدهای سفارش از [[ORDERS:...]]
+      var ordCodes = [];
+      var omatch = rawAnswer.match(/\[\[ORDERS:([^\]]*)\]\]/);
+      if(omatch){
+        ordCodes = omatch[1].split(',').map(function(c){ return c.trim(); }).filter(function(c){ return c; });
+        rawAnswer = rawAnswer.replace(/\[\[ORDERS:[^\]]*\]\]/g, '').trim();
       }
       chatHistory.push({role:'assistant',content:rawAnswer});
       addBubble('assistant',rawAnswer);
       showRelatedItemsByCodes(codes);
+      showRelatedOrders(ordCodes, data.orders||[]);
     } else if(data && data.error){
       addBubble('assistant','❌ خطا از سرور: '+data.error);
     } else {
