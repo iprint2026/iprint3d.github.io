@@ -860,6 +860,9 @@ function doPost(e){
               <div><label style="font-size:11px;color:#5a6080">بسته‌بندی (تومان)</label><input class="inp pr-money" id="pr-p-packaging"></div>
               <div><label style="font-size:11px;color:#5a6080">ارسال (تومان)</label><input class="inp pr-money" id="pr-p-shipping"></div>
             </div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#cfd3e6;cursor:pointer">
+              <input type="checkbox" id="pr-p-showextras" onchange="prState.order.showExtras=this.checked; prScheduleCompute();" style="width:16px;height:16px">
+              بسته‌بندی و ارسال به‌صورت ردیف در فاکتور نوشته شوند</label>
             <div style="margin-top:11px">
               <label style="font-size:11px;color:#5a6080">توضیحات سفارش (اختیاری)</label>
               <textarea class="inp" id="pr-o-notes" rows="3" placeholder="هر توضیحی که لازم است؛ در فایل متنی، اکسل و پروفایل سفارش ذخیره و نمایش داده می‌شود..." style="resize:vertical;line-height:1.8"></textarea>
@@ -6718,6 +6721,7 @@ function prRenderOrder(){
   document.getElementById('pr-p-institute').value = o.institute;
   document.getElementById('pr-p-packaging').value = prSep(+o.packaging||0);
   document.getElementById('pr-p-shipping').value  = prSep(+o.shipping||0);
+  var se=document.getElementById('pr-p-showextras'); if(se) se.checked = !!o.showExtras;
   var nt=document.getElementById('pr-o-notes'); if(nt) nt.value = o.notes||'';
   var mu=document.getElementById('pr-manual-unit'); if(mu) mu.value = (+o.manualUnit>0)?prSep(+o.manualUnit):'';
   var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display=((+o.manualUnit>0)?'block':'none');
@@ -6777,7 +6781,9 @@ function prRenderSections(){
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px">'
         +'<div><label style="font-size:11px;color:#5a6080">تعداد این بخش</label><input class="inp" type="number" min="1" data-prsf="qty" value="'+(s.qty!=null?s.qty:1)+'"></div>'
         +'<div><label style="font-size:11px;color:#5a6080">ضریب سود این بخش</label><input class="inp" type="number" step="0.1" data-prsf="profit" value="'+(s.profit!=null?s.profit:'')+'" placeholder="پیش‌فرض"></div>'
-      +'</div>';
+      +'</div>'
+      +'<div style="margin-bottom:11px"><label style="font-size:11px;color:#5fe39a">قیمت اعلامی دستی هر عدد (اختیاری)</label>'
+        +'<input class="inp" type="number" data-prsf="manualUnit" value="'+(s.manualUnit?s.manualUnit:'')+'" placeholder="خالی = محاسبه‌ی خودکار" style="border-color:#1e5e3e"></div>';
     html += '<div class="pr-sec-lines">';
     if(!(s.lines||[]).length){ html += '<div style="color:#5a6080;font-size:12px;text-align:center;padding:12px;border:1px dashed #1a1d2e;border-radius:9px">ردیفی اضافه نشده</div>'; }
     else { html += (s.lines).map(function(l){
@@ -6862,9 +6868,6 @@ function prRenderModelingArea(){
       h += '<div style="margin-top:8px"><label style="font-size:11px;color:#5a6080">عنوان ردیف طراحی در فاکتور</label>'
         +'<input class="inp" id="pr-design-name" value="'+escapeHtml(prState.order.designName||'')+'" placeholder="مثلاً طراحی سه‌بعدی قطعه فنر" oninput="prState.order.designName=this.value"></div>';
     }
-    h += '<label style="display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#cfd3e6;cursor:pointer">'
-      +'<input type="checkbox" id="pr-show-extras" '+(prState.order.showExtras?'checked':'')+' onchange="prState.order.showExtras=this.checked; prScheduleCompute();" style="width:16px;height:16px">'
-      +'بسته‌بندی و ارسال به‌صورت ردیف در فاکتور نوشته شوند</label>';
     h += '</div>';
     area.innerHTML = h;
   } else {
@@ -7091,18 +7094,28 @@ function prRenderTape(r){
     var h2='';
     if(prState.savedCode){ h2 += '<div class="pr-ln strong" style="background:#0c1c3a;border:1px solid #1e3a6e;border-radius:8px;padding:8px 10px;margin-bottom:8px"><span style="color:#7ab8ff">کد سفارش</span><span style="color:#7ab8ff;letter-spacing:1px">'+escapeHtml(prState.savedCode)+'</span></div>'; }
     (r.sections||[]).forEach(function(s,i){
-      h2 += '<div class="pr-sec">بخش '+prToFa(i+1)+'؛ '+escapeHtml(s.name||'')+' ('+prToFa(s.qty)+' عدد)</div>';
-      h2 += ln('قیمت هر عدد (با سود ×'+prToFa(s.profit)+')', s.perUnit, 'muted');
+      h2 += '<div class="pr-sec" style="background:#171430;border:1px solid #2a2350;border-radius:8px;padding:6px 10px;margin:10px 0 6px;color:#bfb0ff;font-weight:800">🧩 بخش '+prToFa(i+1)+'؛ '+escapeHtml(s.name||'')+' ('+prToFa(s.qty)+' عدد)</div>';
+      if(s.cat){
+        if(s.cat.machine) h2 += ln('دستگاه (هر عدد)', s.cat.machine, 'muted');
+        if(s.cat.material) h2 += ln('مواد (هر عدد)', s.cat.material, 'muted');
+        if(s.cat.labor||s.cat.finishing) h2 += ln('نیروی انسانی+فینیشینگ (هر عدد)', (s.cat.labor||0)+(s.cat.finishing||0), 'muted');
+      }
+      h2 += ln('قیمت تمام‌شده (هر عدد)', s.base, 'muted');
+      if(s.manual){
+        h2 += '<div class="pr-ln muted" style="color:#4ade80"><span>قیمت اعلامی دستی (هر عدد)</span><span>'+prFmt(s.perUnit)+'</span></div>';
+      } else {
+        h2 += ln('با سود ×'+prToFa(s.profit), s.base*s.profit, 'muted');
+        if(s.institute) h2 += ln('سهم پژوهشگاه (این بخش)', s.institute/s.qty, 'muted');
+        h2 += ln('قیمت هر عدد', s.perUnit, 'muted');
+      }
       h2 += ln('جمع این بخش', s.total, 'strong');
     });
-    h2 += '<div class="pr-sec">جمع پروژه</div>';
-    h2 += ln('جمع بخش‌ها (با سود و پژوهشگاه)', r.perPartAnnounced, 'muted');
+    h2 += '<div class="pr-sec" style="margin-top:12px">جمع پروژه</div>';
+    h2 += ln('جمع بخش‌ها', r.perPartAnnounced, 'muted');
     if(r.modelingAnnounced) h2 += ln('+ طراحی/مدلسازی', r.modelingAnnounced, 'muted');
     if(+r.packaging||+r.shipping) h2 += ln('+ بسته‌بندی و ارسال', (+r.packaging||0)+(+r.shipping||0), 'muted');
     h2 += ln('قیمت نهایی (فروش)', r.orderTotal, 'strong');
     h2 += '<div class="pr-ln muted" style="font-size:11px"><span>از این مبلغ، سهم پژوهشگاه</span><span>'+prFmt(r.institute)+'</span></div>';
-    h2 += '<div class="pr-sec">سود پروژه</div>';
-    h2 += ln('قیمت تمام‌شده', r.rawTotal, 'muted');
     h2 += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>'+prFmt(r.orderTotal - r.rawTotal)+'</span></div>';
     document.getElementById('pr-tape').innerHTML = h2;
     document.getElementById('pr-final-unit').textContent  = prFmt(r.perUnit);
