@@ -6806,12 +6806,14 @@ function prMakeLine(kind){
 function prAddSection(){
   if(!prState.order.sections) prState.order.sections = [];
   if(!prState.order.sections.length){
-    prState.order.sections.push({ id:prNid(), name:(prState.order.orderName||'بخش ۱'),
+    prState.order.sections.push({ id:prNid(), name:(prState.order.orderName||'قطعه ۱'),
       qty:(+prState.order.qty||1), profit:(prState.order.profit!=null?prState.order.profit:''),
       lines: prState.lines.filter(function(l){return l.kind!=='modeling';}) });
     prState.lines = prState.lines.filter(function(l){return l.kind==='modeling';});
   }
-  prState.order.sections.push({ id:prNid(), name:'بخش '+prToFa(prState.order.sections.length+1), qty:1, profit:'', lines:[] });
+  var nm = prompt('نام قطعه‌ی این بخش چیست؟ (مثلاً فنر)', '');
+  if(nm===null) { if(prState.order.sections.length<2){ /* لغو اولین تبدیل */ } }
+  prState.order.sections.push({ id:prNid(), name:(nm&&nm.trim())?nm.trim():('قطعه '+prToFa(prState.order.sections.length+1)), qty:1, profit:'', lines:[] });
   prRenderLines(); prRenderModelingArea(); prScheduleCompute();
 }
 function prRemoveSection(sid){
@@ -6832,6 +6834,14 @@ function prSecAddLine(sid, kind){
   s.lines.push(prMakeLine(kind));
   prRenderSections(); prScheduleCompute();
 }
+function prToggleDesign(on){
+  prState.order.showDesignRow = on;
+  if(on && !(prState.order.designName||'').trim()){
+    var nm = prompt('اسم قطعه‌ای که طراحی/مدلسازی شده چیست؟ (در فاکتور نوشته می‌شود)', 'طراحی سه‌بعدی قطعه ');
+    prState.order.designName = (nm&&nm.trim()) ? nm.trim() : 'طراحی قطعه';
+  }
+  prRenderModelingArea(); prScheduleCompute();
+}
 function prRenderModelingArea(){
   var area = document.getElementById('pr-modeling-area');
   var single = document.getElementById('pr-single-adds');
@@ -6846,8 +6856,15 @@ function prRenderModelingArea(){
     }).join('') : '<div style="color:#5a6080;font-size:12px;padding:6px 0">اگر طراحی/مدلسازی دارید، اضافه کنید.</div>';
     h += '<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="pricingAddLine(\'modeling\')">+ زمان طراحی</button></div>';
     h += '<label style="display:flex;align-items:center;gap:8px;margin-top:11px;font-size:12px;color:#cfd3e6;cursor:pointer">'
-      +'<input type="checkbox" id="pr-show-design" '+(prState.order.showDesignRow?'checked':'')+' onchange="prState.order.showDesignRow=this.checked; prScheduleCompute();" style="width:16px;height:16px">'
+      +'<input type="checkbox" id="pr-show-design" '+(prState.order.showDesignRow?'checked':'')+' onchange="prToggleDesign(this.checked)" style="width:16px;height:16px">'
       +'ردیف «طراحی قطعه» جداگانه در فاکتور نمایش داده شود</label>';
+    if(prState.order.showDesignRow){
+      h += '<div style="margin-top:8px"><label style="font-size:11px;color:#5a6080">عنوان ردیف طراحی در فاکتور</label>'
+        +'<input class="inp" id="pr-design-name" value="'+escapeHtml(prState.order.designName||'')+'" placeholder="مثلاً طراحی سه‌بعدی قطعه فنر" oninput="prState.order.designName=this.value"></div>';
+    }
+    h += '<label style="display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#cfd3e6;cursor:pointer">'
+      +'<input type="checkbox" id="pr-show-extras" '+(prState.order.showExtras?'checked':'')+' onchange="prState.order.showExtras=this.checked; prScheduleCompute();" style="width:16px;height:16px">'
+      +'بسته‌بندی و ارسال به‌صورت ردیف در فاکتور نوشته شوند</label>';
     h += '</div>';
     area.innerHTML = h;
   } else {
@@ -7079,13 +7096,13 @@ function prRenderTape(r){
       h2 += ln('جمع این بخش', s.total, 'strong');
     });
     h2 += '<div class="pr-sec">جمع پروژه</div>';
-    h2 += ln('جمع بخش‌ها (با سود)', r.perPartAnnounced, 'muted');
+    h2 += ln('جمع بخش‌ها (با سود و پژوهشگاه)', r.perPartAnnounced, 'muted');
     if(r.modelingAnnounced) h2 += ln('+ طراحی/مدلسازی', r.modelingAnnounced, 'muted');
-    h2 += ln('+ درصد پژوهشگاه (روی کل)', r.institute, 'muted');
-    h2 += ln('+ بسته‌بندی و ارسال', (+r.packaging||0)+(+r.shipping||0), 'muted');
+    if(+r.packaging||+r.shipping) h2 += ln('+ بسته‌بندی و ارسال', (+r.packaging||0)+(+r.shipping||0), 'muted');
+    h2 += ln('قیمت نهایی (فروش)', r.orderTotal, 'strong');
+    h2 += '<div class="pr-ln muted" style="font-size:11px"><span>از این مبلغ، سهم پژوهشگاه</span><span>'+prFmt(r.institute)+'</span></div>';
     h2 += '<div class="pr-sec">سود پروژه</div>';
     h2 += ln('قیمت تمام‌شده', r.rawTotal, 'muted');
-    h2 += ln('قیمت نهایی (فروش)', r.orderTotal, 'muted');
     h2 += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>'+prFmt(r.orderTotal - r.rawTotal)+'</span></div>';
     document.getElementById('pr-tape').innerHTML = h2;
     document.getElementById('pr-final-unit').textContent  = prFmt(r.perUnit);
@@ -7141,12 +7158,12 @@ function pricingCopy(){
     });
     L.push('');
     L.push('▌جمع‌بندی سفارش');
-    L.push('• جمع بخش‌ها: ' + prFmt(r.perPartAnnounced));
+    L.push('• جمع بخش‌ها (با سود و پژوهشگاه): ' + prFmt(r.perPartAnnounced));
     if(o.showDesignRow && r.designAnnounced) L.push('• طراحی قطعه: ' + prFmt(r.designAnnounced));
-    L.push('• سهم پژوهشگاه (روی کل): ' + prFmt(r.institute));
     if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
     if(r.shipping)  L.push('• ارسال: ' + prFmt(r.shipping));
     L.push('💰 قیمت کل: ' + prFmt(r.orderTotal));
+    L.push('（از این مبلغ، سهم پژوهشگاه: ' + prFmt(r.institute) + '）');
     if(o.notes && String(o.notes).trim()){ L.push(''); L.push('▌توضیحات'); L.push(String(o.notes).trim()); }
     L.push('━━━━━━━━━━━━━━━━━━━━');
     var txtM = L.join('\n');
@@ -7321,10 +7338,19 @@ function ivShowInvoice(){
   var r=prLastResult, o=(prState&&prState.order)||{};
   var items=null;
   if(r.multi){
-    items = (r.sections||[]).map(function(s){ return { code:(s.name||'بخش'), qty:s.qty, unit:Math.round(s.perUnit) }; });
-    if(o.showDesignRow && r.designAnnounced) items.push({ code:'طراحی قطعه', qty:1, unit:Math.round(r.designAnnounced) });
-    if(r.packaging) items.push({ code:'بسته‌بندی', qty:1, unit:Math.round(r.packaging) });
-    if(r.shipping)  items.push({ code:'ارسال', qty:1, unit:Math.round(r.shipping) });
+    var secs = o.sections||[];
+    items = (r.sections||[]).map(function(s,si){
+      var src = secs[si]||{}; var types={};
+      (src.lines||[]).forEach(function(l){ if(l.kind==='machine_fdm') types['FDM']=1; else if(l.kind==='machine_dlp') types['DLP']=1; });
+      var t=Object.keys(types).join('/');
+      var nm=(s.name||'قطعه');
+      return { code:(t?('چاپ قطعه '+t+' '+nm):('چاپ قطعه '+nm)), qty:s.qty, unit:Math.round(s.perUnit) };
+    });
+    if(o.showDesignRow && r.designAnnounced) items.push({ code:(o.designName||'طراحی قطعه'), qty:1, unit:Math.round(r.designAnnounced) });
+    if(o.showExtras){
+      if(r.packaging) items.push({ code:'بسته‌بندی', qty:1, unit:Math.round(r.packaging) });
+      if(r.shipping)  items.push({ code:'ارسال', qty:1, unit:Math.round(r.shipping) });
+    }
   }
   ivOpenInvoice({ code:o.orderName, qty:o.qty, unit:r.perUnit, items:items, customer:o.customer, tel:o.tel, estimateId:'', folderId:'', orderCode:(prState&&prState.savedCode)||'' });
 }
