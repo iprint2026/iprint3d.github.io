@@ -878,11 +878,6 @@ function doPost(e){
               <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#9aa3c2">قیمت اعلامی یک عدد</span><span id="pr-final-unit" style="font-weight:700;color:#fbbf24">—</span></div>
               <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#9aa3c2">قیمت اعلامی کل پروژه</span><span id="pr-final-total" style="font-weight:700;color:#fbbf24">—</span></div>
             </div>
-            <div style="padding:6px 18px 10px;border-top:1px dashed #1a1d2e">
-              <label style="font-size:11px;color:#5a6080;display:block;margin-bottom:4px">قیمت اعلامیِ دستی هر عدد (اختیاری) — اگر پر شود جایگزینِ محاسبهٔ سایت می‌شود</label>
-              <input class="inp pr-money" id="pr-manual-unit" placeholder="مثلاً ۲۵۰٬۰۰۰">
-              <div id="pr-manual-note" style="font-size:11px;color:#34d399;margin-top:5px;display:none">✔ قیمت اعلامی دستی فعال است</div>
-            </div>
             <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px">
               <div style="display:flex;gap:8px">
                 <button class="btn btn-ghost btn-sm" style="flex:1" onclick="pricingCopy()">📋 کپی متن</button>
@@ -6833,9 +6828,14 @@ function prRemoveSection(sid){
   }
   prRenderLines(); prRenderModelingArea(); prScheduleCompute();
 }
-function prSetSecManual(sid, val){
+function prSetSecManual(sid, val, autoVal){
   var s = prSecFind(sid); if(!s) return;
-  s.manualUnit = (val===''||val==null) ? '' : (+val||0);
+  var n = (val===''||val==null) ? NaN : (+val||0);
+  if(isNaN(n) || (autoVal!=null && Math.round(n)===Math.round(autoVal))){
+    s.manualUnit = '';   // بازگشت به محاسبه‌ی خودکار
+  } else {
+    s.manualUnit = n;    // قیمت دستیِ کاربر
+  }
   prScheduleCompute();
 }
 function prSecAddLine(sid, kind){
@@ -7122,10 +7122,13 @@ function prRenderTape(r){
         h2 += '<div class="pr-ln" style="font-size:12px"><span>قیمت هر عدد</span><span style="color:#9cd1ff;font-weight:700">'+prFmt(s.perUnit)+'</span></div>';
       }
       h2 += '<div class="pr-ln strong" style="font-size:12.5px;border-top:1px solid #232742;padding-top:6px;margin-top:3px"><span>جمع این قطعه</span><span style="color:#fff">'+prFmt(s.total)+'</span></div>';
-      // قیمت اعلامی دستی (ورودی، در خروجی نه بین ارقام ورودی)
+      // قیمت اعلامی این قطعه (پیش‌فرض = محاسبه‌ی خودکار، قابل ویرایش)
+      var autoV = Math.round(s.autoPerUnit||s.perUnit||0);
+      var shownV = Math.round(s.manual ? s.perUnit : autoV);
       h2 += '<div style="margin-top:8px;background:#0c2018;border:1px solid #1e5e3e;border-radius:9px;padding:7px 9px">'
-        +'<label style="font-size:10.5px;color:#5fe39a;font-weight:700;display:block;margin-bottom:3px">💰 قیمت اعلامی دستیِ این قطعه (هر عدد) — اختیاری</label>'
-        +'<input type="number" value="'+(s.manual?Math.round(s.perUnit):'')+'" placeholder="خالی = خودکار" onchange="prSetSecManual(\''+s.id+'\', this.value)" style="width:100%;background:#08130d;border:1px solid #1e5e3e;border-radius:7px;color:#bdf5d4;padding:6px 9px;font-size:12.5px;text-align:center;font-weight:700">'
+        +'<label style="font-size:10.5px;color:#5fe39a;font-weight:700;display:block;margin-bottom:3px">💰 قیمت اعلامی این قطعه (هر عدد)'+(s.manual?' — دستی':'')+'</label>'
+        +'<input type="number" value="'+shownV+'" onchange="prSetSecManual(\''+s.id+'\', this.value, '+autoV+')" style="width:100%;background:#08130d;border:1px solid #1e5e3e;border-radius:7px;color:#bdf5d4;padding:6px 9px;font-size:12.5px;text-align:center;font-weight:700">'
+        +(s.manual?'<div style="font-size:10px;color:#5fe39a;margin-top:4px;text-align:center">✔ قیمت دستی فعال است (برای بازگشت به خودکار، عدد را پاک کن)</div>':'')
         +'</div>';
       h2 += '</div></div>';
     });
@@ -7188,16 +7191,32 @@ function pricingCopy(){
   if(r.multi){
     L.push('▌بخش‌های پروژه');
     (r.sections||[]).forEach(function(s,i){
-      L.push('• بخش '+prToFa(i+1)+'؛ '+(s.name||'')+' — '+prToFa(prSep(s.qty))+' عدد × '+prFmt(s.perUnit)+' = '+prFmt(s.total));
+      L.push('');
+      L.push('🧩 بخش '+prToFa(i+1)+'؛ '+(s.name||'')+' — '+prToFa(prSep(s.qty))+' عدد');
+      if(s.cat){
+        if(s.cat.machine) L.push('   • دستگاه (هر عدد): '+prFmt(s.cat.machine));
+        if(s.cat.material) L.push('   • مواد (هر عدد): '+prFmt(s.cat.material));
+        if((s.cat.labor||0)+(s.cat.finishing||0)) L.push('   • نیروی انسانی (هر عدد): '+prFmt((s.cat.labor||0)+(s.cat.finishing||0)));
+      }
+      L.push('   • قیمت تمام‌شده (هر عدد): '+prFmt(s.base));
+      if(s.manual){
+        L.push('   • قیمت اعلامی دستی (هر عدد): '+prFmt(s.perUnit));
+      } else {
+        L.push('   • با سود ×'+prToFa(s.profit)+': '+prFmt(s.base*s.profit));
+        if(s.institute) L.push('   • سهم پژوهشگاه (هر عدد): '+prFmt(s.institute/s.qty));
+        L.push('   • قیمت هر عدد: '+prFmt(s.perUnit));
+      }
+      L.push('   ◀ جمع این قطعه: '+prFmt(s.total));
     });
     L.push('');
-    L.push('▌جمع‌بندی سفارش');
-    L.push('• جمع بخش‌ها (با سود و پژوهشگاه): ' + prFmt(r.perPartAnnounced));
+    L.push('▌جمع‌بندی پروژه');
+    L.push('• جمع قطعه‌ها: ' + prFmt(r.perPartAnnounced));
     if(o.showDesignRow && r.designAnnounced) L.push('• طراحی قطعه: ' + prFmt(r.designAnnounced));
     if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
     if(r.shipping)  L.push('• ارسال: ' + prFmt(r.shipping));
     L.push('💰 قیمت کل: ' + prFmt(r.orderTotal));
-    L.push('（از این مبلغ، سهم پژوهشگاه: ' + prFmt(r.institute) + '）');
+    L.push('🏛 از این مبلغ، سهم پژوهشگاه: ' + prFmt(r.institute));
+    L.push('💎 سود این پروژه: ' + prFmt(r.orderTotal - r.rawTotal));
     if(o.notes && String(o.notes).trim()){ L.push(''); L.push('▌توضیحات'); L.push(String(o.notes).trim()); }
     L.push('━━━━━━━━━━━━━━━━━━━━');
     var txtM = L.join('\n');
