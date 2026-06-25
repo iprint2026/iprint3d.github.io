@@ -836,13 +836,17 @@ function doPost(e){
           <div class="card" style="margin-bottom:16px">
             <div style="font-weight:600;font-size:14px;margin-bottom:14px">۲) ردیف‌های هزینه</div>
             <div id="pr-lines"></div>
-            <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;padding-top:14px;border-top:1px dashed #1a1d2e">
+            <div id="pr-modeling-area"></div>
+            <div id="pr-single-adds" style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;padding-top:14px;border-top:1px dashed #1a1d2e">
               <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('machine_fdm')">+ دستگاه FDM</button>
               <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('machine_dlp')">+ دستگاه DLP</button>
               <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('material')">+ ماده</button>
               <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('labor')">+ نیروی انسانی</button>
               <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('finishing')">+ فینیشینگ</button>
               <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('modeling')">+ مدلسازی</button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:10px">
+              <button class="btn btn-sm" style="background:#171430;border-color:#3a2f6e;color:#bfb0ff;font-weight:700" onclick="prAddSection()">🧩 افزودن بخش (چند دستگاه/متریال)</button>
             </div>
           </div>
 
@@ -6730,32 +6734,127 @@ function prMaterialOpts(sel){
   return h;
 }
 var prKindLabel = {machine_fdm:'دستگاه FDM',machine_dlp:'دستگاه DLP',material:'ماده',labor:'نیروی انسانی',finishing:'فینیشینگ',modeling:'مدلسازی'};
+function prLineBody(l){
+  if(l.kind==='machine_fdm'){
+    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + '<div><label style="font-size:11px;color:#5a6080">دستگاه</label><select class="inp" data-prf="machineId">'+prMachineOptsByType('FDM',l.machineId)+'</select></div>'
+      + '<div><label style="font-size:11px;color:#5a6080">زمان هر قطعه (ساعت)</label><input class="inp" type="number" step="0.1" data-prf="hours" value="'+(l.hours!=null?l.hours:'')+'"></div></div>';
+  } else if(l.kind==='machine_dlp'){
+    return '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+      + '<div><label style="font-size:11px;color:#5a6080">دستگاه</label><select class="inp" data-prf="machineId">'+prMachineOptsByType('DLP',l.machineId)+'</select></div>'
+      + '<div><label style="font-size:11px;color:#5a6080">زمان هر صفحه (ساعت)</label><input class="inp" type="number" step="0.1" data-prf="plateTime" value="'+(l.plateTime!=null?l.plateTime:'')+'"></div>'
+      + '<div><label style="font-size:11px;color:#5a6080">تعداد در صفحه</label><input class="inp" type="number" min="1" data-prf="perPlate" value="'+(l.perPlate!=null?l.perPlate:'')+'"></div></div>';
+  } else if(l.kind==='material'){
+    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + '<div><label style="font-size:11px;color:#5a6080">ماده</label><select class="inp" data-prf="materialId">'+prMaterialOpts(l.materialId)+'</select></div>'
+      + '<div><label style="font-size:11px;color:#5a6080">مقدار (گرم)</label><input class="inp" type="number" step="0.1" data-prf="amount" value="'+(l.amount!=null?l.amount:'')+'"></div></div>';
+  }
+  return '<div><label style="font-size:11px;color:#5a6080">زمان (دقیقه)</label><input class="inp" type="number" data-prf="minutes" value="'+(l.minutes!=null?l.minutes:'')+'"></div>';
+}
+function prIsMulti(){ return !!(prState.order && prState.order.sections && prState.order.sections.length); }
 function prRenderLines(){
+  if(prIsMulti()){ prRenderSections(); prRenderModelingArea(); return; }
   var box = document.getElementById('pr-lines');
-  if(!prState.lines.length){ box.innerHTML = '<div style="color:#5a6080;font-size:13px;text-align:center;padding:18px;border:1px dashed #1a1d2e;border-radius:10px">هنوز ردیفی اضافه نشده. از دکمه‌های پایین استفاده کنید.</div>'; return; }
+  if(!prState.lines.length){ box.innerHTML = '<div style="color:#5a6080;font-size:13px;text-align:center;padding:18px;border:1px dashed #1a1d2e;border-radius:10px">هنوز ردیفی اضافه نشده. از دکمه‌های پایین استفاده کنید.</div>'; prRenderModelingArea(); return; }
   box.innerHTML = prState.lines.map(function(l){
-    var body='';
-    if(l.kind==='machine_fdm'){
-      body = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-        + '<div><label style="font-size:11px;color:#5a6080">دستگاه</label><select class="inp" data-prf="machineId">'+prMachineOptsByType('FDM',l.machineId)+'</select></div>'
-        + '<div><label style="font-size:11px;color:#5a6080">زمان هر قطعه (ساعت)</label><input class="inp" type="number" step="0.1" data-prf="hours" value="'+(l.hours!=null?l.hours:'')+'"></div></div>';
-    } else if(l.kind==='machine_dlp'){
-      body = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
-        + '<div><label style="font-size:11px;color:#5a6080">دستگاه</label><select class="inp" data-prf="machineId">'+prMachineOptsByType('DLP',l.machineId)+'</select></div>'
-        + '<div><label style="font-size:11px;color:#5a6080">زمان هر صفحه (ساعت)</label><input class="inp" type="number" step="0.1" data-prf="plateTime" value="'+(l.plateTime!=null?l.plateTime:'')+'"></div>'
-        + '<div><label style="font-size:11px;color:#5a6080">تعداد در صفحه</label><input class="inp" type="number" min="1" data-prf="perPlate" value="'+(l.perPlate!=null?l.perPlate:'')+'"></div></div>';
-    } else if(l.kind==='material'){
-      body = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
-        + '<div><label style="font-size:11px;color:#5a6080">ماده</label><select class="inp" data-prf="materialId">'+prMaterialOpts(l.materialId)+'</select></div>'
-        + '<div><label style="font-size:11px;color:#5a6080">مقدار</label><input class="inp" type="number" step="0.1" data-prf="amount" value="'+(l.amount!=null?l.amount:'')+'"></div>'
-        + '<div><label style="font-size:11px;color:#5a6080">واحد</label><select class="inp" data-prf="unit"><option value="g"'+(l.unit==='g'?' selected':'')+'>گرم</option><option value="ml"'+(l.unit==='ml'?' selected':'')+'>میلی‌لیتر</option></select></div></div>';
-    } else {
-      body = '<div><label style="font-size:11px;color:#5a6080">زمان (دقیقه)</label><input class="inp" type="number" data-prf="minutes" value="'+(l.minutes!=null?l.minutes:'')+'"></div>';
-    }
-    return '<div class="pr-row" data-prlid="'+l.id+'"><div class="pr-rowhead"><span>'+prKindLabel[l.kind]+'</span><button class="pr-x" data-prdel="'+l.id+'">✕</button></div>'+body+'</div>';
+    return '<div class="pr-row" data-prlid="'+l.id+'"><div class="pr-rowhead"><span>'+prKindLabel[l.kind]+'</span><button class="pr-x" data-prdel="'+l.id+'">✕</button></div>'+prLineBody(l)+'</div>';
   }).join('');
+  prRenderModelingArea();
 }
 
+function prSecFind(sid){ var s=prState.order.sections||[]; for(var i=0;i<s.length;i++) if(s[i].id===sid) return s[i]; return null; }
+function prRenderSections(){
+  var box = document.getElementById('pr-lines');
+  var secs = prState.order.sections||[];
+  var html = '<div style="font-size:11.5px;color:#a99bf5;background:#171430;border:1px solid #2a2350;border-radius:9px;padding:8px 11px;margin-bottom:12px">حالت چندبخشی فعال است: هر بخش دستگاه/مواد/تعداد/سودِ خودش را دارد. درصد پژوهشگاه روی کل پروژه اعمال می‌شود.</div>';
+  secs.forEach(function(s, idx){
+    html += '<div class="pr-sec" data-prsid="'+s.id+'" style="border:1px solid #232742;border-radius:13px;padding:13px;margin-bottom:12px;background:#0e1018">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">'
+        +'<span style="background:#7c5af5;color:#fff;font-weight:800;font-size:12px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center">'+prToFa(idx+1)+'</span>'
+        +'<input class="inp" data-prsf="name" value="'+escapeHtml(s.name||'')+'" placeholder="نام بخش (مثلاً بدنه)" style="flex:1;font-weight:700">'
+        +'<button class="pr-x" data-prsdel="'+s.id+'" title="حذف بخش">✕</button>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px">'
+        +'<div><label style="font-size:11px;color:#5a6080">تعداد این بخش</label><input class="inp" type="number" min="1" data-prsf="qty" value="'+(s.qty!=null?s.qty:1)+'"></div>'
+        +'<div><label style="font-size:11px;color:#5a6080">ضریب سود این بخش</label><input class="inp" type="number" step="0.1" data-prsf="profit" value="'+(s.profit!=null?s.profit:'')+'" placeholder="پیش‌فرض"></div>'
+      +'</div>';
+    html += '<div class="pr-sec-lines">';
+    if(!(s.lines||[]).length){ html += '<div style="color:#5a6080;font-size:12px;text-align:center;padding:12px;border:1px dashed #1a1d2e;border-radius:9px">ردیفی اضافه نشده</div>'; }
+    else { html += (s.lines).map(function(l){
+      return '<div class="pr-row" data-prlid="'+l.id+'"><div class="pr-rowhead"><span>'+prKindLabel[l.kind]+'</span><button class="pr-x" data-prdel="'+l.id+'">✕</button></div>'+prLineBody(l)+'</div>';
+    }).join(''); }
+    html += '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed #1a1d2e">'
+      +'<button class="btn btn-ghost btn-sm" onclick="prSecAddLine(\''+s.id+'\',\'machine_fdm\')">+ FDM</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="prSecAddLine(\''+s.id+'\',\'machine_dlp\')">+ DLP</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="prSecAddLine(\''+s.id+'\',\'material\')">+ ماده</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="prSecAddLine(\''+s.id+'\',\'labor\')">+ نیروی انسانی</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="prSecAddLine(\''+s.id+'\',\'finishing\')">+ فینیشینگ</button>'
+      +'</div>';
+    html += '</div>';
+  });
+  box.innerHTML = html;
+}
+function prMakeLine(kind){
+  var l = { id:prNid(), kind:kind };
+  if(kind==='machine_fdm'){ var f=prState.machines.filter(function(m){return m.type==='FDM';})[0]; l.machineId=f?f.id:(prState.machines[0]||{}).id; l.hours=1; }
+  else if(kind==='machine_dlp'){ var d=prState.machines.filter(function(m){return m.type==='DLP';})[0]; l.machineId=d?d.id:(prState.machines[0]||{}).id; l.plateTime=2; l.perPlate=1; }
+  else if(kind==='material'){ l.materialId=(prState.materials[0]||{}).id; l.amount=10; l.unit='g'; }
+  else { l.minutes=10; }
+  return l;
+}
+function prAddSection(){
+  if(!prState.order.sections) prState.order.sections = [];
+  if(!prState.order.sections.length){
+    prState.order.sections.push({ id:prNid(), name:(prState.order.orderName||'بخش ۱'),
+      qty:(+prState.order.qty||1), profit:(prState.order.profit!=null?prState.order.profit:''),
+      lines: prState.lines.filter(function(l){return l.kind!=='modeling';}) });
+    prState.lines = prState.lines.filter(function(l){return l.kind==='modeling';});
+  }
+  prState.order.sections.push({ id:prNid(), name:'بخش '+prToFa(prState.order.sections.length+1), qty:1, profit:'', lines:[] });
+  prRenderLines(); prRenderModelingArea(); prScheduleCompute();
+}
+function prRemoveSection(sid){
+  if(!prState.order.sections) return;
+  prState.order.sections = prState.order.sections.filter(function(s){return s.id!==sid;});
+  if(prState.order.sections.length===1){
+    var s = prState.order.sections[0];
+    prState.lines = (s.lines||[]).concat(prState.lines.filter(function(l){return l.kind==='modeling';}));
+    prState.order.qty = s.qty; if(s.profit!=='' && s.profit!=null) prState.order.profit = s.profit;
+    prState.order.sections = [];
+    prRenderOrder();
+  }
+  prRenderLines(); prRenderModelingArea(); prScheduleCompute();
+}
+function prSecAddLine(sid, kind){
+  var s = prSecFind(sid); if(!s) return;
+  if(!s.lines) s.lines=[];
+  s.lines.push(prMakeLine(kind));
+  prRenderSections(); prScheduleCompute();
+}
+function prRenderModelingArea(){
+  var area = document.getElementById('pr-modeling-area');
+  var single = document.getElementById('pr-single-adds');
+  if(!area) return;
+  if(prIsMulti()){
+    if(single) single.style.display='none';
+    var mods = (prState.lines||[]).filter(function(l){return l.kind==='modeling';});
+    var h = '<div style="border:1px dashed #2a3550;border-radius:13px;padding:13px;margin-top:6px;background:#0c0f18">'
+      +'<div style="font-weight:700;font-size:12.5px;color:#9aa3c2;margin-bottom:9px">🎨 طراحی / مدلسازی (مستقل از بخش‌ها)</div>';
+    h += mods.length ? mods.map(function(l){
+      return '<div class="pr-row" data-prlid="'+l.id+'"><div class="pr-rowhead"><span>'+prKindLabel[l.kind]+'</span><button class="pr-x" data-prdel="'+l.id+'">✕</button></div>'+prLineBody(l)+'</div>';
+    }).join('') : '<div style="color:#5a6080;font-size:12px;padding:6px 0">اگر طراحی/مدلسازی دارید، اضافه کنید.</div>';
+    h += '<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="pricingAddLine(\'modeling\')">+ زمان طراحی</button></div>';
+    h += '<label style="display:flex;align-items:center;gap:8px;margin-top:11px;font-size:12px;color:#cfd3e6;cursor:pointer">'
+      +'<input type="checkbox" id="pr-show-design" '+(prState.order.showDesignRow?'checked':'')+' onchange="prState.order.showDesignRow=this.checked; prScheduleCompute();" style="width:16px;height:16px">'
+      +'ردیف «طراحی قطعه» جداگانه در فاکتور نمایش داده شود</label>';
+    h += '</div>';
+    area.innerHTML = h;
+  } else {
+    if(single) single.style.display='flex';
+    area.innerHTML='';
+  }
+}
 function pricingAddLine(kind){
   var l = { id:prNid(), kind:kind };
   if(kind==='machine_fdm'){ var f=prState.machines.filter(function(m){return m.type==='FDM';})[0]; l.machineId=f?f.id:(prState.machines[0]||{}).id; l.hours=1; }
@@ -6784,6 +6883,17 @@ function prOnInput(e){
   if(lineEl && t.dataset && t.dataset.prf){
     var l = prFindLine(lineEl.getAttribute('data-prlid'));
     if(l){ l[t.dataset.prf] = v; prScheduleCompute(); }
+    return;
+  }
+  // فیلدهای بخش (نام/تعداد/سود)
+  var secEl = t.closest && t.closest('[data-prsid]');
+  if(secEl && t.dataset && t.dataset.prsf){
+    var sc2 = prSecFind(secEl.getAttribute('data-prsid'));
+    if(sc2){
+      var f=t.dataset.prsf;
+      sc2[f] = (f==='name') ? t.value : (t.value===''?'':(+t.value));
+      prScheduleCompute();
+    }
     return;
   }
   // رزین ترکیبی
@@ -6823,7 +6933,20 @@ function prOnInput(e){
   if(omap[t.id]){ prState.order[omap[t.id]] = v; prScheduleCompute(); return; }
 }
 
-function prFindLine(id){ for(var i=0;i<prState.lines.length;i++) if(prState.lines[i].id===id) return prState.lines[i]; return null; }
+function prFindLine(id){
+  for(var i=0;i<prState.lines.length;i++) if(prState.lines[i].id===id) return prState.lines[i];
+  var secs=(prState.order&&prState.order.sections)||[];
+  for(var s=0;s<secs.length;s++){ var ls=secs[s].lines||[]; for(var j=0;j<ls.length;j++) if(ls[j].id===id) return ls[j]; }
+  return null;
+}
+function prDelLineAnywhere(id){
+  var before = prState.lines.length;
+  prState.lines = prState.lines.filter(function(x){return x.id!==id;});
+  if(prState.lines.length!==before){ return true; }
+  var secs=(prState.order&&prState.order.sections)||[];
+  for(var s=0;s<secs.length;s++){ secs[s].lines = (secs[s].lines||[]).filter(function(x){return x.id!==id;}); }
+  return true;
+}
 function prFindComposite(id){ for(var i=0;i<prState.composites.length;i++) if(prState.composites[i].id===id) return prState.composites[i]; return null; }
 function prFindMachine(id){ for(var i=0;i<prState.machines.length;i++) if(prState.machines[i].id===id) return prState.machines[i]; return null; }
 function prFindMaterial(id){ for(var i=0;i<prState.materials.length;i++) if(prState.materials[i].id===id) return prState.materials[i]; return null; }
@@ -6833,7 +6956,8 @@ document.addEventListener('click', function(e){
   var t = e.target;
   if(!t || !t.getAttribute) return;
   var id;
-  if((id=t.getAttribute('data-prdel'))){ prState.lines = prState.lines.filter(function(x){return x.id!==id;}); prRenderLines(); prScheduleCompute(); }
+  if((id=t.getAttribute('data-prdel'))){ prDelLineAnywhere(id); prRenderLines(); prScheduleCompute(); }
+  else if((id=t.getAttribute('data-prsdel'))){ if(typeof prRemoveSection==='function') prRemoveSection(id); }
   else if((id=t.getAttribute('data-prdelm'))){ prState.machines = prState.machines.filter(function(x){return x.id!==id;}); prMachineRows(); prRenderLines(); }
   else if((id=t.getAttribute('data-prdelmat'))){ prState.materials = prState.materials.filter(function(x){return x.id!==id;}); prMaterialRows(); prCompositeRows(); prRenderLines(); }
   else if((id=t.getAttribute('data-prdelcomp'))){ prState.composites = prState.composites.filter(function(x){return x.id!==id;}); prCompositeRows(); prRenderLines(); }
@@ -6905,10 +7029,16 @@ function pricingEditOrder(id){
     showToast('حالت ویرایش فعال شد — کد '+(res.code||''));
   });
 }
+function prHasAnyLine(){
+  if((prState.lines||[]).length) return true;
+  var secs=(prState.order&&prState.order.sections)||[];
+  for(var i=0;i<secs.length;i++) if((secs[i].lines||[]).length) return true;
+  return false;
+}
 function prDoCompute(){
   if(typeof prState!=='undefined' && !prState.editId) prState.savedCode='';
   var cs = document.getElementById('pr-calc-status');
-  if(!prState.lines.length){
+  if(!prHasAnyLine()){
     prLastResult = null;
     document.getElementById('pr-tape').innerHTML = '';
     document.getElementById('pr-final-unit').textContent = '—';
@@ -6940,6 +7070,28 @@ function prUsedLabels(){
 }
 function prRenderTape(r){
   var ln = function(label,val,cls){ return '<div class="pr-ln '+(cls||'')+'"><span>'+label+'</span><span>'+prFmt(val)+'</span></div>'; };
+  if(r && r.multi){
+    var h2='';
+    if(prState.savedCode){ h2 += '<div class="pr-ln strong" style="background:#0c1c3a;border:1px solid #1e3a6e;border-radius:8px;padding:8px 10px;margin-bottom:8px"><span style="color:#7ab8ff">کد سفارش</span><span style="color:#7ab8ff;letter-spacing:1px">'+escapeHtml(prState.savedCode)+'</span></div>'; }
+    (r.sections||[]).forEach(function(s,i){
+      h2 += '<div class="pr-sec">بخش '+prToFa(i+1)+'؛ '+escapeHtml(s.name||'')+' ('+prToFa(s.qty)+' عدد)</div>';
+      h2 += ln('قیمت هر عدد (با سود ×'+prToFa(s.profit)+')', s.perUnit, 'muted');
+      h2 += ln('جمع این بخش', s.total, 'strong');
+    });
+    h2 += '<div class="pr-sec">جمع پروژه</div>';
+    h2 += ln('جمع بخش‌ها (با سود)', r.perPartAnnounced, 'muted');
+    if(r.modelingAnnounced) h2 += ln('+ طراحی/مدلسازی', r.modelingAnnounced, 'muted');
+    h2 += ln('+ درصد پژوهشگاه (روی کل)', r.institute, 'muted');
+    h2 += ln('+ بسته‌بندی و ارسال', (+r.packaging||0)+(+r.shipping||0), 'muted');
+    h2 += '<div class="pr-sec">سود پروژه</div>';
+    h2 += ln('قیمت تمام‌شده', r.rawTotal, 'muted');
+    h2 += ln('قیمت نهایی (فروش)', r.orderTotal, 'muted');
+    h2 += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>'+prFmt(r.orderTotal - r.rawTotal)+'</span></div>';
+    document.getElementById('pr-tape').innerHTML = h2;
+    document.getElementById('pr-final-unit').textContent  = prFmt(r.perUnit);
+    document.getElementById('pr-final-total').textContent = prFmt(r.orderTotal);
+    return;
+  }
   var lbl = prUsedLabels();
   var packShip = (+r.packaging||0) + (+r.shipping||0);
   var h = '';
@@ -6982,6 +7134,26 @@ function pricingCopy(){
   if(o.tel) L.push('📞 تماس: ' + o.tel);
   L.push('🔢 تعداد: ' + prSep(r.qty) + ' عدد');
   L.push('');
+  if(r.multi){
+    L.push('▌بخش‌های پروژه');
+    (r.sections||[]).forEach(function(s,i){
+      L.push('• بخش '+prToFa(i+1)+'؛ '+(s.name||'')+' — '+prToFa(prSep(s.qty))+' عدد × '+prFmt(s.perUnit)+' = '+prFmt(s.total));
+    });
+    L.push('');
+    L.push('▌جمع‌بندی سفارش');
+    L.push('• جمع بخش‌ها: ' + prFmt(r.perPartAnnounced));
+    if(o.showDesignRow && r.designAnnounced) L.push('• طراحی قطعه: ' + prFmt(r.designAnnounced));
+    L.push('• سهم پژوهشگاه (روی کل): ' + prFmt(r.institute));
+    if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
+    if(r.shipping)  L.push('• ارسال: ' + prFmt(r.shipping));
+    L.push('💰 قیمت کل: ' + prFmt(r.orderTotal));
+    if(o.notes && String(o.notes).trim()){ L.push(''); L.push('▌توضیحات'); L.push(String(o.notes).trim()); }
+    L.push('━━━━━━━━━━━━━━━━━━━━');
+    var txtM = L.join('\n');
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txtM).then(function(){ showToast('✅ متن کپی شد'); }).catch(function(){ prCopyFallback(txtM); }); }
+    else prCopyFallback(txtM);
+    return;
+  }
   L.push('▌هزینه‌ی ساخت (هر عدد)');
   L.push('• ' + lbl.machine + ': ' + prFmt(r.cat.machine));
   L.push('• نیروی انسانی (با فینیشینگ): ' + prFmt(r.cat.labor + r.cat.finishing));
@@ -7119,7 +7291,11 @@ function ivFileName(ext){
 function ivOpenInvoice(opts){
   opts=opts||{};
   var code=(opts.code && String(opts.code).trim()) ? String(opts.code).trim() : 'پرینت قطعه (مطابق برآورد iPrint3D)';
-  ivItems = [{ code:code, desc:'', qty:Math.max(1,+opts.qty||1), unit:Math.round(+opts.unit||0) }];
+  if(opts.items && opts.items.length){
+    ivItems = opts.items.map(function(it){ return { code:String(it.code||''), desc:'', qty:Math.max(1,+it.qty||1), unit:Math.round(+it.unit||0) }; });
+  } else {
+    ivItems = [{ code:code, desc:'', qty:Math.max(1,+opts.qty||1), unit:Math.round(+opts.unit||0) }];
+  }
   document.getElementById('iv-bname').textContent = opts.customer || '—';
   var tel=document.getElementById('iv-btel'); if(tel) tel.textContent = opts.tel || '—';
   try{ document.getElementById('iv-date').textContent = opts.dateStr || new Intl.DateTimeFormat('fa-IR').format(new Date()); }catch(e){}
@@ -7143,7 +7319,14 @@ function ivOpenInvoice(opts){
 function ivShowInvoice(){
   if(typeof prLastResult==='undefined' || !prLastResult){ showToast('اول یک برآورد بساز تا فاکتور از روی آن پر شود'); return; }
   var r=prLastResult, o=(prState&&prState.order)||{};
-  ivOpenInvoice({ code:o.orderName, qty:o.qty, unit:r.perUnit, customer:o.customer, tel:o.tel, estimateId:'', folderId:'', orderCode:(prState&&prState.savedCode)||'' });
+  var items=null;
+  if(r.multi){
+    items = (r.sections||[]).map(function(s){ return { code:(s.name||'بخش'), qty:s.qty, unit:Math.round(s.perUnit) }; });
+    if(o.showDesignRow && r.designAnnounced) items.push({ code:'طراحی قطعه', qty:1, unit:Math.round(r.designAnnounced) });
+    if(r.packaging) items.push({ code:'بسته‌بندی', qty:1, unit:Math.round(r.packaging) });
+    if(r.shipping)  items.push({ code:'ارسال', qty:1, unit:Math.round(r.shipping) });
+  }
+  ivOpenInvoice({ code:o.orderName, qty:o.qty, unit:r.perUnit, items:items, customer:o.customer, tel:o.tel, estimateId:'', folderId:'', orderCode:(prState&&prState.savedCode)||'' });
 }
 function ivClose(){
   var ov=document.getElementById('view-invoice');
@@ -7643,7 +7826,7 @@ function archiveOpenInvoice(id){
   showToast('در حال باز کردن فاکتور...');
   callSheet('getEstimate', { id:id, t:Date.now() }, function(res){
     if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در بارگذاری سفارش'); return; }
-    ivOpenInvoice({ code:res.orderName, qty:res.qty, unit:res.perUnit, customer:res.customer,
+    ivOpenInvoice({ code:res.orderName, qty:res.qty, unit:res.perUnit, items:res.items, customer:res.customer,
       dateStr:res.dateStr, estimateId:id, folderId:res.folderId, orderCode:res.code });
   });
 }
