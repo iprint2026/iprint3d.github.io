@@ -8405,7 +8405,7 @@ function archiveProfile(id){
   callSheet('getOrderFiles', { id:id, t:Date.now() }, function(res){
     var imgEl=document.getElementById('om-image'), filesEl=document.getElementById('om-files');
     if(!imgEl || !filesEl) return;
-    if(!(res && res.status==='ok')){ filesEl.textContent='خطا در بارگذاری فایل‌ها'; return; }
+    if(!(res && res.status==='ok')){ filesEl.textContent = 'خطا در بارگذاری فایل‌ها' + ((res&&res.message)?(' — '+res.message):''); return; }
     var sumEl=document.getElementById('om-summary');
     if(sumEl && res.summary){
       var s=res.summary;
@@ -8426,18 +8426,16 @@ function archiveProfile(id){
       sumEl.innerHTML += '<div style="margin-top:12px"><div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">توضیحات</div>'
         +'<div style="background:#16140a;border:1px solid #3a3410;border-radius:11px;padding:12px 14px;font-size:12.5px;color:#e8e3c8;white-space:pre-wrap;line-height:1.9">'+escapeHtml(String(res.notes).trim())+'</div></div>';
     }
-    var primary = (res.image && res.image.dataUrl) ? res.image.dataUrl : '';
     var secImgs = (res.images && res.images.length) ? res.images : [];
-    if(primary || secImgs.length){
+    if(secImgs.length){
       var gal = '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">';
-      if(primary){
-        gal += '<div style="text-align:center"><img src="'+primary+'" style="width:'+((secImgs.length)?'180px':'100%')+';max-width:100%;max-height:300px;object-fit:contain;border-radius:12px;border:1px solid #232539;cursor:pointer" onclick="openFullImage(\''+primary+'\')"></div>';
-      }
       secImgs.forEach(function(im, gi){
+        var isPrimary = !!im.primary;
         var label = (im.name||'').indexOf('عکس بخش')===0 ? (im.name.replace(/^عکس بخش \[[^\]]*\]\s*-\s*/,'').replace(/\.(png|jpe?g|webp|gif|bmp)$/i,'')) : '';
         var gid='omimg_'+gi+'_'+Math.random().toString(36).slice(2,7);
+        var w = isPrimary ? (secImgs.length>1?'220px':'100%') : '180px';
         gal += '<div style="text-align:center">'
-          +'<img id="'+gid+'" style="width:180px;max-width:100%;max-height:300px;object-fit:contain;border-radius:12px;border:1px solid #232539;background:#0e1018" alt="در حال بارگذاری…">'
+          +'<img id="'+gid+'" style="width:'+w+';max-width:100%;max-height:320px;object-fit:contain;border-radius:12px;border:1px solid #232539;background:#0e1018;min-height:90px" alt="…">'
           +(label?'<div style="font-size:11px;color:#9aa3c2;margin-top:4px">'+escapeHtml(label)+'</div>':'')
           +'</div>';
         omLoadProfileImage(gid, im.fileId);
@@ -8446,8 +8444,7 @@ function archiveProfile(id){
       imgEl.innerHTML = gal;
     } else {
       imgEl.innerHTML='<div style="border:1px dashed #2a2d40;border-radius:12px;padding:24px;text-align:center;color:#5a6080;font-size:12px">بدون تصویر — از دکمه‌ی «افزودن/تغییر تصویر» اضافه کن</div>';
-    }
-    var files=res.files||[];
+    }    var files=res.files||[];
     if(!files.length){ filesEl.innerHTML='<div style="text-align:center;color:#5a6080;font-size:12.5px;padding:18px;border:1px dashed #20243a;border-radius:12px">هنوز فایلی در پوشه نیست — از کارت‌های بالا آپلود کن</div>'; return; }
     function cat(f){
       var n=f.name||'';
@@ -8504,7 +8501,7 @@ function archiveProfile(id){
       html += '</div></div>';
     });
     filesEl.innerHTML = html;
-  });
+  }, 60000);
 }
 var omCurrentId = '';
 var omUpKind = 'project';
