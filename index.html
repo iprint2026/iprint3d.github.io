@@ -827,7 +827,7 @@ function doPost(e){
               <div><label style="font-size:11px;color:#5a6080">شماره تماس</label><input class="inp" id="pr-o-tel" placeholder="۰۲۱-..."></div>
               <div id="pr-wrap-qty"><label style="font-size:11px;color:#5a6080">تعداد سفارش</label><input class="inp" id="pr-o-qty" type="number" min="1"></div>
             </div>
-            <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div id="pr-wrap-projimg" style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" onclick="pricingPickImage()">🖼 افزودن تصویر سفارش</button>
               <span id="pr-image-ind" style="font-size:11.5px;color:#34d399"></span>
             </div>
@@ -6944,6 +6944,7 @@ function prRenderModelingArea(){
     if(single) single.style.display='none';
     if(wOrd) wOrd.style.display='none';
     if(wQty) wQty.style.display='none';
+    var wPi=document.getElementById('pr-wrap-projimg'); if(wPi) wPi.style.display='none';
     var mods = (prState.lines||[]).filter(function(l){return l.kind==='modeling';});
     var h = '<div style="border:1px dashed #2a3550;border-radius:13px;padding:13px;margin-top:6px;background:#0c0f18">'
       +'<div style="font-weight:700;font-size:12.5px;color:#9aa3c2;margin-bottom:9px">🎨 طراحی / مدلسازی (مستقل از بخش‌ها)</div>';
@@ -6964,6 +6965,7 @@ function prRenderModelingArea(){
     if(single) single.style.display='flex';
     if(wOrd) wOrd.style.display='';
     if(wQty) wQty.style.display='';
+    var wPi2=document.getElementById('pr-wrap-projimg'); if(wPi2) wPi2.style.display='flex';
     area.innerHTML='';
   }
 }
