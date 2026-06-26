@@ -7296,7 +7296,7 @@ function prRenderTape(r){
     if(+r.packaging||+r.shipping) h2 += '<div class="pr-ln muted"><span>+ بسته‌بندی و ارسال</span><span>'+prFmt((+r.packaging||0)+(+r.shipping||0))+'</span></div>';
     h2 += '<div class="pr-ln strong" style="font-size:14px;border-top:1px solid #1e3a6e;padding-top:7px;margin-top:4px"><span style="color:#fff">قیمت نهایی</span><span style="color:#5fe39a">'+prFmt(r.orderTotal)+'</span></div>'
       +'<div class="pr-ln muted" style="font-size:10.5px"><span>🏛 از این مبلغ، سهم پژوهشگاه</span><span>'+prFmt(r.institute)+'</span></div>'
-      +'<div class="pr-ln strong" style="color:#4ade80;font-size:12.5px"><span>💎 سود این پروژه</span><span>'+prFmt(r.orderTotal - r.rawTotal)+'</span></div>'
+      +'<div class="pr-ln strong" style="color:#4ade80;font-size:12.5px"><span>💎 سود این پروژه</span><span>'+prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal))+'</span></div>'
       +'</div>';
     h2 += prModelingBox(r);
     document.getElementById('pr-tape').innerHTML = h2;
@@ -7325,7 +7325,7 @@ function prRenderTape(r){
   h += '<div class="pr-sec">سود پروژه</div>';
   h += ln('قیمت تمام‌شده (هزینه‌ی واقعی)', r.rawTotal, 'muted');
   h += ln('قیمت نهایی (فروش)', r.orderTotal, 'muted');
-  h += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>' + prFmt(r.orderTotal - r.rawTotal) + '</span></div>';
+  h += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)) + '</span></div>';
   // قیمت اعلامیِ دستیِ هر عدد (قابل ویرایش) — مثلِ کادرِ بخش‌ها
   var oAuto = Math.round(r.manual ? (r.perPartAnnounced||0) : (r.perPartAnnounced||0));
   var oShown = Math.round(r.manual ? (r.manualUnit||0) : oAuto);
@@ -7409,7 +7409,7 @@ function pricingCopy(){
     if(r.shipping)  L.push('• ارسال: ' + prFmt(r.shipping));
     L.push('💰 قیمت کل: ' + prFmt(r.orderTotal));
     L.push('🏛 از این مبلغ، سهم پژوهشگاه: ' + prFmt(r.institute));
-    L.push('💎 سود این پروژه: ' + prFmt(r.orderTotal - r.rawTotal));
+    L.push('💎 سود این پروژه: ' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
     if(o.notes && String(o.notes).trim()){ L.push(''); L.push('▌توضیحات'); L.push(String(o.notes).trim()); }
     L.push('━━━━━━━━━━━━━━━━━━━━');
     var txtM = L.join('\n');
