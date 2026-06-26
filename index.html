@@ -8081,6 +8081,19 @@ function archiveInit(cb){
     if(typeof cb==='function') cb();
   });
 }
+var arSecThumbQueue = [];
+function arRunSecThumbs(){
+  if(!arSecThumbQueue.length) return;
+  var job = arSecThumbQueue.shift();
+  callSheet('getOrderFileBlob', { fileId:job.fileId, t:Date.now() }, function(r){
+    var el=document.getElementById(job.elId);
+    if(el && r && r.status==='ok' && r.base64){
+      el.style.backgroundImage='url(data:'+(r.mime||'image/png')+';base64,'+r.base64+')';
+      el.textContent='';
+    } else if(el){ el.textContent=''; }
+    setTimeout(arRunSecThumbs, 120); // یکی‌یکی، با فاصله‌ی کوتاه
+  }, 40000);
+}
 function archiveRender(){
   var box=document.getElementById('ar-body');
   if(!arData.length){ box.innerHTML='<div style="color:#5a6080;text-align:center;padding:40px;border:1px dashed #1a1d2e;border-radius:14px">هنوز برآوردی ذخیره نشده.<br><span style="font-size:12px">از صفحه‌ی برآورد، دکمه‌ی «ذخیره در گزارش ماه» را بزن.</span></div>'; return; }
@@ -8098,6 +8111,7 @@ function archiveRender(){
     groups[e.monthKey].items.push(e); groups[e.monthKey].total += (+e.total||0);
   });
   order.sort(function(a,b){ return a<b?1:(a>b?-1:0); });
+  arSecThumbQueue = [];
   box.innerHTML = order.map(function(mk){
     var g=groups[mk];
     var ests = g.items.map(function(e){
@@ -8110,9 +8124,19 @@ function archiveRender(){
           : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>');
       var codeChip = e.code ? '<span style="font-size:10px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">'+escapeHtml(e.code)+'</span>' : '';
       var tsrc = e.thumb || arThumbCache[e.id] || '';
-      var thumb = tsrc
-        ? '<img src="'+tsrc+'" style="width:42px;height:42px;border-radius:8px;object-fit:cover;border:1px solid #232539;flex:none">'
-        : (e.hasImage ? '<div id="arthumb-'+e.id+'" data-lazy="'+e.id+'" style="width:42px;height:42px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;flex:none;font-size:15px;overflow:hidden">🖼</div>' : '');
+      var thumb;
+      if(e.secImages && e.secImages.length){
+        // سفارش چندبخشی: به‌تعدادِ بخش‌ها آیکونِ عکس
+        thumb = '<div style="display:flex;gap:4px;flex:none">' + e.secImages.slice(0,4).map(function(fid,zi){
+          var tid='arsec_'+e.id+'_'+zi;
+          arSecThumbQueue.push({elId:tid, fileId:fid});
+          return '<div id="'+tid+'" style="width:42px;height:42px;border-radius:8px;background:#161827 center/cover no-repeat;border:1px solid #232539;display:flex;align-items:center;justify-content:center;font-size:13px;color:#3a4060;overflow:hidden">⏳</div>';
+        }).join('') + (e.secImages.length>4?'<div style="width:42px;height:42px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9aa3c2">+'+prToFa(e.secImages.length-4)+'</div>':'') + '</div>';
+      } else {
+        thumb = tsrc
+          ? '<img src="'+tsrc+'" style="width:42px;height:42px;border-radius:8px;object-fit:cover;border:1px solid #232539;flex:none">'
+          : (e.hasImage ? '<div id="arthumb-'+e.id+'" data-lazy="'+e.id+'" style="width:42px;height:42px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;flex:none;font-size:15px;overflow:hidden">🖼</div>' : '');
+      }
       return '<div class="ar-est" style="cursor:pointer" onclick="archiveProfile(\''+e.id+'\')">'
         +'<div style="flex:1;display:flex;align-items:center;gap:10px">'+thumb
         +'<div><div class="nm">'+codeChip+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
@@ -8131,6 +8155,7 @@ function archiveRender(){
     +'</div>';
   }).join('');
   arLazyThumbs();
+  arRunSecThumbs();
 }
 function archiveToggle(mk){
   var b=document.getElementById('ar-m-'+mk), c=document.getElementById('ar-chev-'+mk);
