@@ -7284,7 +7284,7 @@ function prRenderTape(r){
       var shownV = Math.round(s.manual ? s.perUnit : autoV);
       h2 += '<div style="margin-top:8px;background:#0c2018;border:1px solid #1e5e3e;border-radius:9px;padding:7px 9px">'
         +'<label style="font-size:10.5px;color:#5fe39a;font-weight:700;display:block;margin-bottom:3px">💰 قیمت اعلامی این قطعه (هر عدد)'+(s.manual?' — دستی':'')+'</label>'
-        +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shownV)+'" onchange="prSetSecManual(\''+s.id+'\', this.value, '+autoV+')" style="width:100%;background:#08130d;border:1px solid #1e5e3e;border-radius:7px;color:#bdf5d4;padding:6px 9px;font-size:13px;text-align:center;font-weight:700">'
+        +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shownV)+'" onchange="prSetSecManual(\''+s.id+'\', this.value, '+autoV+')" style="width:100%;box-sizing:border-box;background:#eafff5;border:1px solid #2fa974;border-radius:7px;color:#0b3d2e;padding:8px 9px;font-size:14px;text-align:center;font-weight:800">'
         +(s.manual?'<div style="font-size:10px;color:#5fe39a;margin-top:4px;text-align:center">✔ قیمت دستی فعال است (برای بازگشت به خودکار، عدد را پاک کن)</div>':'')
         +'</div>';
       h2 += '</div></div>';
@@ -7326,10 +7326,26 @@ function prRenderTape(r){
   h += ln('قیمت تمام‌شده (هزینه‌ی واقعی)', r.rawTotal, 'muted');
   h += ln('قیمت نهایی (فروش)', r.orderTotal, 'muted');
   h += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>' + prFmt(r.orderTotal - r.rawTotal) + '</span></div>';
+  // قیمت اعلامیِ دستیِ هر عدد (قابل ویرایش) — مثلِ کادرِ بخش‌ها
+  var oAuto = Math.round(r.manual ? (r.perPartAnnounced||0) : (r.perPartAnnounced||0));
+  var oShown = Math.round(r.manual ? (r.manualUnit||0) : oAuto);
+  h += '<div style="margin-top:8px;background:#0c2018;border:1px solid #1e5e3e;border-radius:12px;padding:11px">'
+    +'<div style="color:#5fe39a;font-weight:800;font-size:12px;margin-bottom:6px">💰 قیمت اعلامی هر عدد (قابل ویرایش)'+(r.manual?' — دستی':'')+'</div>'
+    +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(oShown)+'" onchange="prSetOrderManual(this.value,'+oAuto+')" style="width:100%;box-sizing:border-box;background:#eafff5;border:1px solid #2fa974;border-radius:8px;color:#0b3d2e;padding:9px;font-size:15px;text-align:center;font-weight:800">'
+    +'<div style="font-size:10px;color:#5a8f76;margin-top:4px">قیمتِ خودکار (با سود و پژوهشگاه): '+prFmt(oAuto)+'. برای بازگشت به خودکار، خالی کن.</div>'
+    +(r.manual?'<div style="font-size:10px;color:#5fe39a;margin-top:3px;text-align:center">✔ قیمت دستی فعال است</div>':'')
+    +'</div>';
   h += prModelingBox(r);
   document.getElementById('pr-tape').innerHTML = h;
   document.getElementById('pr-final-unit').textContent  = prFmt(r.perUnit);
   document.getElementById('pr-final-total').textContent = prFmt(r.orderTotal);
+}
+function prSetOrderManual(val, autoVal){
+  var clean=String(val).replace(/[^\d]/g,'');
+  var n=(clean==='')?NaN:(+clean||0);
+  if(isNaN(n)||(autoVal!=null&&Math.round(n)===Math.round(autoVal))) prState.order.manualUnit=0;
+  else prState.order.manualUnit=n;
+  prScheduleCompute();
 }
 function prModelingBox(r){
   if(!(+r.modelingCost>0)) return '';
@@ -7337,7 +7353,7 @@ function prModelingBox(r){
   var shown = (+r.modelingManual>0)?Math.round(r.modelingManual):auto;
   return '<div style="background:#0c2a20;border:1px solid #14543d;border-radius:12px;padding:11px;margin-top:8px">'
     +'<div style="color:#5fe39a;font-weight:800;font-size:12px;margin-bottom:6px">🎨 قیمت اعلامی مدلسازی (بدون سود/پژوهشگاه)</div>'
-    +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shown)+'" onchange="prSetModelingManual(this.value,'+auto+')" style="text-align:center;font-weight:700;color:#5fe39a;border-color:#14543d">'
+    +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shown)+'" onchange="prSetModelingManual(this.value,'+auto+')" style="width:100%;box-sizing:border-box;text-align:center;font-weight:800;font-size:15px;color:#0b3d2e;background:#eafff5;border:1px solid #2fa974;border-radius:8px;padding:9px">'
     +'<div style="font-size:10px;color:#5a8f76;margin-top:4px">هزینه‌ی تمام‌شده‌ی مدلسازی: '+prFmt(auto)+'. برای بازگشت به خودکار، خالی کن.</div>'
     +((+r.modelingManual>0)?'<div style="font-size:10px;color:#5fe39a;margin-top:3px;text-align:center">✔ قیمت دستی فعال است</div>':'')
     +'</div>';
