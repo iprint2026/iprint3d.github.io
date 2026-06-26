@@ -6882,22 +6882,45 @@ function prSecImgReadFile(sid, file){
   fr.onload=function(){ prSecImgSet(sid, fr.result, file.type||'image/png'); };
   fr.readAsDataURL(file);
 }
+function prResizeImage(dataUrl, maxPx, quality, cb){
+  try{
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width||1, h=img.height||1;
+      var scale=Math.min(1, maxPx/Math.max(w,h));
+      var cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
+      var c=document.createElement('canvas'); c.width=cw; c.height=ch;
+      c.getContext('2d').drawImage(img,0,0,cw,ch);
+      try{ cb(c.toDataURL('image/jpeg', quality||0.8)); }catch(e){ cb(dataUrl); }
+    };
+    img.onerror=function(){ cb(dataUrl); };
+    img.src=dataUrl;
+  }catch(e){ cb(dataUrl); }
+}
 function prSecImgSet(sid, dataUrl, mime){
   var s=prSecFind(sid); if(!s) return;
-  makeThumb(dataUrl, function(thumb){
-    s._imgPreview = thumb || dataUrl;
+  // کوچک‌سازی تا زیر ۲ مگابایت بماند و در اکسل (insertImage) درج شود
+  prResizeImage(dataUrl, 1000, 0.82, function(small){
+    var up = small || dataUrl;
+    s._imgPreview = up;
     if(prIsMulti()) prRenderSections();
-    if(prState.editId && prState.savedFolderReady!==false){
-      // سفارش ذخیره‌شده: همین حالا آپلود کن
-      var b64=(dataUrl||'').split(',')[1]||'';
+    if(prState.editId){
+      var b64=(up||'').split(',')[1]||'';
       showToast('در حال آپلود عکس قطعه...');
       fetch(loadSheetUrl(), { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({ action:'uploadSectionImage', token:SESSION_TOKEN, id:prState.editId, sid:sid, base64:b64, mime:mime||'image/png' }) })
-        .then(function(){ setTimeout(function(){ s.imageFileId=s.imageFileId||'pending'; showToast('✅ عکس قطعه ذخیره شد'); callSheet('saveEstimateXlsx',{id:prState.editId},function(){},70000); }, 3000); })
+        body: JSON.stringify({ action:'uploadSectionImage', token:SESSION_TOKEN, id:prState.editId, sid:sid, base64:b64, mime:'image/jpeg' }) })
+        .then(function(){ s.imageFileId=s.imageFileId||'pending';
+          // تأیید ثبت، سپس بازسازی اکسل با عکس
+          var tryBuild=function(n){ callSheet('getEstimateForEdit',{id:prState.editId,t:Date.now()},function(r){
+            var done=false; try{ var ss2=(r&&r.order&&r.order.sections)||[]; for(var i=0;i<ss2.length;i++){ if(String(ss2[i].id)===String(sid)&&ss2[i].imageFileId){done=true;break;} } }catch(e){}
+            if(done||n>=6){ showToast('✅ عکس قطعه ذخیره شد'); callSheet('saveEstimateXlsx',{id:prState.editId},function(){},70000); }
+            else setTimeout(function(){tryBuild(n+1);},2500);
+          },30000); };
+          setTimeout(function(){tryBuild(0);},2500);
+        })
         .catch(function(){ showToast('خطا در آپلود عکس'); });
     } else {
-      // سفارش جدید: نگه‌دار تا بعد از ذخیره آپلود شود
-      s._imgPending={ dataUrl:dataUrl, mime:mime||'image/png' };
+      s._imgPending={ dataUrl:up, mime:'image/jpeg' };
       showToast('عکس ضمیمه شد — هنگام ذخیره‌ی سفارش آپلود می‌شود');
     }
   });
@@ -7885,20 +7908,33 @@ function pricingSaveEstimate(){
       }, 70000);
     };
     var afterProjImg = function(){
-      // آپلود عکس‌های معوقِ بخش‌ها — پشت‌سرهم (نه هم‌زمان) تا در دیتاسِیو همدیگر را بازنویسی نکنند
+      // آپلود عکس‌های معوقِ بخش‌ها — پشت‌سرهم، سپس تأیید ثبت در سرور، بعد ساخت اکسل
       var secs = (prState.order && prState.order.sections) || [];
       var pend = secs.filter(function(s){ return s._imgPending && s._imgPending.dataUrl; });
       if(!pend.length){ buildXlsx(); return; }
       if(btn){ btn.innerHTML='در حال آپلود عکس قطعه‌ها...'; }
+      var sids = pend.map(function(s){ return s.id; });
       var idx=0;
       var step=function(){
-        if(idx>=pend.length){ setTimeout(buildXlsx, 1500); return; } // بعد از همه، اکسل ساخته شود
+        if(idx>=pend.length){ verifyThenBuild(0); return; }
         var s=pend[idx++];
         var b64=(s._imgPending.dataUrl||'').split(',')[1]||'';
         try{ fetch(loadSheetUrl(), { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
           body: JSON.stringify({ action:'uploadSectionImage', token:SESSION_TOKEN, id:res.id, sid:s.id, base64:b64, mime:s._imgPending.mime||'image/png' }) }); }catch(e){}
         if(btn){ btn.innerHTML='در حال آپلود عکس قطعه '+idx+' از '+pend.length+'...'; }
-        setTimeout(step, 3500); // صبر تا این عکس ذخیره و دیتاسِیو نوشته شود، بعد بعدی
+        setTimeout(step, 3500);
+      };
+      var verifyThenBuild=function(tries){
+        if(btn){ btn.innerHTML='در حال تأیید عکس‌ها...'; }
+        callSheet('getEstimateForEdit', { id:res.id, t:Date.now() }, function(r){
+          var ok=false;
+          try{
+            var ss2=(r && r.order && r.order.sections)||[];
+            ok = sids.every(function(id){ for(var i=0;i<ss2.length;i++){ if(String(ss2[i].id)===String(id) && ss2[i].imageFileId) return true; } return false; });
+          }catch(e){}
+          if(ok || tries>=6){ buildXlsx(); }
+          else { setTimeout(function(){ verifyThenBuild(tries+1); }, 2500); }
+        }, 30000);
       };
       step();
     };
