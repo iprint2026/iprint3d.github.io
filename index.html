@@ -6773,6 +6773,7 @@ function prRenderSections(){
         +'<input class="inp" data-prsf="name" value="'+escapeHtml(s.name||'')+'" placeholder="نام قطعه (مثلاً بدنه)" style="flex:1;font-weight:700">'
         +'<button class="pr-x" data-prsdel="'+s.id+'" title="حذف بخش">✕</button>'
       +'</div>';
+    html += prSecImgZone(s);
     html += '<div class="pr-sec-lines">';
     if(!(s.lines||[]).length){ html += '<div style="color:#5a6080;font-size:12px;text-align:center;padding:12px;border:1px dashed #1a1d2e;border-radius:9px">ردیفی اضافه نشده</div>'; }
     else { html += (s.lines).map(function(l){
@@ -6803,7 +6804,20 @@ function prMakeLine(kind){
   else { l.minutes=10; }
   return l;
 }
+function prSyncOrderInputs(){
+  var o = prState.order, g=function(id){var e=document.getElementById(id);return e?e.value:null;};
+  var c=g('pr-o-customer'); if(c!=null) o.customer=c;
+  var nm=g('pr-o-ordername'); if(nm!=null) o.orderName=nm;
+  var tl=g('pr-o-tel'); if(tl!=null) o.tel=tl;
+  var q=g('pr-o-qty'); if(q!=null && q!=='') o.qty=+q;
+  var pf=g('pr-p-profit'); if(pf!=null && pf!=='') o.profit=+pf;
+  var ins=g('pr-p-institute'); if(ins!=null && ins!=='') o.institute=+ins;
+  var pk=g('pr-p-packaging'); if(pk!=null) o.packaging=prParseMoney(pk);
+  var sh=g('pr-p-shipping'); if(sh!=null) o.shipping=prParseMoney(sh);
+  var nt=g('pr-o-notes'); if(nt!=null) o.notes=nt;
+}
 function prAddSection(){
+  prSyncOrderInputs();
   if(!prState.order.sections) prState.order.sections = [];
   if(!prState.order.sections.length){
     prState.order.sections.push({ id:prNid(), name:(prState.order.orderName||'قطعه ۱'),
@@ -6812,9 +6826,8 @@ function prAddSection(){
     prState.lines = prState.lines.filter(function(l){return l.kind==='modeling';});
   }
   var nm = prompt('نام قطعه‌ی این بخش چیست؟ (مثلاً فنر)', '');
-  if(nm===null) { if(prState.order.sections.length<2){ /* لغو اولین تبدیل */ } }
   prState.order.sections.push({ id:prNid(), name:(nm&&nm.trim())?nm.trim():('قطعه '+prToFa(prState.order.sections.length+1)), qty:1, profit:'', lines:[] });
-  prRenderLines(); prRenderModelingArea(); prScheduleCompute();
+  prRenderOrder(); prRenderLines(); prRenderModelingArea(); prScheduleCompute();
 }
 function prRemoveSection(sid){
   if(!prState.order.sections) return;
@@ -6830,13 +6843,83 @@ function prRemoveSection(sid){
 }
 function prSetSecManual(sid, val, autoVal){
   var s = prSecFind(sid); if(!s) return;
-  var n = (val===''||val==null) ? NaN : (+val||0);
+  var clean = String(val).replace(/[^\d]/g,'');
+  var n = (clean==='') ? NaN : (+clean||0);
   if(isNaN(n) || (autoVal!=null && Math.round(n)===Math.round(autoVal))){
-    s.manualUnit = '';   // بازگشت به محاسبه‌ی خودکار
+    s.manualUnit = '';
   } else {
-    s.manualUnit = n;    // قیمت دستیِ کاربر
+    s.manualUnit = n;
   }
   prScheduleCompute();
+}
+var prActiveSecImg = '';
+function prSecImgZone(s){
+  var prev = s._imgPreview || '';
+  if(!prev && s.imageFileId) prSecImgLazy(s.id, s.imageFileId);
+  if(prev || s.imageFileId){
+    var img = prev ? '<img src="'+prev+'" style="width:54px;height:54px;border-radius:8px;object-fit:cover;border:1px solid #2a2350">' : '<div style="width:54px;height:54px;border-radius:8px;background:#161827;display:flex;align-items:center;justify-content:center;font-size:20px">🖼</div>';
+    return '<div onclick="prSecImgActivate(\''+s.id+'\')" style="display:flex;align-items:center;gap:9px;background:#0d1424;border:1px solid #1c2438;border-radius:10px;padding:8px;margin-bottom:10px">'
+      +img+'<div style="flex:1;font-size:11.5px;color:#9aa3c2">عکس این قطعه</div>'
+      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();prSecImgPick(\''+s.id+'\')">تعویض</button>'
+      +'<button class="pr-x" onclick="event.stopPropagation();prSecImgRemove(\''+s.id+'\')" title="حذف عکس">✕</button></div>';
+  }
+  var active = (prActiveSecImg===s.id);
+  return '<div onclick="prSecImgActivate(\''+s.id+'\')" style="display:flex;align-items:center;gap:9px;background:'+(active?'#13203a':'#0d1424')+';border:1px dashed '+(active?'#3a5a9e':'#283153')+';border-radius:10px;padding:9px 11px;margin-bottom:10px;cursor:pointer">'
+    +'<span style="font-size:17px">📷</span>'
+    +'<div style="flex:1;font-size:11.5px;color:#8a93b5">'+(active?'حالا می‌توانی عکس را Paste کنی (Ctrl+V)':'افزودن عکس این قطعه — کلیک برای آپلود یا فعال‌کردنِ پیست')+'</div>'
+    +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();prSecImgPick(\''+s.id+'\')">آپلود</button></div>';
+}
+function prSecImgActivate(sid){ prActiveSecImg = sid; if(prIsMulti()) prRenderSections(); }
+function prSecImgPick(sid){
+  prActiveSecImg = sid;
+  var inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange = function(){ if(inp.files && inp.files[0]) prSecImgReadFile(sid, inp.files[0]); };
+  inp.click();
+}
+function prSecImgReadFile(sid, file){
+  if(!file || (file.type||'').indexOf('image')!==0){ showToast('فقط فایل تصویری'); return; }
+  var fr=new FileReader();
+  fr.onload=function(){ prSecImgSet(sid, fr.result, file.type||'image/png'); };
+  fr.readAsDataURL(file);
+}
+function prSecImgSet(sid, dataUrl, mime){
+  var s=prSecFind(sid); if(!s) return;
+  makeThumb(dataUrl, function(thumb){
+    s._imgPreview = thumb || dataUrl;
+    if(prIsMulti()) prRenderSections();
+    if(prState.editId && prState.savedFolderReady!==false){
+      // سفارش ذخیره‌شده: همین حالا آپلود کن
+      var b64=(dataUrl||'').split(',')[1]||'';
+      showToast('در حال آپلود عکس قطعه...');
+      fetch(loadSheetUrl(), { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'uploadSectionImage', token:SESSION_TOKEN, id:prState.editId, sid:sid, base64:b64, mime:mime||'image/png' }) })
+        .then(function(){ setTimeout(function(){ s.imageFileId=s.imageFileId||'pending'; showToast('✅ عکس قطعه ذخیره شد'); callSheet('saveEstimateXlsx',{id:prState.editId},function(){},70000); }, 3000); })
+        .catch(function(){ showToast('خطا در آپلود عکس'); });
+    } else {
+      // سفارش جدید: نگه‌دار تا بعد از ذخیره آپلود شود
+      s._imgPending={ dataUrl:dataUrl, mime:mime||'image/png' };
+      showToast('عکس ضمیمه شد — هنگام ذخیره‌ی سفارش آپلود می‌شود');
+    }
+  });
+}
+function prSecImgRemove(sid){
+  var s=prSecFind(sid); if(!s) return;
+  s._imgPreview=''; s._imgPending=null;
+  if(prState.editId && s.imageFileId){
+    fetch(loadSheetUrl(), { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'deleteSectionImage', token:SESSION_TOKEN, id:prState.editId, sid:sid }) }).catch(function(){});
+  }
+  s.imageFileId='';
+  if(prIsMulti()) prRenderSections();
+}
+function prSecImgLazy(sid, fileId){
+  if(!prState.editId || !fileId || fileId==='pending') return;
+  if(prSecImgLazy._busy && prSecImgLazy._busy[sid]) return;
+  prSecImgLazy._busy = prSecImgLazy._busy || {}; prSecImgLazy._busy[sid]=true;
+  callSheet('getOrderFileBlob', { fileId:fileId, t:Date.now() }, function(r){
+    prSecImgLazy._busy[sid]=false;
+    if(r && r.status==='ok' && r.base64){ var du='data:'+(r.mime||'image/png')+';base64,'+r.base64; var s=prSecFind(sid); if(s){ s._imgPreview=du; if(prIsMulti()) prRenderSections(); } }
+  });
 }
 function prSecAddLine(sid, kind){
   var s = prSecFind(sid); if(!s) return;
@@ -6905,6 +6988,12 @@ function pricingAddComposite(){
 // ── ورودی‌ها ──
 function prOnInput(e){
   var t = e.target;
+  // جداسازیِ زنده‌ی صدگان روی فیلدهای پول، همان لحظه‌ی تایپ
+  if(t.classList && t.classList.contains('pr-money')){
+    var raw = prParseMoney(t.value);
+    var grouped = raw ? prSep(raw) : '';
+    if(t.value !== grouped){ t.value = grouped; try{ t.setSelectionRange(grouped.length, grouped.length); }catch(_){} }
+  }
   var v = (t.classList && t.classList.contains('pr-money')) ? prParseMoney(t.value) : t.value;
 
   // ردیف هزینه
@@ -7020,6 +7109,13 @@ function prCurrentConfig(){ return { machines:prState.machines, materials:prStat
 function prPayload(){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
+  // پاک‌کردن فیلدهای موقتِ عکس از بخش‌ها (تا حجم ذخیره زیاد نشود)
+  if(ord.sections && ord.sections.length){
+    ord.sections = ord.sections.map(function(s){
+      var c={}; for(var kk in s){ if(s.hasOwnProperty(kk) && kk.charAt(0)!=='_') c[kk]=s[kk]; }
+      return c;
+    });
+  }
   var pl = { order: ord, lines: prState.lines };
   if(prState.editId){ pl.editId = prState.editId; pl.config = prCurrentConfig(); }
   return JSON.stringify(pl);
@@ -7127,7 +7223,7 @@ function prRenderTape(r){
       var shownV = Math.round(s.manual ? s.perUnit : autoV);
       h2 += '<div style="margin-top:8px;background:#0c2018;border:1px solid #1e5e3e;border-radius:9px;padding:7px 9px">'
         +'<label style="font-size:10.5px;color:#5fe39a;font-weight:700;display:block;margin-bottom:3px">💰 قیمت اعلامی این قطعه (هر عدد)'+(s.manual?' — دستی':'')+'</label>'
-        +'<input type="number" value="'+shownV+'" onchange="prSetSecManual(\''+s.id+'\', this.value, '+autoV+')" style="width:100%;background:#08130d;border:1px solid #1e5e3e;border-radius:7px;color:#bdf5d4;padding:6px 9px;font-size:12.5px;text-align:center;font-weight:700">'
+        +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shownV)+'" onchange="prSetSecManual(\''+s.id+'\', this.value, '+autoV+')" style="width:100%;background:#08130d;border:1px solid #1e5e3e;border-radius:7px;color:#bdf5d4;padding:6px 9px;font-size:13px;text-align:center;font-weight:700">'
         +(s.manual?'<div style="font-size:10px;color:#5fe39a;margin-top:4px;text-align:center">✔ قیمت دستی فعال است (برای بازگشت به خودکار، عدد را پاک کن)</div>':'')
         +'</div>';
       h2 += '</div></div>';
@@ -7786,15 +7882,28 @@ function pricingSaveEstimate(){
         pricingResetForNext();
       }, 70000);
     };
+    var afterProjImg = function(){
+      // آپلود عکس‌های معوقِ بخش‌ها (سفارش جدید)
+      var secs = (prState.order && prState.order.sections) || [];
+      var pend = secs.filter(function(s){ return s._imgPending && s._imgPending.dataUrl; });
+      if(!pend.length){ buildXlsx(); return; }
+      if(btn){ btn.innerHTML='در حال آپلود عکس قطعه‌ها...'; }
+      pend.forEach(function(s){
+        var b64=(s._imgPending.dataUrl||'').split(',')[1]||'';
+        try{ fetch(loadSheetUrl(), { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify({ action:'uploadSectionImage', token:SESSION_TOKEN, id:res.id, sid:s.id, base64:b64, mime:s._imgPending.mime||'image/png' }) }); }catch(e){}
+      });
+      setTimeout(function(){ buildXlsx(); }, 4000); // صبر تا عکس‌ها ذخیره و سپس اکسل ساخته شود
+    };
     if(prPendingImage){
       if(btn){ btn.innerHTML='در حال آپلود تصویر...'; }
       imgUploadBase64(res.id, prPendingImage.dataUrl, prPendingImage.mime, function(ok){
         if(ok){ showToast('✅ تصویر سفارش هم ذخیره شد'); }
         prPendingImage=null; var ind=document.getElementById('pr-image-ind'); if(ind) ind.textContent='';
-        buildXlsx(); // اکسل بعد از آپلود تصویر ساخته شود تا عکس داخلش بیاید
+        afterProjImg();
       });
     } else {
-      buildXlsx();
+      afterProjImg();
     }
   });
 }
@@ -8022,7 +8131,20 @@ function imgReadFile(file){
 function imgPickFile(ev){ var f=ev.target.files && ev.target.files[0]; imgReadFile(f); }
 document.addEventListener('paste', function(e){
   var modal=document.getElementById('img-modal');
-  if(!modal || modal.style.display==='none') return;
+  var modalOpen = modal && modal.style.display!=='none';
+  // اگر مودال باز نیست ولی یک قطعه برای عکس فعال است → عکس را به همان قطعه بده
+  if(!modalOpen && prActiveSecImg){
+    var its=(e.clipboardData && e.clipboardData.items)||[];
+    for(var k=0;k<its.length;k++){
+      if(its[k].type && its[k].type.indexOf('image')===0){
+        var f=its[k].getAsFile();
+        var fr=new FileReader(); var sid=prActiveSecImg, mime=(f.type||'image/png');
+        fr.onload=function(){ prSecImgSet(sid, fr.result, mime); };
+        fr.readAsDataURL(f); e.preventDefault(); return;
+      }
+    }
+  }
+  if(!modalOpen) return;
   var items=(e.clipboardData && e.clipboardData.items) || [];
   for(var i=0;i<items.length;i++){
     if(items[i].type && items[i].type.indexOf('image')===0){ imgReadFile(items[i].getAsFile()); e.preventDefault(); break; }
