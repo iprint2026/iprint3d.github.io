@@ -8297,11 +8297,9 @@ function archiveProfile(id){
       if(n.indexOf('رسید پرداخت')===0) return 'receipt';
       if(n.indexOf('دفترچه پروژه')===0) return 'log';
       if(n.indexOf('فاکتور')===0 || f.kind==='pdf') return 'invoice';
-      if(n.indexOf('برآورد')===0 && f.kind==='xlsx') return 'xlsx';
-      if(n.indexOf('برآورد')===0 && f.kind==='txt') return 'esttext';
-      if(n.indexOf('تصویر سفارش')===0) return 'orderimg';
-      if(/\.(stl|step|stp|sldprt|sldasm|obj|3mf|igs|iges|x_t)$/i.test(n) || f.kind==='other') return 'project';
-      if(f.kind==='image') return 'orderimg';
+      if(f.kind==='xlsx' || /\.xlsx$/i.test(n)) return 'xlsx';
+      if(n.indexOf('تصویر سفارش')===0 || n.indexOf('عکس بخش')===0 || f.kind==='image' || /\.(png|jpe?g|webp|gif|bmp)$/i.test(n)) return 'orderimg';
+      if(f.kind==='txt' || /\.txt$/i.test(n)) return 'esttext';
       return 'project';
     }
     var groups=[
