@@ -825,7 +825,15 @@ function doPost(e){
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
               <div><label style="font-size:11px;color:#5a6080">شماره تماس</label><input class="inp" id="pr-o-tel" placeholder="۰۲۱-..."></div>
-              <div id="pr-wrap-qty"><label style="font-size:11px;color:#5a6080">تعداد سفارش</label><input class="inp" id="pr-o-qty" type="number" min="1"></div>
+              <div id="pr-wrap-qty"><label style="font-size:11px;color:#5a6080">تعداد سفارش</label><input class="inp" id="pr-o-qty" type="number" min="1" placeholder="مثلاً ۱۰"></div>
+            </div>
+            <div style="margin-top:11px">
+              <label style="font-size:11px;color:#5a6080">تاریخ برآورد</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input class="inp" id="pr-o-date" placeholder="مثلاً ۱۴۰۵/۰۴/۰۵" style="flex:1" disabled oninput="prState.order.dateStr=this.value">
+                <button class="btn btn-ghost btn-sm" id="pr-date-edit" title="ویرایش تاریخ" onclick="prToggleDateEdit()" style="white-space:nowrap">✏️ ویرایش</button>
+              </div>
+              <div style="font-size:10.5px;color:#5a6080;margin-top:4px">پیش‌فرض: تاریخِ امروز. برای تغییر، روی ویرایش بزن (مثل ۱۴۰۴.۳.۲ یا ۱۴۰۵/۲/۲۳).</div>
             </div>
             <div id="pr-wrap-projimg" style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" onclick="pricingPickImage()">🖼 افزودن تصویر سفارش</button>
@@ -853,7 +861,7 @@ function doPost(e){
           <div class="card">
             <div style="font-weight:600;font-size:14px;margin-bottom:14px">۳) پارامترهای سفارش</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
-              <div style="background:#1a160a;border:1px solid #5a4a1e;border-radius:9px;padding:8px 10px"><label style="font-size:11px;color:#fbbf24;font-weight:700">📈 ضریب سود (پیش‌فرض)</label><input class="inp" id="pr-p-profit" type="number" step="0.1" style="border-color:#5a4a1e;color:#fbbf24;font-weight:700;text-align:center"></div>
+              <div id="pr-wrap-profit" style="background:#1a160a;border:1px solid #5a4a1e;border-radius:9px;padding:8px 10px"><label style="font-size:11px;color:#fbbf24;font-weight:700">📈 ضریب سود (پیش‌فرض)</label><input class="inp" id="pr-p-profit" type="number" step="0.1" style="border-color:#5a4a1e;color:#fbbf24;font-weight:700;text-align:center"></div>
               <div style="background:#0c1e1a;border:1px solid #1e5e54;border-radius:9px;padding:8px 10px"><label style="font-size:11px;color:#34d399;font-weight:700">🏛 درصد پژوهشگاه (٪)</label><input class="inp" id="pr-p-institute" type="number" style="border-color:#1e5e54;color:#34d399;font-weight:700;text-align:center"></div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
@@ -6718,8 +6726,32 @@ function prRenderOrder(){
   document.getElementById('pr-p-shipping').value  = prSep(+o.shipping||0);
   var se=document.getElementById('pr-p-showextras'); if(se) se.checked = !!o.showExtras;
   var nt=document.getElementById('pr-o-notes'); if(nt) nt.value = o.notes||'';
+  var dt=document.getElementById('pr-o-date');
+  if(dt){
+    if(!o.dateStr){ o.dateStr = prTodayJalaliStr(); }
+    dt.value = o.dateStr || '';
+    dt.disabled = true; var de=document.getElementById('pr-date-edit'); if(de) de.innerHTML='✏️ ویرایش';
+  }
   var mu=document.getElementById('pr-manual-unit'); if(mu) mu.value = (+o.manualUnit>0)?prSep(+o.manualUnit):'';
   var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display=((+o.manualUnit>0)?'block':'none');
+}
+function prTodayJalaliStr(){
+  var n=new Date(); var j=gregorianToJalali(n.getFullYear(), n.getMonth()+1, n.getDate());
+  return j[0]+'/'+pad2(j[1])+'/'+pad2(j[2]);
+}
+function prToggleDateEdit(){
+  var dt=document.getElementById('pr-o-date'), de=document.getElementById('pr-date-edit');
+  if(!dt) return;
+  if(dt.disabled){ dt.disabled=false; dt.focus(); if(de) de.innerHTML='✓ تأیید'; }
+  else {
+    // نرمال‌سازیِ سبک سمت کاربر (نمایش)؛ اعتبارسنجیِ نهایی در سرور
+    var v=(dt.value||'').trim().replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[.\-\s]+/g,'/');
+    var m=v.match(/^(\d{3,4})\/(\d{1,2})\/(\d{1,2})$/);
+    if(m){ v=m[1]+'/'+pad2(+m[2])+'/'+pad2(+m[3]); dt.value=v; prState.order.dateStr=v; }
+    else { prState.order.dateStr=dt.value; }
+    dt.disabled=true; if(de) de.innerHTML='✏️ ویرایش';
+    prScheduleCompute();
+  }
 }
 
 // ── ردیف‌های هزینه ──
@@ -6767,7 +6799,10 @@ function prRenderSections(){
   var secs = prState.order.sections||[];
   var html = '<div style="font-size:11.5px;color:#a99bf5;background:#171430;border:1px solid #2a2350;border-radius:9px;padding:8px 11px;margin-bottom:12px">حالت چندبخشی فعال است: هر بخش دستگاه/مواد/تعداد/سودِ خودش را دارد. درصد پژوهشگاه روی کل پروژه اعمال می‌شود.</div>';
   secs.forEach(function(s, idx){
-    html += '<div class="pr-sec" data-prsid="'+s.id+'" style="border:1px solid #232742;border-radius:13px;padding:13px;margin-bottom:12px;background:#0e1018">'
+    var alt = (idx % 2 === 0);
+    var cardBg = alt ? '#0f1020' : '#121223';
+    var cardBd = alt ? '#262a4a' : '#2e2752';
+    html += '<div class="pr-sec" data-prsid="'+s.id+'" style="border:1px solid '+cardBd+';border-radius:13px;padding:13px;margin-bottom:12px;background:'+cardBg+'">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">'
         +'<span style="background:#7c5af5;color:#fff;font-weight:800;font-size:12px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center">'+prToFa(idx+1)+'</span>'
         +'<input class="inp" data-prsf="name" value="'+escapeHtml(s.name||'')+'" placeholder="نام قطعه (مثلاً بدنه)" style="flex:1;font-weight:700">'
@@ -6794,7 +6829,7 @@ function prRenderSections(){
       +'</div>';
     html += '</div>';
   });
-  box.innerHTML = html;
+  box.innerHTML = '<div style="background:#0b0c17;border:1px solid #1c1d35;border-radius:14px;padding:11px">'+html+'</div>';
 }
 function prMakeLine(kind){
   var l = { id:prNid(), kind:kind };
@@ -6968,6 +7003,7 @@ function prRenderModelingArea(){
     if(wOrd) wOrd.style.display='none';
     if(wQty) wQty.style.display='none';
     var wPi=document.getElementById('pr-wrap-projimg'); if(wPi) wPi.style.display='none';
+    var wPr=document.getElementById('pr-wrap-profit'); if(wPr) wPr.style.display='none';
     var mods = (prState.lines||[]).filter(function(l){return l.kind==='modeling';});
     var h = '<div style="border:1px dashed #2a3550;border-radius:13px;padding:13px;margin-top:6px;background:#0c0f18">'
       +'<div style="font-weight:700;font-size:12.5px;color:#9aa3c2;margin-bottom:9px">🎨 طراحی / مدلسازی (مستقل از بخش‌ها)</div>';
@@ -6989,6 +7025,7 @@ function prRenderModelingArea(){
     if(wOrd) wOrd.style.display='';
     if(wQty) wQty.style.display='';
     var wPi2=document.getElementById('pr-wrap-projimg'); if(wPi2) wPi2.style.display='flex';
+    var wPr2=document.getElementById('pr-wrap-profit'); if(wPr2) wPr2.style.display='block';
     area.innerHTML='';
   }
 }
