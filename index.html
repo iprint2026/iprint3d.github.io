@@ -7637,6 +7637,7 @@ function prBuildInvoiceItems(r, o){
   return { items:items, fallbackUnit: (items[0]?items[0].unit:r.perUnit) };
 }
 function ivClose(){
+  ivPrintRestore();
   var ov=document.getElementById('view-invoice');
   ov.style.display='none';
   ov.classList.add('hidden');
@@ -7690,7 +7691,20 @@ function ivToggleEditAll(){
   document.querySelectorAll(IV_EDIT_SEL).forEach(function(el){ el.setAttribute('contenteditable', on?'true':'false'); });
   document.getElementById('iv-editall').textContent = on?'✓ پایان ویرایش':'✎ ویرایش متن‌ها';
 }
-function ivPrint(){ window.print(); }
+function ivPrintRelocate(){
+  var ov=document.getElementById('view-invoice'); if(!ov) return;
+  if(document.getElementById('iv-print-ph')) return; // already relocated
+  if(ov.parentNode===document.body) return; // already direct child
+  var ph=document.createElement('div'); ph.id='iv-print-ph'; ph.style.display='none';
+  ov.parentNode.insertBefore(ph, ov);
+  document.body.appendChild(ov);
+}
+function ivPrintRestore(){
+  var ph=document.getElementById('iv-print-ph'); var ov=document.getElementById('view-invoice');
+  if(ph && ov){ ph.parentNode.insertBefore(ov, ph); ph.remove(); }
+}
+window.addEventListener('afterprint', ivPrintRestore);
+function ivPrint(){ document.body.classList.add('inv-open'); ivPrintRelocate(); setTimeout(function(){ window.print(); }, 60); }
 // ───── ابزار طراحی آزاد فاکتور ─────
 var IV_FONTS = [
   {v:"'Vazirmatn',sans-serif",t:"وزیر"},
@@ -7906,8 +7920,10 @@ function ivSetSize(s){
 function ivExportPDF(){
   // خروجیِ مو‌به‌مو مثلِ پیش‌نمایش = چاپِ خودِ مرورگر
   if(ivDesign) ivToggleDesign();
+  document.body.classList.add('inv-open');
   var st=document.getElementById('iv-print-size'); if(!st){ st=document.createElement('style'); st.id='iv-print-size'; document.head.appendChild(st); }
   st.textContent='@media print{@page{size:'+(ivPageSize==='a5'?'A5':'A4')+';margin:0}}';
+  ivPrintRelocate();
   showToast('در پنجره‌ی چاپ: مقصد = «Save as PDF» · Margins = None · Background graphics = روشن');
   setTimeout(function(){ window.print(); }, 400);
 }
