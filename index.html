@@ -7299,6 +7299,7 @@ function prRenderTape(r){
       +'<div class="pr-ln strong" style="color:#4ade80;font-size:12.5px"><span>💎 سود این پروژه</span><span>'+prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal))+'</span></div>'
       +'</div>';
     h2 += prModelingBox(r);
+    h2 += prMaterialsBox(r);
     document.getElementById('pr-tape').innerHTML = h2;
     document.getElementById('pr-final-unit').textContent  = prFmt(r.perUnit);
     document.getElementById('pr-final-total').textContent = prFmt(r.orderTotal);
@@ -7336,9 +7337,27 @@ function prRenderTape(r){
     +(r.manual?'<div style="font-size:10px;color:#5fe39a;margin-top:3px;text-align:center">✔ قیمت دستی فعال است</div>':'')
     +'</div>';
   h += prModelingBox(r);
+  h += prMaterialsBox(r);
   document.getElementById('pr-tape').innerHTML = h;
   document.getElementById('pr-final-unit').textContent  = prFmt(r.perUnit);
   document.getElementById('pr-final-total').textContent = prFmt(r.orderTotal);
+}
+function prMaterialsBox(r){
+  var mu = r && r.materialsUsed;
+  if(!mu || !mu.length) return '';
+  var h = '<div style="margin-top:8px;background:#0b1a22;border:1px solid #16424f;border-radius:12px;padding:11px">'
+    +'<div style="color:#5fd0e3;font-weight:800;font-size:12px;margin-bottom:7px">🧪 مواد مصرفی کل پروژه</div>';
+  mu.forEach(function(m){
+    h += '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:#dbe6ea;padding:3px 0"><span>'+escapeHtml(m.name)+'</span><span style="font-weight:700;color:#5fd0e3">'+prToFa(prSep(m.grams))+' گرم</span></div>';
+    if(m.composite && m.parts && m.parts.length){
+      m.parts.forEach(function(p){
+        h += '<div style="display:flex;justify-content:space-between;font-size:11px;color:#8aa3ab;padding:1px 0 1px 12px;padding-right:14px"><span>└ '+escapeHtml(p.name)+' ('+prToFa(p.pct)+'٪)</span><span>'+prToFa(prSep(p.grams))+' گرم</span></div>';
+      });
+    }
+  });
+  h += '<div style="font-size:10px;color:#5a8090;margin-top:5px">مجموعِ موادِ لازم برای کلِ تعداد سفارش (برای تهیه).</div>';
+  h += '</div>';
+  return h;
 }
 function prSetOrderManual(val, autoVal){
   var clean=String(val).replace(/[^\d]/g,'');
@@ -8447,6 +8466,16 @@ function archiveProfile(id){
         +row('قیمت هر عدد (نهایی)', s.perUnit, true)
         +row('مبلغ کل سفارش', s.total, true)
         +'</div>';
+    }
+    if(sumEl && res.materialsUsed && res.materialsUsed.length){
+      var mh='<div style="margin-top:12px"><div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">🧪 مواد مصرفی کل پروژه</div>'
+        +'<div style="background:#0b1a22;border:1px solid #16424f;border-radius:11px;padding:12px 14px;font-size:12.5px">';
+      res.materialsUsed.forEach(function(m){
+        mh+='<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #112e38"><span style="color:#dbe6ea">'+escapeHtml(m.name)+'</span><span style="color:#5fd0e3;font-weight:700">'+prToFa(prSep(m.grams))+' گرم</span></div>';
+        if(m.composite && m.parts){ m.parts.forEach(function(p){ mh+='<div style="display:flex;justify-content:space-between;padding:2px 14px 2px 0;font-size:11px;color:#8aa3ab"><span>└ '+escapeHtml(p.name)+' ('+prToFa(p.pct)+'٪)</span><span>'+prToFa(prSep(p.grams))+' گرم</span></div>'; }); }
+      });
+      mh+='</div></div>';
+      sumEl.innerHTML += mh;
     }
     if(sumEl && res.notes && String(res.notes).trim()){
       sumEl.innerHTML += '<div style="margin-top:12px"><div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">توضیحات</div>'
