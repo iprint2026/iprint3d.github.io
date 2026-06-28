@@ -6611,6 +6611,7 @@ var prState = { machines:[], materials:[], composites:[], rates:{}, defaults:{},
 var prUid = 1;
 function prNid(){ return 'p' + (prUid++); }
 var prLastResult = null;
+var gBizRisk = 1;
 var prComputeTimer = null;
 var prBound = false;
 
@@ -6647,6 +6648,7 @@ function pricingInit(){
       prState.composites = Array.isArray(c.composites) ? c.composites : [];
       prState.rates      = c.rates    || {labor:0,finishing:0,modeling:0};
       prState.defaults   = c.defaults || {profit:0,institute:0,packaging:0,shipping:0};
+      gBizRisk = (c.defaults && +c.defaults.riskFactor>0) ? +c.defaults.riskFactor : 1;
       prState.invoice    = c.invoice  || {logoFileId:'',stampFileId:''};
       // مقداردهی اولیه‌ی سفارش از پیش‌فرض‌ها
       var d = prState.defaults;
@@ -7384,8 +7386,9 @@ function prRenderTape(r){
 function prMaterialsBox(r){
   var mu = r && r.materialsUsed;
   if(!mu || !mu.length) return '';
-  var risk = (prState.defaults && +prState.defaults.riskFactor>0) ? +prState.defaults.riskFactor : 1;
+  var risk = (prState.defaults && +prState.defaults.riskFactor>0) ? +prState.defaults.riskFactor : (gBizRisk||1);
   var showRisk = risk && risk!==1;
+  var gr = function(g){ return Math.round((+g||0)*risk); };
   var h = '<div style="margin-top:8px;background:#0b1a22;border:1px solid #16424f;border-radius:12px;padding:11px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">'
     +'<span style="color:#5fd0e3;font-weight:800;font-size:12px">🧪 مواد مصرفی کل پروژه</span>'
@@ -7398,14 +7401,14 @@ function prMaterialsBox(r){
     h += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:#dbe6ea;padding:3px 0">'
       +'<span style="flex:1">'+escapeHtml(m.name)+'</span>'
       +'<span style="width:70px;text-align:left;color:'+(showRisk?'#7a93a0':'#5fd0e3')+';font-weight:'+(showRisk?'400':'700')+'">'+prToFa(prSep(m.grams))+' گرم</span>'
-      +(showRisk?'<span style="width:80px;text-align:left;color:#5fd0e3;font-weight:800">'+prToFa(prSep(m.gramsRisk))+' گرم</span>':'')
+      +(showRisk?'<span style="width:80px;text-align:left;color:#5fd0e3;font-weight:800">'+prToFa(prSep(gr(m.grams)))+' گرم</span>':'')
       +'</div>';
     if(m.composite && m.parts && m.parts.length){
       m.parts.forEach(function(p){
         h += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#8aa3ab;padding:1px 0">'
           +'<span style="flex:1;padding-right:14px">└ '+escapeHtml(p.name)+' ('+prToFa(p.pct)+'٪)</span>'
           +'<span style="width:70px;text-align:left;color:#6b8089">'+prToFa(prSep(p.grams))+' گرم</span>'
-          +(showRisk?'<span style="width:80px;text-align:left;color:#7fd9c0;font-weight:700">'+prToFa(prSep(p.gramsRisk))+' گرم</span>':'')
+          +(showRisk?'<span style="width:80px;text-align:left;color:#7fd9c0;font-weight:700">'+prToFa(prSep(gr(p.grams)))+' گرم</span>':'')
           +'</div>';
       });
     }
@@ -7459,11 +7462,13 @@ function pricingCopy(){
   L.push('');
   var matBlock = function(){
     if(!(r.materialsUsed && r.materialsUsed.length)) return;
+    var _risk = (prState.defaults && +prState.defaults.riskFactor>0) ? +prState.defaults.riskFactor : (gBizRisk||1);
+    var _grm = function(g){ return Math.round((+g||0)*_risk); };
     L.push('');
     L.push('▌ مواد لازم برای کلِ سفارش (برای تهیه)');
     r.materialsUsed.forEach(function(m){
       L.push('• ' + m.name + ': ' + prToFa(prSep(m.grams)) + ' گرم');
-      if(m.gramsRisk && m.gramsRisk!==m.grams) L.push('   ↳ برای خرید (با ریسک): ' + prToFa(prSep(m.gramsRisk)) + ' گرم');
+      if(_risk && _risk!==1) L.push('   ↳ برای خرید (با ریسک ×' + prToFa(_risk) + '): ' + prToFa(prSep(_grm(m.grams))) + ' گرم');
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
