@@ -662,6 +662,11 @@ tr:hover td{background:#0e1018}
         <div style="font-size:12px;color:#5a6080;margin-bottom:12px;line-height:1.7">
           بکاپ شامل همه داده‌ها (کالاها، کاربران، درخواست‌ها، دسته‌ها، تنظیمات و سفارش‌های مالی) است. در Google Sheet و هر هفته خودکار روی Google Drive (پوشه iPrint3D-backups) ذخیره می‌شود.
         </div>
+        <div style="background:#0c1420;border:1px solid #1a2740;border-radius:10px;padding:11px;margin-bottom:12px">
+          <div style="font-size:12.5px;color:#8ab4f0;font-weight:700;margin-bottom:6px">🔄 بازسازی فایل‌های متنی سفارش‌ها</div>
+          <div style="font-size:11px;color:#5a6080;line-height:1.7;margin-bottom:8px">فایلِ متنیِ همه‌ی سفارش‌های قبلی را با فرمتِ جدید و لینکِ پیگیری دوباره می‌سازد. قیمت‌ها، داده‌ها و بقیه‌ی فایل‌ها دست‌نمی‌خورند — فقط فایلِ متن بازنویسی می‌شود. (پیشنهاد: اول یک بکاپ بگیر.)</div>
+          <button class="btn btn-ghost btn-sm" onclick="rebuildAllTexts()">🔄 بازسازی همه‌ی متن‌ها</button>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
           <button class="btn btn-ghost btn-sm" onclick="downloadBackupFile()">⬇️ دانلود فایل بکاپ</button>
           <input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none" onchange="restoreFromFile(this)">
@@ -6400,6 +6405,18 @@ function renderBackups(){
   }).join('');
 }
 
+function rebuildAllTexts(){
+  if(!confirm('فایلِ متنیِ همه‌ی سفارش‌های قبلی با فرمتِ جدید و لینک بازنویسی می‌شود.\nقیمت‌ها و داده‌ها دست‌نمی‌خورند. ادامه می‌دهی؟')) return;
+  showToast('در حال بازسازی متن‌ها... (ممکن است کمی طول بکشد)');
+  var base = ''; try{ base = (location.origin||'') + (location.pathname||''); }catch(e){}
+  callSheet('rebuildAllTexts', { siteUrlBase: base, t:Date.now() }, function(res){
+    if(res && res.status==='ok'){
+      showToast('✅ بازسازی شد: ' + prToFa(res.done) + ' از ' + prToFa(res.total) + (res.failed?(' (' + prToFa(res.failed) + ' ناموفق)'):''));
+    } else {
+      showToast('خطا در بازسازی' + ((res&&res.message)?(' — '+res.message):''));
+    }
+  }, 600000);
+}
 function createBackup(){
   if(!canDo('users')){ showToast('فقط ادمین'); return; }
   showToast('💾 در حال گرفتن بکاپ...');
