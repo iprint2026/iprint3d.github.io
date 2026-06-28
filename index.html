@@ -1486,6 +1486,26 @@ function enterApp(u){
   startHeartbeat();
   startBadgeRefresh();
   loadSubcatTemplates();
+  prHandleDeepLink();
+}
+// هدایت به پروفایل سفارش از روی لینکِ #order=CODE (بعد از ورود)
+function prHandleDeepLink(){
+  try{
+    var h = location.hash || '';
+    var m = h.match(/order=([^&]+)/);
+    if(!m) return;
+    var code = decodeURIComponent(m[1]);
+    // پاک‌کردن hash تا دوباره فعال نشود
+    try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+    if(typeof canDo==='function' && !canDo('users')){ showToast('برای دیدن این سفارش، حسابِ شما دسترسی لازم را ندارد.'); return; }
+    gotoView('archive');
+    archiveInit(function(){
+      var found=null;
+      for(var i=0;i<arData.length;i++){ if(String(arData[i].code)===code || String(arData[i].id)===code){ found=arData[i]; break; } }
+      if(found && typeof archiveProfile==='function'){ archiveProfile(found.id); }
+      else { showToast('سفارش با کد «'+code+'» پیدا نشد.'); }
+    });
+  }catch(e){}
 }
 
 function updateMyLastSeen(){
@@ -7395,72 +7415,89 @@ function pricingCopy(){
   L.push('🧾 برآورد قیمت — iPrint3D');
   L.push('━━━━━━━━━━━━━━━━━━━━');
   if(prState.savedCode) L.push('🔖 کد سفارش: ' + prState.savedCode);
-  if(o.customer) L.push('👤 مشتری: ' + o.customer);
-  if(o.orderName) L.push('📦 سفارش: ' + o.orderName);
-  if(o.tel) L.push('📞 تماس: ' + o.tel);
-  L.push('🔢 تعداد: ' + prSep(r.qty) + ' عدد');
+  if(o.customer) L.push('👤 نام مشتری: ' + o.customer);
+  if(o.orderName) L.push('📦 عنوان سفارش: ' + o.orderName);
+  if(o.tel) L.push('📞 شماره تماس: ' + o.tel);
+  if(o.dateStr) L.push('📅 تاریخ برآورد: ' + o.dateStr);
+  L.push('🔢 تعداد کل: ' + prToFa(prSep(r.qty)) + ' عدد');
+  L.push('━━━━━━━━━━━━━━━━━━━━');
   L.push('');
+  var matBlock = function(){
+    if(!(r.materialsUsed && r.materialsUsed.length)) return;
+    L.push('');
+    L.push('▌ مواد لازم برای کلِ سفارش (برای تهیه)');
+    r.materialsUsed.forEach(function(m){
+      L.push('• ' + m.name + ': ' + prToFa(prSep(m.grams)) + ' گرم');
+      if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
+    });
+  };
+  var orderUrl = prState.savedCode ? (location.origin + location.pathname + '#order=' + encodeURIComponent(prState.savedCode)) : '';
+  var linkBlock = function(){ if(orderUrl){ L.push(''); L.push('🔗 پیگیری و مشاهده‌ی این سفارش (با ورود به حساب):'); L.push(orderUrl); } };
   if(r.multi){
-    L.push('▌بخش‌های پروژه');
+    L.push('▌ قطعه‌های این سفارش');
     (r.sections||[]).forEach(function(s,i){
       L.push('');
-      L.push('🧩 بخش '+prToFa(i+1)+'؛ '+(s.name||'')+' — '+prToFa(prSep(s.qty))+' عدد');
-      if(s.cat){
-        if(s.cat.machine) L.push('   • دستگاه (هر عدد): '+prFmt(s.cat.machine));
-        if(s.cat.material) L.push('   • مواد (هر عدد): '+prFmt(s.cat.material));
-        if((s.cat.labor||0)+(s.cat.finishing||0)) L.push('   • نیروی انسانی (هر عدد): '+prFmt((s.cat.labor||0)+(s.cat.finishing||0)));
-      }
-      L.push('   • قیمت تمام‌شده (هر عدد): '+prFmt(s.base));
-      if(s.manual){
-        L.push('   • قیمت اعلامی دستی (هر عدد): '+prFmt(s.perUnit));
-      } else {
-        L.push('   • با سود ×'+prToFa(s.profit)+': '+prFmt(s.base*s.profit));
-        if(s.institute) L.push('   • سهم پژوهشگاه (هر عدد): '+prFmt(s.institute/s.qty));
-        L.push('   • قیمت هر عدد: '+prFmt(s.perUnit));
-      }
-      L.push('   ◀ جمع این قطعه: '+prFmt(s.total));
+      L.push('🧩 قطعه ' + prToFa(i+1) + ': ' + (s.name||'') + ' — تعداد ' + prToFa(prSep(s.qty)) + ' عدد');
+      L.push('   • قیمت هر عدد: ' + prFmt(s.perUnit));
+      L.push('   • ضریب سود مؤثر: ' + prToFa((s.effProfit!=null?s.effProfit:s.profit)) + '×');
+      L.push('   ◀ جمع این قطعه (' + prToFa(prSep(s.qty)) + ' عدد): ' + prFmt(s.total));
     });
     L.push('');
-    L.push('▌جمع‌بندی پروژه');
-    L.push('• جمع قطعه‌ها: ' + prFmt(r.perPartAnnounced));
-    if(o.showDesignRow && r.designAnnounced) L.push('• طراحی قطعه: ' + prFmt(r.designAnnounced));
+    L.push('▌ جمع‌بندیِ نهاییِ سفارش');
+    L.push('• جمعِ همه‌ی قطعه‌ها: ' + prFmt(r.perPartAnnounced));
+    if(r.modelingAnnounced) L.push('• هزینه‌ی طراحی و مدلسازی (یک‌بار برای کل سفارش): ' + prFmt(r.modelingAnnounced));
     if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
-    if(r.shipping)  L.push('• ارسال: ' + prFmt(r.shipping));
-    L.push('💰 قیمت کل: ' + prFmt(r.orderTotal));
-    L.push('🏛 از این مبلغ، سهم پژوهشگاه: ' + prFmt(r.institute));
-    L.push('💎 سود این پروژه: ' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
-    if(o.notes && String(o.notes).trim()){ L.push(''); L.push('▌توضیحات'); L.push(String(o.notes).trim()); }
+    if(r.shipping)  L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
+    L.push('');
+    L.push('💰 مبلغ کلِ قابلِ پرداخت: ' + prFmt(r.orderTotal));
+    L.push('');
+    L.push('— — — — — (اطلاعات داخلی) — — — — —');
+    if(r.institute) L.push('🏛 از مبلغ بالا، سهم پژوهشگاه: ' + prFmt(r.institute));
+    L.push('💎 سود این سفارش: ' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
+    matBlock();
+    if(o.notes && String(o.notes).trim()){ L.push(''); L.push('▌ توضیحات'); L.push(String(o.notes).trim()); }
+    linkBlock();
     L.push('━━━━━━━━━━━━━━━━━━━━');
     var txtM = L.join('\n');
     if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txtM).then(function(){ showToast('✅ متن کپی شد'); }).catch(function(){ prCopyFallback(txtM); }); }
     else prCopyFallback(txtM);
     return;
   }
-  L.push('▌هزینه‌ی ساخت (هر عدد)');
-  L.push('• ' + lbl.machine + ': ' + prFmt(r.cat.machine));
-  L.push('• نیروی انسانی (با فینیشینگ): ' + prFmt(r.cat.labor + r.cat.finishing));
-  L.push('• ' + lbl.material + ': ' + prFmt(r.material));
-  L.push('➖ جمع هر عدد: ' + prFmt(r.base));
+  L.push('▌ هزینه‌ی ساختِ هر عدد (قیمت تمام‌شده)');
+  L.push('• هزینه‌ی دستگاه و چاپ: ' + prFmt(r.cat.machine));
+  L.push('• دستمزد و پرداخت نهایی (فینیشینگ): ' + prFmt(r.cat.labor + r.cat.finishing));
+  L.push('• مواد اولیه: ' + prFmt(r.material));
+  L.push('➖ جمع هزینه‌ی تمام‌شده‌ی هر عدد: ' + prFmt(r.base));
+  L.push('');
+  L.push('▌ قیمت‌گذاری هر عدد');
   if(!manual){
-    L.push('');
-    L.push('▌قیمت‌گذاری (هر عدد)');
-    L.push('• با ضریب سود: ' + prFmt(r.perPartMargin));
-    L.push('• سهم پژوهشگاه: ' + prFmt(r.institute));
-    L.push('✅ قیمت هر عدد: ' + prFmt(r.perPartAnnounced));
+    L.push('• قیمت با احتساب سود: ' + prFmt(r.perPartMargin));
+    if(r.institute) L.push('• سهم پژوهشگاه: ' + prFmt(r.institute));
+    L.push('✅ قیمت نهاییِ هر عدد: ' + prFmt(r.perPartAnnounced));
+  } else {
+    L.push('✅ قیمت نهاییِ هر عدد (اعلامی): ' + prFmt(r.perUnit));
   }
   L.push('');
-  L.push('▌جمع‌بندی سفارش');
-  if(r.modelingAnnounced) L.push('• مدلسازی (یک‌باره): ' + prFmt(r.modelingAnnounced));
+  L.push('▌ جمع‌بندیِ نهاییِ سفارش');
+  L.push('• قیمت هر عدد × ' + prToFa(prSep(r.qty)) + ' عدد: ' + prFmt((manual?r.perUnit:r.perPartAnnounced) * r.qty));
+  if(r.modelingAnnounced) L.push('• هزینه‌ی طراحی و مدلسازی (یک‌بار برای کل سفارش): ' + prFmt(r.modelingAnnounced));
   if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
-  if(r.shipping) L.push('• ارسال: ' + prFmt(r.shipping));
-  if(manual) L.push('• قیمت اعلامیِ دستی هر عدد: ' + prFmt(r.perUnit));
-  L.push('💰 قیمت کل: ' + prFmt(r.orderTotal));
-  L.push('💵 قیمت هر عدد: ' + prFmt(r.perUnit));
+  if(r.shipping) L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
+  L.push('');
+  L.push('💰 مبلغ کلِ قابلِ پرداخت: ' + prFmt(r.orderTotal));
+  L.push('💵 قیمت هر عدد (با لحاظِ همه‌ی هزینه‌ها): ' + prFmt(r.perUnit));
+  L.push('');
+  L.push('— — — — — (اطلاعات داخلی) — — — — —');
+  L.push('📊 ضریب سود مؤثر: ' + prToFa((r.effProfit!=null?r.effProfit:r.profit)) + '×');
+  if(r.institute) L.push('🏛 از مبلغ بالا، سهم پژوهشگاه: ' + prFmt(r.institute));
+  L.push('💎 سود این سفارش: ' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
+  matBlock();
   if(o.notes && String(o.notes).trim()){
     L.push('');
-    L.push('▌توضیحات');
+    L.push('▌ توضیحات');
     L.push(String(o.notes).trim());
   }
+  linkBlock();
   L.push('━━━━━━━━━━━━━━━━━━━━');
   var txt = L.join('\n');
   if(navigator.clipboard && navigator.clipboard.writeText){
