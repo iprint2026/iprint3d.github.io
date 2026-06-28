@@ -798,7 +798,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V157</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V158</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6613,6 +6613,19 @@ function prNid(){ return 'p' + (prUid++); }
 var prLastResult = null;
 var gBizRisk = 1;
 var omMats = [];
+var omRiskOrderId = '';
+function omSaveRisk(){
+  var inp=document.getElementById('om-risk'); if(!inp) return;
+  var id = omCurrentId || omRiskOrderId;
+  if(!id){ showToast('شناسه‌ی سفارش پیدا نشد'); return; }
+  var rv = parseFloat(inp.value); if(!(rv>0)) rv = 0;
+  var btn=document.getElementById('om-risk-save'); if(btn){ btn.textContent='...'; btn.disabled=true; }
+  callSheet('setOrderRisk', { id:id, risk:rv, t:Date.now() }, function(res){
+    if(btn){ btn.textContent='💾 ذخیره'; btn.disabled=false; }
+    if(res && res.status==='ok'){ showToast(rv>0?('✅ ضریب ریسک ذخیره شد: ×'+prToFa(rv)):'✅ ضریب ریسک برداشته شد'); }
+    else { showToast('خطا در ذخیره‌ی ضریب'); }
+  }, 30000);
+}
 function omRenderMaterials(){
   var box=document.getElementById('om-mats-inner'); if(!box) return;
   var inp=document.getElementById('om-risk');
@@ -8580,10 +8593,14 @@ function archiveProfile(id){
     }
     if(sumEl && res.materialsUsed && res.materialsUsed.length){
       omMats = res.materialsUsed;
+      omRiskOrderId = omCurrentId || (res.code||'');
+      var _orv = (+res.orderRisk>0) ? res.orderRisk : '';
       var mh='<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
         +'<span style="font-weight:700;font-size:13px;color:#9aa3c2">🧪 مواد مصرفی کل پروژه</span>'
         +'<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:#5fd0e3">ضریب ریسک (برای خرید):'
-        +'<input id="om-risk" type="number" step="0.05" placeholder="مثلاً 1.2" oninput="omRenderMaterials()" style="width:90px;background:#0c2a24;border:1px solid #14543d;border-radius:7px;color:#5fd0e3;padding:5px 8px;text-align:center;font-weight:700;font-size:13px"></span>'
+        +'<input id="om-risk" type="number" step="0.05" value="'+_orv+'" placeholder="مثلاً 1.2" oninput="omRenderMaterials()" style="width:80px;background:#0c2a24;border:1px solid #14543d;border-radius:7px;color:#5fd0e3;padding:5px 8px;text-align:center;font-weight:700;font-size:13px">'
+        +'<button id="om-risk-save" onclick="omSaveRisk()" style="background:#14543d;border:1px solid #1e7d52;color:#7fffc4;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">💾 ذخیره</button>'
+        +'</span>'
         +'</div>'
         +'<div id="om-mats-inner" style="background:#0b1a22;border:1px solid #16424f;border-radius:11px;padding:12px 14px;font-size:12.5px"></div></div>';
       sumEl.innerHTML += mh;
