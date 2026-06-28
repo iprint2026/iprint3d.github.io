@@ -7190,6 +7190,7 @@ function prCurrentConfig(){ return { machines:prState.machines, materials:prStat
 function prPayload(){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
+  try{ ord.siteUrlBase = (location.origin||'') + (location.pathname||''); }catch(e){}
   // پاک‌کردن فیلدهای موقتِ عکس از بخش‌ها (تا حجم ذخیره زیاد نشود)
   if(ord.sections && ord.sections.length){
     ord.sections = ord.sections.map(function(s){
@@ -7332,7 +7333,7 @@ function prRenderTape(r){
   if(r && r.manual){ h += '<div class="pr-ln" style="background:#0c2a20;border:1px solid #14543d;border-radius:8px;padding:7px 10px;margin-bottom:8px"><span style="color:#34d399">قیمت اعلامی (دستی)</span><span style="color:#34d399;font-weight:700">'+prFmt(r.manualUnit)+' / عدد</span></div>'; }
   h += '<div class="pr-sec">هزینه‌ی ساخت هر عدد</div>';
   h += ln(lbl.machine, r.cat.machine, 'muted');
-  h += ln('نیروی انسانی (با فینیشینگ)', (r.cat.labor + r.cat.finishing), 'muted');
+  h += ln('نیروی انسانی', (r.cat.labor + r.cat.finishing), 'muted');
   h += ln(lbl.material, r.material, 'muted');
   h += ln('جمع هر عدد', r.base, 'strong');
   h += '<div class="pr-sec">قیمت‌گذاری هر عدد</div>';
@@ -7465,7 +7466,7 @@ function pricingCopy(){
   }
   L.push('▌ هزینه‌ی ساختِ هر عدد (قیمت تمام‌شده)');
   L.push('• هزینه‌ی دستگاه و چاپ: ' + prFmt(r.cat.machine));
-  L.push('• دستمزد و پرداخت نهایی (فینیشینگ): ' + prFmt(r.cat.labor + r.cat.finishing));
+  L.push('• دستمزد و پرداخت نهایی: ' + prFmt(r.cat.labor + r.cat.finishing));
   L.push('• مواد اولیه: ' + prFmt(r.material));
   L.push('➖ جمع هزینه‌ی تمام‌شده‌ی هر عدد: ' + prFmt(r.base));
   L.push('');
