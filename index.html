@@ -798,7 +798,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V158</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V162</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -7546,11 +7546,11 @@ function pricingCopy(){
     if(r.institute) L.push('• سهم پژوهشگاه: ' + prFmt(r.institute));
     L.push('✅ قیمت نهاییِ هر عدد: ' + prFmt(r.perPartAnnounced));
   } else {
-    L.push('✅ قیمت نهاییِ هر عدد (اعلامی): ' + prFmt(r.perUnit));
+    L.push('✅ قیمت نهاییِ هر عدد (اعلامی): ' + prFmt(r.manualUnit));
   }
   L.push('');
   L.push('▌ جمع‌بندیِ نهاییِ سفارش');
-  L.push('• قیمت هر عدد × ' + prToFa(prSep(r.qty)) + ' عدد: ' + prFmt((manual?r.perUnit:r.perPartAnnounced) * r.qty));
+  L.push('• قیمت هر عدد × ' + prToFa(prSep(r.qty)) + ' عدد: ' + prFmt((manual?r.manualUnit:r.perPartAnnounced) * r.qty));
   if(r.modelingAnnounced) L.push('• هزینه‌ی طراحی و مدلسازی (یک‌بار برای کل سفارش): ' + prFmt(r.modelingAnnounced));
   if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
   if(r.shipping) L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
@@ -8579,16 +8579,32 @@ function archiveProfile(id){
     if(sumEl && res.summary){
       var s=res.summary;
       var row=function(label,val,strong){ return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #161827'+(strong?';font-weight:700':'')+'"><span style="color:'+(strong?'#e2e4f0':'#9aa3c2')+'">'+label+'</span><span style="color:'+(strong?'#fbbf24':'#e2e4f0')+'">'+prToFa(prSep(val))+' تومان</span></div>'; };
+      var rowC=function(label,val,tone){ var col= tone==='cost' ? '#38bdf8' : '#34d399'; var bg= tone==='cost' ? '#0b1a24' : '#0c2018'; var bd= tone==='cost' ? '#164a5f' : '#14543d'; return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 11px;margin-top:6px;background:'+bg+';border:1px solid '+bd+';border-radius:9px;font-weight:800"><span style="color:'+col+'">'+label+'</span><span style="color:'+col+'">'+prToFa(prSep(val))+' تومان</span></div>'; };
+      var midRows='';
+      if(s.multi && s.sections && s.sections.length){
+        midRows += '<div style="padding:8px 0 4px;color:#a99bf5;font-weight:700;font-size:12px">🧩 قطعه‌های سفارش</div>';
+        s.sections.forEach(function(sc){
+          midRows += '<div style="background:#12102a;border:1px solid #2a2350;border-radius:9px;padding:8px 11px;margin-bottom:6px">'
+            +'<div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:#cbb8ff">'+escapeHtml(sc.name)+'</span><span style="color:#9aa3c2;font-size:11px">'+prToFa(sc.qty)+' عدد</span></div>'
+            +'<div style="display:flex;justify-content:space-between;padding-top:4px;font-size:12px"><span style="color:#9aa3c2">قیمت هر عدد</span><span style="color:#9cd1ff;font-weight:700">'+prToFa(prSep(sc.perUnit))+' تومان</span></div>'
+            +'<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#9aa3c2">جمع این قطعه</span><span style="color:#e2e4f0;font-weight:700">'+prToFa(prSep(sc.total))+' تومان</span></div>'
+            +'</div>';
+        });
+      } else {
+        midRows += row('استهلاک دستگاه (هر عدد)', s.machine)
+          +row('مواد مصرفی (هر عدد)', s.material)
+          +row('نیروی انسانی (هر عدد)', s.labor)
+          +row('هزینه‌ی تمام‌شده هر عدد', s.base)
+          +row('قیمت هر عدد (نهایی)', s.perUnit, true);
+      }
       sumEl.innerHTML='<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">خلاصه‌ی برآورد</div>'
         +'<div style="background:#0e1018;border:1px solid #1a1d2e;border-radius:11px;padding:12px 14px;font-size:12.5px">'
-        +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #161827"><span style="color:#9aa3c2">تعداد</span><span style="color:#e2e4f0">'+prToFa(s.qty)+' عدد</span></div>'
-        +row('استهلاک دستگاه (هر عدد)', s.machine)
-        +row('مواد مصرفی (هر عدد)', s.material)
-        +row('نیروی انسانی (هر عدد)', s.labor)
-        +row('هزینه‌ی تمام‌شده هر عدد', s.base)
+        +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #161827"><span style="color:#9aa3c2">تعداد کل</span><span style="color:#e2e4f0">'+prToFa(s.qty)+' عدد</span></div>'
+        +midRows
         +(s.modeling?row('مدلسازی (یک‌باره)', s.modeling):'')
-        +row('قیمت هر عدد (نهایی)', s.perUnit, true)
         +row('مبلغ کل سفارش', s.total, true)
+        +rowC('قیمت تمام‌شده‌ی کل (ساخت)', (s.baseTotal!=null?s.baseTotal:(s.base*s.qty)), 'cost')
+        +rowC('💎 سود این سفارش', (s.profit||0), 'profit')
         +'</div>';
     }
     if(sumEl && res.materialsUsed && res.materialsUsed.length){
