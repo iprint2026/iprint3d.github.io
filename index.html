@@ -766,7 +766,10 @@ function doPost(e){
       </style>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-        <div class="page-title" style="margin:0">🧮 برآورد قیمت</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="page-title" style="margin:0">🧮 برآورد قیمت</div>
+          <button id="pr-exit-top" onclick="prExitEdit()" style="display:none;background:#2a1414;border:1px solid #7a2e2e;color:#f0a0a0;border-radius:9px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">✖ خروج از ویرایش</button>
+        </div>
         <span style="font-size:11.5px;color:#fbbf24;background:#3a2e0a;border:1px solid #5c4a12;padding:4px 10px;border-radius:20px">مرحله ۱ — ماشین‌حساب + خروجی اکسل</span>
       </div>
 
@@ -798,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V171</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V178</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -822,7 +825,6 @@ function doPost(e){
             <div style="color:#7ab8ff;font-size:13px;font-weight:600">✏️ حالت ویرایش — کد <span id="pr-edit-code" style="letter-spacing:1px"></span> · نرخ‌ها ثابتِ زمانِ همان سفارش است</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" onclick="prSyncPricesToday()" style="border-color:#7a5a1e;color:#e0b050">🔄 نرخِ امروز روی این سفارش</button>
-              <button class="btn btn-ghost btn-sm" onclick="prExitEdit()" style="border-color:#7a2e2e;color:#f0a0a0">✖ خروج از ویرایش</button>
               <button class="btn btn-ghost btn-sm" onclick="pricingNewOrder()">➕ سفارش جدید</button>
             </div>
           </div>
@@ -6626,6 +6628,7 @@ var prUid = 1;
 function prNid(){ return 'p' + (prUid++); }
 var prLastResult = null;
 var gBizRisk = 1;
+var gTodayConfig = null;
 function omToggleSec(id, hdr){
   var el=document.getElementById(id); if(!el) return;
   var open = el.style.display==='none';
@@ -6684,6 +6687,20 @@ function pricingResetForNext(){
   var ind=document.getElementById('pr-image-ind'); if(ind) ind.textContent='';
   if(typeof prRenderEditBanner==='function') prRenderEditBanner();
   prRenderOrder(); prRenderLines(); prDoCompute();
+  // بازگردانی قیمتِ مواد و نرخ‌ها به نرخِ کلیِ امروز (تا قیمتِ ویرایش‌شده‌ی سفارشِ قبلی نشت نکند)
+  callSheet('getPricingConfig', { t:Date.now() }, function(res){
+    if(res && res.status==='ok' && res.config){
+      var c=res.config;
+      if(Array.isArray(c.machines))   prState.machines   = c.machines;
+      if(Array.isArray(c.materials))  prState.materials  = c.materials;
+      if(Array.isArray(c.composites)) prState.composites = c.composites;
+      if(c.rates)    prState.rates    = c.rates;
+      if(c.defaults){ prState.defaults = c.defaults; gBizRisk = (+c.defaults.riskFactor>0)?+c.defaults.riskFactor:1; }
+      try{ gTodayConfig = JSON.parse(JSON.stringify(c)); }catch(e){ gTodayConfig=c; }
+      if(typeof prRenderSettings==='function') prRenderSettings();
+      prDoCompute();
+    }
+  });
   try { window.scrollTo({top:0, behavior:'smooth'}); } catch(e){}
 }
 function pricingInit(){
@@ -6699,6 +6716,7 @@ function pricingInit(){
       prState.rates      = c.rates    || {labor:0,finishing:0,modeling:0};
       prState.defaults   = c.defaults || {profit:0,institute:0,packaging:0,shipping:0};
       gBizRisk = (c.defaults && +c.defaults.riskFactor>0) ? +c.defaults.riskFactor : 1;
+      try{ gTodayConfig = JSON.parse(JSON.stringify(c)); }catch(e){ gTodayConfig=c; }
       prState.invoice    = c.invoice  || {logoFileId:'',stampFileId:''};
       // مقداردهی اولیه‌ی سفارش از پیش‌فرض‌ها
       var d = prState.defaults;
@@ -6761,12 +6779,23 @@ function prMaterialRows(){
   var box = document.getElementById('pr-materials');
   var head = '<div class="pr-mini" style="grid-template-columns:1fr 1fr 90px auto;font-size:10.5px;color:#9aa3c2;margin-bottom:3px">'
     + '<div>نام ماده</div><div>قیمت هر کیلو (تومان)</div><div>چگالی (g/cm³)</div><div></div></div>';
+  var editing = !!prState.editId;
+  var todayMats = (editing && gTodayConfig && Array.isArray(gTodayConfig.materials)) ? gTodayConfig.materials : null;
+  var todayPriceOf = function(id){ if(!todayMats) return null; for(var i=0;i<todayMats.length;i++){ if(todayMats[i].id===id) return +todayMats[i].price||0; } return null; };
   var rows = prState.materials.map(function(m){
-    return '<div class="pr-mini" data-prmatid="'+m.id+'" style="grid-template-columns:1fr 1fr 90px auto">'
+    var tp = todayPriceOf(m.id);
+    var hint = '';
+    if(tp!=null && Math.round(tp)!==Math.round(+m.price||0)){
+      hint = '<div style="grid-column:1 / -1;font-size:10px;color:#e0b050;margin:-2px 0 4px">🏷 قیمتِ فعلیِ این سفارش تاریخی است · قیمتِ امروز: '+prToFa(prSep(tp))+' تومان</div>';
+    } else if(tp!=null){
+      hint = '<div style="grid-column:1 / -1;font-size:10px;color:#5a8f76;margin:-2px 0 4px">✔ برابرِ قیمتِ امروز</div>';
+    }
+    return '<div class="pr-mini" data-prmatid="'+m.id+'" style="grid-template-columns:1fr 1fr 90px auto'+(hint?';row-gap:0':'')+'">'
       + '<input class="inp" data-prmatf="name" value="'+escapeHtml(m.name)+'" placeholder="نام ماده">'
       + '<input class="inp pr-money" data-prmatf="price" value="'+prSep(+m.price||0)+'" placeholder="قیمت هر کیلو">'
       + '<input class="inp" type="number" step="0.01" data-prmatf="density" value="'+(m.density!=null?m.density:'')+'" placeholder="چگالی">'
       + '<button class="pr-x" data-prdelmat="'+m.id+'">✕</button>'
+      + hint
       + '</div>';
   }).join('');
   box.innerHTML = (rows ? head + rows : '<div style="color:#5a6080;font-size:12px">ماده‌ای تعریف نشده.</div>');
@@ -7237,14 +7266,21 @@ document.addEventListener('click', function(e){
 // ── ذخیره‌ی تنظیمات روی سرور ──
 function pricingSaveConfig(){
   if(prState.editId){
-    if(!confirm('⚠️ شما در حالِ ویرایشِ یک سفارش هستید.\n«ذخیره‌ی تنظیمات» نرخِ کلیِ کسب‌وکار (برای همه‌ی سفارش‌های جدید) را با مقادیرِ فعلیِ همین صفحه جایگزین می‌کند.\nاگر فقط می‌خواهی این سفارش را ویرایش کنی، این دکمه را نزن.\n\nمطمئنی می‌خواهی نرخِ کلی به‌روز شود؟')) return;
+    prConfirm({ title:'به‌روزرسانیِ نرخِ کلی؟', okText:'بله، نرخِ کلی به‌روز شود', cancelText:'انصراف',
+      message:'شما در حالِ ویرایشِ یک سفارش هستید. «ذخیره‌ی تنظیمات» نرخِ کلیِ کسب‌وکار (برای همه‌ی سفارش‌های جدید) را با مقادیرِ فعلیِ همین صفحه جایگزین می‌کند. اگر فقط می‌خواهی این سفارش را ویرایش کنی، این کار را نکن.',
+      onOk:function(){ prDoSaveConfig(); } });
+    return;
   }
+  prDoSaveConfig();
+}
+function prDoSaveConfig(){
   var st = document.getElementById('pr-settings-status');
   st.style.color = '#9aa3c2'; st.textContent = 'در حال ذخیره...';
   var cfg = { machines:prState.machines, materials:prState.materials, composites:prState.composites, rates:prState.rates, defaults:prState.defaults, invoice:prState.invoice };
   callSheet('savePricingConfig', { config: JSON.stringify(cfg) }, function(res){
     if(res && res.status==='ok'){
       st.style.color = '#4ade80'; st.textContent = '✅ ذخیره شد — قیمت بازمحاسبه شد';
+      try{ gTodayConfig = JSON.parse(JSON.stringify(cfg)); }catch(e){ gTodayConfig=cfg; }
       prDoCompute();
       setTimeout(function(){ st.textContent=''; }, 3000);
     } else {
@@ -7255,7 +7291,11 @@ function pricingSaveConfig(){
 // ── به‌روزرسانیِ آگاهانه‌ی قیمت‌های این سفارش به نرخِ امروز ──
 function prSyncPricesToday(){
   if(!prState.editId){ showToast('این دکمه فقط در حالتِ ویرایشِ سفارش است.'); return; }
-  if(!confirm('قیمتِ مواد و نرخ‌های این سفارش به نرخِ امروز به‌روز شود؟\n(قیمتِ قدیمِ این سفارش با نرخِ فعلیِ کسب‌وکار جایگزین می‌شود.)')) return;
+  prConfirm({ title:'به‌روزرسانی به نرخِ امروز؟', okText:'بله، به‌روز کن', cancelText:'انصراف',
+    message:'قیمتِ مواد و نرخ‌های این سفارش به نرخِ امروز به‌روز شود؟ (قیمتِ قدیمِ این سفارش با نرخِ فعلیِ کسب‌وکار جایگزین می‌شود.)',
+    onOk:function(){ prDoSyncPricesToday(); } });
+}
+function prDoSyncPricesToday(){
   callSheet('getPricingConfig', { t:Date.now() }, function(res){
     if(!(res && res.status==='ok' && res.config)){ showToast('خطا در دریافتِ نرخِ امروز'); return; }
     var g=res.config;
@@ -7279,21 +7319,58 @@ function prScheduleCompute(){
 }
 function prCurrentConfig(){ return { machines:prState.machines, materials:prState.materials, composites:prState.composites, rates:prState.rates, defaults:prState.defaults, invoice:prState.invoice }; }
 var prEditSnapshot='';
+var prEditNeedBaseline=false;
 function prSnapshot(){ try{ return JSON.stringify({o:prState.order, l:prState.lines, c:prCurrentConfig()}); }catch(e){ return 'x'+Math.random(); } }
+function prDoExitEdit(){
+  var _pid = prState.editId;   // پروفایلِ همین سفارش بعد از خروج باز شود
+  prEditSnapshot=''; prEditNeedBaseline=false;
+  if(typeof pricingResetForNext==='function') pricingResetForNext();
+  else if(typeof pricingNewOrder==='function') pricingNewOrder();
+  prOpenProfileAfter(_pid);
+}
+// بازکردنِ پروفایلِ یک سفارش پس از تازه‌کردنِ لیست
+function prOpenProfileAfter(id){
+  if(typeof gotoView==='function') gotoView('archive');
+  if(!id){ return; }
+  if(typeof archiveInit==='function'){ archiveInit(function(){ if(typeof archiveProfile==='function') archiveProfile(id); }); }
+  else if(typeof archiveProfile==='function'){ archiveProfile(id); }
+}
+function prCloseExitDlg(){ var o=document.getElementById('pr-exit-dlg'); if(o&&o.parentNode) o.parentNode.removeChild(o); }
+// دیالوگِ تأییدِ داخلیِ سایت (به‌جای confirm گوگل)
+function prConfirm(opts){
+  var o=document.createElement('div'); o.className='pr-cfm-ov';
+  o.style.cssText='position:fixed;inset:0;z-index:6000;background:rgba(4,6,12,.6);display:flex;align-items:center;justify-content:center;padding:18px';
+  var close=function(){ if(o.parentNode) o.parentNode.removeChild(o); };
+  o.innerHTML='<div style="background:#141726;border:1px solid #2a2f45;border-radius:16px;max-width:390px;width:100%;padding:20px;direction:rtl;box-shadow:0 12px 40px rgba(0,0,0,.5)">'
+    +'<div style="font-weight:800;font-size:15px;color:#e2e4f0;margin-bottom:6px">'+(opts.title||'تأیید')+'</div>'
+    +'<div style="font-size:13px;color:#9aa3c2;line-height:1.9;margin-bottom:16px">'+(opts.message||'')+'</div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-start">'
+      +'<button class="pr-cfm-yes" style="background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">'+(opts.okText||'تأیید')+'</button>'
+      +'<button class="pr-cfm-no" style="background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:10px;padding:10px 16px;font-size:13px;cursor:pointer;font-family:inherit">'+(opts.cancelText||'انصراف')+'</button>'
+    +'</div></div>';
+  o.addEventListener('click',function(e){ if(e.target===o) close(); });
+  o.querySelector('.pr-cfm-yes').addEventListener('click',function(){ close(); if(typeof opts.onOk==='function') opts.onOk(); });
+  o.querySelector('.pr-cfm-no').addEventListener('click',function(){ close(); if(typeof opts.onCancel==='function') opts.onCancel(); });
+  document.body.appendChild(o);
+}
 function prExitEdit(){
   if(!prState.editId){ if(typeof gotoView==='function') gotoView('archive'); return; }
   var dirty = (prSnapshot()!==prEditSnapshot);
-  if(dirty){
-    if(confirm('تغییراتی داده‌ای. قبل از خروج، ذخیره شود؟\n(تأیید = ذخیره و خروج · لغو = بدون ذخیره ادامه)')){
-      pricingSaveEstimate();   // این تابع پس از ذخیره، خودش از حالت ویرایش خارج می‌شود
-      return;
-    }
-    if(!confirm('بدونِ ذخیره از ویرایش خارج شوم؟')) return;
-  }
-  prEditSnapshot='';
-  if(typeof pricingResetForNext==='function') pricingResetForNext();
-  else if(typeof pricingNewOrder==='function') pricingNewOrder();
-  if(typeof gotoView==='function') gotoView('archive');
+  if(!dirty){ prDoExitEdit(); return; }
+  prCloseExitDlg();
+  var ov=document.createElement('div');
+  ov.id='pr-exit-dlg';
+  ov.style.cssText='position:fixed;inset:0;z-index:6000;background:rgba(4,6,12,.6);display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.innerHTML='<div style="background:#141726;border:1px solid #2a2f45;border-radius:16px;max-width:380px;width:100%;padding:20px;direction:rtl;box-shadow:0 12px 40px rgba(0,0,0,.5)">'
+    +'<div style="font-weight:800;font-size:15px;color:#e2e4f0;margin-bottom:6px">خروج از ویرایش</div>'
+    +'<div style="font-size:13px;color:#9aa3c2;line-height:1.9;margin-bottom:16px">تغییراتی داده‌ای که ذخیره نشده. می‌خواهی چه کنی؟</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'
+      +'<button onclick="prCloseExitDlg();pricingSaveEstimate();" style="background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">💾 ذخیره و خروج</button>'
+      +'<button onclick="prCloseExitDlg();prDoExitEdit();" style="background:#2a1414;border:1px solid #7a2e2e;color:#f0a0a0;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✖ خروج بدونِ ذخیره</button>'
+      +'<button onclick="prCloseExitDlg();" style="background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:10px;padding:11px;font-size:13px;cursor:pointer;font-family:inherit">انصراف</button>'
+    +'</div></div>';
+  ov.addEventListener('click', function(e){ if(e.target===ov) prCloseExitDlg(); });
+  document.body.appendChild(ov);
 }
 function prPayload(){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -7311,6 +7388,7 @@ function prPayload(){
   return JSON.stringify(pl);
 }
 function prRenderEditBanner(){
+  var xt=document.getElementById('pr-exit-top'); if(xt) xt.style.display = prState.editId ? 'inline-block' : 'none';
   var b=document.getElementById('pr-edit-banner'); if(!b) return;
   if(prState.editId){ b.style.display='flex'; var c=document.getElementById('pr-edit-code'); if(c) c.textContent=prState.savedCode||''; }
   else b.style.display='none';
@@ -7337,7 +7415,7 @@ function pricingEditOrder(id){
     prState.editId     = res.id;
     prState.savedCode  = res.code||'';
     prState.loaded     = true;
-    try{ prEditSnapshot = prSnapshot(); }catch(e){ prEditSnapshot=''; }
+    prEditSnapshot=''; prEditNeedBaseline=true;   // خط‌مبنا بعد از اولین محاسبه گرفته می‌شود
     if(typeof orderModalClose==='function') orderModalClose();
     gotoView('pricing');
     prRenderEditBanner();
@@ -7370,6 +7448,7 @@ function prDoCompute(){
       prLastResult = res.result;
       prRenderTape(res.result);
       if(cs) cs.textContent = '';
+      if(prEditNeedBaseline){ prEditNeedBaseline=false; try{ prEditSnapshot=prSnapshot(); }catch(e){ prEditSnapshot=''; } }
     } else {
       if(cs){ cs.style.color='#f87171'; cs.textContent = (res&&res.message)? res.message : 'خطا در محاسبه'; }
       if(res&&res.message&&window.console) console.log('computePrice error:', res.message);
@@ -7582,12 +7661,29 @@ function pricingCopy(){
   var linkBlock = function(){ if(orderUrl){ L.push(''); L.push('🔗 پیگیری و مشاهده‌ی این سفارش (با ورود به حساب):'); L.push(orderUrl); } };
   if(r.multi){
     L.push('▌ قطعه‌های این سفارش');
+    var srcSecs = (o.sections||[]);
+    var uN = function(x){ x=Math.round((+x||0)*100)/100; return prToFa(String(x)); };
     (r.sections||[]).forEach(function(s,i){
+      var lns = (srcSecs[i] && srcSecs[i].lines) || [];
+      var H=0,G=0,Mn=0;
+      lns.forEach(function(l){
+        if(l.kind==='machine_fdm') H += (+l.hours||0);
+        else if(String(l.kind).indexOf('machine')===0) H += (+l.plateTime||0)/Math.max(1,+l.perPlate||1);
+        else if(l.kind==='labor'||l.kind==='finishing') Mn += (+l.minutes||0);
+        else if(l.kind==='material'){ var mt=null; (prState.materials||[]).forEach(function(x){ if(x.id===l.materialId) mt=x; }); var g=(l.unit==='ml'&&mt)?((+l.amount||0)*(+mt.density||1)):(+l.amount||0); G += g; }
+      });
+      var cat=s.cat||{}; var mach=+cat.machine||0, matC=+cat.material||0, lab=(+cat.labor||0)+(+cat.finishing||0);
+      var base=mach+matC+lab; var baseTot=Math.round(base*s.qty); var secProfit=Math.round(s.total - base*s.qty);
       L.push('');
       L.push('🧩 قطعه ' + prToFa(i+1) + ': ' + (s.name||'') + ' — تعداد ' + prToFa(prSep(s.qty)) + ' عدد');
-      L.push('   • قیمت هر عدد: ' + prFmt(s.perUnit));
-      L.push('   • ضریب سود مؤثر: ' + prToFa((s.effProfit!=null?s.effProfit:s.profit)) + '×');
+      L.push('   ▪ هزینه‌ی دستگاه و چاپ: ' + prFmt(mach) + ' (' + uN(H) + ' ساعت)');
+      L.push('   ▪ دستمزد و پرداخت نهایی: ' + prFmt(lab) + ' (' + uN(Mn) + ' دقیقه)');
+      L.push('   ▪ مواد اولیه: ' + prFmt(matC) + ' (' + uN(G) + ' گرم)');
+      L.push('   ➖ تمام‌شده‌ی هر عدد: ' + prFmt(base));
+      L.push('   ✅ قیمت هر عدد: ' + prFmt(s.perUnit) + ' · ضریب سود ' + prToFa((s.effProfit!=null?s.effProfit:s.profit)) + '×');
       L.push('   ◀ جمع این قطعه (' + prToFa(prSep(s.qty)) + ' عدد): ' + prFmt(s.total));
+      L.push('   🏷 تمام‌شده‌ی کل این قطعه: ' + prFmt(baseTot));
+      L.push('   💎 سود این قطعه: ' + prFmt(secProfit));
     });
     L.push('');
     L.push('▌ جمع‌بندیِ نهاییِ سفارش');
@@ -7610,10 +7706,17 @@ function pricingCopy(){
     else prCopyFallback(txtM);
     return;
   }
+  var _H1=0,_G1=0,_M1=0, _uN1=function(x){ x=Math.round((+x||0)*100)/100; return prToFa(String(x)); };
+  (prState.lines||[]).forEach(function(l){
+    if(l.kind==='machine_fdm') _H1 += (+l.hours||0);
+    else if(String(l.kind).indexOf('machine')===0) _H1 += (+l.plateTime||0)/Math.max(1,+l.perPlate||1);
+    else if(l.kind==='labor'||l.kind==='finishing') _M1 += (+l.minutes||0);
+    else if(l.kind==='material'){ var mt=null; (prState.materials||[]).forEach(function(x){ if(x.id===l.materialId) mt=x; }); var g=(l.unit==='ml'&&mt)?((+l.amount||0)*(+mt.density||1)):(+l.amount||0); _G1 += g; }
+  });
   L.push('▌ هزینه‌ی ساختِ هر عدد (قیمت تمام‌شده)');
-  L.push('• هزینه‌ی دستگاه و چاپ: ' + prFmt(r.cat.machine));
-  L.push('• دستمزد و پرداخت نهایی: ' + prFmt(r.cat.labor + r.cat.finishing));
-  L.push('• مواد اولیه: ' + prFmt(r.material));
+  L.push('• هزینه‌ی دستگاه و چاپ: ' + prFmt(r.cat.machine) + ' (' + _uN1(_H1) + ' ساعت)');
+  L.push('• دستمزد و پرداخت نهایی: ' + prFmt(r.cat.labor + r.cat.finishing) + ' (' + _uN1(_M1) + ' دقیقه)');
+  L.push('• مواد اولیه: ' + prFmt(r.material) + ' (' + _uN1(_G1) + ' گرم)');
   L.push('➖ جمع هزینه‌ی تمام‌شده‌ی هر عدد: ' + prFmt(r.base));
   L.push('');
   L.push('▌ قیمت‌گذاری هر عدد');
@@ -8205,14 +8308,16 @@ function pricingSaveEstimate(){
       showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); return;
     }
     var savedCode = res.code||'';
+    var _wasEdit = !!prState.editId, _savedId = res.id;
     showToast(res.edited ? ('✅ ویرایش ذخیره شد · کد '+savedCode) : (savedCode ? ('✅ ذخیره شد · کد سفارش: '+savedCode) : '✅ سفارش ذخیره شد'));
     var buildXlsx = function(){
       if(btn){ btn.innerHTML='در حال ساخت اکسل...'; }
       callSheet('saveEstimateXlsx', { id: res.id }, function(r2){
         if(btn){ btn.disabled=false; btn.innerHTML=old; }
-        if(r2 && r2.status==='ok'){ showToast('✅ ذخیره کامل شد (کد '+savedCode+') — صفحه برای سفارش بعدی آماده شد'); }
+        if(r2 && r2.status==='ok'){ showToast('✅ ذخیره کامل شد (کد '+savedCode+')'); }
         else { showToast('سفارش ذخیره شد، ولی ساخت اکسل ناموفق بود'); }
         pricingResetForNext();
+        if(_wasEdit && _savedId) prOpenProfileAfter(_savedId);
       }, 70000);
     };
     var afterProjImg = function(){
