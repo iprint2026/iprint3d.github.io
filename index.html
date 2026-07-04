@@ -798,7 +798,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V167</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V168</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8658,13 +8658,24 @@ function archiveProfile(id){
         +rowC('قیمت تمام‌شده‌ی کل (ساخت)', (s.baseTotal!=null?s.baseTotal:(s.base*s.qty)), 'cost')
         +rowC('💎 سود این سفارش', (s.profit||0), 'profit')
         +'</div>';
+      if(res.resources){
+        var rz=res.resources;
+        var rzHtml='<div style="margin-top:12px"><div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">⏱ زمان و منابعِ کلِ سفارش <span style="font-weight:500;font-size:10.5px;color:#6b7280">(برای تخمین زمان تحویل)</span></div>'
+          +'<div style="background:#0e1018;border:1px solid #1a1d2e;border-radius:11px;padding:12px 14px;font-size:12.5px">';
+        (rz.machines||[]).forEach(function(mm){ rzHtml+='<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #161827"><span style="color:#9aa3c2">🖨️ '+escapeHtml(mm.name)+'</span><span style="color:#9cd1ff;font-weight:700">'+uNum(mm.hours)+' ساعت</span></div>'; });
+        if(!(rz.machines&&rz.machines.length)) rzHtml+='<div style="color:#6b7280;font-size:11px;padding:4px 0">دستگاهی ثبت نشده</div>';
+        rzHtml+='<div style="display:flex;justify-content:space-between;padding:5px 0"><span style="color:#9aa3c2">👷 نیروی انسانی (با فینیشینگ)</span><span style="color:#34d399;font-weight:700">'+uNum(rz.laborHours)+' ساعت</span></div>';
+        rzHtml+='<div style="font-size:10px;color:#5a8090;margin-top:5px">جمعِ کلِ سفارش (با ضربِ تعداد در هر بخش). برای تخمینِ زمانِ تحویل.</div>';
+        rzHtml+='</div></div>';
+        sumEl.innerHTML += rzHtml;
+      }
     }
     if(sumEl && res.materialsUsed && res.materialsUsed.length){
       omMats = res.materialsUsed;
       omRiskOrderId = omCurrentId || (res.code||'');
       var _orv = (+res.orderRisk>0) ? res.orderRisk : '';
       var mh='<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
-        +'<span style="font-weight:700;font-size:13px;color:#9aa3c2">🧪 مواد مصرفی کل پروژه</span>'
+        +'<span style="font-weight:700;font-size:13px;color:#9aa3c2">🧪 مواد مصرفی (مقدار لازم برای تهیه)</span>'
         +'<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:#5fd0e3">ضریب ریسک (برای خرید):'
         +'<input id="om-risk" type="number" step="0.05" value="'+_orv+'" placeholder="مثلاً 1.2" oninput="omRenderMaterials()" style="width:80px;background:#0c2a24;border:1px solid #14543d;border-radius:7px;color:#5fd0e3;padding:5px 8px;text-align:center;font-weight:700;font-size:13px">'
         +'<button id="om-risk-save" onclick="omSaveRisk()" style="background:#14543d;border:1px solid #1e7d52;color:#7fffc4;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">💾 ذخیره</button>'
