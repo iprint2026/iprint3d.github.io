@@ -798,7 +798,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V170</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V171</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -822,6 +822,7 @@ function doPost(e){
             <div style="color:#7ab8ff;font-size:13px;font-weight:600">✏️ حالت ویرایش — کد <span id="pr-edit-code" style="letter-spacing:1px"></span> · نرخ‌ها ثابتِ زمانِ همان سفارش است</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" onclick="prSyncPricesToday()" style="border-color:#7a5a1e;color:#e0b050">🔄 نرخِ امروز روی این سفارش</button>
+              <button class="btn btn-ghost btn-sm" onclick="prExitEdit()" style="border-color:#7a2e2e;color:#f0a0a0">✖ خروج از ویرایش</button>
               <button class="btn btn-ghost btn-sm" onclick="pricingNewOrder()">➕ سفارش جدید</button>
             </div>
           </div>
@@ -7277,6 +7278,23 @@ function prScheduleCompute(){
   prComputeTimer = setTimeout(prDoCompute, 450);
 }
 function prCurrentConfig(){ return { machines:prState.machines, materials:prState.materials, composites:prState.composites, rates:prState.rates, defaults:prState.defaults, invoice:prState.invoice }; }
+var prEditSnapshot='';
+function prSnapshot(){ try{ return JSON.stringify({o:prState.order, l:prState.lines, c:prCurrentConfig()}); }catch(e){ return 'x'+Math.random(); } }
+function prExitEdit(){
+  if(!prState.editId){ if(typeof gotoView==='function') gotoView('archive'); return; }
+  var dirty = (prSnapshot()!==prEditSnapshot);
+  if(dirty){
+    if(confirm('تغییراتی داده‌ای. قبل از خروج، ذخیره شود؟\n(تأیید = ذخیره و خروج · لغو = بدون ذخیره ادامه)')){
+      pricingSaveEstimate();   // این تابع پس از ذخیره، خودش از حالت ویرایش خارج می‌شود
+      return;
+    }
+    if(!confirm('بدونِ ذخیره از ویرایش خارج شوم؟')) return;
+  }
+  prEditSnapshot='';
+  if(typeof pricingResetForNext==='function') pricingResetForNext();
+  else if(typeof pricingNewOrder==='function') pricingNewOrder();
+  if(typeof gotoView==='function') gotoView('archive');
+}
 function prPayload(){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -7319,6 +7337,7 @@ function pricingEditOrder(id){
     prState.editId     = res.id;
     prState.savedCode  = res.code||'';
     prState.loaded     = true;
+    try{ prEditSnapshot = prSnapshot(); }catch(e){ prEditSnapshot=''; }
     if(typeof orderModalClose==='function') orderModalClose();
     gotoView('pricing');
     prRenderEditBanner();
