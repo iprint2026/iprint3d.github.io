@@ -798,7 +798,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V168</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V170</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -820,7 +820,10 @@ function doPost(e){
         <div>
           <div id="pr-edit-banner" style="display:none;margin-bottom:16px;background:#10233f;border:1px solid #1e4e7e;border-radius:12px;padding:12px 14px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
             <div style="color:#7ab8ff;font-size:13px;font-weight:600">✏️ حالت ویرایش — کد <span id="pr-edit-code" style="letter-spacing:1px"></span> · نرخ‌ها ثابتِ زمانِ همان سفارش است</div>
-            <button class="btn btn-ghost btn-sm" onclick="pricingNewOrder()">➕ سفارش جدید</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" onclick="prSyncPricesToday()" style="border-color:#7a5a1e;color:#e0b050">🔄 نرخِ امروز روی این سفارش</button>
+              <button class="btn btn-ghost btn-sm" onclick="pricingNewOrder()">➕ سفارش جدید</button>
+            </div>
           </div>
           <div class="card" style="margin-bottom:16px">
             <div style="font-weight:600;font-size:14px;margin-bottom:14px">۱) اطلاعات سفارش</div>
@@ -7232,6 +7235,9 @@ document.addEventListener('click', function(e){
 
 // ── ذخیره‌ی تنظیمات روی سرور ──
 function pricingSaveConfig(){
+  if(prState.editId){
+    if(!confirm('⚠️ شما در حالِ ویرایشِ یک سفارش هستید.\n«ذخیره‌ی تنظیمات» نرخِ کلیِ کسب‌وکار (برای همه‌ی سفارش‌های جدید) را با مقادیرِ فعلیِ همین صفحه جایگزین می‌کند.\nاگر فقط می‌خواهی این سفارش را ویرایش کنی، این دکمه را نزن.\n\nمطمئنی می‌خواهی نرخِ کلی به‌روز شود؟')) return;
+  }
   var st = document.getElementById('pr-settings-status');
   st.style.color = '#9aa3c2'; st.textContent = 'در حال ذخیره...';
   var cfg = { machines:prState.machines, materials:prState.materials, composites:prState.composites, rates:prState.rates, defaults:prState.defaults, invoice:prState.invoice };
@@ -7243,6 +7249,24 @@ function pricingSaveConfig(){
     } else {
       st.style.color = '#f87171'; st.textContent = '❌ خطا در ذخیره';
     }
+  });
+}
+// ── به‌روزرسانیِ آگاهانه‌ی قیمت‌های این سفارش به نرخِ امروز ──
+function prSyncPricesToday(){
+  if(!prState.editId){ showToast('این دکمه فقط در حالتِ ویرایشِ سفارش است.'); return; }
+  if(!confirm('قیمتِ مواد و نرخ‌های این سفارش به نرخِ امروز به‌روز شود؟\n(قیمتِ قدیمِ این سفارش با نرخِ فعلیِ کسب‌وکار جایگزین می‌شود.)')) return;
+  callSheet('getPricingConfig', { t:Date.now() }, function(res){
+    if(!(res && res.status==='ok' && res.config)){ showToast('خطا در دریافتِ نرخِ امروز'); return; }
+    var g=res.config;
+    var findById=function(arr,id){ for(var i=0;i<(arr||[]).length;i++){ if(arr[i].id===id) return arr[i]; } return null; };
+    (prState.materials||[]).forEach(function(m){ var gm=findById(g.materials,m.id); if(gm){ m.price=gm.price; if(gm.density!=null) m.density=gm.density; } });
+    (prState.machines||[]).forEach(function(mc){ var gc=findById(g.machines,mc.id); if(gc){ mc.rate=gc.rate; if(gc.plateTime!=null) mc.plateTime=gc.plateTime; if(gc.perPlate!=null) mc.perPlate=gc.perPlate; } });
+    if(g.rates){ prState.rates.labor=g.rates.labor; prState.rates.finishing=g.rates.finishing; prState.rates.modeling=g.rates.modeling; }
+    if(typeof prMaterialRows==='function') prMaterialRows();
+    if(typeof prMachineRows==='function') prMachineRows();
+    if(typeof prCompositeRows==='function') prCompositeRows();
+    prDoCompute();
+    showToast('✅ قیمت‌ها به نرخِ امروز به‌روز شد (برای ذخیره، سفارش را ذخیره کن)');
   });
 }
 
@@ -7328,7 +7352,8 @@ function prDoCompute(){
       prRenderTape(res.result);
       if(cs) cs.textContent = '';
     } else {
-      if(cs){ cs.style.color='#f87171'; cs.textContent='خطا در محاسبه'; }
+      if(cs){ cs.style.color='#f87171'; cs.textContent = (res&&res.message)? res.message : 'خطا در محاسبه'; }
+      if(res&&res.message&&window.console) console.log('computePrice error:', res.message);
     }
   });
 }
