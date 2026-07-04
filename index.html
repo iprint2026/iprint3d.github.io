@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V179</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V180</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -7266,9 +7266,11 @@ document.addEventListener('click', function(e){
 // ── ذخیره‌ی تنظیمات روی سرور ──
 function pricingSaveConfig(){
   if(prState.editId){
-    prConfirm({ title:'به‌روزرسانیِ نرخِ کلی؟', okText:'بله، نرخِ کلی به‌روز شود', cancelText:'انصراف',
-      message:'شما در حالِ ویرایشِ یک سفارش هستید. «ذخیره‌ی تنظیمات» نرخِ کلیِ کسب‌وکار (برای همه‌ی سفارش‌های جدید) را با مقادیرِ فعلیِ همین صفحه جایگزین می‌کند. اگر فقط می‌خواهی این سفارش را ویرایش کنی، این کار را نکن.',
-      onOk:function(){ prDoSaveConfig(); } });
+    prConfirm({ title:'ذخیره‌ی قیمت‌ها', okText:'🌐 نرخِ کلیِ سایت به‌روز شود', cancelText:'📌 فقط برای این سفارش',
+      message:'تغییرِ قیمت‌ها را چطور ذخیره کنم؟<br><br><b>🌐 نرخِ کلیِ سایت:</b> برای همه‌ی سفارش‌های جدیدِ آینده هم اعمال می‌شود.<br><b>📌 فقط این سفارش:</b> قیمت‌ها فقط در همین صفحه می‌مانند و با زدنِ «💾 ذخیره‌ی سفارش» روی همین سفارش ثبت می‌شوند (نرخِ کلیِ سایت دست‌نمی‌خورد).',
+      onOk:function(){ prDoSaveConfig(); },
+      onCancel:function(){ var st=document.getElementById('pr-settings-status'); if(st){ st.style.color='#e0b050'; st.textContent='📌 قیمت‌ها فقط برای این سفارش اعمال شد — برای ثبت، «ذخیره‌ی سفارش» را بزن'; setTimeout(function(){ st.textContent=''; },5000);} prDoCompute(); }
+    });
     return;
   }
   prDoSaveConfig();
