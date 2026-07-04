@@ -798,7 +798,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V164</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V167</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1051,6 +1051,16 @@ function doPost(e){
     #view-invoice [data-iv-el]{outline:none!important;background:none!important}
     #view-invoice .page{box-shadow:none;margin:0 auto;width:210mm;max-width:none;min-height:auto}
     #view-invoice.size-a5 .page{width:148mm}
+  }
+  /* ── فقط موبایل: چینشِ فاکتور روی صفحه‌ی باریک (دسکتاپ و چاپ و PDF دست‌نمی‌خورند) ── */
+  @media screen and (max-width:760px){
+    #view-invoice{padding:0 0 92px 0!important}
+    #view-invoice .ivbar{position:fixed!important;top:auto!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:auto!important;flex-direction:row!important;flex-wrap:wrap!important;border-left:none!important;border-top:1px solid #ddd!important;padding:8px!important;gap:6px!important;justify-content:center!important;max-height:42vh;overflow-y:auto}
+    #view-invoice .ivbar .btn{width:auto!important;flex:1 1 44%;min-width:120px}
+    #view-invoice:not(.iv-exporting) .page{zoom:0.62}
+  }
+  @media screen and (max-width:440px){
+    #view-invoice:not(.iv-exporting) .page{zoom:0.45}
   }
 </style>
 
@@ -6612,6 +6622,12 @@ var prUid = 1;
 function prNid(){ return 'p' + (prUid++); }
 var prLastResult = null;
 var gBizRisk = 1;
+function omToggleSec(id, hdr){
+  var el=document.getElementById(id); if(!el) return;
+  var open = el.style.display==='none';
+  el.style.display = open ? 'block' : 'none';
+  if(hdr){ var c=hdr.querySelector('.om-caret'); if(c) c.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)'; }
+}
 var omMats = [];
 var omRiskOrderId = '';
 function omSaveRisk(){
@@ -8056,9 +8072,9 @@ function ivExportPDF_canvas(){
   var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean'), wasDesign=v.classList.contains('iv-designing');
   var el=v.querySelector('.page');
   var isA5=(ivPageSize==='a5'), pw=isA5?148:210, ph=isA5?210:297;
-  v.classList.add('clean'); v.classList.remove('iv-designing');
+  v.classList.add('clean'); v.classList.remove('iv-designing'); v.classList.add('iv-exporting');
   var dots=el.querySelectorAll('.iv-vtx'); for(var i=0;i<dots.length;i++) dots[i].style.visibility='hidden';
-  function restore(){ if(!wasClean) v.classList.remove('clean'); if(wasDesign) v.classList.add('iv-designing'); for(var j=0;j<dots.length;j++) dots[j].style.visibility=''; }
+  function restore(){ if(!wasClean) v.classList.remove('clean'); if(wasDesign) v.classList.add('iv-designing'); v.classList.remove('iv-exporting'); for(var j=0;j<dots.length;j++) dots[j].style.visibility=''; }
   function go(){
     html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
       restore();
@@ -8343,11 +8359,11 @@ async function ivSaveInvoiceToFolder(){
   var el=v.querySelector('.page');
   try{
     var isA5b=(ivPageSize==='a5'); var pwb=isA5b?148:210;
-    v.classList.add('clean'); v.classList.remove('iv-designing');
+    v.classList.add('clean'); v.classList.remove('iv-designing'); v.classList.add('iv-exporting');
     var _dots=el.querySelectorAll('.iv-vtx'); for(var _i=0;_i<_dots.length;_i++) _dots[_i].style.visibility='hidden';
     if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
     var canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true});
-    if(!wasClean) v.classList.remove('clean'); if(wasDesign) v.classList.add('iv-designing'); for(var _j=0;_j<_dots.length;_j++) _dots[_j].style.visibility='';
+    if(!wasClean) v.classList.remove('clean'); if(wasDesign) v.classList.add('iv-designing'); v.classList.remove('iv-exporting'); for(var _j=0;_j<_dots.length;_j++) _dots[_j].style.visibility='';
     var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm',isA5b?'a5':'a4');
     var pw=pwb, ph=isA5b?210:297, w=pw, h=canvas.height*pw/canvas.width;
     if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
@@ -8597,19 +8613,39 @@ function archiveProfile(id){
       var row=function(label,val,strong){ return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #161827'+(strong?';font-weight:700':'')+'"><span style="color:'+(strong?'#e2e4f0':'#9aa3c2')+'">'+label+'</span><span style="color:'+(strong?'#fbbf24':'#e2e4f0')+'">'+prToFa(prSep(val))+' تومان</span></div>'; };
       var rowC=function(label,val,tone){ var col= tone==='cost' ? '#38bdf8' : '#34d399'; var bg= tone==='cost' ? '#0b1a24' : '#0c2018'; var bd= tone==='cost' ? '#164a5f' : '#14543d'; return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 11px;margin-top:6px;background:'+bg+';border:1px solid '+bd+';border-radius:9px;font-weight:800"><span style="color:'+col+'">'+label+'</span><span style="color:'+col+'">'+prToFa(prSep(val))+' تومان</span></div>'; };
       var midRows='';
+      var uNum=function(x){ x=Math.round((+x||0)*100)/100; var str=(x===Math.floor(x))?String(x):String(x); return prToFa(str); };
+      var rowP=function(label,val,param){ return '<div style="padding:6px 0;border-bottom:1px solid #161827"><div style="display:flex;justify-content:space-between"><span style="color:#9aa3c2">'+label+'</span><span style="color:#e2e4f0">'+prToFa(prSep(val))+' تومان</span></div>'+(param?'<div style="text-align:left;color:#6b7280;font-size:10.5px;margin-top:2px">'+param+'</div>':'')+'</div>'; };
+      var qn=s.qty||1;
+      var pMach=(s.machineHours!=null)?(uNum(s.machineHours)+' ساعت/عدد · کل '+uNum(s.machineHours*qn)+' ساعت'):'';
+      var pMat=(s.materialGrams!=null)?(uNum(s.materialGrams)+' گرم/عدد · کل '+uNum(s.materialGrams*qn)+' گرم'):'';
+      var pLab=(s.laborMin!=null)?(uNum(s.laborMin)+' دقیقه/عدد · کل '+uNum(s.laborMin*qn)+' دقیقه'):'';
       if(s.multi && s.sections && s.sections.length){
-        midRows += '<div style="padding:8px 0 4px;color:#a99bf5;font-weight:700;font-size:12px">🧩 قطعه‌های سفارش</div>';
-        s.sections.forEach(function(sc){
-          midRows += '<div style="background:#12102a;border:1px solid #2a2350;border-radius:9px;padding:8px 11px;margin-bottom:6px">'
-            +'<div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:#cbb8ff">'+escapeHtml(sc.name)+'</span><span style="color:#9aa3c2;font-size:11px">'+prToFa(sc.qty)+' عدد</span></div>'
-            +'<div style="display:flex;justify-content:space-between;padding-top:4px;font-size:12px"><span style="color:#9aa3c2">قیمت هر عدد</span><span style="color:#9cd1ff;font-weight:700">'+prToFa(prSep(sc.perUnit))+' تومان</span></div>'
-            +'<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#9aa3c2">جمع این قطعه</span><span style="color:#e2e4f0;font-weight:700">'+prToFa(prSep(sc.total))+' تومان</span></div>'
-            +'</div>';
+        midRows += '<div style="padding:8px 0 6px;color:#a99bf5;font-weight:700;font-size:12px">🧩 قطعه‌های سفارش <span style="font-weight:500;color:#6b7280;font-size:10.5px">(روی هر قطعه بزن تا باز شود)</span></div>';
+        s.sections.forEach(function(sc,ci){
+          var accId='om-sec-'+ci;
+          var sp=function(x){ x=Math.round((+x||0)*100)/100; return prToFa(String(x)); };
+          var qn=sc.qty||1;
+          var det=''
+            +rowP('استهلاک دستگاه (هر عدد)', sc.machine, (sc.machineHours!=null?(sp(sc.machineHours)+' ساعت/عدد · کل '+sp(sc.machineHours*qn)+' ساعت'):''))
+            +rowP('مواد مصرفی (هر عدد)', sc.material, (sc.materialGrams!=null?(sp(sc.materialGrams)+' گرم/عدد · کل '+sp(sc.materialGrams*qn)+' گرم'):''))
+            +rowP('نیروی انسانی (هر عدد)', sc.labor, (sc.laborMin!=null?(sp(sc.laborMin)+' دقیقه/عدد · کل '+sp(sc.laborMin*qn)+' دقیقه'):''))
+            +row('هزینه‌ی تمام‌شده هر عدد', sc.base)
+            +row('قیمت هر عدد', sc.perUnit, true)
+            +row('جمع این قطعه ('+prToFa(qn)+' عدد)', sc.total, true)
+            +rowC('قیمت تمام‌شده‌ی این قطعه', (sc.baseTotal!=null?sc.baseTotal:(sc.base*qn)), 'cost')
+            +rowC('💎 سود این قطعه', (sc.profit||0), 'profit');
+          midRows += '<div style="border:1px solid #2a2350;border-radius:10px;margin-bottom:8px;overflow:hidden">'
+            +'<div onclick="omToggleSec(\''+accId+'\',this)" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;background:#151233;padding:10px 12px">'
+              +'<span style="color:#cbb8ff;font-weight:700">'+escapeHtml(sc.name)+' <span style="color:#8a83b8;font-weight:500;font-size:11px">· '+prToFa(qn)+' عدد</span></span>'
+              +'<span style="display:flex;align-items:center;gap:8px"><span style="color:#9cd1ff;font-weight:700;font-size:12px">'+prToFa(prSep(sc.total))+' ت</span><span class="om-caret" style="color:#8a83b8;transition:transform .15s">▼</span></span>'
+            +'</div>'
+            +'<div id="'+accId+'" style="display:none;padding:6px 12px 10px;background:#0e0c22">'+det+'</div>'
+          +'</div>';
         });
       } else {
-        midRows += row('استهلاک دستگاه (هر عدد)', s.machine)
-          +row('مواد مصرفی (هر عدد)', s.material)
-          +row('نیروی انسانی (هر عدد)', s.labor)
+        midRows += rowP('استهلاک دستگاه (هر عدد)', s.machine, pMach)
+          +rowP('مواد مصرفی (هر عدد)', s.material, pMat)
+          +rowP('نیروی انسانی (هر عدد)', s.labor, pLab)
           +row('هزینه‌ی تمام‌شده هر عدد', s.base)
           +row('قیمت هر عدد (نهایی)', s.perUnit, true);
       }
