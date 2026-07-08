@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V182</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V184</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1058,13 +1058,15 @@ function doPost(e){
     #view-invoice .page{box-shadow:none;margin:0 auto;width:210mm;max-width:none;min-height:auto}
     #view-invoice.size-a5 .page{width:148mm}
   }
-  /* ── فقط موبایل: فاکتور سیال (A4 واقعی + پن/زوم). دسکتاپ و PDF و چاپ دست‌نمی‌خورند ── */
+  /* ── فقط موبایل: فاکتور کوچک‌شده تا کاملاً دیده شود (دسکتاپ و چاپ و PDF دست‌نمی‌خورند) ── */
   @media screen and (max-width:760px){
-    #view-invoice{padding:10px 10px 96px 10px!important;overflow:auto!important;-webkit-overflow-scrolling:touch;text-align:center}
+    #view-invoice{padding:0 0 96px 0!important;text-align:center}
     #view-invoice .ivbar{position:fixed!important;top:auto!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:auto!important;flex-direction:row!important;flex-wrap:wrap!important;border-left:none!important;border-top:1px solid #ddd!important;padding:8px!important;gap:6px!important;justify-content:center!important;max-height:42vh;overflow-y:auto;z-index:10}
     #view-invoice .ivbar .btn{width:auto!important;flex:1 1 44%;min-width:120px}
-    /* صفحه با اندازه‌ی واقعیِ A4 می‌ماند؛ کاربر با دو انگشت زوم و جابه‌جا می‌کند (جای‌گذاری‌ها و PDF درست) */
-    #view-invoice .page{margin:0 auto!important;transform:none!important}
+    #view-invoice:not(.iv-exporting) .page{zoom:0.62;max-width:none!important;margin:0 auto!important}
+  }
+  @media screen and (max-width:440px){
+    #view-invoice:not(.iv-exporting) .page{zoom:0.45;max-width:none!important;margin:0 auto!important}
   }
 </style>
 
@@ -8226,11 +8228,16 @@ function ivExportPDF_canvas(){
   var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean'), wasDesign=v.classList.contains('iv-designing');
   var el=v.querySelector('.page');
   var isA5=(ivPageSize==='a5'), pw=isA5?148:210, ph=isA5?210:297;
+  var pxW=isA5?559:794; // عرضِ ثابتِ A4/A5 به پیکسل (۹۶dpi)
   v.classList.add('clean'); v.classList.remove('iv-designing'); v.classList.add('iv-exporting');
   var dots=el.querySelectorAll('.iv-vtx'); for(var i=0;i<dots.length;i++) dots[i].style.visibility='hidden';
-  function restore(){ if(!wasClean) v.classList.remove('clean'); if(wasDesign) v.classList.add('iv-designing'); v.classList.remove('iv-exporting'); for(var j=0;j<dots.length;j++) dots[j].style.visibility=''; }
+  // قفل‌کردنِ اندازه‌ی صفحه به پیکسلِ ثابت (اینلاین، تا زومِ موبایل را دور بزند)
+  var _pw=el.style.width, _pz=el.style.zoom, _pmx=el.style.maxWidth, _pm=el.style.margin;
+  el.style.zoom='1'; el.style.width=pxW+'px'; el.style.maxWidth='none'; el.style.margin='0 auto';
+  function restore(){ if(!wasClean) v.classList.remove('clean'); if(wasDesign) v.classList.add('iv-designing'); v.classList.remove('iv-exporting'); for(var j=0;j<dots.length;j++) dots[j].style.visibility=''; el.style.width=_pw; el.style.zoom=_pz; el.style.maxWidth=_pmx; el.style.margin=_pm; }
   function go(){
-    html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
+    try{ window.scrollTo(0,0); }catch(e){}
+    html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,scrollX:0,scrollY:0,windowWidth:pxW,width:pxW}).then(function(canvas){
       restore();
       var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm',isA5?'a5':'a4');
       var w=pw, h=canvas.height*pw/canvas.width;
@@ -8239,7 +8246,7 @@ function ivExportPDF_canvas(){
       pdf.save(ivFileName('pdf'));
     }).catch(function(err){ restore(); showToast('خطا در ساخت PDF'); });
   }
-  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(go,80); }); } else { setTimeout(go,80); }
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(go,300); }); } else { setTimeout(go,300); }
 }
 
 function ivExportWord(){
@@ -8518,12 +8525,17 @@ async function ivSaveInvoiceToFolder(){
   var v=document.getElementById('view-invoice'), wasClean=v.classList.contains('clean'), wasDesign=v.classList.contains('iv-designing');
   var el=v.querySelector('.page');
   try{
-    var isA5b=(ivPageSize==='a5'); var pwb=isA5b?148:210;
+    var isA5b=(ivPageSize==='a5'); var pwb=isA5b?148:210; var pxWb=isA5b?559:794;
     v.classList.add('clean'); v.classList.remove('iv-designing'); v.classList.add('iv-exporting');
     var _dots=el.querySelectorAll('.iv-vtx'); for(var _i=0;_i<_dots.length;_i++) _dots[_i].style.visibility='hidden';
+    var _bw=el.style.width,_bz=el.style.zoom,_bmx=el.style.maxWidth,_bm=el.style.margin;
+    el.style.zoom='1'; el.style.width=pxWb+'px'; el.style.maxWidth='none'; el.style.margin='0 auto';
     if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
-    var canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true});
+    await new Promise(function(r){ setTimeout(r,250); });
+    try{ window.scrollTo(0,0); }catch(e){}
+    var canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,scrollX:0,scrollY:0,windowWidth:pxWb,width:pxWb});
     if(!wasClean) v.classList.remove('clean'); if(wasDesign) v.classList.add('iv-designing'); v.classList.remove('iv-exporting'); for(var _j=0;_j<_dots.length;_j++) _dots[_j].style.visibility='';
+    el.style.width=_bw; el.style.zoom=_bz; el.style.maxWidth=_bmx; el.style.margin=_bm;
     var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm',isA5b?'a5':'a4');
     var pw=pwb, ph=isA5b?210:297, w=pw, h=canvas.height*pw/canvas.width;
     if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
