@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V180</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V182</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1058,15 +1058,13 @@ function doPost(e){
     #view-invoice .page{box-shadow:none;margin:0 auto;width:210mm;max-width:none;min-height:auto}
     #view-invoice.size-a5 .page{width:148mm}
   }
-  /* ── فقط موبایل: چینشِ فاکتور روی صفحه‌ی باریک (دسکتاپ و چاپ و PDF دست‌نمی‌خورند) ── */
+  /* ── فقط موبایل: فاکتور سیال (A4 واقعی + پن/زوم). دسکتاپ و PDF و چاپ دست‌نمی‌خورند ── */
   @media screen and (max-width:760px){
-    #view-invoice{padding:0 0 92px 0!important}
-    #view-invoice .ivbar{position:fixed!important;top:auto!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:auto!important;flex-direction:row!important;flex-wrap:wrap!important;border-left:none!important;border-top:1px solid #ddd!important;padding:8px!important;gap:6px!important;justify-content:center!important;max-height:42vh;overflow-y:auto}
+    #view-invoice{padding:10px 10px 96px 10px!important;overflow:auto!important;-webkit-overflow-scrolling:touch;text-align:center}
+    #view-invoice .ivbar{position:fixed!important;top:auto!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:auto!important;flex-direction:row!important;flex-wrap:wrap!important;border-left:none!important;border-top:1px solid #ddd!important;padding:8px!important;gap:6px!important;justify-content:center!important;max-height:42vh;overflow-y:auto;z-index:10}
     #view-invoice .ivbar .btn{width:auto!important;flex:1 1 44%;min-width:120px}
-    #view-invoice:not(.iv-exporting) .page{zoom:0.62}
-  }
-  @media screen and (max-width:440px){
-    #view-invoice:not(.iv-exporting) .page{zoom:0.45}
+    /* صفحه با اندازه‌ی واقعیِ A4 می‌ماند؛ کاربر با دو انگشت زوم و جابه‌جا می‌کند (جای‌گذاری‌ها و PDF درست) */
+    #view-invoice .page{margin:0 auto!important;transform:none!important}
   }
 </style>
 
@@ -7934,13 +7932,20 @@ function ivClose(){
 }
 function ivLoadAssets(){
   if(ivAssetsLoaded) return;
-  callSheet('getInvoiceAssets', { t:Date.now() }, function(res){
-    if(res && res.status==='ok'){
-      if(res.logo){ var li=document.getElementById('iv-logo-img'); li.src=res.logo; li.style.display='block'; var lf=document.getElementById('iv-logo-fallback'); if(lf) lf.style.display='none'; }
-      if(res.stamp){ var si=document.getElementById('iv-stamp-img'); si.src=res.stamp; si.style.display='inline-block'; var sv=document.getElementById('iv-stamp-svg'); if(sv) sv.style.display='none'; }
-      ivAssetsLoaded = true;
-    }
-  });
+  var attempt=function(n){
+    callSheet('getInvoiceAssets', { t:Date.now() }, function(res){
+      if(res && res.status==='ok'){
+        if(res.logo){ var li=document.getElementById('iv-logo-img'); if(li){ li.src=res.logo; li.style.display='block'; } var lf=document.getElementById('iv-logo-fallback'); if(lf) lf.style.display='none'; }
+        if(res.stamp){ var si=document.getElementById('iv-stamp-img'); if(si){ si.src=res.stamp; si.style.display='inline-block'; } var sv=document.getElementById('iv-stamp-svg'); if(sv) sv.style.display='none'; }
+        ivAssetsLoaded = true;
+      } else if(n < 3){
+        setTimeout(function(){ attempt(n+1); }, 1800);
+      } else {
+        if(window.console) console.log('getInvoiceAssets failed after retries:', res);
+      }
+    }, 60000);
+  };
+  attempt(0);
 }
 
 // ویرایش ردیف‌های جدول فاکتور
@@ -9150,11 +9155,13 @@ function rangeBuildFromInputs(){
 }
 function rangeBuild(from, to, label){
   var st=document.getElementById('rg-status'), btn=document.getElementById('rg-build');
-  if(st){ st.style.color='#9aa3c2'; st.textContent='در حال ساخت گزارش ('+label+')... چند لحظه صبر کن'; }
-  if(btn){ btn.disabled=true; }
+  var oldBtn = btn ? btn.innerHTML : '';
+  if(st){ st.style.color='#e0b050'; st.textContent='⏳ در حال ساخت گزارش ('+label+')... چند لحظه صبر کن'; }
+  if(btn){ btn.disabled=true; btn.style.opacity='0.75'; btn.innerHTML='⏳ در حال ساخت گزارش... صبر کن'; }
+  if(typeof showToast==='function') showToast('⏳ گزارش در حال ساخت است...');
   callSheet('exportRangeXlsx', { from:from, to:to, t:Date.now() }, function(res){
-    if(btn){ btn.disabled=false; }
-    if(!(res && res.status==='ok')){ if(st){ st.style.color='#f87171'; st.textContent=(res&&res.message)?res.message:'خطا در ساخت گزارش'; } return; }
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.innerHTML=oldBtn; }
+    if(!(res && res.status==='ok')){ if(st){ st.style.color='#f87171'; st.textContent='❌ '+((res&&res.message)?res.message:'خطا در ساخت گزارش'); } if(typeof showToast==='function') showToast('❌ خطا در ساخت گزارش'); return; }
     try{
       var bin=atob(res.base64), bytes=new Uint8Array(bin.length);
       for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
@@ -9163,8 +9170,9 @@ function rangeBuild(from, to, label){
       var a=document.createElement('a'); a.href=url; a.download=res.filename||'گزارش.xlsx';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-      if(st){ st.style.color='#34d399'; st.textContent='✅ گزارش دانلود شد'; }
-    }catch(e){ if(st){ st.style.color='#f87171'; st.textContent='خطا در ساخت فایل'; } }
+      if(st){ st.style.color='#34d399'; st.textContent='✅ گزارش ساخته و دانلود شد'; }
+      if(typeof showToast==='function') showToast('✅ گزارش دانلود شد');
+    }catch(e){ if(st){ st.style.color='#f87171'; st.textContent='❌ خطا در ساخت فایل'; } if(typeof showToast==='function') showToast('❌ خطا در ساخت فایل'); }
   }, 120000);
 }
 function omSetStatus(id, value){
