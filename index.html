@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V184</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V185</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1067,6 +1067,14 @@ function doPost(e){
   }
   @media screen and (max-width:440px){
     #view-invoice:not(.iv-exporting) .page{zoom:0.45;max-width:none!important;margin:0 auto!important}
+  }
+  /* ── فقط موبایل: مرتب‌کردنِ کارتِ لیستِ سفارش‌ها (به‌ویژه چندبخشی با چند عکس) ── */
+  @media screen and (max-width:600px){
+    .ar-estmain{flex-wrap:wrap!important}
+    .ar-estmain > div:last-child{min-width:55%;flex:1}
+    .ar-code{white-space:nowrap!important}
+    .ar-secthumbs{flex-wrap:wrap!important}
+    .ar-secthumbs > div{width:34px!important;height:34px!important}
   }
 </style>
 
@@ -8464,12 +8472,12 @@ function archiveRender(){
         : (inProd
           ? '<span style="font-size:10.5px;color:#34d399;background:#0c2a20;border:1px solid #14543d;padding:2px 8px;border-radius:20px">در جریان ساخت</span>'
           : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>');
-      var codeChip = e.code ? '<span style="font-size:10px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">'+escapeHtml(e.code)+'</span>' : '';
+      var codeChip = e.code ? '<span class="ar-code" style="font-size:10px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px;white-space:nowrap;display:inline-block">'+escapeHtml(e.code)+'</span>' : '';
       var tsrc = e.thumb || arThumbCache[e.id] || '';
       var thumb;
       if(e.secImages && e.secImages.length){
         // سفارش چندبخشی: به‌تعدادِ بخش‌ها آیکونِ عکس
-        thumb = '<div style="display:flex;gap:4px;flex:none">' + e.secImages.slice(0,4).map(function(fid,zi){
+        thumb = '<div class="ar-secthumbs" style="display:flex;gap:4px;flex:none">' + e.secImages.slice(0,4).map(function(fid,zi){
           var tid='arsec_'+e.id+'_'+zi;
           arSecThumbQueue.push({elId:tid, fileId:fid});
           return '<div id="'+tid+'" style="width:42px;height:42px;border-radius:8px;background:#161827 center/cover no-repeat;border:1px solid #232539;display:flex;align-items:center;justify-content:center;font-size:13px;color:#3a4060;overflow:hidden">⏳</div>';
@@ -8480,7 +8488,7 @@ function archiveRender(){
           : (e.hasImage ? '<div id="arthumb-'+e.id+'" data-lazy="'+e.id+'" style="width:42px;height:42px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;flex:none;font-size:15px;overflow:hidden">🖼</div>' : '');
       }
       return '<div class="ar-est" style="cursor:pointer" onclick="archiveProfile(\''+e.id+'\')">'
-        +'<div style="flex:1;display:flex;align-items:center;gap:10px">'+thumb
+        +'<div class="ar-estmain" style="flex:1;display:flex;align-items:center;gap:10px">'+thumb
         +'<div><div class="nm">'+codeChip+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
         +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span></div></div></div>'
         +'<span style="color:#5a6080;font-size:18px">‹</span></div>';
