@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V186</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V187</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6657,6 +6657,176 @@ function omSaveRisk(){
     else { showToast('خطا در ذخیره‌ی ضریب'); }
   }, 30000);
 }
+// ══════════ دفترِ اماناتِ قطعات (custody) ══════════
+var omCustody = [];
+var omCustodyOrderId = '';
+var omCurrentCustomer = '';
+var omCuPendingImg = null;   // {base64, mime} عکسِ انتخاب‌شده در فرمِ افزودن
+function omRenderCustody(){
+  var wrap=document.getElementById('om-custody-wrap'); if(!wrap) return;
+  var held=0, ret=0;
+  (omCustody||[]).forEach(function(c){ if(c.status==='returned') ret++; else held++; });
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
+    +'<span style="font-weight:700;font-size:13px;color:#9aa3c2">📦 قطعاتِ امانیِ کارفرما</span>'
+    +'<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+    +(held?'<span style="font-size:11px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:3px 9px;border-radius:14px;font-weight:700">🔵 '+prToFa(held)+' نزدِ ما</span>':'')
+    +(ret?'<span style="font-size:11px;color:#34d399;background:#0c2018;border:1px solid #14543d;padding:3px 9px;border-radius:14px;font-weight:700">✅ '+prToFa(ret)+' برگردانده</span>':'')
+    +'<button onclick="omCuOpenAdd()" style="background:#14284a;border:1px solid #1e4e7e;color:#7ab8ff;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">+ افزودن قطعه</button>'
+    +'</span></div>';
+  h+='<div style="background:#0c1120;border:1px solid #1a2440;border-radius:11px;padding:10px 12px;font-size:12.5px">';
+  if(!(omCustody&&omCustody.length)){
+    h+='<div style="color:#6b7280;font-size:11.5px;padding:4px 0">قطعه‌ی امانی‌ای ثبت نشده. اگر کارفرما قطعه‌ای برای مدلسازی/نمونه داده، با «+ افزودن قطعه» ثبتش کن تا رفت‌وبرگشتش گم نشود.</div>';
+  } else {
+    omCustody.forEach(function(c,ci){
+      var isRet = c.status==='returned';
+      h+='<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;'+(ci<omCustody.length-1?'border-bottom:1px solid #141a30;':'')+(isRet?'opacity:.55':'')+'">'
+        +(c.img?'<img src="'+c.img+'" onclick="omCuViewImg('+ci+')" style="width:46px;height:46px;object-fit:cover;border-radius:9px;border:1px solid #26304f;cursor:pointer;flex:none">'
+               :'<div style="width:46px;height:46px;border-radius:9px;background:#141a30;border:1px solid #26304f;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none">📦</div>')
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-weight:700;color:#dfe3f5;word-break:break-word">'+escapeHtml(c.name||'قطعه')+((+c.qty>1)?' <span style="color:#8a93b8;font-weight:500;font-size:11px">× '+prToFa(c.qty)+'</span>':'')+'</div>'
+          +'<div style="font-size:10.5px;color:#7c86a8;margin-top:2px">دریافت: '+prToFa(c.recvDate||'—')+(c.from?' · از: '+escapeHtml(c.from):'')+'</div>'
+          +(c.note?'<div style="font-size:10.5px;color:#9aa3c2;margin-top:2px">'+escapeHtml(c.note)+'</div>':'')
+          +(isRet?'<div style="font-size:11px;color:#34d399;margin-top:4px;font-weight:700">✅ برگردانده شد'+(c.retDate?(' در '+prToFa(c.retDate)):'')+(c.retNote?(' · '+escapeHtml(c.retNote)):'')+'</div>'
+                 :'<div style="font-size:11px;color:#7ab8ff;margin-top:4px;font-weight:700">🔵 نزدِ ما</div>')
+        +'</div>'
+        +'<div style="display:flex;flex-direction:column;gap:5px;flex:none">'
+          +(!isRet?'<button onclick="omCuReturn('+ci+')" style="background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:7px;padding:5px 9px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit">✅ برگشت</button>':'')
+          +'<button onclick="omCuDelete('+ci+')" style="background:#1a1d2e;border:1px solid #2a2f45;color:#8a93b8;border-radius:7px;padding:4px 9px;font-size:10.5px;cursor:pointer;font-family:inherit">🗑</button>'
+        +'</div>'
+      +'</div>';
+    });
+  }
+  h+='</div>';
+  wrap.innerHTML=h;
+}
+function omCuViewImg(ci){
+  var c=omCustody[ci]; if(!c||!c.img) return;
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:6500;background:rgba(4,6,12,.85);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<img src="'+c.img+'" style="max-width:92vw;max-height:88vh;border-radius:12px">';
+  ov.onclick=function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); };
+  document.body.appendChild(ov);
+}
+function omCuTodayJalali(){
+  try{
+    var p=new Intl.DateTimeFormat('fa-IR-u-nu-latn',{year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+    var g={}; p.forEach(function(x){ g[x.type]=x.value; });
+    return g.year+'/'+g.month+'/'+g.day;
+  }catch(e){ return ''; }
+}
+function omCuCloseDlg(){ var o=document.getElementById('om-cu-dlg'); if(o&&o.parentNode) o.parentNode.removeChild(o); omCuPendingImg=null; }
+function omCuOpenAdd(){
+  omCuCloseDlg();
+  var cust=''; try{ var t=document.querySelector('#om-head-customer'); }catch(e){}
+  var ov=document.createElement('div'); ov.id='om-cu-dlg';
+  ov.style.cssText='position:fixed;inset:0;z-index:6000;background:rgba(4,6,12,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML='<div style="background:#141726;border:1px solid #2a2f45;border-radius:16px;max-width:400px;width:100%;padding:18px;direction:rtl;box-shadow:0 12px 40px rgba(0,0,0,.5);max-height:92vh;overflow:auto">'
+    +'<div style="font-weight:800;font-size:15px;color:#e2e4f0;margin-bottom:12px">📦 افزودن قطعه‌ی امانی</div>'
+    +'<div style="font-size:11px;color:#9aa3c2;margin-bottom:4px">نام/توضیحِ قطعه *</div>'
+    +'<input id="om-cu-name" class="inp" style="width:100%;box-sizing:border-box;margin-bottom:10px" placeholder="مثلاً: پروانه‌ی پمپ فلزی (لبه شکسته)">'
+    +'<div style="display:flex;gap:8px;margin-bottom:10px">'
+      +'<div style="flex:1"><div style="font-size:11px;color:#9aa3c2;margin-bottom:4px">تعداد</div><input id="om-cu-qty" class="inp" type="number" min="1" value="1" style="width:100%;box-sizing:border-box"></div>'
+      +'<div style="flex:2"><div style="font-size:11px;color:#9aa3c2;margin-bottom:4px">تاریخ دریافت</div><input id="om-cu-date" class="inp" value="'+omCuTodayJalali()+'" style="width:100%;box-sizing:border-box;direction:ltr;text-align:center"></div>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#9aa3c2;margin-bottom:4px">از طرفِ</div>'
+    +'<input id="om-cu-from" class="inp" style="width:100%;box-sizing:border-box;margin-bottom:10px" placeholder="نام تحویل‌دهنده">'
+    +'<div style="font-size:11px;color:#9aa3c2;margin-bottom:4px">یادداشت (اختیاری)</div>'
+    +'<input id="om-cu-note" class="inp" style="width:100%;box-sizing:border-box;margin-bottom:10px" placeholder="مثلاً: برای مهندسی معکوس">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">'
+      +'<button onclick="document.getElementById(\'om-cu-file\').click()" style="background:#14284a;border:1px solid #1e4e7e;color:#7ab8ff;border-radius:8px;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📷 افزودن عکس</button>'
+      +'<span id="om-cu-imgind" style="font-size:11px;color:#6b7280">بدون عکس</span>'
+      +'<input id="om-cu-file" type="file" accept="image/*" style="display:none" onchange="omCuPickImg(this)">'
+    +'</div>'
+    +'<div style="display:flex;gap:8px">'
+      +'<button onclick="omCuSaveNew()" style="flex:1;background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">💾 ثبت قطعه</button>'
+      +'<button onclick="omCuCloseDlg()" style="background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:10px;padding:11px 16px;font-size:13px;cursor:pointer;font-family:inherit">انصراف</button>'
+    +'</div></div>';
+  ov.addEventListener('click',function(e){ if(e.target===ov) omCuCloseDlg(); });
+  document.body.appendChild(ov);
+  // پیش‌فرضِ «از طرف»: مشتریِ سفارش
+  try{ var cEl=document.getElementById('om-cu-from'); if(cEl && omCurrentCustomer) cEl.value=omCurrentCustomer; }catch(e){}
+}
+function omCuPickImg(inp){
+  var f=inp.files&&inp.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(ev){
+    var img=new Image();
+    img.onload=function(){
+      // کوچک‌سازی مثل عکسِ بخش‌ها (حداکثر 900px)
+      var mx=900, w=img.width, hh=img.height;
+      if(w>mx||hh>mx){ if(w>=hh){ hh=Math.round(hh*mx/w); w=mx; } else { w=Math.round(w*mx/hh); hh=mx; } }
+      var cv=document.createElement('canvas'); cv.width=w; cv.height=hh;
+      cv.getContext('2d').drawImage(img,0,0,w,hh);
+      var durl=cv.toDataURL('image/jpeg',0.85);
+      omCuPendingImg={ base64: durl.split(',')[1], mime:'image/jpeg', preview:durl };
+      var ind=document.getElementById('om-cu-imgind'); if(ind){ ind.innerHTML='<img src="'+durl+'" style="width:34px;height:34px;object-fit:cover;border-radius:7px;vertical-align:middle"> ✓ عکس ضمیمه شد'; ind.style.color='#34d399'; }
+    };
+    img.src=ev.target.result;
+  };
+  rd.readAsDataURL(f);
+}
+function omCuSaveNew(){
+  var nm=(document.getElementById('om-cu-name')||{}).value||'';
+  if(!nm.trim()){ showToast('نامِ قطعه را بنویس'); return; }
+  var item={
+    id:'cu_'+Date.now()+'_'+Math.floor(Math.random()*1e4),
+    name:nm.trim(),
+    qty:+((document.getElementById('om-cu-qty')||{}).value)||1,
+    recvDate:((document.getElementById('om-cu-date')||{}).value||'').trim(),
+    from:((document.getElementById('om-cu-from')||{}).value||'').trim(),
+    note:((document.getElementById('om-cu-note')||{}).value||'').trim(),
+    status:'held', retDate:'', retNote:'', imageFileId:''
+  };
+  var img=omCuPendingImg;
+  omCuCloseDlg();
+  omCustody.push(item);
+  omRenderCustody();
+  omCuPersist(function(ok){
+    if(!ok){ showToast('❌ خطا در ذخیره — دوباره تلاش کن'); return; }
+    if(img){
+      showToast('⏳ در حال آپلود عکس...');
+      omCuUploadImg(item.id, img, function(fid, durl){
+        if(fid){ item.imageFileId=fid; item.img=durl||img.preview; omRenderCustody(); omCuPersist(function(){}); showToast('✅ قطعه + عکس ثبت شد'); }
+        else showToast('قطعه ثبت شد ولی آپلودِ عکس ناموفق بود');
+      });
+    } else showToast('✅ قطعه‌ی امانی ثبت شد');
+  });
+}
+function omCuUploadImg(cuid, img, cb){
+  var url = SHEET_URL;
+  fetch(url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'uploadCustodyImage', token:SESSION_TOKEN, id:omCustodyOrderId, cuid:cuid, base64:img.base64, mime:img.mime })
+  }).then(function(r){ return r.json(); }).then(function(res){
+    if(res && res.status==='ok') cb(res.fileId, res.dataUrl); else cb(null);
+  }).catch(function(){ cb(null); });
+}
+function omCuReturn(ci){
+  var c=omCustody[ci]; if(!c) return;
+  prConfirm({ title:'برگشتِ قطعه', okText:'✅ ثبتِ برگشت', cancelText:'انصراف',
+    message:'قطعه‌ی «'+escapeHtml(c.name||'')+'» به کارفرما برگردانده شد؟<br><span style="font-size:11px;color:#8a93b8">تاریخِ امروز ثبت می‌شود: '+prToFa(omCuTodayJalali())+'</span>',
+    onOk:function(){
+      c.status='returned'; c.retDate=omCuTodayJalali();
+      omRenderCustody();
+      omCuPersist(function(ok){ showToast(ok?'✅ برگشتِ قطعه ثبت شد':'❌ خطا در ذخیره'); });
+    }});
+}
+function omCuDelete(ci){
+  var c=omCustody[ci]; if(!c) return;
+  prConfirm({ title:'حذفِ قطعه از دفترِ امانات', okText:'🗑 حذف شود', cancelText:'انصراف',
+    message:'«'+escapeHtml(c.name||'')+'» از لیست حذف شود؟ (برای اشتباهِ ثبتی. اگر قطعه واقعاً برگشته، به‌جای حذف «برگشت» بزن تا سابقه بماند.)',
+    onOk:function(){
+      omCustody.splice(ci,1);
+      omRenderCustody();
+      omCuPersist(function(ok){ showToast(ok?'حذف شد':'❌ خطا در ذخیره'); });
+    }});
+}
+function omCuPersist(cb){
+  if(!omCustodyOrderId){ cb(false); return; }
+  var payload = omCustody.map(function(c){ return { id:c.id, name:c.name, qty:c.qty, from:c.from, note:c.note, recvDate:c.recvDate, status:c.status, retDate:c.retDate, retNote:c.retNote, imageFileId:c.imageFileId||'' }; });
+  callSheet('setOrderCustody', { id:omCustodyOrderId, custody: JSON.stringify(payload), t:Date.now() }, function(res){
+    cb(!!(res && res.status==='ok'));
+  }, 40000);
+}
 function omRenderMaterials(){
   var box=document.getElementById('om-mats-inner'); if(!box) return;
   var inp=document.getElementById('om-risk');
@@ -8473,6 +8643,7 @@ function archiveRender(){
           ? '<span style="font-size:10.5px;color:#34d399;background:#0c2a20;border:1px solid #14543d;padding:2px 8px;border-radius:20px">در جریان ساخت</span>'
           : '<span style="font-size:10.5px;color:#9aa3c2;background:#161827;border:1px solid #232539;padding:2px 8px;border-radius:20px">برآورد</span>');
       var codeChip = e.code ? '<span class="ar-code" style="font-size:10px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px;white-space:nowrap;display:inline-block">'+escapeHtml(e.code)+'</span>' : '';
+      if(+e.heldCustody>0){ codeChip += '<span class="ar-code" title="قطعه‌ی امانیِ نزدِ ما" style="font-size:10px;color:#ffd479;background:#2a2008;border:1px solid #5c4a12;padding:2px 7px;border-radius:6px;margin-left:6px;white-space:nowrap;display:inline-block">📦 '+prToFa(e.heldCustody)+'</span>'; }
       var tsrc = e.thumb || arThumbCache[e.id] || '';
       var thumb;
       if(e.secImages && e.secImages.length){
@@ -8738,6 +8909,7 @@ function omLoadProfileImage(elId, fileId){
 function archiveProfile(id){
   var e=null; for(var i=0;i<arData.length;i++){ if(arData[i].id===id){ e=arData[i]; break; } }
   if(!e){ showToast('سفارش پیدا نشد'); return; }
+  omCurrentCustomer = e.customer||'';
   var st = e.status||'برآورد';
   var inProd = st==='در جریان ساخت';
   var done = st==='تمام‌شده';
@@ -8864,6 +9036,13 @@ function archiveProfile(id){
         +'<div id="om-mats-inner" style="background:#0b1a22;border:1px solid #16424f;border-radius:11px;padding:12px 14px;font-size:12.5px"></div></div>';
       sumEl.innerHTML += mh;
       omRenderMaterials();
+    }
+    // ── دفترِ اماناتِ قطعات ──
+    if(sumEl){
+      omCustody = Array.isArray(res.custody) ? res.custody : [];
+      omCustodyOrderId = omCurrentId;
+      sumEl.innerHTML += '<div id="om-custody-wrap" style="margin-top:12px"></div>';
+      omRenderCustody();
     }
     if(sumEl && res.notes && String(res.notes).trim()){
       sumEl.innerHTML += '<div style="margin-top:12px"><div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">توضیحات</div>'
