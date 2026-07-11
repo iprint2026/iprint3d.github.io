@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V189</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V190</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6985,32 +6985,41 @@ function omCuSignOpen(who){
 function omCuSignClear(){ var cv=document.getElementById('om-sig-cv'); if(cv&&cv._clear) cv._clear(); }
 function omCuSignClose(){ var o=document.getElementById('om-sig-ov'); if(o&&o.parentNode) o.parentNode.removeChild(o); }
 function omCuSignConfirm(){
-  var cv=document.getElementById('om-sig-cv'); if(!cv) return;
-  if(!cv._drew || !cv._drew()){ showToast('امضایی کشیده نشده'); return; }
-  var durl=cv.toDataURL('image/png');
-  // تأییدِ دومرحله‌ای — روی خودِ صفحه‌ی امضا (z بالاتر تا پشتِ بوم نرود)
-  var old=document.getElementById('om-sig-cfm'); if(old) old.parentNode.removeChild(old);
-  var ov=document.createElement('div'); ov.id='om-sig-cfm';
-  ov.style.cssText='position:fixed;inset:0;z-index:7600;background:rgba(4,6,12,.75);display:flex;align-items:center;justify-content:center;padding:18px';
-  ov.innerHTML='<div style="background:#141726;border:1px solid #2a2f45;border-radius:16px;max-width:340px;width:100%;padding:18px;direction:rtl;text-align:center">'
-    +'<div style="font-weight:800;font-size:14px;color:#e2e4f0;margin-bottom:10px">این امضا ثبت شود؟</div>'
-    +'<img src="'+durl+'" style="max-width:100%;max-height:100px;background:#fff;border-radius:10px;padding:5px">'
-    +'<div style="display:flex;gap:8px;margin-top:14px">'
-      +'<button id="om-sig-yes" style="flex:1;background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">بله، ثبت کن</button>'
-      +'<button id="om-sig-no" style="flex:1;background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:10px;padding:11px;font-size:13px;cursor:pointer;font-family:inherit">نه، دوباره</button>'
-    +'</div></div>';
-  document.body.appendChild(ov);
-  document.getElementById('om-sig-yes').onclick=function(){
-    if(ov.parentNode) ov.parentNode.removeChild(ov);
-    omCuRcSig[omCuSignWho]=durl;
-    omCuSignClose();
-    omCuShowReceipt();
-    showToast('✅ امضا ثبت شد');
-  };
-  document.getElementById('om-sig-no').onclick=function(){
-    if(ov.parentNode) ov.parentNode.removeChild(ov);
-    omCuSignClear();
-  };
+  try{
+    var cv=document.getElementById('om-sig-cv'); if(!cv) return;
+    if(!cv._drew || !cv._drew()){ showToast('اول امضا کنید'); return; }
+    // امضا را به یک تصویرِ کوچکِ سبک تبدیل کن (عرض ~600px) تا مطمئن و سبک باشد
+    var durl;
+    try{
+      var tmp=document.createElement('canvas'); var tw=600, th=Math.round(600*cv.height/cv.width);
+      tmp.width=tw; tmp.height=th;
+      var tctx=tmp.getContext('2d'); tctx.fillStyle='#ffffff'; tctx.fillRect(0,0,tw,th);
+      tctx.drawImage(cv,0,0,tw,th);
+      durl=tmp.toDataURL('image/jpeg',0.85);
+    }catch(e){ durl=cv.toDataURL('image/png'); }
+    var old=document.getElementById('om-sig-cfm'); if(old&&old.parentNode) old.parentNode.removeChild(old);
+    var ov=document.createElement('div'); ov.id='om-sig-cfm';
+    ov.style.cssText='position:fixed;inset:0;z-index:7900;background:rgba(4,6,12,.82);display:flex;align-items:center;justify-content:center;padding:18px';
+    ov.innerHTML='<div style="background:#141726;border:1px solid #2a2f45;border-radius:16px;max-width:360px;width:100%;padding:18px;direction:rtl;text-align:center">'
+      +'<div style="font-weight:800;font-size:14px;color:#e2e4f0;margin-bottom:10px">این امضا ثبت شود؟</div>'
+      +'<img src="'+durl+'" style="max-width:100%;max-height:110px;background:#fff;border-radius:10px;padding:5px">'
+      +'<div style="display:flex;gap:8px;margin-top:14px">'
+        +'<button id="om-sig-yes" style="flex:1;background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:10px;padding:12px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">✅ بله، ثبت کن</button>'
+        +'<button id="om-sig-no" style="flex:1;background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:10px;padding:12px;font-size:13px;cursor:pointer;font-family:inherit">↩ دوباره</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    document.getElementById('om-sig-yes').onclick=function(){
+      if(ov.parentNode) ov.parentNode.removeChild(ov);
+      omCuRcSig[omCuSignWho]=durl;
+      omCuSignClose();
+      omCuShowReceipt();
+      showToast('✅ امضا ثبت شد');
+    };
+    document.getElementById('om-sig-no').onclick=function(){
+      if(ov.parentNode) ov.parentNode.removeChild(ov);
+      omCuSignClear();
+    };
+  }catch(err){ showToast('خطا در ثبتِ امضا: '+err); }
 }
 // ── خروجی PDF رسید (html2canvas + jsPDF مثل فاکتور) ──
 function omCuReceiptPdf(saveToFolder){
