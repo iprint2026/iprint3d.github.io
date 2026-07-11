@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V190</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V191</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6831,6 +6831,7 @@ function omCuPersist(cb){
 }
 // ══════════ رسیدِ امانت (A6) + امضای لمسی ══════════
 var omCuRcSig = { give:null, take:null };   // dataURL امضاها
+var omCuRcSigner = { give:null, take:null }; // نام/شماره‌ی امضاکننده‌ها
 var omCuRcCtx = null;                        // {kind, items[], code}
 function omCuReceiptStart(kind){
   var cands = (omCustody||[]).filter(function(c){ return kind==='recv' ? c.status!=='returned' : c.status==='returned'; });
@@ -6866,6 +6867,7 @@ function omCuReceiptIssue(kind){
     items.forEach(function(c){ if(kind==='recv') c.recvReceipt=res.code; else c.retReceipt=res.code; });
     omRenderCustody();
     omCuRcSig={give:null,take:null};
+    omCuRcSigner={give:null,take:null};
     omCuRcCtx={ kind:kind, items:items, code:res.code };
     omCuShowReceipt();
   }, 40000);
@@ -6887,8 +6889,8 @@ function omCuShowReceipt(){
   var other = (x.items[0]&&x.items[0].from) || omCurrentCustomer || '—';
   var ordCode = (arData.find&&(arData.find(function(a){return a.id===omCustodyOrderId;})||{}).code)||'';
   var legal = isRecv
-    ? 'قطعاتِ فوق جهتِ انجامِ خدمات (مدلسازی / نمونه‌سازی / مهندسیِ معکوس) به‌صورتِ <b>امانت</b> تحویلِ مجموعه‌ی آی‌پرینت‌تری‌دی گردید و پس از اتمامِ کار، مطابقِ همین رسید عودت داده خواهد شد.'
-    : 'قطعاتِ فوق به‌طورِ <b>کامل و سالم</b> به تحویل‌گیرنده عودت گردید و طرفین هیچ‌گونه ادعایی نسبت به یکدیگر ندارند.';
+    ? 'بدین‌وسیله گواهی می‌شود قطعاتِ مشروحه‌ی فوق، جهتِ انجامِ خدماتِ مهندسی (مدل‌سازی / نمونه‌سازی / مهندسیِ معکوس)، به‌صورتِ <b>امانت</b> از سوی کارفرما به مجموعه‌ی آی‌پرینت‌تری‌دی تحویل گردید. مجموعه متعهد می‌گردد پس از اتمامِ کار، قطعات را مطابقِ همین رسید سالم به کارفرما عودت دهد. این رسید در دو نسخه‌ی هم‌اعتبار تنظیم شده است.'
+    : 'بدین‌وسیله گواهی می‌شود قطعاتِ مشروحه‌ی فوق، به‌طورِ <b>کامل و سالم</b> از سوی مجموعه‌ی آی‌پرینت‌تری‌دی به کارفرما عودت گردید و طرفین اقرار می‌نمایند که هیچ‌گونه ادعا یا مطالبه‌ای نسبت به این امانت باقی نمانده است. این رسید در دو نسخه‌ی هم‌اعتبار تنظیم شده است.';
   var rows = x.items.map(function(c,i){
     return '<tr>'
       +'<td style="border:1px solid #bbb;padding:1.6mm 2mm;text-align:center;width:8mm">'+prToFa(i+1)+'</td>'
@@ -6896,7 +6898,13 @@ function omCuShowReceipt(){
       +'<td style="border:1px solid #bbb;padding:1.6mm 2mm;text-align:center;width:12mm">'+prToFa(c.qty>0?c.qty:1)+'</td>'
     +'</tr>';
   }).join('');
-  var sigStampTxt = '<div style="font-size:7px;color:#777;text-align:center;margin-top:1mm">امضای دیجیتال · '+prToFa(omCuTodayJalali())+'</div>';
+  var sigStampTxt = function(who){
+    var s = omCuRcSigner && omCuRcSigner[who];
+    var base = '<div style="font-size:7px;color:#555;text-align:center;margin-top:0.6mm;line-height:1.7">';
+    if(s && s.name){ base += '<b style="color:#111;font-size:8px">'+escapeHtml(s.name)+'</b><br>☎ '+escapeHtml(s.phone||'')+'<br>'; }
+    base += 'امضای دیجیتال · '+prToFa(omCuTodayJalali())+'</div>';
+    return base;
+  };
   var sigGive = omCuRcSig.give ? '<img src="'+omCuRcSig.give+'" style="max-height:15mm;max-width:100%">' : '<span style="color:#aaa;font-size:8.5px">✍️ برای امضا لمس کن</span>';
   var sigTake = omCuRcSig.take ? '<img src="'+omCuRcSig.take+'" style="max-height:15mm;max-width:100%">' : '<span style="color:#aaa;font-size:8.5px">✍️ برای امضا لمس کن</span>';
   var ov=document.createElement('div'); ov.id='om-rc-ov';
@@ -6933,8 +6941,8 @@ function omCuShowReceipt(){
       +'<div style="flex:1"></div>'
       // امضاها
       +'<div style="display:flex;gap:3mm;text-align:center;font-size:9px;padding:1mm 5mm 0">'
-        +'<div style="flex:1"><div style="font-weight:700;margin-bottom:1mm">امضای تحویل‌دهنده</div><div onclick="omCuSignOpen(\'give\')" style="border:1px dashed #999;border-radius:1.5mm;height:17mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fdfdfd">'+sigGive+'</div>'+(omCuRcSig.give?sigStampTxt:'')+'</div>'
-        +'<div style="flex:1"><div style="font-weight:700;margin-bottom:1mm">امضای تحویل‌گیرنده / مهر</div><div onclick="omCuSignOpen(\'take\')" style="border:1px dashed #999;border-radius:1.5mm;height:17mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fdfdfd">'+sigTake+'</div>'+(omCuRcSig.take?sigStampTxt:'')+'</div>'
+        +'<div style="flex:1"><div style="font-weight:700;margin-bottom:1mm">امضای تحویل‌دهنده</div><div onclick="omCuSignOpen(\'give\')" style="border:1px dashed #999;border-radius:1.5mm;height:17mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fdfdfd">'+sigGive+'</div>'+(omCuRcSig.give?sigStampTxt('give'):'')+'</div>'
+        +'<div style="flex:1"><div style="font-weight:700;margin-bottom:1mm">امضای تحویل‌گیرنده / مهر</div><div onclick="omCuSignOpen(\'take\')" style="border:1px dashed #999;border-radius:1.5mm;height:17mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fdfdfd">'+sigTake+'</div>'+(omCuRcSig.take?sigStampTxt('take'):'')+'</div>'
       +'</div>'
       // پانوشت
       +'<div style="background:#16181f;color:#dfe3ee;text-align:center;font-size:8px;padding:2mm;margin-top:3mm">☎ ۰۲۱-۴۴۷۸۷۰۵۲ &nbsp;·&nbsp; www.iprint3d.ir &nbsp;·&nbsp; این رسید سندِ رسمیِ رفت‌وبرگشتِ قطعاتِ امانی است</div>'
@@ -6946,23 +6954,62 @@ function omCuShowReceipt(){
     +'</div>';
   document.body.appendChild(ov);
 }
-// ── بومِ امضا: تمام‌صفحه، در گوشیِ عمودی می‌چرخد ──
+// ── بومِ امضا: اول فرمِ مشخصات، بعد متنِ تعهد + امضا ──
 var omCuSignWho='give';
+var omCuSigner={ name:'', phone:'' };
 function omCuSignOpen(who){
   omCuSignWho=who;
+  omCuSigner={ name:'', phone:'' };
   var old=document.getElementById('om-sig-ov'); if(old) old.parentNode.removeChild(old);
+  var roleLabel = (who==='give') ? 'تحویل‌دهنده (اپراتور)' : 'تحویل‌گیرنده (کارفرما)';
   var ov=document.createElement('div'); ov.id='om-sig-ov';
-  ov.style.cssText='position:fixed;inset:0;z-index:7000;background:#0c0e16;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;overflow:hidden;touch-action:none;padding:14px';
+  ov.style.cssText='position:fixed;inset:0;z-index:7000;background:#0c0e16;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;overflow:auto;padding:20px';
+  ov.innerHTML='<div style="background:#141726;border:1px solid #2a2f45;border-radius:16px;max-width:380px;width:100%;padding:20px;direction:rtl">'
+    +'<div style="font-weight:800;font-size:15px;color:#e2e4f0;margin-bottom:4px">مشخصاتِ '+roleLabel+'</div>'
+    +'<div style="font-size:11.5px;color:#9aa3c2;margin-bottom:14px">لطفاً نام و شماره‌ی خود را وارد کنید، سپس «ادامه» را بزنید تا به صفحه‌ی امضا بروید.</div>'
+    +'<div style="font-size:11px;color:#9aa3c2;margin-bottom:4px">نام و نام‌خانوادگی *</div>'
+    +'<input id="om-sgn-name" class="inp" style="width:100%;box-sizing:border-box;margin-bottom:12px" placeholder="نام و نام‌خانوادگی">'
+    +'<div style="font-size:11px;color:#9aa3c2;margin-bottom:4px">شماره تماس *</div>'
+    +'<input id="om-sgn-phone" class="inp" type="tel" style="width:100%;box-sizing:border-box;margin-bottom:16px;direction:ltr;text-align:right" placeholder="۰۹...">'
+    +'<div style="display:flex;gap:8px">'
+      +'<button onclick="omCuSignerContinue()" style="flex:1;background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:10px;padding:12px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">ادامه ◀</button>'
+      +'<button onclick="omCuSignClose()" style="background:#2a1414;border:1px solid #7a2e2e;color:#f0a0a0;border-radius:10px;padding:12px 16px;font-size:13px;cursor:pointer;font-family:inherit">انصراف</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  // پیش‌فرضِ نامِ تحویل‌گیرنده: مشتریِ سفارش
+  if(who==='take' && omCurrentCustomer){ var nEl=document.getElementById('om-sgn-name'); if(nEl) nEl.value=omCurrentCustomer; }
+}
+function omCuSignerContinue(){
+  var nm=((document.getElementById('om-sgn-name')||{}).value||'').trim();
+  var ph=((document.getElementById('om-sgn-phone')||{}).value||'').trim();
+  if(!nm){ showToast('نام را وارد کنید'); return; }
+  if(!ph){ showToast('شماره تماس را وارد کنید'); return; }
+  omCuSigner={ name:nm, phone:ph };
+  omCuSignPad();
+}
+function omCuSignPad(){
+  var who=omCuSignWho;
+  var old=document.getElementById('om-sig-ov'); if(old) old.parentNode.removeChild(old);
+  var x=omCuRcCtx||{}; var isRecv=(x.kind!=='return');
+  var verb = (who==='give')
+     ? (isRecv ? 'قطعاتِ مندرج در این رسید را جهتِ انجامِ خدمات به‌صورتِ امانت تحویل گرفتم' : 'قطعاتِ مندرج در این رسید را به‌طورِ کامل تحویلِ کارفرما دادم')
+     : (isRecv ? 'قطعاتِ مندرج در این رسید را جهتِ انجامِ خدمات به‌صورتِ امانت تحویلِ مجموعه دادم' : 'قطعاتِ مندرج در این رسید را به‌طورِ کامل و سالم تحویل گرفتم');
+  var consent = 'اینجانب «'+escapeHtml(omCuSigner.name)+'» با شماره‌ی '+escapeHtml(omCuSigner.phone)+'، تأیید می‌کنم که '+verb+' (رسیدِ شماره '+escapeHtml(x.code||'')+') و صحّتِ آن را با امضای زیر گواهی می‌نمایم.';
+  var ov=document.createElement('div'); ov.id='om-sig-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:7000;background:#0c0e16;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;overflow:hidden;touch-action:none;padding:14px';
   ov.innerHTML=''
-    +'<div style="color:#cbd2e6;font-size:14px;font-weight:700">✍️ امضای '+(who==='give'?'تحویل‌دهنده':'تحویل‌گیرنده')+'</div>'
-    +'<div style="color:#8a93b8;font-size:11px;margin-top:-6px">در کادرِ سفید با انگشت امضا کنید</div>'
-    +'<canvas id="om-sig-cv" style="background:#fff;border-radius:14px;width:92vw;height:56vh;touch-action:none;box-shadow:0 6px 24px rgba(0,0,0,.4)"></canvas>'
+    +'<div style="color:#cbd2e6;font-size:13.5px;font-weight:700">✍️ امضای '+(who==='give'?'تحویل‌دهنده':'تحویل‌گیرنده')+'</div>'
+    +'<div style="max-width:640px;width:94vw;background:#161a2b;border:1px solid #26304f;border-radius:10px;padding:10px 12px;color:#c7cde0;font-size:11.5px;line-height:1.9;text-align:justify">'+consent+'</div>'
+    +'<canvas id="om-sig-cv" style="background:#fff;border-radius:14px;width:94vw;max-width:640px;height:42vh;touch-action:none;box-shadow:0 6px 24px rgba(0,0,0,.4)"></canvas>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">'
       +'<button onclick="omCuSignClear()" style="background:#1a1d2e;border:1px solid #2a2f45;color:#cbd2e6;border-radius:10px;padding:11px 20px;font-size:14px;cursor:pointer;font-family:inherit">🔄 پاک کن</button>'
       +'<button onclick="omCuSignConfirm()" style="background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:10px;padding:11px 26px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">✔ تأیید امضا</button>'
       +'<button onclick="omCuSignClose()" style="background:#2a1414;border:1px solid #7a2e2e;color:#f0a0a0;border-radius:10px;padding:11px 18px;font-size:14px;cursor:pointer;font-family:inherit">✖ انصراف</button>'
     +'</div>';
   document.body.appendChild(ov);
+  omCuSignInitCanvas();
+}
+function omCuSignInitCanvas(){
   var cv=document.getElementById('om-sig-cv');
   var rect=cv.getBoundingClientRect();
   var dpr=Math.min(window.devicePixelRatio||1, 2.5);
@@ -7011,9 +7058,16 @@ function omCuSignConfirm(){
     document.getElementById('om-sig-yes').onclick=function(){
       if(ov.parentNode) ov.parentNode.removeChild(ov);
       omCuRcSig[omCuSignWho]=durl;
+      // نگه‌داریِ مشخصاتِ امضاکننده برای چاپ روی رسید
+      omCuRcSigner = omCuRcSigner || {};
+      omCuRcSigner[omCuSignWho] = { name:omCuSigner.name, phone:omCuSigner.phone };
       omCuSignClose();
       omCuShowReceipt();
       showToast('✅ امضا ثبت شد');
+      // ذخیره‌ی نام/شماره در دیتابیس (امضا در PDF می‌ماند)
+      if(omCuRcCtx && omCuRcCtx.code){
+        callSheet('saveCustodyReceiptSigner', { id:omCustodyOrderId, rc:omCuRcCtx.code, who:omCuSignWho, name:omCuSigner.name, phone:omCuSigner.phone, t:Date.now() }, function(){}, 30000);
+      }
     };
     document.getElementById('om-sig-no').onclick=function(){
       if(ov.parentNode) ov.parentNode.removeChild(ov);
@@ -7038,13 +7092,13 @@ function omCuReceiptPdf(saveToFolder){
       pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,0,w,h);
       var fname='رسید امانت '+(omCuRcCtx?omCuRcCtx.code:'RC')+'.pdf';
       if(saveToFolder){
-        var b64=pdf.output('datauristring').split(',')[1];
-        fetch(SHEET_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+        var b64=(pdf.output('datauristring')||'').split(',')[1]||'';
+        if(!b64){ showToast('❌ ساختِ فایل ناموفق بود'); return; }
+        var url=(typeof loadSheetUrl==='function')?loadSheetUrl():SHEET_URL;
+        fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
           body:JSON.stringify({action:'uploadCustodyReceiptPdf',token:SESSION_TOKEN,id:omCustodyOrderId,rc:(omCuRcCtx?omCuRcCtx.code:''),base64:b64})})
-          .then(function(r){return r.json();}).then(function(res){
-            if(res&&res.status==='ok'){ showToast('✅ رسید در پوشه‌ی سفارش ذخیره شد'); omCuPersist(function(){}); }
-            else showToast('❌ خطا در ذخیره‌ی رسید');
-          }).catch(function(){ showToast('❌ خطا در ذخیره‌ی رسید'); });
+          .then(function(){ showToast('✅ رسید در پوشه‌ی سفارش ذخیره شد'); omCuPersist(function(){}); })
+          .catch(function(){ showToast('❌ خطا در ذخیره‌ی رسید'); });
       } else {
         pdf.save(fname);
         showToast('✅ رسید دانلود شد');
