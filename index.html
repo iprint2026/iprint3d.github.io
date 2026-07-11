@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V187</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V188</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6671,6 +6671,8 @@ function omRenderCustody(){
     +'<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
     +(held?'<span style="font-size:11px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:3px 9px;border-radius:14px;font-weight:700">🔵 '+prToFa(held)+' نزدِ ما</span>':'')
     +(ret?'<span style="font-size:11px;color:#34d399;background:#0c2018;border:1px solid #14543d;padding:3px 9px;border-radius:14px;font-weight:700">✅ '+prToFa(ret)+' برگردانده</span>':'')
+    +(held?'<button onclick="omCuReceiptStart(\'recv\')" style="background:#2a2008;border:1px solid #5c4a12;color:#ffd479;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 رسیدِ دریافت</button>':'')
+    +(ret?'<button onclick="omCuReceiptStart(\'return\')" style="background:#0c2018;border:1px solid #14543d;color:#34d399;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 رسیدِ عودت</button>':'')
     +'<button onclick="omCuOpenAdd()" style="background:#14284a;border:1px solid #1e4e7e;color:#7ab8ff;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">+ افزودن قطعه</button>'
     +'</span></div>';
   h+='<div style="background:#0c1120;border:1px solid #1a2440;border-radius:11px;padding:10px 12px;font-size:12.5px">';
@@ -6686,8 +6688,8 @@ function omRenderCustody(){
           +'<div style="font-weight:700;color:#dfe3f5;word-break:break-word">'+escapeHtml(c.name||'قطعه')+((+c.qty>1)?' <span style="color:#8a93b8;font-weight:500;font-size:11px">× '+prToFa(c.qty)+'</span>':'')+'</div>'
           +'<div style="font-size:10.5px;color:#7c86a8;margin-top:2px">دریافت: '+prToFa(c.recvDate||'—')+(c.from?' · از: '+escapeHtml(c.from):'')+'</div>'
           +(c.note?'<div style="font-size:10.5px;color:#9aa3c2;margin-top:2px">'+escapeHtml(c.note)+'</div>':'')
-          +(isRet?'<div style="font-size:11px;color:#34d399;margin-top:4px;font-weight:700">✅ برگردانده شد'+(c.retDate?(' در '+prToFa(c.retDate)):'')+(c.retNote?(' · '+escapeHtml(c.retNote)):'')+'</div>'
-                 :'<div style="font-size:11px;color:#7ab8ff;margin-top:4px;font-weight:700">🔵 نزدِ ما</div>')
+          +(isRet?'<div style="font-size:11px;color:#34d399;margin-top:4px;font-weight:700">✅ برگردانده شد'+(c.retDate?(' در '+prToFa(c.retDate)):'')+(c.retNote?(' · '+escapeHtml(c.retNote)):'')+(c.retReceipt?(' · 🧾 '+escapeHtml(c.retReceipt)):'')+'</div>'
+                 :'<div style="font-size:11px;color:#7ab8ff;margin-top:4px;font-weight:700">🔵 نزدِ ما'+(c.recvReceipt?(' · 🧾 '+escapeHtml(c.recvReceipt)):'')+'</div>')
         +'</div>'
         +'<div style="display:flex;flex-direction:column;gap:5px;flex:none">'
           +(!isRet?'<button onclick="omCuReturn('+ci+')" style="background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:7px;padding:5px 9px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit">✅ برگشت</button>':'')
@@ -6822,10 +6824,183 @@ function omCuDelete(ci){
 }
 function omCuPersist(cb){
   if(!omCustodyOrderId){ cb(false); return; }
-  var payload = omCustody.map(function(c){ return { id:c.id, name:c.name, qty:c.qty, from:c.from, note:c.note, recvDate:c.recvDate, status:c.status, retDate:c.retDate, retNote:c.retNote, imageFileId:c.imageFileId||'' }; });
+  var payload = omCustody.map(function(c){ return { id:c.id, name:c.name, qty:c.qty, from:c.from, note:c.note, recvDate:c.recvDate, status:c.status, retDate:c.retDate, retNote:c.retNote, recvReceipt:c.recvReceipt||'', retReceipt:c.retReceipt||'', imageFileId:c.imageFileId||'' }; });
   callSheet('setOrderCustody', { id:omCustodyOrderId, custody: JSON.stringify(payload), t:Date.now() }, function(res){
     cb(!!(res && res.status==='ok'));
   }, 40000);
+}
+// ══════════ رسیدِ امانت (A6) + امضای لمسی ══════════
+var omCuRcSig = { give:null, take:null };   // dataURL امضاها
+var omCuRcCtx = null;                        // {kind, items[], code}
+function omCuReceiptStart(kind){
+  var cands = (omCustody||[]).filter(function(c){ return kind==='recv' ? c.status!=='returned' : c.status==='returned'; });
+  if(!cands.length){ showToast('قطعه‌ای برای این رسید نیست'); return; }
+  omCuCloseDlg();
+  var ov=document.createElement('div'); ov.id='om-cu-dlg';
+  ov.style.cssText='position:fixed;inset:0;z-index:6000;background:rgba(4,6,12,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+  var rows = cands.map(function(c){
+    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #1c2137;cursor:pointer">'
+      +'<input type="checkbox" class="om-cu-rc-chk" value="'+c.id+'" checked style="width:17px;height:17px;accent-color:#7ab8ff">'
+      +(c.img?'<img src="'+c.img+'" style="width:30px;height:30px;object-fit:cover;border-radius:6px">':'<span style="font-size:16px">📦</span>')
+      +'<span style="flex:1;color:#dfe3f5;font-size:12.5px">'+escapeHtml(c.name||'قطعه')+((+c.qty>1)?' × '+prToFa(c.qty):'')+'</span></label>';
+  }).join('');
+  ov.innerHTML='<div style="background:#141726;border:1px solid #2a2f45;border-radius:16px;max-width:400px;width:100%;padding:18px;direction:rtl;max-height:92vh;overflow:auto">'
+    +'<div style="font-weight:800;font-size:15px;color:#e2e4f0;margin-bottom:6px">🧾 '+(kind==='recv'?'رسیدِ دریافتِ امانت':'رسیدِ عودتِ امانت')+'</div>'
+    +'<div style="font-size:11.5px;color:#9aa3c2;margin-bottom:10px">قطعه‌هایی که در این رسید بیایند را انتخاب کن:</div>'
+    +rows
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+      +'<button onclick="omCuReceiptIssue(\''+kind+'\')" style="flex:1;background:#2a2008;border:1px solid #5c4a12;color:#ffd479;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🧾 صدورِ رسید</button>'
+      +'<button onclick="omCuCloseDlg()" style="background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:10px;padding:11px 16px;font-size:13px;cursor:pointer;font-family:inherit">انصراف</button>'
+    +'</div></div>';
+  ov.addEventListener('click',function(e){ if(e.target===ov) omCuCloseDlg(); });
+  document.body.appendChild(ov);
+}
+function omCuReceiptIssue(kind){
+  var ids=[]; document.querySelectorAll('.om-cu-rc-chk:checked').forEach(function(x){ ids.push(x.value); });
+  if(!ids.length){ showToast('حداقل یک قطعه انتخاب کن'); return; }
+  omCuCloseDlg();
+  showToast('⏳ در حال صدورِ رسید...');
+  callSheet('issueCustodyReceipt', { id:omCustodyOrderId, kind:kind, cuIds:JSON.stringify(ids), dateStr:omCuTodayJalali(), t:Date.now() }, function(res){
+    if(!(res && res.status==='ok' && res.code)){ showToast('❌ خطا در صدور رسید'); return; }
+    var items = omCustody.filter(function(c){ return ids.indexOf(String(c.id))!==-1; });
+    items.forEach(function(c){ if(kind==='recv') c.recvReceipt=res.code; else c.retReceipt=res.code; });
+    omRenderCustody();
+    omCuRcSig={give:null,take:null};
+    omCuRcCtx={ kind:kind, items:items, code:res.code };
+    omCuShowReceipt();
+  }, 40000);
+}
+function omCuCloseReceipt(){ var o=document.getElementById('om-rc-ov'); if(o&&o.parentNode) o.parentNode.removeChild(o); }
+function omCuShowReceipt(){
+  omCuCloseReceipt();
+  var x=omCuRcCtx; if(!x) return;
+  var isRecv = x.kind==='recv';
+  var other = (x.items[0]&&x.items[0].from) || omCurrentCustomer || '—';
+  var legal = isRecv
+    ? 'قطعاتِ فوق جهتِ انجامِ خدمات (مدلسازی/نمونه‌سازی) به‌صورتِ امانت تحویلِ آی‌پرینت‌تری‌دی گردید و پس از اتمامِ کار عودت داده خواهد شد.'
+    : 'قطعاتِ فوق به‌طورِ کامل و سالم به تحویل‌گیرنده عودت گردید و طرفین هیچ‌گونه ادعایی نسبت به یکدیگر ندارند.';
+  var list = x.items.map(function(c,i){ return '<div style="padding:2px 0">'+prToFa(i+1)+'. '+escapeHtml(c.name||'قطعه')+((+c.qty>1)?' × '+prToFa(c.qty):'')+'</div>'; }).join('');
+  var sigGive = omCuRcSig.give ? '<img src="'+omCuRcSig.give+'" style="max-height:44px;max-width:100%">' : '';
+  var sigTake = omCuRcSig.take ? '<img src="'+omCuRcSig.take+'" style="max-height:44px;max-width:100%">' : '';
+  var sigStamp = (omCuRcSig.give||omCuRcSig.take) ? '<div style="font-size:7.5px;color:#777;text-align:center;margin-top:2px">امضا شده به‌صورت دیجیتال · '+prToFa(omCuTodayJalali())+'</div>' : '';
+  var ov=document.createElement('div'); ov.id='om-rc-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:6200;background:#22252f;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:14px 10px 120px';
+  ov.innerHTML=''
+    +'<div id="om-rc-page" style="background:#fff;color:#111;width:105mm;min-height:148mm;max-width:96vw;box-sizing:border-box;padding:7mm;direction:rtl;font-family:inherit;position:relative">'
+      +'<div style="border:2.5px double #333;height:100%;box-sizing:border-box;padding:5mm;display:flex;flex-direction:column">'
+        +'<div style="text-align:center;border-bottom:1.5px solid #333;padding-bottom:3mm;margin-bottom:3mm">'
+          +'<div style="font-weight:900;font-size:15px;letter-spacing:.5px">iPrint3D <span style="font-weight:500;font-size:10px;color:#555">· آی‌پرینت‌تری‌دی</span></div>'
+          +'<div style="font-weight:800;font-size:13px;margin-top:2mm">🧾 رسیدِ '+(isRecv?'دریافتِ':'عودتِ')+' امانتِ قطعات</div>'
+          +'<div style="font-size:9.5px;color:#444;margin-top:1.5mm">شماره: <b style="letter-spacing:1px">'+escapeHtml(x.code)+'</b> · سفارش: <b>'+escapeHtml((arData.find&&(arData.find(function(a){return a.id===omCustodyOrderId;})||{}).code)||'')+'</b> · تاریخ: '+prToFa(omCuTodayJalali())+'</div>'
+        +'</div>'
+        +'<div style="font-size:10.5px;margin-bottom:2mm"><b>'+(isRecv?'تحویل‌دهنده (کارفرما):':'تحویل‌گیرنده (کارفرما):')+'</b> '+escapeHtml(other)+'</div>'
+        +'<div style="font-size:10.5px;font-weight:700;margin-bottom:1mm">قطعات:</div>'
+        +'<div style="font-size:10.5px;line-height:1.9;margin-bottom:2mm">'+list+'</div>'
+        +'<div style="font-size:9px;color:#333;line-height:1.9;background:#f4f4f4;border:1px solid #ddd;border-radius:2mm;padding:2.5mm;margin-bottom:3mm">«'+legal+'»</div>'
+        +'<div style="flex:1"></div>'
+        +'<div style="display:flex;gap:4mm;text-align:center;font-size:9.5px">'
+          +'<div style="flex:1"><div style="font-weight:700;margin-bottom:1mm">تحویل‌دهنده</div><div id="om-rc-sig-give" onclick="omCuSignOpen(\'give\')" style="border:1px dashed #999;border-radius:2mm;height:16mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">'+(sigGive||'<span style="color:#aaa;font-size:8.5px">✍️ برای امضا لمس کن</span>')+'</div>'+(omCuRcSig.give?sigStamp:'')+'</div>'
+          +'<div style="flex:1"><div style="font-weight:700;margin-bottom:1mm">تحویل‌گیرنده</div><div id="om-rc-sig-take" onclick="omCuSignOpen(\'take\')" style="border:1px dashed #999;border-radius:2mm;height:16mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden">'+(sigTake||'<span style="color:#aaa;font-size:8.5px">✍️ برای امضا لمس کن</span>')+'</div>'+(omCuRcSig.take?sigStamp:'')+'</div>'
+        +'</div>'
+        +'<div style="border-top:1px solid #333;margin-top:3mm;padding-top:2mm;text-align:center;font-size:8.5px;color:#444">☎ ۰۲۱-۴۴۷۸۷۰۵۲ · www.iprint3d.ir</div>'
+      +'</div>'
+    +'</div>'
+    +'<div style="position:fixed;bottom:0;left:0;right:0;background:#141726;border-top:1px solid #2a2f45;padding:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;z-index:5">'
+      +'<button onclick="omCuReceiptPdf(false)" style="background:#14284a;border:1px solid #1e4e7e;color:#7ab8ff;border-radius:10px;padding:10px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">⬇ خروجی PDF</button>'
+      +'<button onclick="omCuReceiptPdf(true)" style="background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:10px;padding:10px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">💾 ذخیره در پوشه‌ی سفارش</button>'
+      +'<button onclick="omCuCloseReceipt()" style="background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:10px;padding:10px 16px;font-size:12.5px;cursor:pointer;font-family:inherit">بستن</button>'
+    +'</div>';
+  document.body.appendChild(ov);
+}
+// ── بومِ امضا: تمام‌صفحه، در گوشیِ عمودی می‌چرخد ──
+var omCuSignWho='give';
+function omCuSignOpen(who){
+  omCuSignWho=who;
+  var old=document.getElementById('om-sig-ov'); if(old) old.parentNode.removeChild(old);
+  var portrait = window.innerHeight > window.innerWidth;
+  var ov=document.createElement('div'); ov.id='om-sig-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:7000;background:#0c0e16;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none';
+  var W = portrait ? (window.innerHeight-30) : (window.innerWidth-30);
+  var H = portrait ? (window.innerWidth-30)  : (window.innerHeight-30);
+  var padW = Math.min(W-20, 900), padH = Math.min(H-110, 420);
+  ov.innerHTML='<div id="om-sig-rot" style="'+(portrait?('transform:rotate(90deg);width:'+W+'px;height:'+H+'px;'):('width:'+W+'px;height:'+H+'px;'))+'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">'
+    +'<div style="color:#9aa3c2;font-size:13px">✍️ لطفاً در کادرِ زیر امضا کنید — '+(omCuSignWho==='give'?'تحویل‌دهنده':'تحویل‌گیرنده')+'</div>'
+    +'<canvas id="om-sig-cv" width="'+padW+'" height="'+padH+'" style="background:#fff;border-radius:14px;touch-action:none;max-width:100%"></canvas>'
+    +'<div style="display:flex;gap:10px">'
+      +'<button onclick="omCuSignClear()" style="background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:10px;padding:10px 18px;font-size:13px;cursor:pointer;font-family:inherit">🔄 پاک کن</button>'
+      +'<button onclick="omCuSignConfirm()" style="background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:10px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✔ تأیید امضا</button>'
+      +'<button onclick="omCuSignClose()" style="background:#2a1414;border:1px solid #7a2e2e;color:#f0a0a0;border-radius:10px;padding:10px 18px;font-size:13px;cursor:pointer;font-family:inherit">✖ انصراف</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  var cv=document.getElementById('om-sig-cv'), ctx=cv.getContext('2d');
+  ctx.lineWidth=2.6; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#152a6e';
+  // خطِ پایه‌ی راهنما
+  ctx.save(); ctx.strokeStyle='#e3e6ef'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(padW*0.08, padH*0.75); ctx.lineTo(padW*0.92, padH*0.75); ctx.stroke(); ctx.restore();
+  var drawing=false, drew=false;
+  function pos(ev){
+    var r=cv.getBoundingClientRect();
+    var t=(ev.touches&&ev.touches[0])||ev;
+    var cx=t.clientX-r.left, cy=t.clientY-r.top;
+    // نگاشتِ مختصات وقتی بوم چرخیده (نمایش کوچک/چرخیده ولی بوم اصلی صاف است)
+    var sx=cv.width/r.width, sy=cv.height/r.height;
+    var portraitNow = window.innerHeight > window.innerWidth;
+    if(portraitNow){
+      // چون کانتینر ۹۰ درجه چرخیده، rect خودش چرخیده برمی‌گردد؛ نگاشت با نسبتِ ابعاد
+      return { x:(cy)*(cv.width/r.height), y:(r.width-cx)*(cv.height/r.width) };
+    }
+    return { x:cx*sx, y:cy*sy };
+  }
+  function start(ev){ drawing=true; drew=true; var p=pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); ev.preventDefault(); }
+  function move(ev){ if(!drawing) return; var p=pos(ev); ctx.lineTo(p.x,p.y); ctx.stroke(); ev.preventDefault(); }
+  function end(){ drawing=false; }
+  cv.addEventListener('mousedown',start); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  cv.addEventListener('touchstart',start,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',end);
+  cv._drew=function(){ return drew; };
+  cv._clear=function(){ ctx.clearRect(0,0,cv.width,cv.height); ctx.save(); ctx.strokeStyle='#e3e6ef'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(padW*0.08,padH*0.75); ctx.lineTo(padW*0.92,padH*0.75); ctx.stroke(); ctx.restore(); drew=false; };
+}
+function omCuSignClear(){ var cv=document.getElementById('om-sig-cv'); if(cv&&cv._clear) cv._clear(); }
+function omCuSignClose(){ var o=document.getElementById('om-sig-ov'); if(o&&o.parentNode) o.parentNode.removeChild(o); }
+function omCuSignConfirm(){
+  var cv=document.getElementById('om-sig-cv'); if(!cv) return;
+  if(!cv._drew || !cv._drew()){ showToast('امضایی کشیده نشده'); return; }
+  var durl=cv.toDataURL('image/png');
+  // تأییدِ دومرحله‌ای با پیش‌نمایش
+  prConfirm({ title:'ثبتِ امضا', okText:'بله، ثبت کن', cancelText:'نه، دوباره',
+    message:'<div style="text-align:center"><img src="'+durl+'" style="max-width:100%;max-height:90px;background:#fff;border-radius:8px;padding:4px"></div><div style="margin-top:8px">این امضا ثبت شود؟</div>',
+    onOk:function(){ omCuRcSig[omCuSignWho]=durl; omCuSignClose(); omCuShowReceipt(); },
+    onCancel:function(){ omCuSignClear(); } });
+}
+// ── خروجی PDF رسید (html2canvas + jsPDF مثل فاکتور) ──
+function omCuReceiptPdf(saveToFolder){
+  if(!window.html2canvas || !window.jspdf){ showToast('کتابخانه‌ی PDF بارگذاری نشد'); return; }
+  var el=document.getElementById('om-rc-page'); if(!el) return;
+  showToast('⏳ در حال ساخت رسید...');
+  var _w=el.style.width, _mw=el.style.maxWidth;
+  el.style.width='397px'; el.style.maxWidth='none';   // A6 در 96dpi
+  setTimeout(function(){
+    html2canvas(el,{scale:3,backgroundColor:'#ffffff',useCORS:true,scrollX:0,scrollY:0,windowWidth:397,width:397}).then(function(canvas){
+      el.style.width=_w; el.style.maxWidth=_mw;
+      var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm','a6');
+      var pw=105, ph=148;
+      var h=canvas.height*pw/canvas.width, w=pw;
+      if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,0,w,h);
+      var fname='رسید امانت '+(omCuRcCtx?omCuRcCtx.code:'RC')+'.pdf';
+      if(saveToFolder){
+        var b64=pdf.output('datauristring').split(',')[1];
+        fetch(SHEET_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body:JSON.stringify({action:'uploadCustodyReceiptPdf',token:SESSION_TOKEN,id:omCustodyOrderId,rc:(omCuRcCtx?omCuRcCtx.code:''),base64:b64})})
+          .then(function(r){return r.json();}).then(function(res){
+            if(res&&res.status==='ok'){ showToast('✅ رسید در پوشه‌ی سفارش ذخیره شد'); omCuPersist(function(){}); }
+            else showToast('❌ خطا در ذخیره‌ی رسید');
+          }).catch(function(){ showToast('❌ خطا در ذخیره‌ی رسید'); });
+      } else {
+        pdf.save(fname);
+        showToast('✅ رسید دانلود شد');
+        omCuPersist(function(){});
+      }
+    }).catch(function(){ el.style.width=_w; el.style.maxWidth=_mw; showToast('❌ خطا در ساخت PDF'); });
+  }, 250);
 }
 function omRenderMaterials(){
   var box=document.getElementById('om-mats-inner'); if(!box) return;
