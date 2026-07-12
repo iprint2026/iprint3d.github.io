@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V191</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V192</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6659,6 +6659,8 @@ function omSaveRisk(){
 }
 // ══════════ دفترِ اماناتِ قطعات (custody) ══════════
 var omCustody = [];
+var omCustodyReceipts = [];
+var omRcListOpen = false;
 var omCustodyOrderId = '';
 var omCurrentCustomer = '';
 var omCuPendingImg = null;   // {base64, mime} عکسِ انتخاب‌شده در فرمِ افزودن
@@ -6699,7 +6701,46 @@ function omRenderCustody(){
     });
   }
   h+='</div>';
+  // بخشِ کشوییِ رسیدهای صادرشده
+  if(omCustodyReceipts && omCustodyReceipts.length){
+    h+='<div style="margin-top:8px;border:1px solid #1a2440;border-radius:11px;overflow:hidden">'
+      +'<div onclick="omCuToggleRcList()" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;background:#0c1120">'
+        +'<span style="font-weight:700;font-size:12.5px;color:#ffd479">🧾 رسیدهای صادرشده ('+prToFa(omCustodyReceipts.length)+')</span>'
+        +'<span style="color:#8a93b8;font-size:13px">'+(omRcListOpen?'▲':'▼')+'</span>'
+      +'</div>';
+    if(omRcListOpen){
+      h+='<div style="padding:4px 12px 10px">';
+      omCustodyReceipts.slice().reverse().forEach(function(r){
+        var isR = r.kind==='return';
+        var who = [];
+        if(r.give && r.give.name) who.push('تحویل‌دهنده: '+escapeHtml(r.give.name));
+        if(r.take && r.take.name) who.push('تحویل‌گیرنده: '+escapeHtml(r.take.name));
+        h+='<div onclick="omCuReopenReceipt(\''+r.code+'\')" style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #141a30;cursor:pointer">'
+          +'<span style="font-size:10px;font-weight:700;color:'+(isR?'#34d399':'#ffd479')+';background:'+(isR?'#0c2018':'#2a2008')+';border:1px solid '+(isR?'#14543d':'#5c4a12')+';padding:3px 8px;border-radius:6px;white-space:nowrap">'+escapeHtml(r.code)+'</span>'
+          +'<div style="flex:1;min-width:0">'
+            +'<div style="font-size:11.5px;color:#dfe3f5;font-weight:600">'+(isR?'عودت':'دریافت')+' · '+prToFa(r.date||'')+((r.itemNames&&r.itemNames.length)?(' · '+escapeHtml(r.itemNames.join('، '))):'')+'</div>'
+            +(who.length?'<div style="font-size:10px;color:#7c86a8;margin-top:2px">'+who.join(' · ')+'</div>':'<div style="font-size:10px;color:#8a6a2a;margin-top:2px">هنوز امضا نشده</div>')
+          +'</div>'
+          +'<span style="color:#7ab8ff;font-size:11px;white-space:nowrap">باز کردن ◀</span>'
+        +'</div>';
+      });
+      h+='</div>';
+    }
+    h+='</div>';
+  }
   wrap.innerHTML=h;
+}
+function omCuToggleRcList(){ omRcListOpen=!omRcListOpen; omRenderCustody(); }
+function omCuReopenReceipt(code){
+  var rec=null; for(var i=0;i<omCustodyReceipts.length;i++){ if(String(omCustodyReceipts[i].code)===String(code)){ rec=omCustodyReceipts[i]; break; } }
+  if(!rec){ showToast('رسید پیدا نشد'); return; }
+  var ids = rec.items || [];
+  var items = (omCustody||[]).filter(function(c){ return ids.indexOf(String(c.id))!==-1; });
+  if(!items.length && rec.itemNames){ items = rec.itemNames.map(function(nm){ return { name:nm, qty:1 }; }); }
+  omCuRcSig={ give:null, take:null };   // امضاها در PDF ذخیره‌اند؛ اینجا از نو نمایش نمی‌دهیم
+  omCuRcSigner={ give:rec.give||null, take:rec.take||null };
+  omCuRcCtx={ kind:rec.kind, items:items, code:rec.code };
+  omCuShowReceipt();
 }
 function omCuViewImg(ci){
   var c=omCustody[ci]; if(!c||!c.img) return;
@@ -6905,47 +6946,63 @@ function omCuShowReceipt(){
     base += 'امضای دیجیتال · '+prToFa(omCuTodayJalali())+'</div>';
     return base;
   };
-  var sigGive = omCuRcSig.give ? '<img src="'+omCuRcSig.give+'" style="max-height:15mm;max-width:100%">' : '<span style="color:#aaa;font-size:8.5px">✍️ برای امضا لمس کن</span>';
-  var sigTake = omCuRcSig.take ? '<img src="'+omCuRcSig.take+'" style="max-height:15mm;max-width:100%">' : '<span style="color:#aaa;font-size:8.5px">✍️ برای امضا لمس کن</span>';
+  var sigCell=function(who){
+    if(omCuRcSig[who]) return '<img src="'+omCuRcSig[who]+'" style="max-height:15mm;max-width:100%">';
+    var s=omCuRcSigner&&omCuRcSigner[who];
+    if(s&&s.name) return '<div style="font-size:8px;color:#333;line-height:1.7"><b style="color:#111">'+escapeHtml(s.name)+'</b><br>✔ امضا شده<br><span style="font-size:6.5px;color:#777">امضا در فایل PDF</span></div>';
+    return '<span style="color:#aaa;font-size:8.5px">✍️ برای امضا لمس کن</span>';
+  };
+  var sigGive = sigCell('give');
+  var sigTake = sigCell('take');
+  var ink='#1a2536', line='#2c3b52';
   var ov=document.createElement('div'); ov.id='om-rc-ov';
   ov.style.cssText='position:fixed;inset:0;z-index:6200;background:#22252f;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:14px 10px 120px';
   ov.innerHTML=''
-    +'<div id="om-rc-page" style="background:#fff;color:#111;width:105mm;min-height:148mm;max-width:96vw;box-sizing:border-box;direction:rtl;font-family:inherit;position:relative;box-shadow:0 8px 30px rgba(0,0,0,.45);display:flex;flex-direction:column">'
-      // نوارِ رنگیِ سربرگ
-      +'<div style="background:'+accent+';color:#fff;padding:3mm 5mm;display:flex;align-items:center;justify-content:space-between">'
-        +'<div style="display:flex;align-items:center;gap:2.5mm">'
-          +(gRcLogo?'<img src="'+gRcLogo+'" style="height:9mm;background:#fff;border-radius:1.5mm;padding:0.8mm">':'')
-          +'<div><div style="font-weight:900;font-size:12.5px;letter-spacing:.4px;direction:ltr;text-align:right">iPrint3D</div><div style="font-size:7px;opacity:.85">خدماتِ چاپ سه‌بعدی و مهندسیِ معکوس</div></div>'
+    +'<div id="om-rc-page" style="background:#fff;color:#111;width:105mm;min-height:148mm;max-width:96vw;box-sizing:border-box;direction:rtl;font-family:inherit;position:relative;box-shadow:0 8px 30px rgba(0,0,0,.45)">'
+      +'<div style="border:1.6pt solid '+ink+';margin:2mm;min-height:calc(148mm - 4mm);box-sizing:border-box;padding:0;display:flex;flex-direction:column">'
+        +'<div style="outline:0.5pt solid '+ink+';outline-offset:1mm;margin:1.5mm;flex:1;display:flex;flex-direction:column">'
+          // سربرگِ رسمی
+          +'<div style="display:flex;align-items:center;gap:2.5mm;border-bottom:1.2pt solid '+ink+';padding:2.5mm 3mm">'
+            +(gRcLogo?'<img src="'+gRcLogo+'" style="height:11mm">':'')
+            +'<div style="flex:1;text-align:center">'
+              +'<div style="font-weight:900;font-size:13px;letter-spacing:.4px;direction:ltr">iPrint3D</div>'
+              +'<div style="font-size:8px;color:#333;margin-top:.5mm">مجموعه‌ی خدماتِ چاپ سه‌بعدی و مهندسیِ معکوس</div>'
+              +'<div style="font-size:6.5px;color:#666;margin-top:.4mm">تهران · ۰۲۱-۴۴۷۸۷۰۵۲ · www.iprint3d.ir</div>'
+            +'</div>'
+          +'</div>'
+          // عنوان + شماره/تاریخ
+          +'<div style="display:flex;justify-content:space-between;align-items:stretch;border-bottom:0.8pt solid '+line+'">'
+            +'<div style="padding:2mm 3mm;border-left:0.8pt solid '+line+';font-size:7.5px;line-height:1.9;min-width:33mm">'
+              +'<div>شماره‌ی رسید: <b style="letter-spacing:.5px">'+escapeHtml(x.code)+'</b></div>'
+              +'<div>تاریخِ صدور: <b>'+prToFa(omCuTodayJalali())+'</b></div>'
+              +'<div>شماره‌ی سفارش: <b>'+escapeHtml(ordCode||'—')+'</b></div>'
+            +'</div>'
+            +'<div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center">'
+              +'<div><div style="font-weight:900;font-size:13px">'+(isRecv?'رسیدِ دریافتِ امانت':'رسیدِ عودتِ امانت')+'</div><div style="font-size:7px;color:#555;margin-top:.6mm">سندِ رسمیِ '+(isRecv?'تحویل‌گیریِ':'عودتِ')+' قطعاتِ کارفرما</div></div>'
+            +'</div>'
+          +'</div>'
+          // طرفِ کارفرما
+          +'<div style="padding:2mm 3mm;font-size:8.5px;border-bottom:0.6pt solid #ccc"><b>'+(isRecv?'تحویل‌دهنده (کارفرما): ':'تحویل‌گیرنده (کارفرما): ')+'</b>'+escapeHtml(other)+'</div>'
+          // جدولِ قطعات
+          +'<div style="padding:2mm 3mm 0">'
+            +'<table style="width:100%;border-collapse:collapse;font-size:8.5px">'
+              +'<tr style="background:'+ink+';color:#fff"><th style="border:0.6pt solid '+ink+';padding:1.4mm 2mm;width:8mm">ردیف</th><th style="border:0.6pt solid '+ink+';padding:1.4mm 2mm">شرحِ قطعه</th><th style="border:0.6pt solid '+ink+';padding:1.4mm 2mm;width:12mm">تعداد</th></tr>'
+              +rows
+            +'</table>'
+          +'</div>'
+          // متنِ تعهد
+          +'<div style="margin:2.5mm 3mm;font-size:8px;line-height:2;color:#111;text-align:justify;border-top:0.5pt dashed #999;border-bottom:0.5pt dashed #999;padding:2mm 0">'+legal+'</div>'
+          +'<div style="flex:1"></div>'
+          // امضاها
+          +'<div style="display:flex;gap:0;text-align:center;font-size:8.5px;border-top:0.8pt solid '+line+'">'
+            +'<div style="flex:1;border-left:0.8pt solid '+line+';padding:1.5mm 2mm"><div style="font-weight:700;margin-bottom:1mm">امضای تحویل‌دهنده</div><div onclick="omCuSignOpen(\'give\')" style="border:0.6pt dashed #999;border-radius:1mm;height:16mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fcfcfc">'+sigGive+'</div>'+((omCuRcSig.give||(omCuRcSigner&&omCuRcSigner.give))?sigStampTxt('give'):'')+'</div>'
+            +'<div style="flex:1;padding:1.5mm 2mm"><div style="font-weight:700;margin-bottom:1mm">امضای تحویل‌گیرنده / مهر</div><div onclick="omCuSignOpen(\'take\')" style="border:0.6pt dashed #999;border-radius:1mm;height:16mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fcfcfc">'+sigTake+'</div>'+((omCuRcSig.take||(omCuRcSigner&&omCuRcSigner.take))?sigStampTxt('take'):'')+'</div>'
+          +'</div>'
+          // پانوشت
+          +'<div style="background:'+ink+';color:#eef1f7;text-align:center;font-size:7px;padding:1.6mm;letter-spacing:.2px">این رسید در دو نسخه‌ی هم‌اعتبار تنظیم و مبادله گردید · iPrint3D</div>'
         +'</div>'
-        +'<div style="text-align:left;direction:ltr"><div style="font-size:8px;opacity:.8">RECEIPT NO.</div><div style="font-weight:900;font-size:13px;letter-spacing:1.5px">'+escapeHtml(x.code)+'</div></div>'
       +'</div>'
-      // عنوانِ سند
-      +'<div style="text-align:center;padding:3mm 5mm 2mm">'
-        +'<span style="display:inline-block;background:'+accentLite+';color:'+accent+';border:1px solid '+accent+'55;border-radius:5mm;padding:1.2mm 5mm;font-weight:800;font-size:11.5px">'+(isRecv?'رسیدِ دریافتِ امانتِ قطعات':'رسیدِ عودتِ امانتِ قطعات')+'</span>'
-      +'</div>'
-      // اطلاعاتِ کلیدی
-      +'<div style="display:flex;gap:2mm;padding:0 5mm 2.5mm;font-size:8.5px">'
-        +'<div style="flex:1;border:1px solid #ccc;border-radius:1.5mm;padding:1.6mm;text-align:center"><div style="color:#777;font-size:7px">شماره‌ی سفارش</div><b>'+escapeHtml(ordCode||'—')+'</b></div>'
-        +'<div style="flex:1;border:1px solid #ccc;border-radius:1.5mm;padding:1.6mm;text-align:center"><div style="color:#777;font-size:7px">تاریخِ صدور</div><b>'+prToFa(omCuTodayJalali())+'</b></div>'
-        +'<div style="flex:1.4;border:1px solid #ccc;border-radius:1.5mm;padding:1.6mm;text-align:center"><div style="color:#777;font-size:7px">'+(isRecv?'تحویل‌دهنده (کارفرما)':'تحویل‌گیرنده (کارفرما)')+'</div><b>'+escapeHtml(other)+'</b></div>'
-      +'</div>'
-      // جدولِ قطعات
-      +'<div style="padding:0 5mm">'
-        +'<table style="width:100%;border-collapse:collapse;font-size:9px">'
-          +'<tr style="background:#f1f3f7"><th style="border:1px solid #bbb;padding:1.6mm 2mm;width:8mm">ردیف</th><th style="border:1px solid #bbb;padding:1.6mm 2mm">شرحِ قطعه</th><th style="border:1px solid #bbb;padding:1.6mm 2mm;width:12mm">تعداد</th></tr>'
-          +rows
-        +'</table>'
-      +'</div>'
-      // متنِ تعهد
-      +'<div style="margin:2.5mm 5mm;background:#f7f7f7;border:1px solid #ddd;border-right:1mm solid '+accent+';border-radius:1.5mm;padding:2.4mm;font-size:8.5px;line-height:2;color:#222">'+legal+'</div>'
-      +'<div style="flex:1"></div>'
-      // امضاها
-      +'<div style="display:flex;gap:3mm;text-align:center;font-size:9px;padding:1mm 5mm 0">'
-        +'<div style="flex:1"><div style="font-weight:700;margin-bottom:1mm">امضای تحویل‌دهنده</div><div onclick="omCuSignOpen(\'give\')" style="border:1px dashed #999;border-radius:1.5mm;height:17mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fdfdfd">'+sigGive+'</div>'+(omCuRcSig.give?sigStampTxt('give'):'')+'</div>'
-        +'<div style="flex:1"><div style="font-weight:700;margin-bottom:1mm">امضای تحویل‌گیرنده / مهر</div><div onclick="omCuSignOpen(\'take\')" style="border:1px dashed #999;border-radius:1.5mm;height:17mm;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;background:#fdfdfd">'+sigTake+'</div>'+(omCuRcSig.take?sigStampTxt('take'):'')+'</div>'
-      +'</div>'
-      // پانوشت
-      +'<div style="background:#16181f;color:#dfe3ee;text-align:center;font-size:8px;padding:2mm;margin-top:3mm">☎ ۰۲۱-۴۴۷۸۷۰۵۲ &nbsp;·&nbsp; www.iprint3d.ir &nbsp;·&nbsp; این رسید سندِ رسمیِ رفت‌وبرگشتِ قطعاتِ امانی است</div>'
+    +'</div>'
     +'</div>'
     +'<div style="position:fixed;bottom:0;left:0;right:0;background:#141726;border-top:1px solid #2a2f45;padding:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;z-index:5">'
       +'<button onclick="omCuReceiptPdf(false)" style="background:#14284a;border:1px solid #1e4e7e;color:#7ab8ff;border-radius:10px;padding:10px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">⬇ خروجی PDF</button>'
@@ -9320,6 +9377,7 @@ function archiveProfile(id){
     // ── دفترِ اماناتِ قطعات ──
     if(sumEl){
       omCustody = Array.isArray(res.custody) ? res.custody : [];
+      omCustodyReceipts = Array.isArray(res.custodyReceipts) ? res.custodyReceipts : [];
       omCustodyOrderId = omCurrentId;
       sumEl.innerHTML += '<div id="om-custody-wrap" style="margin-top:12px"></div>';
       omRenderCustody();
