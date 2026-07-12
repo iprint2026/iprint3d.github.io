@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V193</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V194</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6633,7 +6633,7 @@ window.addEventListener('load', function(){
 var prState = { machines:[], materials:[], composites:[], rates:{}, defaults:{},
                 order:{}, lines:[], loaded:false };
 var prUid = 1;
-function prNid(){ return 'p' + (prUid++); }
+function prNid(){ return 'p' + (prUid++) + '_' + Date.now().toString(36) + Math.floor(Math.random()*46656).toString(36); }
 var prLastResult = null;
 var gBizRisk = 1;
 var gTodayConfig = null;
@@ -7417,9 +7417,13 @@ function prMachineOptsByType(type, sel){
   return prState.machines.filter(function(m){ return !type || m.type===type; })
     .map(function(m){ return '<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }).join('');
 }
-function prMaterialOpts(sel){
-  var h = '<optgroup label="مواد پایه">' + prState.materials.map(function(m){ return '<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }).join('') + '</optgroup>';
-  if(prState.composites.length) h += '<optgroup label="رزین ترکیبی">' + prState.composites.map(function(c){ return '<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+escapeHtml(c.name)+'</option>'; }).join('') + '</optgroup>';
+function prMaterialOpts(sel, selType){
+  // اگر id بینِ ماده‌ی پایه و رزینِ ترکیبی مشترک باشد، selType ('B'|'C') تعیین می‌کند کدام انتخاب شود.
+  var baseHas=false; prState.materials.forEach(function(m){ if(m.id===sel) baseHas=true; });
+  var markB = (selType==='B') || (!selType && baseHas);
+  var markC = (selType==='C') || (!selType && !baseHas);
+  var h = '<optgroup label="مواد پایه">' + prState.materials.map(function(m){ return '<option value="B:'+m.id+'"'+((m.id===sel&&markB)?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }).join('') + '</optgroup>';
+  if(prState.composites.length) h += '<optgroup label="رزین ترکیبی">' + prState.composites.map(function(c){ return '<option value="C:'+c.id+'"'+((c.id===sel&&markC)?' selected':'')+'>'+escapeHtml(c.name)+'</option>'; }).join('') + '</optgroup>';
   return h;
 }
 var prKindLabel = {machine_fdm:'دستگاه FDM',machine_dlp:'دستگاه DLP',material:'ماده',labor:'نیروی انسانی',finishing:'فینیشینگ',modeling:'مدلسازی'};
@@ -7435,7 +7439,7 @@ function prLineBody(l){
       + '<div><label style="font-size:11px;color:#5a6080">تعداد در صفحه</label><input class="inp" type="number" min="1" data-prf="perPlate" value="'+(l.perPlate!=null?l.perPlate:'')+'"></div></div>';
   } else if(l.kind==='material'){
     return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-      + '<div><label style="font-size:11px;color:#5a6080">ماده</label><select class="inp" data-prf="materialId">'+prMaterialOpts(l.materialId)+'</select></div>'
+      + '<div><label style="font-size:11px;color:#5a6080">ماده</label><select class="inp" data-prf="materialId">'+prMaterialOpts(l.materialId, l.matSel)+'</select></div>'
       + '<div><label style="font-size:11px;color:#5a6080">مقدار (گرم)</label><input class="inp" type="number" step="0.1" data-prf="amount" value="'+(l.amount!=null?l.amount:'')+'"></div></div>';
   }
   if(l.kind==='modeling'){
@@ -7719,7 +7723,15 @@ function prOnInput(e){
   var lineEl = t.closest && t.closest('[data-prlid]');
   if(lineEl && t.dataset && t.dataset.prf){
     var l = prFindLine(lineEl.getAttribute('data-prlid'));
-    if(l){ l[t.dataset.prf] = v; prScheduleCompute(); }
+    if(l){
+      if(t.dataset.prf==='materialId' && /^[BC]:/.test(String(v))){
+        l.matSel = String(v).charAt(0);
+        l.materialId = String(v).slice(2);
+      } else {
+        l[t.dataset.prf] = v;
+      }
+      prScheduleCompute();
+    }
     return;
   }
   // فیلدهای بخش (نام/تعداد/سود)
@@ -8001,7 +8013,7 @@ function prUsedLabels(){
   var mach=[], mat=[];
   (prState.lines||[]).forEach(function(l){
     if(String(l.kind).indexOf('machine')===0){ var n=prNameOf(prState.machines,l.machineId); if(n && mach.indexOf(n)<0) mach.push(n); }
-    else if(l.kind==='material'){ var nm=prNameOf(prState.materials,l.materialId)||prNameOf(prState.composites,l.materialId); if(nm && mat.indexOf(nm)<0) mat.push(nm); }
+    else if(l.kind==='material'){ var nm=(l.matSel==='C')?(prNameOf(prState.composites,l.materialId)||prNameOf(prState.materials,l.materialId)):(prNameOf(prState.materials,l.materialId)||prNameOf(prState.composites,l.materialId)); if(nm && mat.indexOf(nm)<0) mat.push(nm); }
   });
   return { machine: mach.length?('دستگاه ('+mach.join('، ')+')'):'دستگاه', material: mat.length?('ماده ('+mat.join('، ')+')'):'ماده' };
 }
