@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V192</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V193</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6721,6 +6721,7 @@ function omRenderCustody(){
             +'<div style="font-size:11.5px;color:#dfe3f5;font-weight:600">'+(isR?'عودت':'دریافت')+' · '+prToFa(r.date||'')+((r.itemNames&&r.itemNames.length)?(' · '+escapeHtml(r.itemNames.join('، '))):'')+'</div>'
             +(who.length?'<div style="font-size:10px;color:#7c86a8;margin-top:2px">'+who.join(' · ')+'</div>':'<div style="font-size:10px;color:#8a6a2a;margin-top:2px">هنوز امضا نشده</div>')
           +'</div>'
+          +'<span onclick="event.stopPropagation();omCuDeleteReceipt(\''+r.code+'\')" title="حذفِ رسید" style="color:#c66;font-size:13px;padding:2px 6px;cursor:pointer">🗑</span>'
           +'<span style="color:#7ab8ff;font-size:11px;white-space:nowrap">باز کردن ◀</span>'
         +'</div>';
       });
@@ -6731,6 +6732,21 @@ function omRenderCustody(){
   wrap.innerHTML=h;
 }
 function omCuToggleRcList(){ omRcListOpen=!omRcListOpen; omRenderCustody(); }
+function omCuDeleteReceipt(code){
+  prConfirm({ title:'حذفِ رسید', okText:'🗑 بله، حذف کن', cancelText:'انصراف',
+    message:'رسیدِ «'+escapeHtml(code)+'» به‌طورِ کامل حذف شود؟<br><br><span style="font-size:11.5px;color:#f0a0a0">این کار فایلِ PDF را از پوشه‌ی سفارش پاک می‌کند و همه‌ی داده‌های این رسید (نام و شماره‌ی امضاکننده‌ها و ارجاعِ قطعات) را از دیتابیس حذف می‌کند. این عمل قابلِ بازگشت نیست.</span>',
+    onOk:function(){
+      showToast('⏳ در حال حذفِ رسید...');
+      callSheet('deleteCustodyReceipt', { id:omCustodyOrderId, rc:code, t:Date.now() }, function(res){
+        if(res && res.status==='ok'){
+          omCustodyReceipts = omCustodyReceipts.filter(function(r){ return String(r.code)!==String(code); });
+          (omCustody||[]).forEach(function(c){ if(c.recvReceipt===code) c.recvReceipt=''; if(c.retReceipt===code) c.retReceipt=''; });
+          omRenderCustody();
+          showToast('✅ رسید و داده‌هایش حذف شد');
+        } else showToast('❌ خطا در حذفِ رسید');
+      }, 40000);
+    }});
+}
 function omCuReopenReceipt(code){
   var rec=null; for(var i=0;i<omCustodyReceipts.length;i++){ if(String(omCustodyReceipts[i].code)===String(code)){ rec=omCustodyReceipts[i]; break; } }
   if(!rec){ showToast('رسید پیدا نشد'); return; }
@@ -7139,30 +7155,38 @@ function omCuReceiptPdf(saveToFolder){
   showToast('⏳ در حال ساخت رسید...');
   var _w=el.style.width, _mw=el.style.maxWidth;
   el.style.width='397px'; el.style.maxWidth='none';   // A6 در 96dpi
-  setTimeout(function(){
-    html2canvas(el,{scale:3,backgroundColor:'#ffffff',useCORS:true,scrollX:0,scrollY:0,windowWidth:397,width:397}).then(function(canvas){
-      el.style.width=_w; el.style.maxWidth=_mw;
-      var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm','a6');
-      var pw=105, ph=148;
-      var h=canvas.height*pw/canvas.width, w=pw;
-      if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,0,w,h);
-      var fname='رسید امانت '+(omCuRcCtx?omCuRcCtx.code:'RC')+'.pdf';
-      if(saveToFolder){
-        var b64=(pdf.output('datauristring')||'').split(',')[1]||'';
-        if(!b64){ showToast('❌ ساختِ فایل ناموفق بود'); return; }
-        var url=(typeof loadSheetUrl==='function')?loadSheetUrl():SHEET_URL;
-        fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
-          body:JSON.stringify({action:'uploadCustodyReceiptPdf',token:SESSION_TOKEN,id:omCustodyOrderId,rc:(omCuRcCtx?omCuRcCtx.code:''),base64:b64})})
-          .then(function(){ showToast('✅ رسید در پوشه‌ی سفارش ذخیره شد'); omCuPersist(function(){}); })
-          .catch(function(){ showToast('❌ خطا در ذخیره‌ی رسید'); });
-      } else {
-        pdf.save(fname);
-        showToast('✅ رسید دانلود شد');
-        omCuPersist(function(){});
-      }
-    }).catch(function(){ el.style.width=_w; el.style.maxWidth=_mw; showToast('❌ خطا در ساخت PDF'); });
-  }, 250);
+  // اول منتظرِ بارگذاریِ کاملِ همه‌ی تصاویر (امضا و لوگو) می‌مانیم تا در عکس جا نمانند
+  var imgs=[].slice.call(el.querySelectorAll('img'));
+  var waits=imgs.map(function(im){
+    if(im.complete && im.naturalWidth>0){ return (im.decode?im.decode().catch(function(){}):Promise.resolve()); }
+    return new Promise(function(res){ im.onload=res; im.onerror=res; setTimeout(res,2500); });
+  });
+  Promise.all(waits).then(function(){
+    setTimeout(function(){
+      html2canvas(el,{scale:3,backgroundColor:'#ffffff',useCORS:true,allowTaint:true,imageTimeout:0,scrollX:0,scrollY:0,windowWidth:397,width:397}).then(function(canvas){
+        el.style.width=_w; el.style.maxWidth=_mw;
+        var jsPDF=window.jspdf.jsPDF; var pdf=new jsPDF('p','mm','a6');
+        var pw=105, ph=148;
+        var h=canvas.height*pw/canvas.width, w=pw;
+        if(h>ph){ h=ph; w=canvas.width*ph/canvas.height; }
+        pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,0,w,h);
+        var fname='رسید امانت '+(omCuRcCtx?omCuRcCtx.code:'RC')+'.pdf';
+        if(saveToFolder){
+          var b64=(pdf.output('datauristring')||'').split(',')[1]||'';
+          if(!b64){ showToast('❌ ساختِ فایل ناموفق بود'); return; }
+          var url=(typeof loadSheetUrl==='function')?loadSheetUrl():SHEET_URL;
+          fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
+            body:JSON.stringify({action:'uploadCustodyReceiptPdf',token:SESSION_TOKEN,id:omCustodyOrderId,rc:(omCuRcCtx?omCuRcCtx.code:''),base64:b64})})
+            .then(function(){ showToast('✅ رسید در پوشه‌ی سفارش ذخیره شد'); omCuPersist(function(){}); })
+            .catch(function(){ showToast('❌ خطا در ذخیره‌ی رسید'); });
+        } else {
+          pdf.save(fname);
+          showToast('✅ رسید دانلود شد');
+          omCuPersist(function(){});
+        }
+      }).catch(function(){ el.style.width=_w; el.style.maxWidth=_mw; showToast('❌ خطا در ساخت PDF'); });
+    }, 120);
+  });
 }
 function omRenderMaterials(){
   var box=document.getElementById('om-mats-inner'); if(!box) return;
