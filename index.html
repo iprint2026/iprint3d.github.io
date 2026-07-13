@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V196</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V199</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -875,9 +875,23 @@ function doPost(e){
               <div id="pr-wrap-profit" style="background:#1a160a;border:1px solid #5a4a1e;border-radius:9px;padding:8px 10px"><label style="font-size:11px;color:#fbbf24;font-weight:700">📈 ضریب سود (پیش‌فرض)</label><input class="inp" id="pr-p-profit" type="number" step="0.1" style="border-color:#5a4a1e;color:#fbbf24;font-weight:700;text-align:center"></div>
               <div style="background:#0c1e1a;border:1px solid #1e5e54;border-radius:9px;padding:8px 10px"><label style="font-size:11px;color:#34d399;font-weight:700">🏛 درصد پژوهشگاه (٪)</label><input class="inp" id="pr-p-institute" type="number" style="border-color:#1e5e54;color:#34d399;font-weight:700;text-align:center"></div>
             </div>
+            <div id="pr-mnp-box" style="margin-top:9px;background:#12131f;border:1px solid #26283f;border-radius:10px;padding:9px 11px">
+              <label style="display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none">
+                <input type="checkbox" id="pr-p-matnoprofit" style="width:17px;height:17px;accent-color:#34d399;flex:none">
+                <span style="flex:1;font-size:12px;color:#8a93b8;font-weight:700" id="pr-mnp-lbl">🧪 مواد خارج از ضریب سود <span style="font-weight:400;font-size:10.5px;color:#5a6080">(مواد فقط × ضریب ریسک؛ سود روی کار و دستگاه)</span></span>
+                <span id="pr-mnp-riskwrap" style="display:none;align-items:center;gap:5px;flex:none"><span style="font-size:10.5px;color:#7fe0b8">ریسکِ مواد ×</span><input class="inp" type="number" id="pr-p-matriskx" step="0.05" min="1" value="1.2" onclick="event.preventDefault();event.stopPropagation()" style="width:66px;background:#0a1a16;border:1px solid #1e7d52;border-radius:7px;color:#7fe0b8;padding:5px 6px;text-align:center;font-weight:800;font-size:13px"></span>
+              </label>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
               <div><label style="font-size:11px;color:#5a6080">بسته‌بندی (تومان)</label><input class="inp pr-money" id="pr-p-packaging" placeholder="مثلاً ۵۰٬۰۰۰"></div>
               <div><label style="font-size:11px;color:#5a6080">ارسال (تومان)</label><input class="inp pr-money" id="pr-p-shipping" placeholder="مثلاً ۳۰۰٬۰۰۰"></div>
+            </div>
+            <div id="pr-extras-box" style="margin-top:9px;background:#171226;border:1px solid #3a2f5e;border-radius:10px;padding:9px 11px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:12px;color:#c4b5fd;font-weight:700">🛒 هزینه‌های جانبی پروژه <span style="font-weight:400;font-size:10px;color:#6b6490">(رنگ، ابزار و… · بدونِ سود، یک‌بار به کلِ پروژه)</span></span>
+                <button onclick="prExtraAdd()" style="background:#241c44;border:1px solid #4a3d80;color:#c4b5fd;border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">+ هزینه</button>
+              </div>
+              <div id="pr-extras-rows"></div>
             </div>
             <label style="display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#cfd3e6;cursor:pointer">
               <input type="checkbox" id="pr-p-showextras" onchange="prState.order.showExtras=this.checked; prScheduleCompute();" style="width:16px;height:16px">
@@ -6637,11 +6651,40 @@ function prNid(){ return 'p' + (prUid++) + '_' + Date.now().toString(36) + Math.
 var prLastResult = null;
 var gBizRisk = 1;
 var gTodayConfig = null;
+function omDownloadZip(){
+  if(!omCurrentId){ showToast('شناسه‌ی سفارش پیدا نشد'); return; }
+  var btn=document.getElementById('om-zip-btn');
+  if(btn){ btn.textContent='⏳ در حال ساختِ زیپ...'; btn.disabled=true; }
+  showToast('⏳ در حال جمع‌آوری و فشرده‌سازیِ فایل‌های پروژه — چند لحظه صبر کن');
+  callSheet('exportProjectZip', { id:omCurrentId, t:Date.now() }, function(res){
+    if(btn){ btn.textContent='🗜 دانلود فایل کامل پروژه'; btn.disabled=false; }
+    if(res && res.status==='ok' && res.url){
+      showToast('✅ زیپ آماده شد ('+prToFa(res.files||0)+' فایل) — دانلود شروع شد');
+      try{ window.open(res.url, '_blank'); }catch(e){ location.href=res.url; }
+    } else {
+      showToast('❌ '+((res&&res.message)||'خطا در ساختِ زیپ'));
+    }
+  }, 180000);
+}
 function omToggleSec(id, hdr){
   var el=document.getElementById(id); if(!el) return;
   var open = el.style.display==='none';
   el.style.display = open ? 'block' : 'none';
   if(hdr){ var c=hdr.querySelector('.om-caret'); if(c) c.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)'; }
+}
+var omSecsAllOpen=false;
+function omToggleAllSecs(){
+  omSecsAllOpen=!omSecsAllOpen;
+  var i=0;
+  while(true){
+    var el=document.getElementById('om-sec-'+i); if(!el) break;
+    el.style.display = omSecsAllOpen ? 'block' : 'none';
+    var hdr=el.previousElementSibling;
+    if(hdr){ var c=hdr.querySelector('.om-caret'); if(c) c.style.transform = omSecsAllOpen ? 'rotate(180deg)' : 'rotate(0deg)'; }
+    i++;
+  }
+  var btn=document.getElementById('om-sec-toggle-all');
+  if(btn) btn.innerHTML = omSecsAllOpen ? '⬆ بستنِ همه' : '⬇ باز کردنِ همه';
 }
 var omMats = [];
 var omRiskOrderId = '';
@@ -7388,6 +7431,44 @@ function prRenderSettings(){
 }
 
 // ── سفارش ──
+// ── هزینه‌های جانبی پروژه (بدونِ سود) ──
+function prExtrasRender(){
+  var box=document.getElementById('pr-extras-rows'); if(!box) return;
+  var xs=(prState.order.extraCosts||[]);
+  if(!xs.length){ box.innerHTML='<div style="font-size:10.5px;color:#6b6490;padding:6px 0 2px">هزینه‌ای ثبت نشده. مثلاً: اسپری رنگ، مته، ابزارِ خریداری‌شده برای همین پروژه.</div>'; return; }
+  var h='';
+  xs.forEach(function(x,i){
+    h+='<div style="display:flex;gap:7px;align-items:center;margin-top:7px">'
+      +'<input class="inp" value="'+escapeHtml(x.name||'')+'" placeholder="نام هزینه (مثلاً اسپری رنگ)" oninput="prExtraSet('+i+',\'name\',this.value)" style="flex:1.4">'
+      +'<input class="inp pr-money" value="'+((+x.amount>0)?prSep(+x.amount):'')+'" placeholder="مبلغ (تومان)" oninput="prExtraSet('+i+',\'amount\',prParseMoney(this.value));var g=prParseMoney(this.value);this.value=g?prSep(g):\'\'" style="flex:1;border-color:#4a3d80;color:#c4b5fd;text-align:center;font-weight:700">'
+      +'<button onclick="prExtraDel('+i+')" style="background:#1a1d2e;border:1px solid #2a2f45;color:#8a93b8;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer;font-family:inherit">🗑</button>'
+      +'</div>';
+  });
+  var tot=0; xs.forEach(function(x){ tot+=(+x.amount||0); });
+  h+='<div style="font-size:10.5px;color:#c4b5fd;margin-top:7px;text-align:left">جمع: '+prToFa(prSep(Math.round(tot)))+' تومان · بدونِ سود، یک‌بار به قیمتِ کل اضافه می‌شود</div>';
+  box.innerHTML=h;
+}
+function prExtraAdd(){
+  prState.order.extraCosts = prState.order.extraCosts||[];
+  prState.order.extraCosts.push({name:'',amount:''});
+  prExtrasRender();
+}
+function prExtraSet(i,f,v){
+  var xs=prState.order.extraCosts||[]; if(!xs[i]) return;
+  xs[i][f]=v;
+  prScheduleCompute();
+}
+function prExtraDel(i){
+  var xs=prState.order.extraCosts||[]; xs.splice(i,1);
+  prExtrasRender(); prScheduleCompute();
+}
+function prMnpSync(){
+  var on = !!(prState.order && prState.order.matNoProfit);
+  var box=document.getElementById('pr-mnp-box'); var lbl=document.getElementById('pr-mnp-lbl'); var rw=document.getElementById('pr-mnp-riskwrap');
+  if(box){ box.style.background = on?'#0c2320':'#12131f'; box.style.borderColor = on?'#1e7d52':'#26283f'; }
+  if(lbl){ lbl.style.color = on?'#7fe0b8':'#8a93b8'; }
+  if(rw){ rw.style.display = on?'flex':'none'; }
+}
 function prRenderOrder(){
   var o = prState.order;
   document.getElementById('pr-o-customer').value  = o.customer||'';
@@ -7408,6 +7489,10 @@ function prRenderOrder(){
   }
   var mu=document.getElementById('pr-manual-unit'); if(mu) mu.value = (+o.manualUnit>0)?prSep(+o.manualUnit):'';
   var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display=((+o.manualUnit>0)?'block':'none');
+  var mnp=document.getElementById('pr-p-matnoprofit'); if(mnp) mnp.checked = !!o.matNoProfit;
+  prExtrasRender();
+  var mrx=document.getElementById('pr-p-matriskx'); if(mrx && (+o.matRiskX>0)) mrx.value = o.matRiskX;
+  prMnpSync();
 }
 function prTodayJalaliStr(){
   var n=new Date(); var j=gregorianToJalali(n.getFullYear(), n.getMonth()+1, n.getDate());
@@ -7459,7 +7544,11 @@ function prLineBody(l){
       + '<div><label style="font-size:11px;color:#5a6080">مقدار (گرم)</label><input class="inp" type="number" step="0.1" data-prf="amount" value="'+(l.amount!=null?l.amount:'')+'"></div></div>';
   }
   if(l.kind==='modeling'){
-    return '<div><label style="font-size:11px;color:#5a6080">زمان مدلسازی (ساعت)</label><input class="inp" type="number" step="0.1" data-prf="hours" value="'+(l.hours!=null?l.hours:((l.minutes!=null&&l.minutes!=='')?(Math.round((+l.minutes/60)*100)/100):''))+'"></div>';
+    return '<div style="grid-column:1/-1;display:grid;grid-template-columns:1.4fr 0.8fr 1fr;gap:8px">'
+      +'<div><label style="font-size:11px;color:#5a6080">نامِ طراحی/قطعه</label><input class="inp" data-prf="name" value="'+escapeHtml(l.name||'')+'" placeholder="مثلاً: بدنه‌ی اصلی"></div>'
+      +'<div><label style="font-size:11px;color:#5a6080">زمان (ساعت)</label><input class="inp" type="number" step="0.1" data-prf="hours" value="'+(l.hours!=null?l.hours:((l.minutes!=null&&l.minutes!=='')?(Math.round((+l.minutes/60)*100)/100):''))+'"></div>'
+      +'<div><label style="font-size:11px;color:#5fe39a">هزینه (تومان، اختیاری)</label><input class="inp pr-money" data-prf="cost" value="'+((+l.cost>0)?prSep(+l.cost):'')+'" placeholder="جایگزینِ ساعت×نرخ" style="border-color:#1e5e54;color:#5fe39a"></div>'
+      +'</div>';
   }
   return '<div><label style="font-size:11px;color:#5a6080">زمان (دقیقه)</label><input class="inp" type="number" data-prf="minutes" value="'+(l.minutes!=null?l.minutes:'')+'"></div>';
 }
@@ -7484,7 +7573,7 @@ function prRenderSections(){
     var alt = (idx % 2 === 0);
     var cardBg = alt ? '#0f1020' : '#121223';
     var cardBd = alt ? '#262a4a' : '#2e2752';
-    html += '<div class="pr-sec" data-prsid="'+s.id+'" style="border:1px solid '+cardBd+';border-radius:13px;padding:13px;margin-bottom:12px;background:'+cardBg+'">'
+    html += '<div class="pr-sec" data-prsid="'+s.id+'" data-prsidx="'+idx+'" style="border:1px solid '+cardBd+';border-radius:13px;padding:13px;margin-bottom:12px;background:'+cardBg+'">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">'
         +'<span style="background:#7c5af5;color:#fff;font-weight:800;font-size:12px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center">'+prToFa(idx+1)+'</span>'
         +'<input class="inp" data-prsf="name" value="'+escapeHtml(s.name||'')+'" placeholder="نام قطعه (مثلاً بدنه)" style="flex:1;font-weight:700">'
@@ -7508,6 +7597,16 @@ function prRenderSections(){
     html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px;background:#161326;border:1px solid #34306a;border-radius:10px;padding:10px">'
       +'<div><label style="font-size:11px;color:#a99bf5;font-weight:700">🔢 تعداد این قطعه</label><input class="inp" type="number" min="1" data-prsf="qty" value="'+(s.qty!=null?s.qty:1)+'" style="border-color:#34306a;text-align:center;font-weight:700"></div>'
       +'<div><label style="font-size:11px;color:#fbbf24;font-weight:700">📈 ضریب سود این قطعه</label><input class="inp" type="number" step="0.1" data-prsf="profit" value="'+(s.profit!=null?s.profit:'')+'" placeholder="پیش‌فرض" style="border-color:#5a4a1e;text-align:center;font-weight:700;color:#fbbf24"></div>'
+      +'</div>';
+    // «مواد خارج از ضریب سود» — تیک + ضریب ریسکِ دستی (فقط همین قطعه)
+    var mnp = !!s.matNoProfit;
+    html += '<div style="margin-top:8px;background:'+(mnp?'#0c2320':'#12131f')+';border:1px solid '+(mnp?'#1e7d52':'#26283f')+';border-radius:10px;padding:9px 11px;transition:all .15s">'
+      +'<label style="display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none">'
+        +'<input type="checkbox" data-prsf="matNoProfit" '+(mnp?'checked':'')+' style="width:17px;height:17px;accent-color:#34d399;flex:none">'
+        +'<span style="flex:1;font-size:12px;color:'+(mnp?'#7fe0b8':'#8a93b8')+';font-weight:700">🧪 مواد خارج از ضریب سود <span style="font-weight:400;font-size:10.5px;color:'+(mnp?'#5aa88c':'#5a6080')+'">(مواد فقط × ضریب ریسک؛ سود روی کار و دستگاه)</span></span>'
+        +(mnp?('<span style="display:flex;align-items:center;gap:5px;flex:none"><span style="font-size:10.5px;color:#7fe0b8">ریسکِ مواد ×</span><input class="inp" type="number" step="0.05" min="1" data-prsf="matRiskX" value="'+((+s.matRiskX>0)?s.matRiskX:1.2)+'" onclick="event.preventDefault();event.stopPropagation()" style="width:66px;background:#0a1a16;border:1px solid #1e7d52;border-radius:7px;color:#7fe0b8;padding:5px 6px;text-align:center;font-weight:800;font-size:13px"></span>'):'')
+      +'</label>'
+      +(mnp?'<div style="font-size:10px;color:#5aa88c;margin-top:5px">قیمتِ این قطعه = (کار و دستگاه × سود) + (مواد × '+prToFa((+s.matRiskX>0)?s.matRiskX:1.2)+')</div>':'')
       +'</div>';
     html += '</div>';
   });
@@ -7564,9 +7663,20 @@ function prSetSecManual(sid, val, autoVal){
   var n = (clean==='') ? NaN : (+clean||0);
   if(isNaN(n) || (autoVal!=null && Math.round(n)===Math.round(autoVal))){
     s.manualUnit = '';
-  } else {
-    s.manualUnit = n;
+    prScheduleCompute();
+    return;
   }
+  // هشدارِ سودِ منفی: اگر قیمتِ دستی زیرِ تمام‌شده باشد، تأییدِ آگاهانه بگیر
+  var base = 0;
+  try{ (prLastResult&&prLastResult.sections||[]).forEach(function(x){ if(x.id===sid) base=+x.base||0; }); }catch(e){}
+  if(base>0 && n < base){
+    prConfirm({ title:'⚠️ سودِ منفی', okText:'بله، آگاهانه ثبت شود', cancelText:'انصراف',
+      message:'قیمتِ واردشده ('+prToFa(prSep(n))+' تومان) از قیمتِ تمام‌شده‌ی این قطعه ('+prToFa(prSep(Math.round(base)))+' تومان) کمتر است — یعنی سودِ این قطعه <b style="color:#f0a0a0">منفی</b> می‌شود.<br><br>اگر عمداً می‌خواهی (مثلاً سفارشِ بدونِ سود)، تأیید کن تا همین‌طور ثبت شود.',
+      onOk:function(){ s.manualUnit = n; prScheduleCompute(); },
+      onCancel:function(){ prRenderTape(prLastResult||{}); prDoCompute(); } });
+    return;
+  }
+  s.manualUnit = n;
   prScheduleCompute();
 }
 var prActiveSecImg = '';
@@ -7753,9 +7863,12 @@ function prOnInput(e){
   // فیلدهای بخش (نام/تعداد/سود)
   var secEl = t.closest && t.closest('[data-prsid]');
   if(secEl && t.dataset && t.dataset.prsf){
-    var sc2 = prSecFind(secEl.getAttribute('data-prsid'));
+    var _si = secEl.getAttribute('data-prsidx');
+    var sc2 = (_si!==null && prState.order && prState.order.sections) ? prState.order.sections[+_si] : null;
+    if(!sc2) sc2 = prSecFind(secEl.getAttribute('data-prsid'));
     if(sc2){
       var f=t.dataset.prsf;
+      if(f==='matNoProfit'){ sc2.matNoProfit = !!t.checked; if(sc2.matNoProfit && !(+sc2.matRiskX>0)) sc2.matRiskX = 1.2; prRenderLines(); prScheduleCompute(); return; }
       sc2[f] = (f==='name') ? t.value : (t.value===''?'':(+t.value));
       prScheduleCompute();
     }
@@ -7793,8 +7906,19 @@ function prOnInput(e){
   if(rmap[t.id]){ var g=rmap[t.id]; prState[g[0]][g[1]] = v; return; }
   // اطلاعات سفارش و پارامترها
   if(t.id==='pr-o-notes'){ prState.order.notes = t.value; return; }
-  if(t.id==='pr-manual-unit'){ prState.order.manualUnit = v; var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display=(v>0?'block':'none'); prScheduleCompute(); return; }
+  if(t.id==='pr-manual-unit'){
+    var _b1=(prLastResult&&!prLastResult.multi)?(+prLastResult.base||0):0;
+    if(v>0 && _b1>0 && v<_b1){
+      prConfirm({ title:'⚠️ سودِ منفی', okText:'بله، آگاهانه ثبت شود', cancelText:'انصراف',
+        message:'قیمتِ واردشده ('+prToFa(prSep(v))+' تومان) از قیمتِ تمام‌شده‌ی هر عدد ('+prToFa(prSep(Math.round(_b1)))+' تومان) کمتر است — یعنی سودِ سفارش <b style="color:#f0a0a0">منفی</b> می‌شود.<br><br>اگر عمداً می‌خواهی (مثلاً سفارشِ بدونِ سود)، تأیید کن.',
+        onOk:function(){ prState.order.manualUnit = v; var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display='block'; prScheduleCompute(); },
+        onCancel:function(){ prRenderOrder(); prDoCompute(); } });
+      return;
+    }
+    prState.order.manualUnit = v; var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display=(v>0?'block':'none'); prScheduleCompute(); return; }
   var omap = {'pr-o-customer':'customer','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
+  if(t.id==='pr-p-matnoprofit'){ prState.order.matNoProfit = !!t.checked; if(prState.order.matNoProfit && !(+prState.order.matRiskX>0)) prState.order.matRiskX = (+((document.getElementById('pr-p-matriskx')||{}).value)||1.2); prMnpSync(); prScheduleCompute(); return; }
+  if(t.id==='pr-p-matriskx'){ prState.order.matRiskX = (+t.value>0)?+t.value:1; prScheduleCompute(); return; }
   if(omap[t.id]){ prState.order[omap[t.id]] = v; prScheduleCompute(); return; }
 }
 
@@ -7987,6 +8111,13 @@ function pricingEditOrder(id){
     prState.invoice    = c.invoice||{logoFileId:'',stampFileId:''};
     prState.order      = res.order||{};
     prState.lines      = (res.lines||[]).map(function(l){ if(!l.id) l.id=prNid(); return l; });
+    // یکتاسازیِ idهای تکراری (داده‌های قدیمی): اولین رخداد می‌ماند، تکراری‌ها id تازه می‌گیرند
+    (function(){
+      var seen={};
+      function uniq(o){ if(!o) return; var k=String(o.id||''); if(!k || seen[k]){ o.id=prNid(); } seen[String(o.id)]=1; }
+      (prState.lines||[]).forEach(uniq);
+      ((prState.order&&prState.order.sections)||[]).forEach(function(s){ uniq(s); (s.lines||[]).forEach(uniq); });
+    })();
     prState.editId     = res.id;
     prState.savedCode  = res.code||'';
     prState.loaded     = true;
@@ -8058,6 +8189,15 @@ function prRenderTape(r){
       h2 += '<div class="pr-ln muted" style="font-size:11.5px;border-top:1px dashed #232742;padding-top:5px"><span>قیمت تمام‌شده (هر عدد)</span><span>'+prFmt(s.base)+'</span></div>';
       if(s.manual){
         h2 += '<div class="pr-ln" style="font-size:11.5px;color:#5fe39a"><span>قیمت اعلامی دستی (هر عدد)</span><span>'+prFmt(s.perUnit)+'</span></div>';
+        if(s.effProfit!=null) h2 += '<div class="pr-ln" style="font-size:11.5px;color:#fbbf24"><span>📊 ضریب سود مؤثر (خودکار از قیمتِ دستی)</span><span style="font-weight:800">×'+prToFa(s.effProfit)+'</span></div>';
+      } else if(s.matNoProfit){
+        var _w=Math.round((s.cat?((s.cat.machine||0)+(s.cat.labor||0)+(s.cat.finishing||0)):0));
+        var _m=Math.round((s.cat&&s.cat.material)||0);
+        h2 += '<div class="pr-ln" style="font-size:11px;background:#0c2320;border:1px solid #1e7d52;border-radius:7px;padding:5px 8px;margin:3px 0"><span style="color:#7fe0b8">🧪 مواد خارج از ضریب سود</span><span style="color:#7fe0b8;font-weight:700">مواد ×'+prToFa(s.matRiskX||1)+'</span></div>';
+        h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>کار و دستگاه ×'+prToFa(s.profit)+'</span><span>'+prFmt(_w*s.profit)+'</span></div>';
+        h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>مواد ×'+prToFa(s.matRiskX||1)+' (بدونِ سود)</span><span>'+prFmt(_m*(s.matRiskX||1))+'</span></div>';
+        if(s.institute) h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>🏛 سهم پژوهشگاه (هر عدد)</span><span>'+prFmt(s.institute/s.qty)+'</span></div>';
+        h2 += '<div class="pr-ln" style="font-size:12px"><span>قیمت هر عدد</span><span style="color:#9cd1ff;font-weight:700">'+prFmt(s.perUnit)+'</span></div>';
       } else {
         h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>📈 با سود ×'+prToFa(s.profit)+'</span><span>'+prFmt(s.base*s.profit)+'</span></div>';
         if(s.institute) h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>🏛 سهم پژوهشگاه (هر عدد)</span><span>'+prFmt(s.institute/s.qty)+'</span></div>';
@@ -8079,6 +8219,7 @@ function prRenderTape(r){
       +'<div class="pr-ln muted"><span>جمع قطعه‌ها</span><span>'+prFmt(r.perPartAnnounced)+'</span></div>';
     if(r.modelingAnnounced) h2 += '<div class="pr-ln muted"><span>+ طراحی/مدلسازی</span><span>'+prFmt(r.modelingAnnounced)+'</span></div>';
     if(+r.packaging||+r.shipping) h2 += '<div class="pr-ln muted"><span>+ بسته‌بندی و ارسال</span><span>'+prFmt((+r.packaging||0)+(+r.shipping||0))+'</span></div>';
+    if(+r.extraSum) h2 += '<div class="pr-ln" style="font-size:11.5px"><span style="color:#c4b5fd">🛒 هزینه‌های جانبی (بدونِ سود)</span><span style="color:#c4b5fd;font-weight:700">'+prFmt(r.extraSum)+'</span></div>';
     h2 += '<div class="pr-ln strong" style="font-size:14px;border-top:1px solid #1e3a6e;padding-top:7px;margin-top:4px"><span style="color:#fff">قیمت نهایی</span><span style="color:#5fe39a">'+prFmt(r.orderTotal)+'</span></div>'
       +'<div class="pr-ln muted" style="font-size:10.5px"><span>🏛 از این مبلغ، سهم پژوهشگاه</span><span>'+prFmt(r.institute)+'</span></div>'
       +'<div class="pr-ln strong" style="color:#4ade80;font-size:12.5px"><span>💎 سود این پروژه</span><span>'+prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal))+'</span></div>'
@@ -8094,27 +8235,35 @@ function prRenderTape(r){
   var packShip = (+r.packaging||0) + (+r.shipping||0);
   var h = '';
   if(prState.savedCode){ h += '<div class="pr-ln strong" style="background:#0c1c3a;border:1px solid #1e3a6e;border-radius:8px;padding:8px 10px;margin-bottom:8px"><span style="color:#7ab8ff">کد سفارش</span><span style="color:#7ab8ff;letter-spacing:1px">'+escapeHtml(prState.savedCode)+'</span></div>'; }
-  if(r && r.manual){ h += '<div class="pr-ln" style="background:#0c2a20;border:1px solid #14543d;border-radius:8px;padding:7px 10px;margin-bottom:8px"><span style="color:#34d399">قیمت اعلامی (دستی)</span><span style="color:#34d399;font-weight:700">'+prFmt(r.manualUnit)+' / عدد</span></div>'; }
+  if(r && r.manual){ h += '<div class="pr-ln" style="background:#0c2a20;border:1px solid #14543d;border-radius:8px;padding:7px 10px;margin-bottom:8px"><span style="color:#34d399">قیمت اعلامی (دستی)</span><span style="color:#34d399;font-weight:700">'+prFmt(r.manualUnit)+' / عدد</span></div>';
+    if(r.effProfit!=null) h += '<div class="pr-ln" style="font-size:11.5px;color:#fbbf24;margin-bottom:6px"><span>📊 ضریب سود مؤثر (خودکار از قیمتِ دستی)</span><span style="font-weight:800">×'+prToFa(r.effProfit)+'</span></div>'; }
   h += '<div class="pr-sec">هزینه‌ی ساخت هر عدد</div>';
   h += ln(lbl.machine, r.cat.machine, 'muted');
   h += ln('نیروی انسانی', (r.cat.labor + r.cat.finishing), 'muted');
   h += ln(lbl.material, r.material, 'muted');
   h += ln('جمع هر عدد', r.base, 'strong');
   h += '<div class="pr-sec">قیمت‌گذاری هر عدد</div>';
-  h += ln('با ضریب سود', r.perPartMargin, 'muted');
+  if(r.matNoProfit){
+    h += '<div class="pr-ln" style="font-size:11px;background:#0c2320;border:1px solid #1e7d52;border-radius:7px;padding:5px 8px;margin:3px 0"><span style="color:#7fe0b8">🧪 مواد خارج از ضریب سود</span><span style="color:#7fe0b8;font-weight:700">مواد ×'+prToFa(r.matRiskX||1)+'</span></div>';
+    h += ln('کار و دستگاه ×'+prToFa(r.profit), (r.nonMaterial||0)*r.profit, 'muted');
+    h += ln('مواد ×'+prToFa(r.matRiskX||1)+' (بدونِ سود)', (r.material||0)*(r.matRiskX||1), 'muted');
+  } else {
+    h += ln('با ضریب سود', r.perPartMargin, 'muted');
+  }
   h += ln('+ درصد پژوهشگاه', r.institute, 'muted');
   h += ln('قیمت هر عدد', r.perPartAnnounced, 'strong');
   h += '<div class="pr-sec">کل سفارش</div>';
   h += ln(prToFa(prSep(r.qty)) + ' عدد × قیمت هر عدد', (r.perPartAnnounced * r.qty), 'muted');
   if(r.modelingAnnounced) h += ln('+ مدلسازی (یک‌باره)', r.modelingAnnounced, 'muted');
   h += ln('+ بسته‌بندی و ارسال', packShip, 'muted');
+  if(+r.extraSum){ h += '<div class="pr-ln" style="font-size:11.5px"><span style="color:#c4b5fd">🛒 هزینه‌های جانبی (بدونِ سود)</span><span style="color:#c4b5fd;font-weight:700">'+prFmt(r.extraSum)+'</span></div>'; (r.extraCosts||[]).forEach(function(x){ if(+x.amount) h += '<div class="pr-ln muted" style="font-size:10.5px"><span style="padding-right:12px">└ '+escapeHtml(x.name||'هزینه')+'</span><span>'+prFmt(x.amount)+'</span></div>'; }); }
   h += '<div class="pr-sec">سود پروژه</div>';
   h += ln('قیمت تمام‌شده (هزینه‌ی واقعی)', r.rawTotal, 'muted');
   h += ln('قیمت نهایی (فروش)', r.orderTotal, 'muted');
   h += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)) + '</span></div>';
   // قیمت اعلامیِ کلِ پروژه (قابل ویرایش) — ویرایش فقط سود را تغییر می‌دهد
   var oAuto = Math.round(r.perPartAnnounced||0);                       // قیمتِ خودکارِ هر عدد (پیش از اضافات)
-  var extras = (+r.packaging||0)+(+r.shipping||0)+(+r.modelingAnnounced||0);
+  var extras = (+r.packaging||0)+(+r.shipping||0)+(+r.modelingAnnounced||0)+(+r.extraSum||0);
   var autoTotal = Math.round(oAuto * r.qty + extras);                  // قیمتِ خودکارِ کلِ پروژه
   var shownTotal = Math.round(r.orderTotal);                           // قیمتِ نهاییِ فعلیِ کل
   h += '<div style="margin-top:8px;background:#0c2018;border:1px solid #1e5e3e;border-radius:12px;padding:11px">'
@@ -8183,6 +8332,14 @@ function prSetOrderManualTotal(val, autoTotal, extras, qty){
   } else {
     var perUnitPre=(T-extras)/qty;            // قیمتِ هر عدد بدونِ اضافات
     if(perUnitPre<0) perUnitPre=0;
+    var _b2=(prLastResult&&!prLastResult.multi)?(+prLastResult.base||0):0;
+    if(_b2>0 && perUnitPre>0 && perUnitPre<_b2){
+      prConfirm({ title:'⚠️ سودِ منفی', okText:'بله، آگاهانه ثبت شود', cancelText:'انصراف',
+        message:'با این مبلغِ کل، قیمتِ هر عدد ('+prToFa(prSep(Math.round(perUnitPre)))+' تومان) از تمام‌شده ('+prToFa(prSep(Math.round(_b2)))+' تومان) کمتر می‌شود — سودِ سفارش <b style=\"color:#f0a0a0\">منفی</b> است.<br><br>اگر عمداً می‌خواهی، تأیید کن.',
+        onOk:function(){ prState.order.manualUnit=perUnitPre; prScheduleCompute(); },
+        onCancel:function(){ prDoCompute(); } });
+      return;
+    }
     prState.order.manualUnit=perUnitPre;
   }
   prScheduleCompute();
@@ -8191,8 +8348,14 @@ function prModelingBox(r){
   if(!(+r.modelingCost>0)) return '';
   var auto = Math.round(r.modelingCost);
   var shown = (+r.modelingManual>0)?Math.round(r.modelingManual):auto;
+  var itemsH='';
+  if(r.modelingItems && r.modelingItems.length>1){
+    itemsH='<div style="margin:4px 0 6px">';
+    r.modelingItems.forEach(function(m){ itemsH+='<div style="display:flex;justify-content:space-between;font-size:10.5px;color:#5aa88c;padding:1px 0"><span>└ '+escapeHtml(m.name||'طراحی')+(m.hours?(' · '+prToFa(m.hours)+' ساعت'):'')+(m.manualCost?' (توافقی)':'')+'</span><span>'+prFmt(m.cost)+'</span></div>'; });
+    itemsH+='</div>';
+  }
   return '<div style="background:#0c2a20;border:1px solid #14543d;border-radius:12px;padding:11px;margin-top:8px">'
-    +'<div style="color:#5fe39a;font-weight:800;font-size:12px;margin-bottom:6px">🎨 قیمت اعلامی مدلسازی (بدون سود/پژوهشگاه)</div>'
+    +'<div style="color:#5fe39a;font-weight:800;font-size:12px;margin-bottom:6px">🎨 قیمت اعلامی مدلسازی (بدون سود/پژوهشگاه)</div>'+itemsH
     +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shown)+'" onchange="prSetModelingManual(this.value,'+auto+')" style="width:100%;box-sizing:border-box;text-align:center;font-weight:800;font-size:15px;color:#0b3d2e;background:#eafff5;border:1px solid #2fa974;border-radius:8px;padding:9px">'
     +'<div style="font-size:10px;color:#5a8f76;margin-top:4px">هزینه‌ی تمام‌شده‌ی مدلسازی: '+prFmt(auto)+'. برای بازگشت به خودکار، خالی کن.</div>'
     +((+r.modelingManual>0)?'<div style="font-size:10px;color:#5fe39a;margin-top:3px;text-align:center">✔ قیمت دستی فعال است</div>':'')
@@ -8258,7 +8421,8 @@ function pricingCopy(){
       L.push('   ▪ دستمزد و پرداخت نهایی: ' + prFmt(lab) + ' (' + uN(Mn) + ' دقیقه)');
       L.push('   ▪ مواد اولیه: ' + prFmt(matC) + ' (' + uN(G) + ' گرم)');
       L.push('   ➖ تمام‌شده‌ی هر عدد: ' + prFmt(base));
-      L.push('   ✅ قیمت هر عدد: ' + prFmt(s.perUnit) + ' · ضریب سود ' + prToFa((s.effProfit!=null?s.effProfit:s.profit)) + '×');
+      if(s.matNoProfit) L.push('   🧪 مواد خارج از ضریب سود (مواد ×' + prToFa(s.matRiskX||1) + '، سود فقط روی کار و دستگاه)');
+      L.push('   ✅ قیمت هر عدد: ' + prFmt(s.perUnit) + ' · ضریب سود ' + prToFa((s.effProfit!=null?s.effProfit:s.profit)) + '×' + ((s.matNoProfit&&s.effProfitWork!=null)?(' · سودِ کار ×'+prToFa(s.effProfitWork)):''));
       L.push('   ◀ جمع این قطعه (' + prToFa(prSep(s.qty)) + ' عدد): ' + prFmt(s.total));
       L.push('   🏷 تمام‌شده‌ی کل این قطعه: ' + prFmt(baseTot));
       L.push('   💎 سود این قطعه: ' + prFmt(secProfit));
@@ -8266,7 +8430,7 @@ function pricingCopy(){
     L.push('');
     L.push('▌ جمع‌بندیِ نهاییِ سفارش');
     L.push('• جمعِ همه‌ی قطعه‌ها: ' + prFmt(r.perPartAnnounced));
-    if(r.modelingAnnounced) L.push('• هزینه‌ی طراحی و مدلسازی (یک‌بار برای کل سفارش): ' + prFmt(r.modelingAnnounced));
+    if(r.modelingAnnounced){ L.push('• هزینه‌ی طراحی و مدلسازی (یک‌بار برای کل سفارش): ' + prFmt(r.modelingAnnounced)); (r.modelingItems||[]).forEach(function(m){ if(m.cost||m.hours) L.push('   └ ' + (m.name||'طراحی') + ': ' + prFmt(m.cost) + (m.hours?(' · '+prToFa(m.hours)+' ساعت'):'') + (m.manualCost?' (قیمتِ توافقی)':'')); }); }
     if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
     if(r.shipping)  L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
     L.push('');
@@ -8308,7 +8472,7 @@ function pricingCopy(){
   L.push('');
   L.push('▌ جمع‌بندیِ نهاییِ سفارش');
   L.push('• قیمت هر عدد × ' + prToFa(prSep(r.qty)) + ' عدد: ' + prFmt((manual?r.manualUnit:r.perPartAnnounced) * r.qty));
-  if(r.modelingAnnounced) L.push('• هزینه‌ی طراحی و مدلسازی (یک‌بار برای کل سفارش): ' + prFmt(r.modelingAnnounced));
+  if(r.modelingAnnounced){ L.push('• هزینه‌ی طراحی و مدلسازی (یک‌بار برای کل سفارش): ' + prFmt(r.modelingAnnounced)); (r.modelingItems||[]).forEach(function(m){ if(m.cost||m.hours) L.push('   └ ' + (m.name||'طراحی') + ': ' + prFmt(m.cost) + (m.hours?(' · '+prToFa(m.hours)+' ساعت'):'') + (m.manualCost?' (قیمتِ توافقی)':'')); }); }
   if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
   if(r.shipping) L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
   L.push('');
@@ -8316,7 +8480,8 @@ function pricingCopy(){
   L.push('💵 قیمت هر عدد (با لحاظِ همه‌ی هزینه‌ها): ' + prFmt(r.perUnit));
   L.push('');
   L.push('— — — — — (اطلاعات داخلی) — — — — —');
-  L.push('📊 ضریب سود مؤثر: ' + prToFa((r.effProfit!=null?r.effProfit:r.profit)) + '×');
+  L.push('📊 ضریب سود مؤثر: ' + prToFa((r.effProfit!=null?r.effProfit:r.profit)) + '×' + ((r.matNoProfit&&r.effProfitWork!=null)?(' · سودِ کار ×'+prToFa(r.effProfitWork)):''));
+  if(r.matNoProfit) L.push('🧪 مواد خارج از ضریب سود (مواد ×' + prToFa(r.matRiskX||1) + ')');
   if(r.institute) L.push('🏛 از مبلغ بالا، سهم پژوهشگاه: ' + prFmt(r.institute));
   L.push('💎 سود این سفارش: ' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
   matBlock();
@@ -8476,7 +8641,7 @@ function prBuildInvoiceItems(r, o){
   var showModeling = !!o.showDesignRow;            // تیکِ «نمایش مدلسازی در فاکتور»
   var showExtras   = !!o.showExtras;
   var modeling = +r.modelingAnnounced || 0;        // بدونِ سود/پژوهشگاه
-  var extras = (+r.packaging||0) + (+r.shipping||0);
+  var extras = (+r.packaging||0) + (+r.shipping||0) + (+r.extraSum||0);
   // مقادیری که باید در قیمتِ دانه‌ای پخش شوند (وقتی ردیفِ جدا نمی‌خواهیم)
   var spreadPerUnit = (showModeling?0:(modeling/totalQty)) + (showExtras?0:(extras/totalQty));
 
@@ -9308,6 +9473,7 @@ function archiveProfile(id){
   var e=null; for(var i=0;i<arData.length;i++){ if(arData[i].id===id){ e=arData[i]; break; } }
   if(!e){ showToast('سفارش پیدا نشد'); return; }
   omCurrentCustomer = e.customer||'';
+  omSecsAllOpen=false;
   var st = e.status||'برآورد';
   var inProd = st==='در جریان ساخت';
   var done = st==='تمام‌شده';
@@ -9343,7 +9509,8 @@ function archiveProfile(id){
       +'<input type="file" id="om-up-input" style="display:none" multiple>'
     +'</div>'
     +'<div id="om-up-progress"></div>'
-    +'<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin:4px 0 8px">فایل‌های پوشه‌ی سفارش</div>'
+    +'<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin:4px 0 8px;display:flex;justify-content:space-between;align-items:center"><span>فایل‌های پوشه‌ی سفارش</span>'
+      +'<button id="om-zip-btn" onclick="omDownloadZip()" title="دانلود فایلِ کاملِ پروژه (زیپ)" style="background:#14284a;border:1px solid #1e4e7e;color:#7ab8ff;border-radius:8px;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit">🗜 دانلود فایل کامل پروژه</button></div>'
     +'<div id="om-files" style="color:#5a6080;font-size:13px">در حال بارگذاری...</div>'
     +'<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin:20px 0 10px;display:flex;align-items:center;gap:7px">📒 دفترچه‌ی پروژه <span style="font-weight:500;font-size:11px;color:#5a6080">(تجربه‌ها، رزین، ضرایب، رنگ…)</span></div>'
     +'<div class="log-add"><textarea id="om-log-input" class="log-ta" placeholder="یک یادداشت بنویس… (مثلاً: رزین ABS-Like، لایه ۰٫۰۵، رنگ مشکی مات)"></textarea>'
@@ -9369,8 +9536,12 @@ function archiveProfile(id){
       var pMach=(s.machineHours!=null)?(uNum(s.machineHours)+' ساعت/عدد · کل '+uNum(s.machineHours*qn)+' ساعت'):'';
       var pMat=(s.materialGrams!=null)?(uNum(s.materialGrams)+' گرم/عدد · کل '+uNum(s.materialGrams*qn)+' گرم'):'';
       var pLab=(s.laborMin!=null)?(uNum(s.laborMin)+' دقیقه/عدد · کل '+uNum(s.laborMin*qn)+' دقیقه'):'';
+      var rowT=function(label,txt){ return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #161827"><span style="color:#9aa3c2">'+label+'</span><span style="color:#fbbf24;font-weight:800">'+txt+'</span></div>'; };
       if(s.multi && s.sections && s.sections.length){
-        midRows += '<div style="padding:8px 0 6px;color:#a99bf5;font-weight:700;font-size:12px">🧩 قطعه‌های سفارش <span style="font-weight:500;color:#6b7280;font-size:10.5px">(روی هر قطعه بزن تا باز شود)</span></div>';
+        midRows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 6px">'
+          +'<span style="color:#a99bf5;font-weight:700;font-size:12px">🧩 قطعه‌های سفارش <span style="font-weight:500;color:#6b7280;font-size:10.5px">(روی هر قطعه بزن)</span></span>'
+          +'<button id="om-sec-toggle-all" onclick="omToggleAllSecs()" style="background:#1c1840;border:1px solid #3a2f6e;color:#cbb8ff;border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">⬇ باز کردنِ همه</button>'
+          +'</div>';
         s.sections.forEach(function(sc,ci){
           var accId='om-sec-'+ci;
           var sp=function(x){ x=Math.round((+x||0)*100)/100; return prToFa(String(x)); };
@@ -9380,6 +9551,9 @@ function archiveProfile(id){
             +rowP('مواد مصرفی (هر عدد)', sc.material, (sc.materialGrams!=null?(sp(sc.materialGrams)+' گرم/عدد · کل '+sp(sc.materialGrams*qn)+' گرم'):''))
             +rowP('نیروی انسانی (هر عدد)', sc.labor, (sc.laborMin!=null?(sp(sc.laborMin)+' دقیقه/عدد · کل '+sp(sc.laborMin*qn)+' دقیقه'):''))
             +row('هزینه‌ی تمام‌شده هر عدد', sc.base)
+            +(sc.matNoProfit?'<div style="display:flex;justify-content:space-between;padding:6px 9px;margin:5px 0;background:#0c2320;border:1px solid #1e7d52;border-radius:8px;font-weight:700"><span style="color:#7fe0b8">🧪 مواد خارج از ضریب سود</span><span style="color:#7fe0b8">مواد ×'+prToFa(sc.matRiskX||1)+'</span></div>':'')
+            +(sc.effProfit!=null?rowT('📊 ضریب سود'+(sc.manual?' مؤثر (قیمتِ دستی)':''), prToFa(sc.effProfit)+'×'):'')
+            +((sc.matNoProfit&&sc.effProfitWork!=null)?rowT('📊 سود مؤثرِ کار و دستگاه', prToFa(sc.effProfitWork)+'×'):'')
             +row('قیمت هر عدد', sc.perUnit, true)
             +row('جمع این قطعه ('+prToFa(qn)+' عدد)', sc.total, true)
             +rowC('قیمت تمام‌شده‌ی این قطعه', (sc.baseTotal!=null?sc.baseTotal:(sc.base*qn)), 'cost')
@@ -9397,6 +9571,9 @@ function archiveProfile(id){
           +rowP('مواد مصرفی (هر عدد)', s.material, pMat)
           +rowP('نیروی انسانی (هر عدد)', s.labor, pLab)
           +row('هزینه‌ی تمام‌شده هر عدد', s.base)
+          +(s.matNoProfit?'<div style="display:flex;justify-content:space-between;padding:6px 9px;margin:5px 0;background:#0c2320;border:1px solid #1e7d52;border-radius:8px;font-weight:700"><span style="color:#7fe0b8">🧪 مواد خارج از ضریب سود</span><span style="color:#7fe0b8">مواد ×'+prToFa(s.matRiskX||1)+'</span></div>':'')
+          +(s.effProfit!=null?rowT('📊 ضریب سود مؤثر', prToFa(s.effProfit)+'×'):'')
+          +((s.matNoProfit&&s.effProfitWork!=null)?rowT('📊 سود مؤثرِ کار و دستگاه', prToFa(s.effProfitWork)+'×'):'')
           +row('قیمت هر عدد (نهایی)', s.perUnit, true);
       }
       sumEl.innerHTML='<div style="font-weight:700;font-size:13px;color:#9aa3c2;margin-bottom:8px">خلاصه‌ی برآورد</div>'
