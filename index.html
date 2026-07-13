@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V199</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V200</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -7231,6 +7231,31 @@ function omCuReceiptPdf(saveToFolder){
     }, 120);
   });
 }
+function omMatRiskBlock(obj, qty){
+  var ARR = '\u2190';
+  var rx = +obj.matRiskX || 1;
+  var gEach = +obj.materialGrams || 0;
+  var pEach = +((obj.cat&&obj.cat.material)!=null?obj.cat.material:obj.material) || 0;
+  qty = +qty || 1;
+  var pair=function(label, before, after, unit){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11.5px">'
+      +'<span style="color:#8fbfa8">'+label+'</span>'
+      +'<span><span style="color:#7c9a8c">'+prToFa(prSep(Math.round(before)))+' '+unit+'</span> <span style="color:#4a7d64">'+ARR+'</span> <b style="color:#7fe0b8">'+prToFa(prSep(Math.round(after)))+' '+unit+'</b></span>'
+      +'</div>';
+  };
+  return '<div style="background:#0c2320;border:1px solid #1e7d52;border-radius:9px;padding:8px 11px;margin:6px 0">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      +'<span style="color:#7fe0b8;font-weight:800;font-size:12px">🧪 مواد خارج از ضریب سود</span>'
+      +'<span style="color:#7fe0b8;font-weight:700;font-size:11px;background:#0a1a16;border:1px solid #1e7d52;border-radius:12px;padding:2px 9px">ریسک ×'+prToFa(rx)+'</span>'
+    +'</div>'
+    +'<div style="font-size:9.5px;color:#5a8f76;margin-bottom:3px">قبل '+ARR+' بعد از ضریب</div>'
+    +pair('وزنِ مواد (هر عدد)', gEach, gEach*rx, 'گرم')
+    +pair('قیمتِ مواد (هر عدد)', pEach, pEach*rx, 'تومان')
+    +'<div style="border-top:1px dashed #1e5e4a;margin:4px 0"></div>'
+    +pair('وزنِ مواد (کلِ '+prToFa(qty)+' عدد)', gEach*qty, gEach*qty*rx, 'گرم')
+    +pair('قیمتِ مواد (کلِ '+prToFa(qty)+' عدد)', pEach*qty, pEach*qty*rx, 'تومان')
+    +'</div>';
+}
 function omRenderMaterials(){
   var box=document.getElementById('om-mats-inner'); if(!box) return;
   var inp=document.getElementById('om-risk');
@@ -8170,6 +8195,34 @@ function prUsedLabels(){
   });
   return { machine: mach.length?('دستگاه ('+mach.join('، ')+')'):'دستگاه', material: mat.length?('ماده ('+mat.join('، ')+')'):'ماده' };
 }
+function prMatGramsOf(lines){
+  var g=0;
+  (lines||[]).forEach(function(l){
+    if(l.kind!=='material') return;
+    var amt=+l.amount||0;
+    if(l.unit==='ml'){
+      var dens=1, id=l.materialId;
+      (prState.materials||[]).forEach(function(m){ if(m.id===id) dens=+m.density||1; });
+      (prState.composites||[]).forEach(function(c){ if(c.id===id){ var d=0; (c.parts||[]).forEach(function(p){ (prState.materials||[]).forEach(function(m){ if(m.id===p.materialId) d+=(+m.density||0)*(+p.pct||0)/100; }); }); if(d>0) dens=d; } });
+      amt=amt*dens;
+    }
+    g+=amt;
+  });
+  return g;
+}
+function prMatRiskTapeBlock(rx, gEach, pEach, qty){
+  var ARR='\u2190';
+  rx=+rx||1; gEach=+gEach||0; pEach=+pEach||0; qty=+qty||1;
+  var row=function(lbl,b,a,u){ return '<div class="pr-ln" style="font-size:11px"><span style="color:#8fbfa8;padding-right:10px">'+lbl+'</span><span><span style="color:#7c9a8c">'+prToFa(prSep(Math.round(b)))+' '+u+'</span> '+ARR+' <b style="color:#7fe0b8">'+prToFa(prSep(Math.round(a)))+' '+u+'</b></span></div>'; };
+  return '<div style="background:#0c2320;border:1px solid #1e7d52;border-radius:7px;padding:6px 9px;margin:3px 0">'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:#7fe0b8;font-weight:800;font-size:11.5px">🧪 مواد خارج از ضریب سود</span><span style="color:#7fe0b8;font-weight:700;font-size:10.5px;background:#0a1a16;border:1px solid #1e7d52;border-radius:10px;padding:1px 8px">ریسک ×'+prToFa(rx)+'</span></div>'
+    +row('وزن (هر عدد)', gEach, gEach*rx, 'گرم')
+    +row('قیمت (هر عدد)', pEach, pEach*rx, 'تومان')
+    +'<div style="border-top:1px dashed #1e5e4a;margin:3px 0"></div>'
+    +row('وزن (کلِ '+prToFa(qty)+')', gEach*qty, gEach*qty*rx, 'گرم')
+    +row('قیمت (کلِ '+prToFa(qty)+')', pEach*qty, pEach*qty*rx, 'تومان')
+    +'</div>';
+}
 function prRenderTape(r){
   var ln = function(label,val,cls){ return '<div class="pr-ln '+(cls||'')+'"><span>'+label+'</span><span>'+prFmt(val)+'</span></div>'; };
   if(r && r.multi){
@@ -8193,7 +8246,9 @@ function prRenderTape(r){
       } else if(s.matNoProfit){
         var _w=Math.round((s.cat?((s.cat.machine||0)+(s.cat.labor||0)+(s.cat.finishing||0)):0));
         var _m=Math.round((s.cat&&s.cat.material)||0);
-        h2 += '<div class="pr-ln" style="font-size:11px;background:#0c2320;border:1px solid #1e7d52;border-radius:7px;padding:5px 8px;margin:3px 0"><span style="color:#7fe0b8">🧪 مواد خارج از ضریب سود</span><span style="color:#7fe0b8;font-weight:700">مواد ×'+prToFa(s.matRiskX||1)+'</span></div>';
+        var _sec=null; ((prState.order&&prState.order.sections)||[]).forEach(function(ps){ if(ps.id===s.id) _sec=ps; });
+        var _sg = _sec ? prMatGramsOf(_sec.lines) : 0;
+        h2 += prMatRiskTapeBlock(s.matRiskX||1, _sg, (s.cat&&s.cat.material)||0, s.qty||1);
         h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>کار و دستگاه ×'+prToFa(s.profit)+'</span><span>'+prFmt(_w*s.profit)+'</span></div>';
         h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>مواد ×'+prToFa(s.matRiskX||1)+' (بدونِ سود)</span><span>'+prFmt(_m*(s.matRiskX||1))+'</span></div>';
         if(s.institute) h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>🏛 سهم پژوهشگاه (هر عدد)</span><span>'+prFmt(s.institute/s.qty)+'</span></div>';
@@ -8244,7 +8299,7 @@ function prRenderTape(r){
   h += ln('جمع هر عدد', r.base, 'strong');
   h += '<div class="pr-sec">قیمت‌گذاری هر عدد</div>';
   if(r.matNoProfit){
-    h += '<div class="pr-ln" style="font-size:11px;background:#0c2320;border:1px solid #1e7d52;border-radius:7px;padding:5px 8px;margin:3px 0"><span style="color:#7fe0b8">🧪 مواد خارج از ضریب سود</span><span style="color:#7fe0b8;font-weight:700">مواد ×'+prToFa(r.matRiskX||1)+'</span></div>';
+    h += prMatRiskTapeBlock(r.matRiskX||1, prMatGramsOf(prState.lines), r.material||0, Math.max(1,+((prState.order||{}).qty)||1));
     h += ln('کار و دستگاه ×'+prToFa(r.profit), (r.nonMaterial||0)*r.profit, 'muted');
     h += ln('مواد ×'+prToFa(r.matRiskX||1)+' (بدونِ سود)', (r.material||0)*(r.matRiskX||1), 'muted');
   } else {
@@ -9551,7 +9606,7 @@ function archiveProfile(id){
             +rowP('مواد مصرفی (هر عدد)', sc.material, (sc.materialGrams!=null?(sp(sc.materialGrams)+' گرم/عدد · کل '+sp(sc.materialGrams*qn)+' گرم'):''))
             +rowP('نیروی انسانی (هر عدد)', sc.labor, (sc.laborMin!=null?(sp(sc.laborMin)+' دقیقه/عدد · کل '+sp(sc.laborMin*qn)+' دقیقه'):''))
             +row('هزینه‌ی تمام‌شده هر عدد', sc.base)
-            +(sc.matNoProfit?'<div style="display:flex;justify-content:space-between;padding:6px 9px;margin:5px 0;background:#0c2320;border:1px solid #1e7d52;border-radius:8px;font-weight:700"><span style="color:#7fe0b8">🧪 مواد خارج از ضریب سود</span><span style="color:#7fe0b8">مواد ×'+prToFa(sc.matRiskX||1)+'</span></div>':'')
+            +(sc.matNoProfit?omMatRiskBlock(sc, qn):'')
             +(sc.effProfit!=null?rowT('📊 ضریب سود'+(sc.manual?' مؤثر (قیمتِ دستی)':''), prToFa(sc.effProfit)+'×'):'')
             +((sc.matNoProfit&&sc.effProfitWork!=null)?rowT('📊 سود مؤثرِ کار و دستگاه', prToFa(sc.effProfitWork)+'×'):'')
             +row('قیمت هر عدد', sc.perUnit, true)
@@ -9571,7 +9626,7 @@ function archiveProfile(id){
           +rowP('مواد مصرفی (هر عدد)', s.material, pMat)
           +rowP('نیروی انسانی (هر عدد)', s.labor, pLab)
           +row('هزینه‌ی تمام‌شده هر عدد', s.base)
-          +(s.matNoProfit?'<div style="display:flex;justify-content:space-between;padding:6px 9px;margin:5px 0;background:#0c2320;border:1px solid #1e7d52;border-radius:8px;font-weight:700"><span style="color:#7fe0b8">🧪 مواد خارج از ضریب سود</span><span style="color:#7fe0b8">مواد ×'+prToFa(s.matRiskX||1)+'</span></div>':'')
+          +(s.matNoProfit?omMatRiskBlock(s, s.qty):'')
           +(s.effProfit!=null?rowT('📊 ضریب سود مؤثر', prToFa(s.effProfit)+'×'):'')
           +((s.matNoProfit&&s.effProfitWork!=null)?rowT('📊 سود مؤثرِ کار و دستگاه', prToFa(s.effProfitWork)+'×'):'')
           +row('قیمت هر عدد (نهایی)', s.perUnit, true);
