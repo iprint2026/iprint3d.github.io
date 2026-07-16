@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V202</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V203</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8246,6 +8246,29 @@ function prMatRiskTapeBlock(rx, gEach, pEach, qty){
     +row('قیمت (کلِ '+prToFa(qty)+')', pEach*qty, pEach*qty*rx, 'تومان')
     +'</div>';
 }
+// نمایشِ بدنهٔ یک بخش در منطقِ نسخهٔ ۲ — فقط از فیلدهای محاسبه‌شدهٔ سرور استفاده می‌کند (هیچ محاسبه‌ای در فرانت)
+function prSecBodyV2(s){
+  var h = '';
+  if(s.cat){
+    if(s.cat.machine)  h += '<div class="pr-ln muted" style="font-size:11.5px"><span>🖨 دستگاه (هر عدد)</span><span>'+prFmt(s.cat.machine)+'</span></div>';
+    if(s.cat.material) h += '<div class="pr-ln muted" style="font-size:11.5px"><span>🧪 مواد (هر عدد)</span><span>'+prFmt(s.cat.material)+'</span></div>';
+    if((s.cat.labor||0)+(s.cat.finishing||0)) h += '<div class="pr-ln muted" style="font-size:11.5px"><span>🧑‍🔧 نیروی انسانی (هر عدد)</span><span>'+prFmt((s.cat.labor||0)+(s.cat.finishing||0))+'</span></div>';
+  }
+  // قیمت تمام‌شده = costWithRisk (شاملِ مواد×ریسک — نکتهٔ درستِ ریسک)
+  var riskNote = (s.matNoProfit && (s.matRiskX||1)!=1) ? ' <span style="color:#0d9488;font-size:10px">(مواد ×'+prToFa(s.matRiskX)+')</span>' : '';
+  h += '<div class="pr-ln muted" style="font-size:11.5px;border-top:1px dashed #232742;padding-top:5px"><span>قیمت تمام‌شده (هر عدد)'+riskNote+'</span><span>'+prFmt(s.costWithRisk)+'</span></div>';
+  // سهمِ هزینهٔ اضافی (بدونِ سود) — اگر بود
+  if(+s.extraShare) h += '<div class="pr-ln" style="font-size:11.5px"><span style="color:#c4b5fd">🛒 سهم هزینهٔ اضافی (هر عدد، بدونِ سود)</span><span style="color:#c4b5fd;font-weight:700">'+prFmt(s.extraShare)+'</span></div>';
+  // پژوهشگاه
+  if(+s.institute) h += '<div class="pr-ln muted" style="font-size:11.5px"><span>🏛 سهم پژوهشگاه (هر عدد)</span><span>'+prFmt(Math.round(s.institute/(s.qty||1)))+'</span></div>';
+  // سودِ خالص (برای آمار)
+  if(s.netProfitUnit!=null) h += '<div class="pr-ln" style="font-size:11.5px;color:#4ade80"><span>💎 سود خالص (هر عدد)</span><span style="font-weight:700">'+prFmt(s.netProfitUnit)+'</span></div>';
+  // ضریب سود مؤثر
+  if(s.effProfit!=null) h += '<div class="pr-ln" style="font-size:11.5px;color:#fbbf24"><span>📊 ضریب سود مؤثر'+(s.manual?' (از قیمتِ دستی)':'')+'</span><span style="font-weight:800">×'+prToFa(s.effProfit)+'</span></div>';
+  // قیمت هر عدد
+  h += '<div class="pr-ln" style="font-size:12px"><span>قیمت هر عدد'+(s.manual?' — دستی':'')+'</span><span style="color:#9cd1ff;font-weight:700">'+prFmt(s.perUnit)+'</span></div>';
+  return h;
+}
 function prRenderTape(r){
   var ln = function(label,val,cls){ return '<div class="pr-ln '+(cls||'')+'"><span>'+label+'</span><span>'+prFmt(val)+'</span></div>'; };
   if(r && r.multi){
@@ -8262,6 +8285,10 @@ function prRenderTape(r){
         if(s.cat.material) h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>🧪 مواد (هر عدد)</span><span>'+prFmt(s.cat.material)+'</span></div>';
         if((s.cat.labor||0)+(s.cat.finishing||0)) h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>🧑‍🔧 نیروی انسانی (هر عدد)</span><span>'+prFmt((s.cat.labor||0)+(s.cat.finishing||0))+'</span></div>';
       }
+      if(r.calcVersion===2){
+        // منطقِ نسخهٔ ۲ — همه‌چیز از سرور، بدونِ محاسبهٔ فرانت
+        h2 += prSecBodyV2(s);
+      } else {
       h2 += '<div class="pr-ln muted" style="font-size:11.5px;border-top:1px dashed #232742;padding-top:5px"><span>قیمت تمام‌شده (هر عدد)</span><span>'+prFmt(s.base)+'</span></div>';
       if(s.manual){
         h2 += '<div class="pr-ln" style="font-size:11.5px;color:#5fe39a"><span>قیمت اعلامی دستی (هر عدد)</span><span>'+prFmt(s.perUnit)+'</span></div>';
@@ -8280,6 +8307,7 @@ function prRenderTape(r){
         h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>📈 با سود ×'+prToFa(s.profit)+'</span><span>'+prFmt(s.base*s.profit)+'</span></div>';
         if(s.institute) h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>🏛 سهم پژوهشگاه (هر عدد)</span><span>'+prFmt(s.institute/s.qty)+'</span></div>';
         h2 += '<div class="pr-ln" style="font-size:12px"><span>قیمت هر عدد</span><span style="color:#9cd1ff;font-weight:700">'+prFmt(s.perUnit)+'</span></div>';
+      }
       }
       h2 += '<div class="pr-ln strong" style="font-size:12.5px;border-top:1px solid #232742;padding-top:6px;margin-top:3px"><span>جمع این قطعه</span><span style="color:#fff">'+prFmt(s.total)+'</span></div>';
       // قیمت اعلامی این قطعه (پیش‌فرض = محاسبه‌ی خودکار، قابل ویرایش)
