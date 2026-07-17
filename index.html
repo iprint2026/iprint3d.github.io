@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V205</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V206</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9664,10 +9664,12 @@ function archiveProfile(id){
             +(sc.effProfit!=null?rowT('📊 ضریب سود'+(sc.manual?' مؤثر (قیمتِ دستی)':''), prToFa(sc.effProfit)+'×'):'')
             +((sc.matNoProfit&&sc.effProfitWork!=null)?rowT('📊 سود مؤثرِ کار و دستگاه', prToFa(sc.effProfitWork)+'×'):'')
             +row('قیمت هر عدد', sc.perUnit, true)
-            +(sc.netProfitUnit!=null?'<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#4ade80">💎 سود خالص (هر عدد)</span><span style="color:#4ade80;font-weight:700">'+prToFa(prSep(sc.netProfitUnit))+' تومان</span></div>':'')
+            +(sc.netProfitUnit!=null?'<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#4ade80">💎 سود خالص (هر عدد) <span style="color:#6b7280;font-size:10px">· پس از کسرِ پژوهشگاه و هزینه‌های اضافی</span></span><span style="color:#4ade80;font-weight:700">'+prToFa(prSep(sc.netProfitUnit))+' تومان</span></div>':'')
             +row('جمع این قطعه ('+prToFa(qn)+' عدد)', sc.total, true)
             +rowC('قیمت تمام‌شده‌ی این قطعه', (sc.baseTotal!=null?sc.baseTotal:(sc.base*qn)), 'cost')
-            +rowC('💎 سود این قطعه', (sc.profit||0), 'profit');
+            +(sc.netProfitUnit!=null
+               ? '<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#4ade80;font-weight:700">💎 سود خالصِ این قطعه <span style="color:#6b7280;font-size:10px">· کلِ '+prToFa(qn)+' عدد</span></span><span style="color:#4ade80;font-weight:700">'+prToFa(prSep(sc.netProfitUnit*qn))+' تومان</span></div>'
+               : rowC('💎 سود این قطعه', (sc.profit||0), 'profit'));
           midRows += '<div style="border:1px solid #2a2350;border-radius:10px;margin-bottom:8px;overflow:hidden">'
             +'<div onclick="omToggleSec(\''+accId+'\',this)" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;background:#151233;padding:10px 12px">'
               +'<span style="color:#cbb8ff;font-weight:700">'+escapeHtml(sc.name)+' <span style="color:#8a83b8;font-weight:500;font-size:11px">· '+prToFa(qn)+' عدد</span></span>'
