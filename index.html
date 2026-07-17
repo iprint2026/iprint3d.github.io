@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V212</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V206</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8341,21 +8341,6 @@ function prRenderTape(r){
   var packShip = (+r.packaging||0) + (+r.shipping||0);
   var h = '';
   if(prState.savedCode){ h += '<div class="pr-ln strong" style="background:#0c1c3a;border:1px solid #1e3a6e;border-radius:8px;padding:8px 10px;margin-bottom:8px"><span style="color:#7ab8ff">کد سفارش</span><span style="color:#7ab8ff;letter-spacing:1px">'+escapeHtml(prState.savedCode)+'</span></div>'; }
-  // ── نسخهٔ ۲ تک‌بخشی: از داده‌ی سرور (prSecBodyV2)؛ هرگز به رندرِ legacy نمی‌رسد ──
-  if(r && r.calcVersion===2 && r.sections && r.sections.length===1 && !r.multi){
-    var svv = r.sections[0];
-    if(svv.manual){ h += '<div class="pr-ln" style="background:#0c2a20;border:1px solid #14543d;border-radius:8px;padding:7px 10px;margin-bottom:8px"><span style="color:#34d399">قیمت اعلامی (دستی)</span><span style="color:#34d399;font-weight:700">'+prFmt(svv.perUnit)+' / عدد</span></div>'; }
-    h += '<div class="pr-sec">قیمت‌گذاری هر عدد</div>';
-    h += prSecBodyV2(svv);
-    h += '<div class="pr-sec">کل سفارش</div>';
-    h += ln(prToFa(prSep(r.qty))+' عدد × قیمت هر عدد', (svv.perUnit*r.qty), 'muted');
-    h += '<div class="pr-ln strong"><span>قیمت نهایی</span><span style="color:#fff">'+prFmt(r.orderTotal)+'</span></div>';
-    h += '<div class="pr-sec">سود پروژه</div>';
-    h += ln('قیمت تمام‌شده (هزینه‌ی واقعی)', r.rawTotal, 'muted');
-    if(+r.institute) h += ln('سهم پژوهشگاه', r.institute, 'muted');
-    h += '<div class="pr-ln strong" style="color:#4ade80"><span>سود خالص این پروژه · پس از کسرِ پژوهشگاه و هزینه‌های اضافی</span><span>'+prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal-r.rawTotal))+'</span></div>';
-    return h;
-  }
   if(r && r.manual){ h += '<div class="pr-ln" style="background:#0c2a20;border:1px solid #14543d;border-radius:8px;padding:7px 10px;margin-bottom:8px"><span style="color:#34d399">قیمت اعلامی (دستی)</span><span style="color:#34d399;font-weight:700">'+prFmt(r.manualUnit)+' / عدد</span></div>';
     if(r.effProfit!=null) h += '<div class="pr-ln" style="font-size:11.5px;color:#fbbf24;margin-bottom:6px"><span>📊 ضریب سود مؤثر (خودکار از قیمتِ دستی)</span><span style="font-weight:800">×'+prToFa(r.effProfit)+'</span></div>'; }
   h += '<div class="pr-sec">هزینه‌ی ساخت هر عدد</div>';
