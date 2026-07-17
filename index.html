@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V206</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V214</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -7661,7 +7661,9 @@ function prAddSection(){
   prSyncOrderInputs();
   if(!prState.order.sections) prState.order.sections = [];
   if(!prState.order.sections.length){
-    prState.order.sections.push({ id:prNid(), name:(prState.order.orderName||'قطعه ۱'),
+    // اسمِ سفارش (orderName) تایتلِ پروژه است و ثابت می‌ماند؛ اولین قطعه اسمِ جدای خودش را می‌گیرد
+    var firstName = prompt('نام اولین قطعه چیست؟ (مثلاً بازو)  —  «'+((prState.order.orderName||'').trim()||'بدون عنوان')+'» عنوانِ کلِ پروژه می‌ماند', 'قطعه ۱');
+    prState.order.sections.push({ id:prNid(), name:(firstName&&firstName.trim())?firstName.trim():'قطعه ۱',
       qty:(+prState.order.qty||1), profit:(prState.order.profit!=null?prState.order.profit:''),
       lines: prState.lines.filter(function(l){return l.kind!=='modeling';}) });
     prState.lines = prState.lines.filter(function(l){return l.kind==='modeling';});
@@ -9364,6 +9366,43 @@ function archiveOpenInvoice(id){
     if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در بارگذاری سفارش'); return; }
     ivOpenInvoice({ code:res.orderName, qty:res.qty, unit:res.perUnit, items:res.items, customer:res.customer,
       dateStr:res.dateStr, estimateId:id, folderId:res.folderId, orderCode:res.code });
+    // اگر قبلاً محتوای فاکتور ذخیره شده، رویِ نسخه‌ی ساخته‌شده از برآورد بنشان (آدرس/توضیحات/اعداد ویرایش‌شده)
+    ivLoadSavedData(id, function(loaded){ if(loaded) showToast('✅ آخرین نسخه‌ی ذخیره‌شده‌ی فاکتور بازیابی شد'); });
+  });
+}
+// ── ذخیره/بازیابیِ محتوای فاکتور (تا با «ویرایش فاکتور» گم نشود) ──
+function ivBuyerFieldIds(){ return ['iv-bname','iv-beco','iv-breg','iv-btel','iv-bfax','iv-baddr','iv-bpost']; }
+function ivCollectData(){
+  var buyer = {};
+  ivBuyerFieldIds().forEach(function(id){ var el=document.getElementById(id); if(el) buyer[id]=el.textContent||''; });
+  return {
+    v: 1,
+    items: ivItems.map(function(it){ return { code:String(it.code||''), desc:String(it.desc||''), qty:(+it.qty||0), unit:(+it.unit||0), total:(it.total!=null&&it.total!=='')?(+it.total||0):null }; }),
+    buyer: buyer,
+    notes: (typeof ivNotes!=='undefined') ? ivNotes.slice() : [],
+    pageSize: (typeof ivPageSize!=='undefined') ? ivPageSize : 'a4',
+    savedAt: Date.now()
+  };
+}
+function ivApplyData(inv){
+  if(!inv || typeof inv!=='object') return false;
+  try {
+    if(inv.items && inv.items.length){
+      ivItems = inv.items.map(function(it){ return { code:String(it.code||''), desc:String(it.desc||''), qty:Math.max(1,+it.qty||1), unit:Math.round(+it.unit||0), total:(it.total!=null?Math.round(+it.total):undefined) }; });
+      ivRender();
+    }
+    if(inv.buyer){ ivBuyerFieldIds().forEach(function(id){ if(inv.buyer[id]!=null){ var el=document.getElementById(id); if(el) el.textContent = inv.buyer[id]; } }); }
+    if(inv.notes && typeof ivNotes!=='undefined'){ ivNotes = inv.notes.slice(); if(typeof ivRenderNotes==='function') ivRenderNotes(); }
+    if(inv.pageSize && typeof ivSetSize==='function'){ ivSetSize(inv.pageSize); }
+    return true;
+  } catch(e){ if(window.console) console.log('ivApplyData error', e); return false; }
+}
+// بارگذاریِ محتوای ذخیره‌شده هنگام باز کردنِ فاکتور؛ اگر بود، callback(true)
+function ivLoadSavedData(estimateId, cb){
+  if(!estimateId){ if(cb) cb(false); return; }
+  callSheet('getInvoiceData', { id:estimateId, t:Date.now() }, function(res){
+    if(res && res.status==='ok' && res.invoice){ var ok=ivApplyData(res.invoice); if(cb) cb(ok); }
+    else { if(cb) cb(false); }
   });
 }
 async function ivSaveInvoiceToFolder(){
@@ -9396,6 +9435,11 @@ async function ivSaveInvoiceToFolder(){
     await fetch(url, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ action:'uploadInvoicePdf', token:SESSION_TOKEN, id:ivCurrentEstimateId, base64:b64 }) });
     if(btn) btn.innerHTML='در حال تأیید...';
+    // ذخیره‌ی محتوای فاکتور (ردیف‌ها/آدرس/توضیحات) کنارِ PDF — تا با «ویرایش فاکتور» بازیابی شود
+    try {
+      await fetch(url, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'saveInvoiceData', token:SESSION_TOKEN, id:ivCurrentEstimateId, invoice: JSON.stringify(ivCollectData()) }) });
+    } catch(e){ if(window.console) console.log('saveInvoiceData failed', e); }
     setTimeout(function(){
       callSheet('orderHasInvoice', { id:ivCurrentEstimateId, t:Date.now() }, function(r){
         if(btn){ btn.disabled=false; btn.innerHTML=old; }
