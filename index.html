@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V218</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V220</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8100,7 +8100,28 @@ function prExitEdit(){
   ov.addEventListener('click', function(e){ if(e.target===ov) prCloseExitDlg(); });
   document.body.appendChild(ov);
 }
-function prPayload(){
+// ── ارسالِ payload با مسیرِ امن: کوچک → مستقیم روی URL؛ بزرگ → اول POST (stash) بعد GET با کلیدِ کوتاه ──
+// این باعث می‌شود سفارش‌ها با هر تعداد بخش (هر حجمی) کار کنند و به محدودیتِ طولِ URL نخورند.
+var PR_URL_INLINE_MAX = 2200;   // حداکثر طولِ JSON برای ارسالِ مستقیم (با احتسابِ ۳ برابر شدن در URL-encode فارسی)
+function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
+  var params = {};
+  if(extraParams){ for(var k in extraParams){ if(extraParams.hasOwnProperty(k)) params[k]=extraParams[k]; } }
+  if(String(payloadStr||'').length <= PR_URL_INLINE_MAX){
+    params.payload = payloadStr;
+    return callSheet(action, params, callback, timeoutMs);
+  }
+  var url = loadSheetUrl();
+  if(!url){ callback({error:'no url'}); return; }
+  var key = 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  fetch(url, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'stashPayload', token:SESSION_TOKEN, key:key, payload:payloadStr }) })
+  .then(function(){
+    setTimeout(function(){ params.stashKey = key; callSheet(action, params, callback, timeoutMs); }, 500);
+  })
+  .catch(function(){ callback({ error:true }); });
+}
+var prLastPayloadLen = 0;
+function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
   try{ ord.siteUrlBase = (location.origin||'') + (location.pathname||''); }catch(e){}
@@ -8113,7 +8134,19 @@ function prPayload(){
       return c;
     });
   }
-  var pl = { order: ord, lines: prState.lines };
+  if(lean){
+    // فقط برای «محاسبه»: فیلدهایی که در قیمت‌گذاری نقشی ندارند حذف می‌شوند تا درخواست کوتاه بماند
+    delete ord.notes; delete ord.siteUrlBase; delete ord.imageFileId; delete ord.thumb;
+    delete ord.invoice; delete ord.invoiceLayout;
+    if(ord.sections && ord.sections.length){
+      ord.sections = ord.sections.map(function(s){
+        var c={}; for(var kk in s){ if(s.hasOwnProperty(kk) && kk!=='imageFileId' && kk!=='thumb' && kk!=='notes') c[kk]=s[kk]; }
+        if(c.lines) c.lines = c.lines.map(function(l){ var q={}; for(var lk in l){ if(l.hasOwnProperty(lk) && lk!=='id' && lk.charAt(0)!=='_') q[lk]=l[lk]; } return q; });
+        return c;
+      });
+    }
+  }
+  var pl = { order: ord, lines: (lean ? (prState.lines||[]).map(function(l){ var q={}; for(var lk in l){ if(l.hasOwnProperty(lk) && lk!=='id' && lk.charAt(0)!=='_') q[lk]=l[lk]; } return q; }) : prState.lines) };
   if(prState.editId){
     pl.editId = prState.editId;
     // کانفیگ فقط وقتی فرستاده می‌شود که کاربر عمداً نرخ‌ها/مواد را عوض کرده باشد (یا «نرخِ امروز» زده باشد).
@@ -8123,7 +8156,9 @@ function prPayload(){
       pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
     }
   }
-  return JSON.stringify(pl);
+  var _s = JSON.stringify(pl);
+  if(lean) prLastPayloadLen = _s.length;
+  return _s;
 }
 function prRenderEditBanner(){
   var xt=document.getElementById('pr-exit-top'); if(xt) xt.style.display = prState.editId ? 'inline-block' : 'none';
@@ -8211,14 +8246,19 @@ function prDoCompute(){
   }
   document.getElementById('pr-warn').textContent = '';
   if(cs){ cs.style.color='#5a6080'; cs.textContent = 'در حال محاسبه...'; }
-  callSheet('computePrice', { payload: prPayload() }, function(res){
+  callSheetPayload('computePrice', prPayload(true), null, function(res){
     if(res && res.status==='ok' && res.result){
       prLastResult = res.result;
       prRenderTape(res.result);
       if(cs) cs.textContent = '';
       if(prEditNeedBaseline){ prEditNeedBaseline=false; try{ prEditSnapshot=prSnapshot(); }catch(e){ prEditSnapshot=''; } }
     } else {
-      if(cs){ cs.style.color='#f87171'; cs.textContent = (res&&res.message)? res.message : 'خطا در محاسبه'; }
+      if(cs){ cs.style.color='#f87171';
+        cs.textContent = (res&&res.message) ? res.message
+          : ((res&&res.error==='timeout') ? 'پاسخِ سرور دیر آمد (timeout) — دوباره تلاش کن'
+          : 'درخواست به سرور نرسید — حجمِ داده‌ی این سفارش زیاد است (طول: '+prLastPayloadLen+')');
+        try{ if(window.console) console.log('compute failed', res, 'payloadLen=', prLastPayloadLen); }catch(_e){}
+      }
       if(res&&res.message&&window.console) console.log('computePrice error:', res.message);
     }
   });
@@ -8631,7 +8671,7 @@ function pricingExportXlsx(){
   if(!prHasAnyLine()){ showToast('اول حداقل یک ردیف هزینه اضافه کنید'); return; }
   var btn = document.getElementById('pr-btn-xlsx');
   var old = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'در حال ساخت...';
-  callSheet('exportEstimateXlsx', { payload: prPayload() }, function(res){
+  callSheetPayload('exportEstimateXlsx', prPayload(), null, function(res){
     btn.disabled = false; btn.innerHTML = old;
     if(res && res.status==='ok' && res.base64){
       try{
@@ -9182,7 +9222,7 @@ function pricingSaveEstimate(){
   prSyncMnpFromDom();
   var btn=document.getElementById('pr-btn-save'); var old=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.innerHTML='در حال ذخیره...'; }
-  callSheet('saveEstimate', { payload: prPayload() }, function(res){
+  callSheetPayload('saveEstimate', prPayload(), null, function(res){
     if(!(res && res.status==='ok')){
       if(btn){ btn.disabled=false; btn.innerHTML=old; }
       showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); return;
