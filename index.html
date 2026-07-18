@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V214</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V215</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8570,16 +8570,20 @@ function pricingCopy(){
   L.push('➖ جمع هزینه‌ی تمام‌شده‌ی هر عدد: ' + prFmt(r.base));
   L.push('');
   L.push('▌ قیمت‌گذاری هر عدد');
+  // در نسخهٔ ۲ فیلدِ perPartAnnounced وجود ندارد؛ قیمتِ هر عدد از perUnit/بخش می‌آید
+  var _isV2t = (r.calcVersion===2);
+  var _unitAnn = _isV2t ? ((r.sections&&r.sections[0]&&!r.multi) ? r.sections[0].perUnit : r.perUnit) : r.perPartAnnounced;
+  var _instUnit = _isV2t ? Math.round((+r.institute||0)/Math.max(1,+r.qty||1)) : r.institute;
   if(!manual){
-    L.push('• قیمت با احتساب سود: ' + prFmt(r.perPartMargin));
-    if(r.institute) L.push('• سهم پژوهشگاه: ' + prFmt(r.institute));
-    L.push('✅ قیمت نهاییِ هر عدد: ' + prFmt(r.perPartAnnounced));
+    L.push('• قیمت با احتساب سود: ' + prFmt(_isV2t ? (_unitAnn - _instUnit) : r.perPartMargin));
+    if(r.institute) L.push('• سهم پژوهشگاه (هر عدد): ' + prFmt(_instUnit));
+    L.push('✅ قیمت نهاییِ هر عدد: ' + prFmt(_unitAnn));
   } else {
-    L.push('✅ قیمت نهاییِ هر عدد (اعلامی): ' + prFmt(r.manualUnit));
+    L.push('✅ قیمت نهاییِ هر عدد (اعلامی): ' + prFmt(_isV2t ? _unitAnn : r.manualUnit));
   }
   L.push('');
   L.push('▌ جمع‌بندیِ نهاییِ سفارش');
-  L.push('• قیمت هر عدد × ' + prToFa(prSep(r.qty)) + ' عدد: ' + prFmt((manual?r.manualUnit:r.perPartAnnounced) * r.qty));
+  L.push('• قیمت هر عدد × ' + prToFa(prSep(r.qty)) + ' عدد: ' + prFmt((manual ? (_isV2t?_unitAnn:r.manualUnit) : _unitAnn) * r.qty));
   if(r.modelingAnnounced){ L.push('• هزینه‌ی طراحی و مدلسازی (یک‌بار برای کل سفارش): ' + prFmt(r.modelingAnnounced)); (r.modelingItems||[]).forEach(function(m){ if(m.cost||m.hours) L.push('   └ ' + (m.name||'طراحی') + ': ' + prFmt(m.cost) + (m.hours?(' · '+prToFa(m.hours)+' ساعت'):'') + (m.manualCost?' (قیمتِ توافقی)':'')); }); }
   if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
   if(r.shipping) L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
