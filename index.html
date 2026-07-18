@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V220</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V221</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -914,6 +914,7 @@ function doPost(e){
             <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px">
               <div style="display:flex;gap:8px">
                 <button class="btn btn-ghost btn-sm" style="flex:1" onclick="pricingCopy()">📋 کپی متن</button>
+                <button class="btn btn-ghost btn-sm" style="flex:1;border-color:#3a4a7e;color:#9cd1ff" onclick="prCopyImages()" title="همه‌ی عکس‌های قطعات در یک تصویر">🖼 کپی عکس‌ها</button>
                 <button class="btn btn-primary btn-sm" style="flex:1" id="pr-btn-xlsx" onclick="pricingExportXlsx()">⬇ خروجی اکسل</button>
               </div>
               <button class="btn btn-sm" style="background:#E2241A;border-color:#E2241A;color:#fff;font-weight:700" onclick="ivShowInvoice()">📄 صدور فاکتور</button>
@@ -8529,6 +8530,71 @@ function prSetModelingManual(val, autoVal){
   prScheduleCompute();
 }
 
+// ── کپیِ عکس‌های قطعات در یک تصویرِ واحد (کولاژ) ──
+function prCollectImageIds(){
+  var ids=[], o=(prState&&prState.order)||{};
+  if(o.sections && o.sections.length){
+    o.sections.forEach(function(s){ if(s && s.imageFileId) ids.push(String(s.imageFileId)); });
+  }
+  if(!ids.length && o.imageFileId) ids.push(String(o.imageFileId));
+  return ids;
+}
+function prLoadImg(src){
+  return new Promise(function(res,rej){ var im=new Image(); im.onload=function(){res(im);}; im.onerror=rej; im.src=src; });
+}
+function prBuildCollage(images){
+  // چیدمانِ شبکه‌ای با نسبتِ تصویر حفظ‌شده
+  var n=images.length;
+  var cols = n<=1?1 : (n<=2?2 : (n<=4?2 : (n<=6?3 : (n<=9?3:4))));
+  var rows = Math.ceil(n/cols);
+  var CELL=460, GAP=14, PAD=18;
+  var W = PAD*2 + cols*CELL + (cols-1)*GAP;
+  var H = PAD*2 + rows*CELL + (rows-1)*GAP;
+  var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  var cx=cv.getContext('2d');
+  cx.fillStyle='#ffffff'; cx.fillRect(0,0,W,H);
+  images.forEach(function(im,i){
+    var r=Math.floor(i/cols), c=i%cols;
+    var x=PAD + c*(CELL+GAP), y=PAD + r*(CELL+GAP);
+    cx.fillStyle='#f3f4f8'; cx.fillRect(x,y,CELL,CELL);
+    var sc=Math.min(CELL/im.width, CELL/im.height);
+    var w=Math.round(im.width*sc), h=Math.round(im.height*sc);
+    cx.drawImage(im, x+Math.round((CELL-w)/2), y+Math.round((CELL-h)/2), w, h);
+    cx.strokeStyle='#dfe3ee'; cx.lineWidth=1; cx.strokeRect(x+0.5,y+0.5,CELL-1,CELL-1);
+  });
+  return cv;
+}
+function prCopyImages(){
+  var ids = prCollectImageIds();
+  if(!ids.length){ showToast('این سفارش عکسی ندارد'); return; }
+  showToast('در حال آماده‌سازیِ تصویر… ('+prToFa(ids.length)+' عکس)');
+  callSheet('getImagesB64', { ids:ids.join(','), w:520, t:Date.now() }, function(res){
+    if(!(res && res.status==='ok' && res.images && res.images.length)){ showToast('خطا در دریافت تصاویر'); return; }
+    var srcs = res.images.filter(function(x){ return x && x.b64; })
+                         .map(function(x){ return 'data:'+(x.mime||'image/png')+';base64,'+x.b64; });
+    if(!srcs.length){ showToast('تصویری قابل خواندن نبود'); return; }
+    Promise.all(srcs.map(prLoadImg)).then(function(imgs){
+      var cv = prBuildCollage(imgs);
+      cv.toBlob(function(blob){
+        if(!blob){ showToast('خطا در ساخت تصویر'); return; }
+        var done=function(){ showToast('✅ تصویرِ '+prToFa(imgs.length)+' قطعه کپی شد — در پیام‌رسان پیست کن'); };
+        try{
+          if(navigator.clipboard && window.ClipboardItem){
+            navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]).then(done).catch(function(){ prDownloadBlob(blob); });
+          } else { prDownloadBlob(blob); }
+        }catch(e){ prDownloadBlob(blob); }
+      }, 'image/png');
+    }).catch(function(){ showToast('خطا در بارگذاری تصاویر'); });
+  }, 60000);
+}
+function prDownloadBlob(blob){
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='قطعات-'+((prState&&prState.savedCode)||'سفارش')+'.png';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  showToast('📥 تصویر دانلود شد (کپی مستقیم پشتیبانی نشد)');
+}
 // ── کپی متن خروجی ──
 function pricingCopy(){
   if(!prLastResult){ showToast('اول یک برآورد بسازید'); return; }
