@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V215</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V216</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -7819,7 +7819,14 @@ function prRenderModelingArea(){
   if(!area) return;
   var multi = prIsMulti();
   if(single) single.style.display = multi ? 'none' : 'flex';
-  if(wOrd) wOrd.style.display = multi ? 'none' : '';
+  // «اسم سفارش» = عنوانِ کلِ پروژه؛ در حالت چندبخشی هم باید قابلِ ویرایش بماند
+  if(wOrd){
+    wOrd.style.display = '';
+    var _lb = wOrd.querySelector('label');
+    if(_lb) _lb.textContent = multi ? 'اسم پروژه (عنوانِ کلِ سفارش)' : 'اسم سفارش';
+    var _in = document.getElementById('pr-o-ordername');
+    if(_in) _in.placeholder = multi ? 'مثلاً پروژه بازوی ربات' : 'مثلاً پرینت قطعه ...';
+  }
   if(wQty) wQty.style.display = multi ? 'none' : '';
   var wPi=document.getElementById('pr-wrap-projimg'); if(wPi) wPi.style.display = multi ? 'none' : 'flex';
   var wPr=document.getElementById('pr-wrap-profit'); if(wPr) wPr.style.display = multi ? 'none' : 'block';
