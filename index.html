@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V216</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V218</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -7304,7 +7304,7 @@ function pricingResetForNext(){
     profit:(+d.profit||0), institute:(+d.institute||0),
     packaging:'', shipping:'', notes:'', manualUnit:0 };
   prState.lines = [];
-  prState.editId = null;
+  prState.editId = null; prState.cfgDirty = false;
   prState.savedCode = '';
   prPendingImage = null;
   var ind=document.getElementById('pr-image-ind'); if(ind) ind.textContent='';
@@ -7861,7 +7861,7 @@ function pricingAddLine(kind){
   prScheduleCompute();
 }
 function pricingAddMachine(){ prState.machines.push({id:prNid(),name:'دستگاه جدید',type:'FDM',rate:30000}); prMachineRows(); prRenderLines(); }
-function pricingAddMaterial(){ prState.materials.push({id:prNid(),name:'ماده جدید',price:1000000,density:1.0}); prMaterialRows(); prCompositeRows(); prRenderLines(); }
+function pricingAddMaterial(){ prState.materials.push({id:prNid(),name:'ماده جدید',price:1000000,density:1.0}); prState.cfgDirty=true; prMaterialRows(); prCompositeRows(); prRenderLines(); }
 function pricingAddComposite(){
   var a=(prState.materials[0]||{}).id, b=(prState.materials[1]||prState.materials[0]||{}).id;
   prState.composites.push({id:prNid(),name:'رزین ترکیبی جدید',parts:[{materialId:a,pct:50},{materialId:b,pct:50}]});
@@ -7922,14 +7922,14 @@ function prOnInput(e){
   var mr = t.closest && t.closest('[data-prmid]');
   if(mr && t.dataset && t.dataset.prmf){
     var m = prFindMachine(mr.getAttribute('data-prmid'));
-    if(m){ m[t.dataset.prmf] = (t.dataset.prmf==='rate') ? v : t.value; prRenderLines(); }
+    if(m){ m[t.dataset.prmf] = (t.dataset.prmf==='rate') ? v : t.value; prState.cfgDirty=true; prRenderLines(); }
     return;
   }
   // مواد (تنظیمات)
   var matr = t.closest && t.closest('[data-prmatid]');
   if(matr && t.dataset && t.dataset.prmatf){
     var mt = prFindMaterial(matr.getAttribute('data-prmatid'));
-    if(mt){ mt[t.dataset.prmatf] = (t.dataset.prmatf==='name') ? t.value : v; prCompositeRows(); prRenderLines(); }
+    if(mt){ mt[t.dataset.prmatf] = (t.dataset.prmatf==='name') ? t.value : v; prState.cfgDirty=true; prCompositeRows(); prRenderLines(); }
     return;
   }
   // آدرس لوگو و مهر فاکتور
@@ -7937,7 +7937,7 @@ function prOnInput(e){
   if(t.id==='pr-iv-stamp'){ prState.invoice=prState.invoice||{}; prState.invoice.stampFileId=t.value; return; }
   // نرخ‌ها و پیش‌فرض‌ها (تنظیمات)
   var rmap = {'pr-r-labor':['rates','labor'],'pr-r-finishing':['rates','finishing'],'pr-r-modeling':['rates','modeling'],'pr-d-profit':['defaults','profit'],'pr-d-risk':['defaults','riskFactor']};
-  if(rmap[t.id]){ var g=rmap[t.id]; prState[g[0]][g[1]] = v; return; }
+  if(rmap[t.id]){ var g=rmap[t.id]; prState[g[0]][g[1]] = v; prState.cfgDirty=true; return; }
   // اطلاعات سفارش و پارامترها
   if(t.id==='pr-o-notes'){ prState.order.notes = t.value; return; }
   if(t.id==='pr-manual-unit'){
@@ -8030,6 +8030,7 @@ function prDoSyncPricesToday(){
     (prState.materials||[]).forEach(function(m){ var gm=findById(g.materials,m.id); if(gm){ m.price=gm.price; if(gm.density!=null) m.density=gm.density; } });
     (prState.machines||[]).forEach(function(mc){ var gc=findById(g.machines,mc.id); if(gc){ mc.rate=gc.rate; if(gc.plateTime!=null) mc.plateTime=gc.plateTime; if(gc.perPlate!=null) mc.perPlate=gc.perPlate; } });
     if(g.rates){ prState.rates.labor=g.rates.labor; prState.rates.finishing=g.rates.finishing; prState.rates.modeling=g.rates.modeling; }
+    prState.cfgDirty = true;   // نرخ‌ها عمداً به امروز تغییر کرد → کانفیگ باید به سرور برود
     if(typeof prMaterialRows==='function') prMaterialRows();
     if(typeof prMachineRows==='function') prMachineRows();
     if(typeof prCompositeRows==='function') prCompositeRows();
@@ -8115,8 +8116,12 @@ function prPayload(){
   var pl = { order: ord, lines: prState.lines };
   if(prState.editId){
     pl.editId = prState.editId;
-    var cfg = prCurrentConfig();
-    pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };  // بدون invoice/layout (حجیم و بی‌ربط به قیمت)
+    // کانفیگ فقط وقتی فرستاده می‌شود که کاربر عمداً نرخ‌ها/مواد را عوض کرده باشد (یا «نرخِ امروز» زده باشد).
+    // در حالت عادی فرستاده نمی‌شود تا URL کوتاه بماند و سرور نرخ‌های زمانِ همان سفارش را از دیتای ذخیره‌شده بخواند.
+    if(prState.cfgDirty){
+      var cfg = prCurrentConfig();
+      pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
+    }
   }
   return JSON.stringify(pl);
 }
@@ -8127,7 +8132,7 @@ function prRenderEditBanner(){
   else b.style.display='none';
 }
 function pricingNewOrder(){
-  prState.editId = null; prState.savedCode = '';
+  prState.editId = null; prState.savedCode = ''; prState.cfgDirty = false;
   prState.loaded = false;
   prRenderEditBanner();
   pricingInit();
@@ -8152,7 +8157,7 @@ function pricingEditOrder(id){
       (prState.lines||[]).forEach(uniq);
       ((prState.order&&prState.order.sections)||[]).forEach(function(s){ uniq(s); (s.lines||[]).forEach(uniq); });
     })();
-    prState.editId     = res.id;
+    prState.editId     = res.id; prState.cfgDirty = false;   // شروع ویرایش: نرخ‌های همان سفارش، تا وقتی کاربر عمداً عوض کند
     prState.savedCode  = res.code||'';
     prState.loaded     = true;
     prEditSnapshot=''; prEditNeedBaseline=true;   // خط‌مبنا بعد از اولین محاسبه گرفته می‌شود
