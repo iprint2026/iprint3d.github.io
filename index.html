@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V223</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V224</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8541,15 +8541,17 @@ function prCollectImageIds(){
 }
 function prLabelsForIds(ids){
   var o=(prState&&prState.order)||{}, r=(typeof prLastResult!=='undefined')?prLastResult:null;
+  function fm(u,q,t){ return prSep(Math.round(u))+' × '+q+' = '+prSep(Math.round(t)); }
   return (ids||[]).map(function(fid){
     if(o.sections && o.sections.length && r && r.sections){
       for(var i=0;i<o.sections.length;i++){
         if(o.sections[i] && String(o.sections[i].imageFileId)===String(fid) && r.sections[i]){
-          return prToFa(prSep(Math.round(r.sections[i].perUnit)))+' تومان';
+          var s=r.sections[i], q=(+s.qty||1);
+          return fm(s.perUnit, q, (s.total!=null?s.total:s.perUnit*q));
         }
       }
     }
-    if(r && r.perUnit) return prToFa(prSep(Math.round(r.perUnit)))+' تومان';
+    if(r && r.perUnit){ var q2=(+r.qty||1); return fm(r.perUnit, q2, r.perUnit*q2); }
     return '';
   });
 }
@@ -8583,10 +8585,10 @@ function prBuildCollage(images, labels){
       cx.strokeStyle='#dfe3ee'; cx.strokeRect(x+0.5, y+CELL+0.5, CELL-1, LAB-1);
       if(t){
         cx.fillStyle='#12203f';
-        cx.font='bold 30px Vazirmatn, Tahoma, Arial, sans-serif';
+        cx.font='bold 27px Vazirmatn, Tahoma, Arial, sans-serif';
         cx.textAlign='center'; cx.textBaseline='middle';
-        try{ cx.direction='rtl'; }catch(e){}
-        cx.fillText(t, x+CELL/2, y+CELL+LAB/2, CELL-16);
+        try{ cx.direction='ltr'; }catch(e){}
+        cx.fillText(t, x+CELL/2, y+CELL+LAB/2, CELL-20);
       }
     }
   });
