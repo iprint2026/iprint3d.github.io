@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V221</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V222</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9769,6 +9769,7 @@ function archiveProfile(id){
       +'<button class="btn btn-sm" style="background:#3a2a0c;border-color:#8a6d1e;color:#fbbf24" onclick="omUpgradeCalc(\''+id+'\')" title="بازمحاسبه با سازوکار جدید">🔄 آپدیت محاسبات</button>'
       +'<button class="btn btn-sm" style="background:#3a1d52;border-color:#5b3fd6;color:#c4b5fd" onclick="orderModalClose();archiveOpenInvoice(\''+id+'\')">🧾 ساخت/ویرایش فاکتور</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="archiveImage(\''+id+'\')">🖼 افزودن/تغییر تصویر</button>'
+      +'<button class="btn btn-sm" style="background:#10233f;border-color:#2a5a8e;color:#9cd1ff" onclick="omCopyImages(\''+id+'\')" title="همه‌ی عکس‌های قطعات در یک تصویر">🖼 کپی عکس‌ها</button>'
       +lc
       +'<button class="btn btn-sm" style="background:#2a1414;border-color:#5b2020;color:#f87171" onclick="omDelete(\''+id+'\')">✕ حذف سفارش</button>'
     +'</div>'
@@ -10236,6 +10237,28 @@ function omSetStatus(id, value){
       archiveInit(function(){ if(stillOpen) archiveProfile(id); });
     } else showToast('خطا در تغییر وضعیت');
   });
+}
+// کپیِ عکس‌های قطعات از صفحه‌ی آرشیو (بر اساسِ شناسه‌ی سفارش)
+function omCopyImages(id){
+  if(!id){ showToast('شناسه‌ی سفارش پیدا نشد'); return; }
+  showToast('در حال آماده‌سازیِ تصویر…');
+  callSheet('getImagesB64', { id:id, w:520, t:Date.now() }, function(res){
+    if(!(res && res.status==='ok' && res.images && res.images.length)){ showToast('این سفارش عکسی ندارد'); return; }
+    var srcs = res.images.filter(function(x){ return x && x.b64; })
+                         .map(function(x){ return 'data:'+(x.mime||'image/png')+';base64,'+x.b64; });
+    if(!srcs.length){ showToast('تصویری قابل خواندن نبود'); return; }
+    Promise.all(srcs.map(prLoadImg)).then(function(imgs){
+      prBuildCollage(imgs).toBlob(function(blob){
+        if(!blob){ showToast('خطا در ساخت تصویر'); return; }
+        var done=function(){ showToast('✅ تصویرِ '+prToFa(imgs.length)+' قطعه کپی شد — در پیام‌رسان پیست کن'); };
+        try{
+          if(navigator.clipboard && window.ClipboardItem){
+            navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]).then(done).catch(function(){ prDownloadBlob(blob); });
+          } else { prDownloadBlob(blob); }
+        }catch(e){ prDownloadBlob(blob); }
+      }, 'image/png');
+    }).catch(function(){ showToast('خطا در بارگذاری تصاویر'); });
+  }, 60000);
 }
 function omUpgradeCalc(id){
   if(!confirm('🔄 آپدیت محاسبات با سازوکار جدید\n\nاین سفارش با فرمولِ جدیدِ قیمت‌گذاری دوباره حساب می‌شود. اعدادِ نهایی ممکن است تغییر کند.\nبهتر است فقط روی سفارش‌هایی بزنی که هنوز نهایی/تسویه نشده‌اند.\n\nادامه می‌دهی؟')) return;
