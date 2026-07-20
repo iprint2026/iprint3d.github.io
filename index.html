@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V229</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V230</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8558,46 +8558,89 @@ function prLabelsForIds(ids){
 function prLoadImg(src){
   return new Promise(function(res,rej){ var im=new Image(); im.onload=function(){res(im);}; im.onerror=rej; im.src=src; });
 }
+function prRoundRect(cx,x,y,w,h,r){
+  cx.beginPath();
+  cx.moveTo(x+r,y); cx.lineTo(x+w-r,y); cx.quadraticCurveTo(x+w,y,x+w,y+r);
+  cx.lineTo(x+w,y+h-r); cx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  cx.lineTo(x+r,y+h); cx.quadraticCurveTo(x,y+h,x,y+h-r);
+  cx.lineTo(x,y+r); cx.quadraticCurveTo(x,y,x+r,y); cx.closePath();
+}
 function prBuildCollage(images, labels, title){
-  // چیدمانِ شبکه‌ای + سرتیترِ کد/اسمِ پروژه + نوارِ قیمت زیرِ هر عکس
+  // کولاژِ کارت‌محور: سرتیترِ پروژه + کارتِ هر قطعه با عکسِ بدونِ کشیدگی و نوارِ قیمت
   labels = labels || [];
   title = String(title||'').trim();
   var hasLab = labels.some(function(x){ return x && String(x).trim(); });
-  var n=images.length;
+  var n = images.length;
   var cols = n<=1?1 : (n<=2?2 : (n<=4?2 : (n<=6?3 : (n<=9?3:4))));
   var rows = Math.ceil(n/cols);
-  var CELL=460, GAP=14, PAD=18, LAB = hasLab ? 62 : 0, HEAD = title ? 92 : 0;
-  var W = PAD*2 + cols*CELL + (cols-1)*GAP;
-  var H = PAD*2 + HEAD + rows*(CELL+LAB) + (rows-1)*GAP;
-  var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
-  var cx=cv.getContext('2d');
-  cx.fillStyle='#ffffff'; cx.fillRect(0,0,W,H);
+
+  // نسبتِ تصویرِ سلول از میانه‌ی نسبتِ خودِ عکس‌ها گرفته می‌شود تا نوارهای خالی کم شوند
+  var ars = images.map(function(im){ return (im.width>0&&im.height>0) ? (im.width/im.height) : 1; }).sort(function(a,b){return a-b;});
+  var arMid = ars.length ? ars[Math.floor(ars.length/2)] : 1;
+  if(arMid < 0.65) arMid = 0.65;
+  if(arMid > 1.9)  arMid = 1.9;
+
+  var IMW = 500;                                  // عرضِ ناحیه‌ی عکس
+  var IMH = Math.round(IMW / arMid);              // ارتفاعِ متناسب (بدونِ کشیدگی)
+  var INSET = 14, LAB = hasLab ? 64 : 0;
+  var CARDW = IMW + INSET*2, CARDH = IMH + INSET*2 + LAB;
+  var GAP = 22, PAD = 26, HEAD = title ? 108 : 0;
+
+  var W = PAD*2 + cols*CARDW + (cols-1)*GAP;
+  var H = PAD*2 + HEAD + rows*CARDH + (rows-1)*GAP;
+  var cv = document.createElement('canvas'); cv.width=W; cv.height=H;
+  var cx = cv.getContext('2d');
+
+  // پس‌زمینه‌ی نرم
+  var bg = cx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#f7f9fc'); bg.addColorStop(1,'#eef2f8');
+  cx.fillStyle=bg; cx.fillRect(0,0,W,H);
+
+  // سرتیتر
   if(HEAD){
-    cx.fillStyle='#12203f'; cx.fillRect(0,0,W,HEAD);
+    var hg = cx.createLinearGradient(0,0,W,0);
+    hg.addColorStop(0,'#0e1a33'); hg.addColorStop(1,'#1c2f57');
+    cx.fillStyle=hg; cx.fillRect(0,0,W,HEAD);
+    cx.fillStyle='#4da3ff'; cx.fillRect(0,HEAD-5,W,5);         // نوارِ تأکید
     cx.fillStyle='#ffffff';
-    cx.font='bold 42px Vazirmatn, Tahoma, Arial, sans-serif';
+    cx.font='bold 44px Vazirmatn, Tahoma, Arial, sans-serif';
     cx.textAlign='center'; cx.textBaseline='middle';
     try{ cx.direction='rtl'; }catch(e){}
-    cx.fillText(title, W/2, HEAD/2, W-40);
+    cx.fillText(title, W/2, (HEAD-5)/2, W-60);
   }
+
   images.forEach(function(im,i){
     var r=Math.floor(i/cols), c=i%cols;
-    var x=PAD + c*(CELL+GAP), y=PAD + HEAD + r*(CELL+LAB+GAP);
-    cx.fillStyle='#f3f4f8'; cx.fillRect(x,y,CELL,CELL);
-    var sc=Math.min(CELL/im.width, CELL/im.height);
+    var x=PAD + c*(CARDW+GAP), y=PAD + HEAD + r*(CARDH+GAP);
+
+    // کارتِ سفید با سایه‌ی نرم
+    cx.save();
+    cx.shadowColor='rgba(18,32,63,0.14)'; cx.shadowBlur=18; cx.shadowOffsetY=5;
+    cx.fillStyle='#ffffff';
+    prRoundRect(cx,x,y,CARDW,CARDH,20); cx.fill();
+    cx.restore();
+
+    // ناحیه‌ی عکس (بدونِ کشیدگی — نسبتِ اصلی حفظ می‌شود)
+    var ix=x+INSET, iy=y+INSET;
+    cx.save();
+    prRoundRect(cx,ix,iy,IMW,IMH,12); cx.clip();
+    cx.fillStyle='#f2f5fa'; cx.fillRect(ix,iy,IMW,IMH);
+    var sc=Math.min(IMW/im.width, IMH/im.height);
     var w=Math.round(im.width*sc), h=Math.round(im.height*sc);
-    cx.drawImage(im, x+Math.round((CELL-w)/2), y+Math.round((CELL-h)/2), w, h);
-    cx.strokeStyle='#dfe3ee'; cx.lineWidth=1; cx.strokeRect(x+0.5,y+0.5,CELL-1,CELL-1);
+    cx.drawImage(im, ix+Math.round((IMW-w)/2), iy+Math.round((IMH-h)/2), w, h);
+    cx.restore();
+
     if(LAB){
-      var t = String(labels[i]||'').trim();
-      cx.fillStyle='#eef1f8'; cx.fillRect(x, y+CELL, CELL, LAB);
-      cx.strokeStyle='#dfe3ee'; cx.strokeRect(x+0.5, y+CELL+0.5, CELL-1, LAB-1);
+      var t=String(labels[i]||'').trim();
       if(t){
+        var ly=y+INSET+IMH+2;
+        cx.strokeStyle='#e6ebf4'; cx.lineWidth=1;
+        cx.beginPath(); cx.moveTo(x+INSET, ly+6); cx.lineTo(x+CARDW-INSET, ly+6); cx.stroke();
         cx.fillStyle='#12203f';
-        cx.font='bold 27px Vazirmatn, Tahoma, Arial, sans-serif';
+        cx.font='bold 31px Vazirmatn, Tahoma, Arial, sans-serif';
         cx.textAlign='center'; cx.textBaseline='middle';
         try{ cx.direction='ltr'; }catch(e){}
-        cx.fillText(t, x+CELL/2, y+CELL+LAB/2, CELL-20);
+        cx.fillText(t, x+CARDW/2, ly+LAB/2+4, CARDW-INSET*2-8);
       }
     }
   });
