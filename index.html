@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V227</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V229</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8551,29 +8551,38 @@ function prLabelsForIds(ids){
         }
       }
     }
-    if(r && r.perUnit){ var q2=(+r.qty||1); return fm(r.perUnit, q2, r.perUnit*q2); }
+    if(r && r.perUnit){ var q2=(+r.qty||1); return fm(r.perUnit, q2, (r.orderTotal!=null? r.orderTotal : r.perUnit*q2)); }
     return '';
   });
 }
 function prLoadImg(src){
   return new Promise(function(res,rej){ var im=new Image(); im.onload=function(){res(im);}; im.onerror=rej; im.src=src; });
 }
-function prBuildCollage(images, labels){
-  // چیدمانِ شبکه‌ای با نسبتِ تصویر حفظ‌شده + نوارِ قیمت زیرِ هر عکس
+function prBuildCollage(images, labels, title){
+  // چیدمانِ شبکه‌ای + سرتیترِ کد/اسمِ پروژه + نوارِ قیمت زیرِ هر عکس
   labels = labels || [];
+  title = String(title||'').trim();
   var hasLab = labels.some(function(x){ return x && String(x).trim(); });
   var n=images.length;
   var cols = n<=1?1 : (n<=2?2 : (n<=4?2 : (n<=6?3 : (n<=9?3:4))));
   var rows = Math.ceil(n/cols);
-  var CELL=460, GAP=14, PAD=18, LAB = hasLab ? 62 : 0;
+  var CELL=460, GAP=14, PAD=18, LAB = hasLab ? 62 : 0, HEAD = title ? 92 : 0;
   var W = PAD*2 + cols*CELL + (cols-1)*GAP;
-  var H = PAD*2 + rows*(CELL+LAB) + (rows-1)*GAP;
+  var H = PAD*2 + HEAD + rows*(CELL+LAB) + (rows-1)*GAP;
   var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
   var cx=cv.getContext('2d');
   cx.fillStyle='#ffffff'; cx.fillRect(0,0,W,H);
+  if(HEAD){
+    cx.fillStyle='#12203f'; cx.fillRect(0,0,W,HEAD);
+    cx.fillStyle='#ffffff';
+    cx.font='bold 42px Vazirmatn, Tahoma, Arial, sans-serif';
+    cx.textAlign='center'; cx.textBaseline='middle';
+    try{ cx.direction='rtl'; }catch(e){}
+    cx.fillText(title, W/2, HEAD/2, W-40);
+  }
   images.forEach(function(im,i){
     var r=Math.floor(i/cols), c=i%cols;
-    var x=PAD + c*(CELL+GAP), y=PAD + r*(CELL+LAB+GAP);
+    var x=PAD + c*(CELL+GAP), y=PAD + HEAD + r*(CELL+LAB+GAP);
     cx.fillStyle='#f3f4f8'; cx.fillRect(x,y,CELL,CELL);
     var sc=Math.min(CELL/im.width, CELL/im.height);
     var w=Math.round(im.width*sc), h=Math.round(im.height*sc);
@@ -8605,7 +8614,8 @@ function prCopyImages(){
     var labs = prLabelsForIds(okImgs.map(function(x){ return x.id; }));
     if(!srcs.length){ showToast('تصویری قابل خواندن نبود'); return; }
     Promise.all(srcs.map(prLoadImg)).then(function(imgs){
-      var cv = prBuildCollage(imgs, labs);
+      var _cd=(prState&&prState.savedCode)||'', _nm=((prState&&prState.order&&prState.order.orderName)||'');
+      var cv = prBuildCollage(imgs, labs, (_cd + ((_cd&&_nm)?' · ':'') + _nm));
       cv.toBlob(function(blob){
         if(!blob){ showToast('خطا در ساخت تصویر'); return; }
         var done=function(){ showToast('✅ تصویرِ '+prToFa(imgs.length)+' قطعه کپی شد — در پیام‌رسان پیست کن'); };
@@ -10297,7 +10307,7 @@ function omCopyImages(id){
     var labs = okImgs.map(function(x){ return x.label||''; });
     if(!srcs.length){ showToast('تصویری قابل خواندن نبود'); return; }
     Promise.all(srcs.map(prLoadImg)).then(function(imgs){
-      prBuildCollage(imgs, labs).toBlob(function(blob){
+      prBuildCollage(imgs, labs, (res.title||'')).toBlob(function(blob){
         if(!blob){ showToast('خطا در ساخت تصویر'); return; }
         var done=function(){ showToast('✅ تصویرِ '+prToFa(imgs.length)+' قطعه کپی شد — در پیام‌رسان پیست کن'); };
         try{
