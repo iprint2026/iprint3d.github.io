@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V230</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V233</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -856,6 +856,7 @@ function doPost(e){
             <div style="font-weight:600;font-size:14px;margin-bottom:14px">۲) ردیف‌های هزینه</div>
             <div id="pr-lines"></div>
             <div id="pr-modeling-area"></div>
+            <div id="pr-prepro-area"></div>
             <div id="pr-single-adds" style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;padding-top:14px;border-top:1px dashed #1a1d2e">
               <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('machine_fdm')">+ دستگاه FDM</button>
               <button class="btn btn-ghost btn-sm" onclick="pricingAddLine('machine_dlp')">+ دستگاه DLP</button>
@@ -7580,14 +7581,14 @@ function prLineBody(l){
 }
 function prIsMulti(){ return !!(prState.order && prState.order.sections && prState.order.sections.length); }
 function prRenderLines(){
-  if(prIsMulti()){ prRenderSections(); prRenderModelingArea(); return; }
+  if(prIsMulti()){ prRenderSections(); prRenderModelingArea(); prRenderPrePro(); return; }
   var box = document.getElementById('pr-lines');
   var mainLines = prState.lines.filter(function(l){ return l.kind!=='modeling'; }); // مدلسازی در ناحیه‌ی خودش
-  if(!mainLines.length){ box.innerHTML = '<div style="color:#5a6080;font-size:13px;text-align:center;padding:18px;border:1px dashed #1a1d2e;border-radius:10px">هنوز ردیفی اضافه نشده. از دکمه‌های پایین استفاده کنید.</div>'; prRenderModelingArea(); return; }
+  if(!mainLines.length){ box.innerHTML = '<div style="color:#5a6080;font-size:13px;text-align:center;padding:18px;border:1px dashed #1a1d2e;border-radius:10px">هنوز ردیفی اضافه نشده. از دکمه‌های پایین استفاده کنید.</div>'; prRenderModelingArea(); prRenderPrePro(); return; }
   box.innerHTML = mainLines.map(function(l){
     return '<div class="pr-row" data-prlid="'+l.id+'"><div class="pr-rowhead"><span>'+prKindLabel[l.kind]+'</span><button class="pr-x" data-prdel="'+l.id+'">✕</button></div>'+prLineBody(l)+'</div>';
   }).join('');
-  prRenderModelingArea();
+  prRenderModelingArea(); prRenderPrePro();
 }
 
 function prSecFind(sid){ var s=prState.order.sections||[]; for(var i=0;i<s.length;i++) if(s[i].id===sid) return s[i]; return null; }
@@ -7671,7 +7672,7 @@ function prAddSection(){
   }
   var nm = prompt('نام قطعه‌ی این بخش چیست؟ (مثلاً فنر)', '');
   prState.order.sections.push({ id:prNid(), name:(nm&&nm.trim())?nm.trim():('قطعه '+prToFa(prState.order.sections.length+1)), qty:1, profit:'', lines:[] });
-  prRenderOrder(); prRenderLines(); prRenderModelingArea(); prScheduleCompute();
+  prRenderOrder(); prRenderLines(); prRenderModelingArea(); prRenderPrePro(); prScheduleCompute();
 }
 function prRemoveSection(sid){
   if(!prState.order.sections) return;
@@ -7683,7 +7684,7 @@ function prRemoveSection(sid){
     prState.order.sections = [];
     prRenderOrder();
   }
-  prRenderLines(); prRenderModelingArea(); prScheduleCompute();
+  prRenderLines(); prRenderModelingArea(); prRenderPrePro(); prScheduleCompute();
 }
 function prSetSecManual(sid, val, autoVal){
   var s = prSecFind(sid); if(!s) return;
@@ -7811,8 +7812,77 @@ function prToggleDesign(on){
     var nm = prompt('اسم قطعه‌ای که طراحی/مدلسازی شده چیست؟ (در فاکتور نوشته می‌شود)', 'طراحی سه‌بعدی قطعه ');
     prState.order.designName = (nm&&nm.trim()) ? nm.trim() : 'طراحی قطعه';
   }
-  prRenderModelingArea(); prScheduleCompute();
+  prRenderModelingArea(); prRenderPrePro(); prScheduleCompute();
 }
+// ── پیش‌تولید: تست‌ها و نمونه‌های قبل از تولیدِ انبوه (بدونِ سود، سرشکن بر کلِ سفارش) ──
+function prPreProList(){ if(!prState.order.prePro) prState.order.prePro=[]; return prState.order.prePro; }
+function prAddPrePro(){
+  var nm = prompt('عنوانِ این هزینهٔ پیش‌تولید؟ (مثلاً: تست ضریب ابعادی — بدنه)', '');
+  if(nm===null) return;
+  prPreProList().push({ id:prNid(), name:(nm&&nm.trim())?nm.trim():'هزینهٔ پیش‌تولید', qty:1,
+    machineId:'', hours:'', materialId:'', matSel:'B', grams:'', minutes:'' });
+  prRenderPrePro(); prScheduleCompute();
+}
+function prDelPrePro(id){
+  var L=prPreProList(); for(var i=0;i<L.length;i++){ if(L[i].id===id){ L.splice(i,1); break; } }
+  prRenderPrePro(); prScheduleCompute();
+}
+function prPreProSet(id, field, val){
+  var L=prPreProList();
+  for(var i=0;i<L.length;i++){ if(L[i].id===id){
+    L[i][field] = (field==='name'||field==='machineId'||field==='materialId'||field==='matSel') ? val : (String(val).replace(/[^\d.]/g,''));
+    break;
+  } }
+  prPreProSync(); prScheduleCompute();
+}
+// تبدیلِ فیلدهای ساده به همان قالبِ «خط‌ها» که بک‌اند می‌فهمد
+function prPreProSync(){
+  prPreProList().forEach(function(pp){
+    var lines=[];
+    if(pp.machineId && +pp.hours>0){
+      var mc=null; (prState.machines||[]).forEach(function(m){ if(m.id===pp.machineId) mc=m; });
+      var kind = (mc && /dlp/i.test(mc.name||'')) ? 'machine_dlp' : 'machine_fdm';
+      lines.push({ kind:kind, machineId:pp.machineId, hours:+pp.hours||0, plateTime:+pp.hours||0, perPlate:1 });
+    }
+    if(pp.materialId && +pp.grams>0) lines.push({ kind:'material', materialId:pp.materialId, matSel:(pp.matSel||'B'), amount:+pp.grams||0, unit:'g' });
+    if(+pp.minutes>0) lines.push({ kind:'labor', minutes:+pp.minutes||0 });
+    pp.lines = lines;
+    pp.qty = Math.max(1, +pp.qty||1);
+  });
+}
+function prRenderPrePro(){
+  var area=document.getElementById('pr-prepro-area'); if(!area) return;
+  var L=prPreProList();
+  var mOpts=function(sel){ var h='<option value="">— دستگاه —</option>'; (prState.machines||[]).forEach(function(m){ h+='<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }); return h; };
+  var matOpts=function(sel){ var h='<option value="">— ماده —</option>'; (prState.materials||[]).forEach(function(m){ h+='<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }); (prState.composites||[]).forEach(function(c){ h+='<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+escapeHtml(c.name)+' (ترکیبی)</option>'; }); return h; };
+  var rows='';
+  L.forEach(function(pp){
+    rows += '<div style="border:1px solid #2a2350;border-radius:10px;padding:10px;margin-bottom:8px;background:#141228">'
+      + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+        + '<input class="inp" value="'+escapeHtml(pp.name||'')+'" placeholder="عنوانِ هزینه (مثلاً تست ضریب ابعادی)" oninput="prPreProSet(\''+pp.id+'\',\'name\',this.value)" style="flex:1">'
+        + '<input class="inp" type="number" min="1" value="'+(pp.qty||1)+'" title="تعداد" oninput="prPreProSet(\''+pp.id+'\',\'qty\',this.value)" style="width:80px">'
+        + '<button class="btn btn-ghost btn-sm" onclick="prDelPrePro(\''+pp.id+'\')" style="color:#f87171">✕</button>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 90px 1fr 90px 100px;gap:6px">'
+        + '<select class="inp" onchange="prPreProSet(\''+pp.id+'\',\'machineId\',this.value)">'+mOpts(pp.machineId)+'</select>'
+        + '<input class="inp" type="number" step="0.01" value="'+(pp.hours||'')+'" placeholder="ساعت" oninput="prPreProSet(\''+pp.id+'\',\'hours\',this.value)">'
+        + '<select class="inp" onchange="prPreProSet(\''+pp.id+'\',\'materialId\',this.value)">'+matOpts(pp.materialId)+'</select>'
+        + '<input class="inp" type="number" step="0.1" value="'+(pp.grams||'')+'" placeholder="گرم" oninput="prPreProSet(\''+pp.id+'\',\'grams\',this.value)">'
+        + '<input class="inp" type="number" step="1" value="'+(pp.minutes||'')+'" placeholder="دقیقه نیرو" oninput="prPreProSet(\''+pp.id+'\',\'minutes\',this.value)">'
+      + '</div></div>';
+  });
+  area.innerHTML = '<div style="margin-top:14px;padding-top:14px;border-top:1px dashed #1a1d2e">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      + '<span style="font-weight:700;font-size:13px;color:#c4b5fd">🧪 هزینه‌های پیش‌تولید</span>'
+      + '<button class="btn btn-ghost btn-sm" onclick="prAddPrePro()">+ افزودن هزینهٔ پیش‌تولید</button>'
+    + '</div>'
+    + (L.length ? rows : '<div style="font-size:11px;color:#5a6080">هزینه‌های قبل از تولیدِ انبوه (تست‌پرینت، رسیدن به تنظیماتِ درست، قطعاتِ خراب). بدونِ سود، روی کلِ سفارش سرشکن می‌شود.</div>')
+    + (L.length ? ('<label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:12px;color:#cfd3e6;cursor:pointer">'
+        +'<input type="checkbox" '+(prState.order.showPrePro?'checked':'')+' onchange="prTogglePrePro(this.checked)" style="width:16px;height:16px;margin-top:2px">'
+        +'<span>هزینه‌های پیش‌تولید به‌صورتِ <b>ردیفِ جداگانه</b> در فاکتور بیاید.<br><span style="color:#7a809c;font-size:11px">اگر تیک نزنید، در قیمتِ دانه‌ای سرشکن می‌شود و مشتری تفکیکش را نمی‌بیند.</span></span></label>') : '')
+    + '</div>';
+}
+function prTogglePrePro(on){ prState.order.showPrePro = !!on; prRenderPrePro(); prScheduleCompute(); }
 function prRenderModelingArea(){
   var area = document.getElementById('pr-modeling-area');
   var single = document.getElementById('pr-single-adds');
@@ -8418,6 +8488,11 @@ function prRenderTape(r){
   if(r.modelingAnnounced) h += ln('+ مدلسازی (یک‌باره)', r.modelingAnnounced, 'muted');
   h += ln('+ بسته‌بندی و ارسال', packShip, 'muted');
   if(+r.extraSum){ h += '<div class="pr-ln" style="font-size:11.5px"><span style="color:#c4b5fd">🛒 هزینه‌های جانبی (بدونِ سود)</span><span style="color:#c4b5fd;font-weight:700">'+prFmt(r.extraSum)+'</span></div>'; (r.extraCosts||[]).forEach(function(x){ if(+x.amount) h += '<div class="pr-ln muted" style="font-size:10.5px"><span style="padding-right:12px">└ '+escapeHtml(x.name||'هزینه')+'</span><span>'+prFmt(x.amount)+'</span></div>'; }); }
+  if(r.preProItems && r.preProItems.length){
+    h += '<div class="pr-sec">🧪 هزینه‌های پیش‌تولید (بدونِ سود)</div>';
+    r.preProItems.forEach(function(pp){ h += ln(pp.name + ' × ' + prToFa(pp.qty), pp.total, 'muted'); });
+    h += '<div class="pr-ln" style="color:#c4b5fd"><span>جمعِ هزینه‌های پیش‌تولید</span><span style="font-weight:700">'+prFmt(r.preProTotal)+'</span></div>';
+  }
   h += '<div class="pr-sec">سود پروژه</div>';
   h += ln('قیمت تمام‌شده (هزینه‌ی واقعی)', r.rawTotal, 'muted');
   h += ln('قیمت نهایی (فروش)', r.orderTotal, 'muted');
@@ -8954,13 +9029,15 @@ function prBuildInvoiceItems(r, o){
   var totalQty = Math.max(1, r.multi ? (r.qty||1) : (+o.qty||1));
   var showModeling = !!o.showDesignRow;            // تیکِ «نمایش مدلسازی در فاکتور»
   var showExtras   = !!o.showExtras;
+  var showPrePro   = !!o.showPrePro;
   var modeling = +r.modelingAnnounced || 0;        // بدونِ سود/پژوهشگاه
   var extras = (+r.packaging||0) + (+r.shipping||0) + (+r.extraSum||0);
+  var prePro = +r.preProTotal || 0;
   var isV2 = (r.calcVersion===2);
   // در نسخهٔ ۲ مدلسازی و هزینه‌های اضافی از قبل داخلِ قیمتِ هر عدد هستند؛
   // پس نباید دوباره اضافه شوند و اگر ردیفِ جدا می‌خواهیم باید از قیمتِ واحد کم شوند.
   var spreadPerUnit = isV2
-    ? ( -(((showModeling?modeling:0) + (showExtras?extras:0)) / totalQty) )
+    ? ( -(((showModeling?modeling:0) + (showExtras?extras:0) + (showPrePro?prePro:0)) / totalQty) )
     : ( (showModeling?0:(modeling/totalQty)) + (showExtras?0:(extras/totalQty)) );
 
   var items = [];
@@ -8985,6 +9062,9 @@ function prBuildInvoiceItems(r, o){
   if(showExtras){
     if(r.packaging) items.push({ code:'بسته‌بندی', qty:1, unit:Math.round(r.packaging), total:Math.round(+r.packaging) });
     if(r.shipping)  items.push({ code:'ارسال', qty:1, unit:Math.round(r.shipping), total:Math.round(+r.shipping) });
+  }
+  if(showPrePro && prePro && r.preProItems && r.preProItems.length){
+    r.preProItems.forEach(function(pp){ items.push({ code:(pp.name||'هزینهٔ پیش‌تولید'), qty:(+pp.qty||1), unit:Math.round((+pp.total||0)/Math.max(1,+pp.qty||1)), total:Math.round(+pp.total||0) }); });
   }
   // ── لنگرِ دقت ──
   // جمعِ ردیف‌های فاکتور باید دقیقاً برابرِ «مبلغ کل سفارش» باشد. هر اختلافِ ناشی از گِردکردن
@@ -9961,6 +10041,15 @@ function archiveProfile(id){
         +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #161827"><span style="color:#9aa3c2">تعداد کل</span><span style="color:#e2e4f0">'+prToFa(s.qty)+' عدد</span></div>'
         +midRows
         +(s.modeling?row('مدلسازی (یک‌باره)', s.modeling):'')
+        +((s.preProItems && s.preProItems.length)
+           ? ('<div style="margin:8px 0;padding:8px 10px;border:1px solid #3a2f5e;border-radius:10px;background:#171334">'
+              +'<div style="color:#c4b5fd;font-weight:700;font-size:12px;margin-bottom:6px">🧪 هزینه‌های پیش‌تولید <span style="color:#6b7280;font-size:10px">· بدونِ سود، سرشکن بر کلِ سفارش</span></div>'
+              + s.preProItems.map(function(pp){
+                  return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11.5px"><span style="color:#9aa3c2">'+escapeHtml(pp.name||'—')+' × '+prToFa(pp.qty||1)+'</span><span style="color:#c4b5fd">'+prToFa(prSep(pp.total||0))+' تومان</span></div>';
+                }).join('')
+              +'<div style="display:flex;justify-content:space-between;padding-top:6px;margin-top:4px;border-top:1px solid #2a2350;font-size:12px"><span style="color:#c4b5fd;font-weight:700">جمعِ پیش‌تولید</span><span style="color:#c4b5fd;font-weight:700">'+prToFa(prSep(s.preProTotal||0))+' تومان</span></div>'
+              +'</div>')
+           : '')
         +row('مبلغ کل سفارش', s.total, true)
         +rowC('قیمت تمام‌شده‌ی کل (ساخت)', (s.baseTotal!=null?s.baseTotal:(s.base*s.qty)), 'cost')
         +rowC('💎 سود این سفارش', (s.profit||0), 'profit')
