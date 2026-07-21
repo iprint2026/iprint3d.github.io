@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V236</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V237</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8461,7 +8461,7 @@ function prRenderTape(r){
     if(+r.extraSum) h2 += '<div class="pr-ln" style="font-size:11.5px"><span style="color:#c4b5fd">🛒 هزینه‌های جانبی (بدونِ سود)</span><span style="color:#c4b5fd;font-weight:700">'+prFmt(r.extraSum)+'</span></div>';
     h2 += '<div class="pr-ln strong" style="font-size:14px;border-top:1px solid #1e3a6e;padding-top:7px;margin-top:4px"><span style="color:#fff">قیمت نهایی</span><span style="color:#5fe39a">'+prFmt(r.orderTotal)+'</span></div>'
       +'<div class="pr-ln muted" style="font-size:10.5px"><span>🏛 از این مبلغ، سهم پژوهشگاه</span><span>'+prFmt(r.institute)+'</span></div>'
-      +'<div class="pr-ln strong" style="color:#4ade80;font-size:12.5px"><span>💎 سود این پروژه</span><span>'+prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal))+'</span></div>'
+      +'<div class="pr-ln strong" style="color:#4ade80;font-size:12.5px"><span>💎 سود این پروژه</span><span>'+prFmt(r.netProfit!=null ? r.netProfit : (r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)))+'</span></div>'
       +'</div>';
     h2 += prModelingBox(r);
     h2 += prMaterialsBox(r);
@@ -8504,7 +8504,7 @@ function prRenderTape(r){
   h += '<div class="pr-sec">سود پروژه</div>';
   h += ln('قیمت تمام‌شده (هزینه‌ی واقعی)', r.rawTotal, 'muted');
   h += ln('قیمت نهایی (فروش)', r.orderTotal, 'muted');
-  h += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)) + '</span></div>';
+  h += '<div class="pr-ln strong" style="color:#4ade80"><span>سود این پروژه</span><span>' + prFmt(r.netProfit!=null ? r.netProfit : (r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal))) + '</span></div>';
   // قیمت اعلامیِ کلِ پروژه (قابل ویرایش) — ویرایش فقط سود را تغییر می‌دهد
   var oAuto = Math.round(r.perPartAnnounced||0);                       // قیمتِ خودکارِ هر عدد (پیش از اضافات)
   var extras = (+r.packaging||0)+(+r.shipping||0)+(+r.modelingAnnounced||0)+(+r.extraSum||0);
@@ -8831,7 +8831,7 @@ function pricingCopy(){
     L.push('');
     L.push('— — — — — (اطلاعات داخلی) — — — — —');
     if(r.institute) L.push('🏛 از مبلغ بالا، سهم پژوهشگاه: ' + prFmt(r.institute));
-    L.push('💎 سود این سفارش: ' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
+    L.push('💎 سود این سفارش: ' + prFmt(r.netProfit!=null ? r.netProfit : (r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal))));
     matBlock();
     if(o.notes && String(o.notes).trim()){ L.push(''); L.push('▌ توضیحات'); L.push(String(o.notes).trim()); }
     linkBlock();
@@ -8880,7 +8880,7 @@ function pricingCopy(){
   L.push('📊 ضریب سود مؤثر: ' + prToFa((r.effProfit!=null?r.effProfit:r.profit)) + '×' + ((r.matNoProfit&&r.effProfitWork!=null)?(' · سودِ کار ×'+prToFa(r.effProfitWork)):''));
   if(r.matNoProfit) L.push('🧪 مواد خارج از ضریب سود (مواد ×' + prToFa(r.matRiskX||1) + ')');
   if(r.institute) L.push('🏛 از مبلغ بالا، سهم پژوهشگاه: ' + prFmt(r.institute));
-  L.push('💎 سود این سفارش: ' + prFmt(r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
+  L.push('💎 سود این سفارش: ' + prFmt(r.netProfit!=null ? r.netProfit : (r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal))));
   matBlock();
   if(o.notes && String(o.notes).trim()){
     L.push('');
