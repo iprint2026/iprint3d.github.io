@@ -1011,8 +1011,10 @@ function doPost(e){
   #view-invoice .dnum .ed:hover{background:rgba(255,255,255,.18);color:#fff}
   #view-invoice .dnum .ed:focus{background:rgba(255,255,255,.18);color:#fff;box-shadow:none;border-color:#fff}
   #view-invoice .doc tbody .ed{min-width:30px}
-  /* توضیحات: جعبه تمامِ عرضِ ستون را می‌گیرد؛ فقط با اینتر یا رسیدن به لبهٔ ستون به خط بعد می‌رود و ارتفاعِ سلول زیاد می‌شود */
-  #view-invoice #inv-rows td.desc .ed{display:block;width:100%;min-width:0;text-align:right;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word}
+  /* توضیحات (گزینهٔ ب): متن افقی روی یک خط می‌ماند و فقط با اینتر می‌شکند؛ پیچشِ خودکار ندارد. ستون پهن‌تر شده تا جای بیشتری بدهد. */
+  #view-invoice #inv-rows td.desc .ed{display:block;width:100%;min-width:0;border:0;padding:0;text-align:right;white-space:pre;overflow-wrap:normal;word-break:normal;background:transparent}
+  #view-invoice #inv-rows td.desc .ed:hover{background:#eef2ff}
+  #view-invoice #inv-rows td.desc .ed:focus{background:#fffdf2;box-shadow:0 0 0 2px #e9e3ff;border-radius:6px}
   #view-invoice .pen{border:none;background:none;cursor:pointer;color:#aab;font-size:12px;padding:2px 5px;margin-right:5px;border-radius:5px;vertical-align:middle}
   #view-invoice .pen:hover{color:#5b3fd6;background:#eee9fc}
   #view-invoice .fixed[contenteditable="true"]{outline:none;background:#fffdf2;box-shadow:0 0 0 2px #e9e3ff;border-radius:6px;padding:2px 5px}
@@ -1182,7 +1184,7 @@ function doPost(e){
       <div class="ictr"><div class="bm">بسمه تعالی</div><div class="ttl">فاکتور خدمات</div></div>
 
       <table class="doc">
-        <colgroup><col style="width:7%"><col style="width:29%"><col style="width:23%"><col style="width:8%"><col style="width:16%"><col style="width:17%"></colgroup>
+        <colgroup><col style="width:7%"><col style="width:12%"><col style="width:40%"><col style="width:8%"><col style="width:16%"><col style="width:17%"></colgroup>
         <tr><td class="secthead" colspan="6">مشخصات فروشنده</td></tr>
         <tr><td class="kv" colspan="6"><span class="fixed" id="iv-seller">
           <b>نام شخص حقیقی/حقوقی:</b> آی پرینت تری دی<br>
@@ -9481,7 +9483,7 @@ function ivExportWord(){
   var logoCell=logoSrc?('<img src="'+logoSrc+'" style="height:80px"/>'):'<span style="font-size:26pt;font-weight:bold;color:#111">iprint3d</span>';
   var stampCell=stampSrc?('<img src="'+stampSrc+'" style="width:3.2cm"/>'):'';
   var itemRows=ivItems.map(function(it,i){
-    return '<tr><td class="c">'+prToFa(i+1)+'</td><td>'+escapeHtml(it.code||'')+'</td><td>'+escapeHtml(it.desc||'')+'</td>'
+    return '<tr><td class="c">'+prToFa(i+1)+'</td><td>'+escapeHtml(it.code||'')+'</td><td style="white-space:pre;text-align:right;vertical-align:middle">'+escapeHtml(it.desc||'')+'</td>'
       +'<td class="c">'+prToFa(it.qty)+'</td><td class="c">'+prToFa(prSep(it.unit))+'</td>'
       +'<td class="c">'+prToFa(prSep(ivRowTotal(it)))+'</td></tr>';
   }).join('');
@@ -9509,7 +9511,7 @@ function ivExportWord(){
        return escapeHtml(bt)+'<br>'+escapeHtml(tt);
      })()+'</div>'
     +'<table class="doc">'
-    +'<colgroup><col style="width:7%"><col style="width:29%"><col style="width:23%"><col style="width:8%"><col style="width:16%"><col style="width:17%"></colgroup>'
+    +'<colgroup><col style="width:7%"><col style="width:12%"><col style="width:40%"><col style="width:8%"><col style="width:16%"><col style="width:17%"></colgroup>'
     +'<tr><td class="sec" colspan="6">مشخصات فروشنده</td></tr><tr><td class="kvw" colspan="6">'+T('iv-seller')+'</td></tr>'
     +'<tr><td class="sec" colspan="6">مشخصات خریدار</td></tr><tr><td class="kvw" colspan="6">'
       + (function(){
