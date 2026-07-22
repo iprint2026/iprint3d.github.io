@@ -1011,6 +1011,8 @@ function doPost(e){
   #view-invoice .dnum .ed:hover{background:rgba(255,255,255,.18);color:#fff}
   #view-invoice .dnum .ed:focus{background:rgba(255,255,255,.18);color:#fff;box-shadow:none;border-color:#fff}
   #view-invoice .doc tbody .ed{min-width:30px}
+  /* توضیحات: جعبه تمامِ عرضِ ستون را می‌گیرد؛ فقط با اینتر یا رسیدن به لبهٔ ستون به خط بعد می‌رود و ارتفاعِ سلول زیاد می‌شود */
+  #view-invoice #inv-rows td.desc .ed{display:block;width:100%;min-width:0;text-align:right;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word}
   #view-invoice .pen{border:none;background:none;cursor:pointer;color:#aab;font-size:12px;padding:2px 5px;margin-right:5px;border-radius:5px;vertical-align:middle}
   #view-invoice .pen:hover{color:#5b3fd6;background:#eee9fc}
   #view-invoice .fixed[contenteditable="true"]{outline:none;background:#fffdf2;box-shadow:0 0 0 2px #e9e3ff;border-radius:6px;padding:2px 5px}
@@ -9137,6 +9139,7 @@ document.addEventListener('input', function(e){
     if(f==='qty'){ it.qty=+ivEnDigits(t.textContent)||0; it.total=null; }
     else if(f==='unit'){ it.unit=+ivEnDigits(t.textContent)||0; it.total=null; }
     else if(f==='total'){ it.total=+ivEnDigits(t.textContent)||0; }
+    else if(f==='desc'){ it.desc = t.innerText.replace(/\u00a0/g,' '); }
     else it[f]=t.textContent;
     if(f==='qty'||f==='unit'){ var ts=tr.children[5].querySelector('.ed'); if(ts) ts.textContent=prToFa(prSep(ivRowTotal(it))); }
     ivRecalc();
