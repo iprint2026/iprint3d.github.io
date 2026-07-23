@@ -801,7 +801,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V242</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V243</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -897,6 +897,9 @@ function doPost(e){
             <label style="display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#cfd3e6;cursor:pointer">
               <input type="checkbox" id="pr-p-showextras" onchange="prState.order.showExtras=this.checked; prScheduleCompute();" style="width:16px;height:16px">
               بسته‌بندی و ارسال به‌صورت ردیف در فاکتور نوشته شوند</label>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:7px;font-size:12px;color:#cfd3e6;cursor:pointer">
+              <input type="checkbox" id="pr-p-showextrarows" onchange="prState.order.showExtraRows=this.checked; prScheduleCompute();" style="width:16px;height:16px">
+              هزینه‌های جانبی به‌صورت ردیف در فاکتور نوشته شوند</label>
             <div style="margin-top:11px">
               <label style="font-size:11px;color:#5a6080">توضیحات سفارش (اختیاری)</label>
               <textarea class="inp" id="pr-o-notes" rows="3" placeholder="هر توضیحی که لازم است؛ در فایل متنی، اکسل و پروفایل سفارش ذخیره و نمایش داده می‌شود..." style="resize:vertical;line-height:1.8"></textarea>
@@ -7481,13 +7484,18 @@ function prExtrasRender(){
   xs.forEach(function(x,i){
     h+='<div style="display:flex;gap:7px;align-items:center;margin-top:7px">'
       +'<input class="inp" value="'+escapeHtml(x.name||'')+'" placeholder="نام هزینه (مثلاً اسپری رنگ)" oninput="prExtraSet('+i+',\'name\',this.value)" style="flex:1.4">'
-      +'<input class="inp pr-money" value="'+((+x.amount>0)?prSep(+x.amount):'')+'" placeholder="مبلغ (تومان)" oninput="prExtraSet('+i+',\'amount\',prParseMoney(this.value));var g=prParseMoney(this.value);this.value=g?prSep(g):\'\'" style="flex:1;border-color:#4a3d80;color:#c4b5fd;text-align:center;font-weight:700">'
+      +'<input class="inp pr-money" value="'+((+x.amount>0)?prSep(+x.amount):'')+'" placeholder="مبلغ (تومان)" oninput="prExtraSet('+i+',\'amount\',prParseMoney(this.value));var g=prParseMoney(this.value);this.value=g?prSep(g):\'\';prExtrasUpdateTot()" style="flex:1;border-color:#4a3d80;color:#c4b5fd;text-align:center;font-weight:700">'
       +'<button onclick="prExtraDel('+i+')" style="background:#1a1d2e;border:1px solid #2a2f45;color:#8a93b8;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer;font-family:inherit">🗑</button>'
       +'</div>';
   });
   var tot=0; xs.forEach(function(x){ tot+=(+x.amount||0); });
-  h+='<div style="font-size:10.5px;color:#c4b5fd;margin-top:7px;text-align:left">جمع: '+prToFa(prSep(Math.round(tot)))+' تومان · بدونِ سود، یک‌بار به قیمتِ کل اضافه می‌شود</div>';
+  h+='<div id="pr-extras-tot" style="font-size:10.5px;color:#c4b5fd;margin-top:7px;text-align:left">جمع: '+prToFa(prSep(Math.round(tot)))+' تومان · بدونِ سود، یک‌بار به قیمتِ کل اضافه می‌شود</div>';
   box.innerHTML=h;
+}
+function prExtrasUpdateTot(){
+  var el=document.getElementById('pr-extras-tot'); if(!el) return;
+  var tot=0; (prState.order.extraCosts||[]).forEach(function(x){ tot+=(+x.amount||0); });
+  el.innerHTML='جمع: '+prToFa(prSep(Math.round(tot)))+' تومان · بدونِ سود، یک‌بار به قیمتِ کل اضافه می‌شود';
 }
 function prExtraAdd(){
   prState.order.extraCosts = prState.order.extraCosts||[];
@@ -7521,6 +7529,7 @@ function prRenderOrder(){
   document.getElementById('pr-p-packaging').value = (+o.packaging>0) ? prSep(+o.packaging) : '';
   document.getElementById('pr-p-shipping').value  = (+o.shipping>0) ? prSep(+o.shipping) : '';
   var se=document.getElementById('pr-p-showextras'); if(se) se.checked = !!o.showExtras;
+  var se2=document.getElementById('pr-p-showextrarows'); if(se2) se2.checked = !!o.showExtraRows;
   var nt=document.getElementById('pr-o-notes'); if(nt) nt.value = o.notes||'';
   var dt=document.getElementById('pr-o-date');
   if(dt){
@@ -9056,16 +9065,18 @@ function prBuildInvoiceItems(r, o){
   var totalQty = Math.max(1, r.multi ? (r.qty||1) : (+o.qty||1));
   var showModeling = !!o.showDesignRow;            // تیکِ «نمایش مدلسازی در فاکتور»
   var showExtras   = !!o.showExtras;
+  var showExtraRows= !!o.showExtraRows;
   var showPrePro   = !!o.showPrePro;
   var modeling = +r.modelingAnnounced || 0;        // بدونِ سود/پژوهشگاه
-  var extras = (+r.packaging||0) + (+r.shipping||0) + (+r.extraSum||0);
+  var pkgShip = (+r.packaging||0) + (+r.shipping||0);   // بسته‌بندی + ارسال (تیکِ showExtras)
+  var extraCostsSum = (+r.extraSum||0);                 // هزینه‌های جانبیِ کاربر (تیکِ showExtraRows)
   var prePro = +r.preProTotal || 0;
   var isV2 = (r.calcVersion===2);
   // در نسخهٔ ۲ مدلسازی و هزینه‌های اضافی از قبل داخلِ قیمتِ هر عدد هستند؛
   // پس نباید دوباره اضافه شوند و اگر ردیفِ جدا می‌خواهیم باید از قیمتِ واحد کم شوند.
   var spreadPerUnit = isV2
-    ? ( -(((showModeling?modeling:0) + (showExtras?extras:0) + (showPrePro?prePro:0)) / totalQty) )
-    : ( (showModeling?0:(modeling/totalQty)) + (showExtras?0:(extras/totalQty)) );
+    ? ( -(((showModeling?modeling:0) + (showExtras?pkgShip:0) + (showExtraRows?extraCostsSum:0) + (showPrePro?prePro:0)) / totalQty) )
+    : ( (showModeling?0:(modeling/totalQty)) + (showExtras?0:(pkgShip/totalQty)) + (showExtraRows?0:(extraCostsSum/totalQty)) );
 
   var items = [];
   if(r.multi){
@@ -9089,6 +9100,9 @@ function prBuildInvoiceItems(r, o){
   if(showExtras){
     if(r.packaging) items.push({ code:'بسته‌بندی', qty:1, unit:Math.round(r.packaging), total:Math.round(+r.packaging) });
     if(r.shipping)  items.push({ code:'ارسال', qty:1, unit:Math.round(r.shipping), total:Math.round(+r.shipping) });
+  }
+  if(showExtraRows && r.extraCosts && r.extraCosts.length){
+    r.extraCosts.forEach(function(x){ if(+x.amount) items.push({ code:(x.name||'هزینهٔ جانبی'), qty:1, unit:Math.round(+x.amount), total:Math.round(+x.amount) }); });
   }
   if(showPrePro && prePro && r.preProItems && r.preProItems.length){
     r.preProItems.forEach(function(pp){ items.push({ code:(pp.name||'هزینهٔ پیش‌تولید'), qty:(+pp.qty||1), unit:Math.round((+pp.total||0)/Math.max(1,+pp.qty||1)), total:Math.round(+pp.total||0) }); });
