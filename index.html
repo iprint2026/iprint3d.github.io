@@ -802,7 +802,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V248</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V250</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6760,6 +6760,7 @@ function omSaveRisk(){
 var omCustody = [];
 var omCustodyReceipts = [];
 var omRcListOpen = false;
+var omCustodyListOpen = false;   // بخشِ قطعاتِ امانی به‌صورت پیش‌فرض بسته (کشویی)
 var omCustodyOrderId = '';
 var omCurrentCustomer = '';
 var omCuPendingImg = null;   // {base64, mime} عکسِ انتخاب‌شده در فرمِ افزودن
@@ -6767,19 +6768,23 @@ function omRenderCustody(){
   var wrap=document.getElementById('om-custody-wrap'); if(!wrap) return;
   var held=0, ret=0;
   (omCustody||[]).forEach(function(c){ if(c.status==='returned') ret++; else held++; });
-  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
-    +'<span style="font-weight:700;font-size:13px;color:#9aa3c2">📦 قطعاتِ امانیِ کارفرما</span>'
-    +'<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
-    +(held?'<span style="font-size:11px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:3px 9px;border-radius:14px;font-weight:700">🔵 '+prToFa(held)+' نزدِ ما</span>':'')
-    +(ret?'<span style="font-size:11px;color:#34d399;background:#0c2018;border:1px solid #14543d;padding:3px 9px;border-radius:14px;font-weight:700">✅ '+prToFa(ret)+' برگردانده</span>':'')
-    +(held?'<button onclick="omCuReceiptStart(\'recv\')" style="background:#2a2008;border:1px solid #5c4a12;color:#ffd479;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 رسیدِ دریافت</button>':'')
-    +(ret?'<button onclick="omCuReceiptStart(\'return\')" style="background:#0c2018;border:1px solid #14543d;color:#34d399;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 رسیدِ عودت</button>':'')
-    +'<button onclick="omCuOpenAdd()" style="background:#14284a;border:1px solid #1e4e7e;color:#7ab8ff;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">+ افزودن قطعه</button>'
-    +'</span></div>';
-  h+='<div style="background:#0c1120;border:1px solid #1a2440;border-radius:11px;padding:10px 12px;font-size:12.5px">';
-  if(!(omCustody&&omCustody.length)){
-    h+='<div style="color:#6b7280;font-size:11.5px;padding:4px 0">قطعه‌ی امانی‌ای ثبت نشده. اگر کارفرما قطعه‌ای برای مدلسازی/نمونه داده، با «+ افزودن قطعه» ثبتش کن تا رفت‌وبرگشتش گم نشود.</div>';
-  } else {
+  var h='<div style="border:1px solid #1a2440;border-radius:11px;overflow:hidden">'
+    +'<div onclick="omCuToggleList()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px;cursor:pointer;background:#0c1120;flex-wrap:wrap">'
+      +'<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        +'<span style="font-weight:700;font-size:13px;color:#9aa3c2">📦 قطعاتِ امانیِ کارفرما</span>'
+        +(held?'<span style="font-size:11px;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:3px 9px;border-radius:14px;font-weight:700">🔵 '+prToFa(held)+' نزدِ ما</span>':'')
+        +(ret?'<span style="font-size:11px;color:#34d399;background:#0c2018;border:1px solid #14543d;padding:3px 9px;border-radius:14px;font-weight:700">✅ '+prToFa(ret)+' برگردانده</span>':'')
+        +((!held&&!ret)?'<span style="font-size:11px;color:#6b7280">قطعه‌ای ثبت نشده</span>':'')
+      +'</span>'
+      +'<span style="color:#8a93b8;font-size:13px">'+(omCustodyListOpen?'▲':'▼')+'</span>'
+    +'</div>';
+  if(omCustodyListOpen){
+    h+='<div style="padding:10px 12px;font-size:12.5px">';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+      +(held?'<button onclick="omCuReceiptStart(\'recv\')" style="background:#2a2008;border:1px solid #5c4a12;color:#ffd479;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 رسیدِ دریافت</button>':'')
+      +(ret?'<button onclick="omCuReceiptStart(\'return\')" style="background:#0c2018;border:1px solid #14543d;color:#34d399;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 رسیدِ عودت</button>':'')
+      +'<button onclick="omCuOpenAdd()" style="background:#14284a;border:1px solid #1e4e7e;color:#7ab8ff;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">+ افزودن قطعه</button>'
+    +'</div>';
     omCustody.forEach(function(c,ci){
       var isRet = c.status==='returned';
       var pid = String(c.id);
@@ -6807,10 +6812,12 @@ function omRenderCustody(){
         +'</div>'
       +'</div>';
     });
+    h+='</div>';
   }
   h+='</div>';
   wrap.innerHTML=h;
 }
+function omCuToggleList(){ omCustodyListOpen=!omCustodyListOpen; omRenderCustody(); }
 function omCuToggleRcList(){ omRcListOpen=!omRcListOpen; omRenderCustody(); }
 function omCuOpenPartProfile(ci){
   var c = omCustody[ci]; if(!c) return;
@@ -10390,8 +10397,9 @@ function archiveProfile(id){
     function cat(f){
       var n=f.name||'';
       if(n.indexOf('رسید پرداخت')===0) return 'receipt';
+      if(n.indexOf('رسید امانت')===0) return 'custodyrc';
       if(n.indexOf('دفترچه پروژه')===0) return 'log';
-      if(n.indexOf('فاکتور')===0 || f.kind==='pdf') return 'invoice';
+      if(n.indexOf('فاکتور')===0) return 'invoice';
       if(f.kind==='xlsx' || /\.xlsx$/i.test(n)) return 'xlsx';
       if(n.indexOf('تصویر سفارش')===0 || n.indexOf('عکس بخش')===0 || f.kind==='image' || /\.(png|jpe?g|webp|gif|bmp)$/i.test(n)) return 'orderimg';
       if(f.kind==='txt' || /\.txt$/i.test(n)) return 'esttext';
@@ -10401,6 +10409,7 @@ function archiveProfile(id){
       {key:'project', ic:'📦', cl:'#7ec5ff', title:'فایل‌های پروژه'},
       {key:'receipt', ic:'🧾', cl:'#6ee7a8', title:'رسید پرداخت'},
       {key:'invoice', ic:'📄', cl:'#f87171', title:'فاکتور'},
+      {key:'custodyrc',ic:'🧾', cl:'#ffd479', title:'رسیدهای امانت'},
       {key:'xlsx',    ic:'📊', cl:'#5fe39a', title:'اکسل برآورد'},
       {key:'esttext', ic:'📝', cl:'#fbbf24', title:'متن برآورد'},
       {key:'orderimg',ic:'🖼', cl:'#7ab8ff', title:'تصویر سفارش'},
@@ -10410,6 +10419,7 @@ function archiveProfile(id){
       if(c==='project') return {ic:'📦',bg:'#10233f',cl:'#7ec5ff'};
       if(c==='receipt') return {ic:'🧾',bg:'#0c2a18',cl:'#6ee7a8'};
       if(c==='invoice') return {ic:'📄',bg:'#2a1414',cl:'#f87171'};
+      if(c==='custodyrc') return {ic:'🧾',bg:'#221a08',cl:'#ffd479'};
       if(c==='xlsx') return {ic:'📊',bg:'#0c2a18',cl:'#5fe39a'};
       if(c==='esttext') return {ic:'📝',bg:'#16140a',cl:'#fbbf24'};
       if(c==='orderimg') return {ic:'🖼',bg:'#10233f',cl:'#7ab8ff'};
