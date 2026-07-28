@@ -802,7 +802,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V250</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V252</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -3095,6 +3095,13 @@ function loadUsageReport(){
   });
 }
 
+// واحدِ یک رکوردِ مصرف: اگر در لاگ خالی بود، از واحدِ خودِ کالا (لیستِ items) خوانده می‌شود
+function unitOfUsage(r){
+  var u = (r && r.unit) ? String(r.unit).trim() : '';
+  if(u) return u;
+  try{ if(typeof items!=='undefined' && items){ var it=items.find(function(x){ return String(x.id)===String(r.itemId); }); if(it && it.unit) return String(it.unit).trim(); } }catch(e){}
+  return '';
+}
 function renderUsageReport(){
   var el = document.getElementById('usage-report-list');
   var summaryEl = document.getElementById('usage-summary');
@@ -3162,7 +3169,7 @@ function renderUsageReport(){
   var byItem = {};
   rows.forEach(function(o){
     var r=o.r; var amt = amtOf(r);
-    var unit = (r.unit||'').trim();
+    var unit = unitOfUsage(r);
     var name = r.itemName||'-';
     var key = name+'\u0000'+unit;
     if(!byItem[key]) byItem[key]={name:name, unit:unit, sum:0};
@@ -3182,7 +3189,7 @@ function renderUsageReport(){
   var html = '<div class="card"><div style="font-weight:600;color:#9aa3c2;margin-bottom:10px">📋 گزارش‌ها ('+rows.length+' مورد)</div>';
   rows.forEach(function(o){
     var r = o.r; var amt = amtOf(r);
-    var unit = r.unit ? (' '+r.unit) : '';
+    var _u=unitOfUsage(r); var unit = _u ? (' '+_u) : '';
     html += '<div style="background:#0b0d14;border:1px solid #1a1d2e;border-radius:8px;margin-bottom:6px;overflow:hidden">'
       // خط جمع‌شده
       + '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px">'
@@ -3225,7 +3232,7 @@ function deleteUsageLogEntry(idx){
   var amt = Math.abs(parseFloat(r.change||'0'))||0;
   var msg = '⚠️ این گزارش برای همیشه حذف شود؟\n\n'
     + '📦 کالا: ' + (r.itemName||'-') + '\n'
-    + '➖ مقدار: ' + amt + ' ' + (r.unit||'') + '\n'
+    + '➖ مقدار: ' + amt + ' ' + unitOfUsage(r) + '\n'
     + '🗓️ تاریخ: ' + (r.date||'-') + '\n'
     + (r.project?('📁 پروژه: ' + r.project + '\n'):'')
     + '\n⚠️ توجه: این فقط گزارش مصرف را پاک می‌کند و موجودی بچ/کالا را برنمی‌گرداند.';
@@ -3340,7 +3347,7 @@ function exportUsageToExcel(){
   var byItem = {};
   rows.forEach(function(r){
     var amt=Math.abs(parseFloat(r.change||'0'))||0;
-    var uu=(r.unit||'').trim();
+    var uu=unitOfUsage(r);
     var key=(r.itemName||'-')+'\u0000'+uu;
     if(!byItem[key]) byItem[key]={name:r.itemName||'-',unit:uu,sum:0};
     byItem[key].sum+=amt;
@@ -7944,6 +7951,16 @@ function prPreProSet(id, field, val){
   } }
   prPreProSync(); prScheduleCompute();
 }
+// انتخابِ مادهٔ پیش‌تولید با مقدارِ نوع‌دار «B:id» (پایه) یا «C:id» (ترکیبی) — رفعِ تداخلِ شناسه
+function prPreProSetMat(id, val){
+  var L=prPreProList();
+  for(var i=0;i<L.length;i++){ if(L[i].id===id){
+    if(!val){ L[i].materialId=''; L[i].matSel='B'; }
+    else { L[i].matSel = (val.charAt(0)==='C') ? 'C' : 'B'; L[i].materialId = val.slice(2); }
+    break;
+  } }
+  prPreProSync(); prScheduleCompute();
+}
 // تبدیلِ فیلدهای ساده به همان قالبِ «خط‌ها» که بک‌اند می‌فهمد
 function prPreProSync(){
   prPreProList().forEach(function(pp){
@@ -7954,9 +7971,11 @@ function prPreProSync(){
       lines.push({ kind:kind, machineId:pp.machineId, hours:+pp.hours||0, plateTime:+pp.hours||0, perPlate:1 });
     }
     if(pp.materialId && +pp.grams>0){
-      // تشخیصِ نوعِ ماده: ترکیبی → matSel='C'، پایه → 'B' (تا با شناسه‌های هم‌نام اشتباه نشود)
-      var isComp = (prState.composites||[]).some(function(c){ return c.id===pp.materialId; });
-      pp.matSel = isComp ? 'C' : 'B';
+      // matSel صریح از انتخابِ نوع‌دار می‌آید؛ فقط برای آیتم‌های قدیمیِ بدونِ matSel حدس زده می‌شود
+      if(pp.matSel!=='C' && pp.matSel!=='B'){
+        var isComp = (prState.composites||[]).some(function(c){ return c.id===pp.materialId; });
+        pp.matSel = isComp ? 'C' : 'B';
+      }
       lines.push({ kind:'material', materialId:pp.materialId, matSel:pp.matSel, amount:+pp.grams||0, unit:'g' });
     }
     if(+pp.minutes>0) lines.push({ kind:'labor', minutes:+pp.minutes||0 });
@@ -7968,7 +7987,7 @@ function prRenderPrePro(){
   var area=document.getElementById('pr-prepro-area'); if(!area) return;
   var L=prPreProList();
   var mOpts=function(sel){ var h='<option value="">— دستگاه —</option>'; (prState.machines||[]).forEach(function(m){ h+='<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }); return h; };
-  var matOpts=function(sel){ var h='<option value="">— ماده —</option>'; (prState.materials||[]).forEach(function(m){ h+='<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }); (prState.composites||[]).forEach(function(c){ h+='<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+escapeHtml(c.name)+' (ترکیبی)</option>'; }); return h; };
+  var matOpts=function(selKey){ var h='<option value="">— ماده —</option>'; (prState.materials||[]).forEach(function(m){ var v='B:'+m.id; h+='<option value="'+v+'"'+(v===selKey?' selected':'')+'>'+escapeHtml(m.name)+'</option>'; }); (prState.composites||[]).forEach(function(c){ var v='C:'+c.id; h+='<option value="'+v+'"'+(v===selKey?' selected':'')+'>'+escapeHtml(c.name)+' (ترکیبی)</option>'; }); return h; };
   var rows='';
   L.forEach(function(pp){
     rows += '<div style="border:1px solid #2a2350;border-radius:10px;padding:10px;margin-bottom:8px;background:#141228">'
@@ -7980,7 +7999,7 @@ function prRenderPrePro(){
       + '<div style="display:grid;grid-template-columns:1fr 90px 1fr 90px 100px;gap:6px">'
         + '<select class="inp" onchange="prPreProSet(\''+pp.id+'\',\'machineId\',this.value)">'+mOpts(pp.machineId)+'</select>'
         + '<input class="inp" type="number" step="0.01" value="'+(pp.hours||'')+'" placeholder="ساعت" oninput="prPreProSet(\''+pp.id+'\',\'hours\',this.value)">'
-        + '<select class="inp" onchange="prPreProSet(\''+pp.id+'\',\'materialId\',this.value)">'+matOpts(pp.materialId)+'</select>'
+        + '<select class="inp" onchange="prPreProSetMat(\''+pp.id+'\',this.value)">'+matOpts(pp.materialId?((pp.matSel==='C'?'C':'B')+':'+pp.materialId):'')+'</select>'
         + '<input class="inp" type="number" step="0.1" value="'+(pp.grams||'')+'" placeholder="گرم" oninput="prPreProSet(\''+pp.id+'\',\'grams\',this.value)">'
         + '<input class="inp" type="number" step="1" value="'+(pp.minutes||'')+'" placeholder="دقیقه نیرو" oninput="prPreProSet(\''+pp.id+'\',\'minutes\',this.value)">'
       + '</div></div>';
