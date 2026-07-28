@@ -601,10 +601,11 @@ tr:hover td{background:#0e1018}
       <div class="page-title">📊 گزارش مصرف</div>
       <div class="card" style="margin-bottom:16px">
         <div style="font-size:13px;color:#9aa3c2;margin-bottom:14px;line-height:1.7">
-          گزارش مصرف کالاها بر اساس دلیل و پروژه. می‌توانید بر اساس پروژه فیلتر کنید تا ببینید برای هر پروژه چقدر از هر کالا مصرف شده است.
+          گزارش مصرف کالاها بر اساس کالا، پروژه، دلیل و بازهٔ زمانی. می‌توانید بر اساس کالا (مثلاً «فیلامنت») یا پروژه فیلتر کنید؛ خروجی Excel هم دقیقاً همان چیزی را که فیلتر کرده‌اید می‌دهد.
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
-          <input class="inp" id="usage-filter-project" placeholder="🔍 فیلتر بر اساس پروژه..." oninput="renderUsageReport()" style="flex:1;min-width:180px">
+          <input class="inp" id="usage-filter-project" placeholder="🔍 فیلتر بر اساس پروژه..." oninput="renderUsageReport()" style="flex:1;min-width:160px">
+          <input class="inp" id="usage-filter-item" placeholder="🔍 فیلتر بر اساس کالا/متریال..." oninput="renderUsageReport()" style="flex:1;min-width:160px">
           <select class="inp" id="usage-filter-reason" onchange="renderUsageReport()" style="max-width:160px">
             <option value="">همه دلایل</option>
             <option value="پروژه چاپ">پروژه چاپ</option>
@@ -801,7 +802,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V243</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V246</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -3099,6 +3100,7 @@ function renderUsageReport(){
   var summaryEl = document.getElementById('usage-summary');
   if(!el) return;
   var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
+  var fItem = normalizeProject(document.getElementById('usage-filter-item').value||'');
   var fReason = document.getElementById('usage-filter-reason').value||'';
   var sortMode = (document.getElementById('usage-sort')||{}).value || 'date_desc';
 
@@ -3122,6 +3124,7 @@ function renderUsageReport(){
   var rows = indexed.filter(function(o){
     var r = o.r;
     var okP = !fProj || (normalizeProject(r.project||'').indexOf(fProj)>=0) || (String(r.projectKey||'').indexOf(fProj)>=0);
+    var okI = !fItem || (normalizeProject(r.itemName||'').indexOf(fItem)>=0);
     var okR = !fReason || (r.reason===fReason);
     var okT = true;
     if(timeMode){
@@ -3133,7 +3136,7 @@ function renderUsageReport(){
         okT = (pd.ts >= fromTs);
       }
     }
-    return okP && okR && okT;
+    return okP && okI && okR && okT;
   });
 
   if(!rows.length){
@@ -3155,19 +3158,22 @@ function renderUsageReport(){
     return b.idx - a.idx;
   });
 
-  // خلاصه: جمع مصرف هر کالا
+  // خلاصه: جمع مصرف هر کالا (بر اساسِ کالا + واحد، تا جمعِ واحدهای متفاوت با هم قاطی نشود)
   var byItem = {};
   rows.forEach(function(o){
     var r=o.r; var amt = amtOf(r);
-    var unit = r.unit || '';
-    var key = r.itemName||'-';
-    if(!byItem[key]) byItem[key]={sum:0};
+    var unit = (r.unit||'').trim();
+    var name = r.itemName||'-';
+    var key = name+'\u0000'+unit;
+    if(!byItem[key]) byItem[key]={name:name, unit:unit, sum:0};
     byItem[key].sum += amt;
   });
   var summaryHtml = '<div class="card" style="margin-bottom:14px"><div style="font-weight:600;color:#4ade80;margin-bottom:10px">📦 جمع مصرف'+(fProj?' (فیلترشده)':'')+'</div>';
-  Object.keys(byItem).forEach(function(name){
-    var v = Math.round(byItem[name].sum*1000)/1000;
-    summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+escapeHtml(name)+'</span><span style="color:#f87171;font-weight:700">'+v+'</span></div>';
+  Object.keys(byItem).forEach(function(k){
+    var it = byItem[k];
+    var v = Math.round(it.sum*1000)/1000;
+    var unitLabel = it.unit ? (' '+it.unit) : '';
+    summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+escapeHtml(it.name)+'</span><span style="color:#f87171;font-weight:700">'+v+escapeHtml(unitLabel)+'</span></div>';
   });
   summaryHtml += '</div>';
   if(summaryEl) summaryEl.innerHTML = summaryHtml;
@@ -3258,6 +3264,7 @@ function exportUsageToExcel(){
     rows = idxs.map(function(i){ return USAGE_LOG[i]; }).filter(Boolean);
   } else {
     var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
+    var fItem = normalizeProject(document.getElementById('usage-filter-item').value||'');
     var fReason = document.getElementById('usage-filter-reason').value||'';
     var timeMode = (document.getElementById('usage-filter-time')||{}).value || '';
     var nowTs = Date.now(); var fromTs = null; var cJM=0, cJY=0;
@@ -3268,6 +3275,7 @@ function exportUsageToExcel(){
     else if(timeMode==='custom'){ cJM = parseInt((document.getElementById('usage-filter-month')||{}).value)||0; cJY = parseInt((document.getElementById('usage-filter-year')||{}).value)||0; }
     rows = USAGE_LOG.filter(function(r){
       var okP = !fProj || (normalizeProject(r.project||'').indexOf(fProj)>=0) || (String(r.projectKey||'').indexOf(fProj)>=0);
+      var okI = !fItem || (normalizeProject(r.itemName||'').indexOf(fItem)>=0);
       var okR = !fReason || (r.reason===fReason);
       var okT = true;
       if(timeMode){
@@ -3276,62 +3284,91 @@ function exportUsageToExcel(){
         else if(timeMode==='custom') okT = (pd.jm===cJM && pd.jy===cJY);
         else if(fromTs!==null) okT = (pd.ts >= fromTs);
       }
-      return okP && okR && okT;
+      return okP && okI && okR && okT;
     });
   }
   if(!rows.length){ showToast('رکوردی برای خروجی وجود ندارد'); return; }
 
-  var data = rows.slice().reverse().map(function(r){
-    return {
-      'ردیف': 0,
-      'تاریخ کسر': r.date||'',
-      'فرد (کاربر)': r.user||'',
-      'مقدار کسر': Math.abs(parseFloat(r.change||'0'))||0,
-      'واحد': r.unit||'عدد',
-      'ماده / کالا': r.itemName||'',
-      'بچ': r.batch||'',
-      'پروژه': r.project||'',
-      'دلیل': r.reason||''
-    };
-  });
-  // شماره ردیف
-  data.forEach(function(r,idx){ r['ردیف'] = idx+1; });
+  // برچسب‌های فیلترِ اعمال‌شده (برای تیتر و نامِ فایل)
+  var lblProj = (document.getElementById('usage-filter-project').value||'').trim();
+  var lblItem = (document.getElementById('usage-filter-item').value||'').trim();
+  var lblReason = document.getElementById('usage-filter-reason').value||'';
+  var _tSel = document.getElementById('usage-filter-time');
+  var lblTime = (_tSel && _tSel.selectedIndex>=0 && _tSel.value) ? _tSel.options[_tSel.selectedIndex].text : '';
+  var _bits = [];
+  if(lblProj) _bits.push('پروژه: '+lblProj);
+  if(lblItem) _bits.push('کالا: '+lblItem);
+  if(lblReason) _bits.push('دلیل: '+lblReason);
+  if(lblTime) _bits.push('بازه: '+lblTime);
+  if(checked && checked.length) _bits.push('موارد انتخابی');
+  var filterLine = _bits.length ? _bits.join('   |   ') : 'بدون فیلتر (همه)';
+  var todayFa = new Date().toLocaleDateString('fa-IR');
 
-  // یه شیت خلاصه هم بسازیم: جمع مصرف هر کالا
+  if(typeof XLSX === 'undefined'){
+    // فالبک CSV (اگر کتابخانه لود نشد)
+    var hs = ['ردیف','تاریخ کسر','کاربر','مقدار','واحد','ماده / کالا','بچ','پروژه','دلیل'];
+    var csv = '\ufeff' + hs.join(',') + '\n';
+    rows.slice().reverse().forEach(function(r,idx){
+      var row = [idx+1, r.date||'', r.user||'', Math.abs(parseFloat(r.change||'0'))||0, r.unit||'عدد', r.itemName||'', r.batch||'', r.project||'', r.reason||''];
+      csv += row.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',')+'\n';
+    });
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); var url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=url; a.download='گزارش_مصرف.csv'; a.click(); URL.revokeObjectURL(url);
+    showToast('✅ فایل CSV دانلود شد'); return;
+  }
+
+  // ── شیتِ جزئیاتِ کسر ──
+  var headers = ['ردیف','تاریخ کسر','کاربر','مقدار','واحد','ماده / کالا','بچ','پروژه','دلیل'];
+  var aoa = [];
+  aoa.push(['📦 گزارش مصرف — iPrint3D']);
+  aoa.push(['فیلتر: '+filterLine+'    ·    تعداد رکورد: '+rows.length+'    ·    تاریخ خروجی: '+todayFa]);
+  aoa.push([]);
+  aoa.push(headers);
+  var ordered = rows.slice().reverse();
+  ordered.forEach(function(r,idx){
+    aoa.push([ idx+1, r.date||'', r.user||'', Math.abs(parseFloat(r.change||'0'))||0, (r.unit||'عدد'), r.itemName||'', r.batch||'', r.project||'', r.reason||'' ]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:6},{wch:16},{wch:16},{wch:11},{wch:9},{wch:26},{wch:18},{wch:22},{wch:14}];
+  ws['!merges'] = [ {s:{r:0,c:0},e:{r:0,c:8}}, {s:{r:1,c:0},e:{r:1,c:8}} ];
+  ws['!views'] = [{ RTL:true }];
+  var lastRow = 3 + ordered.length;
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:3,c:0},e:{r:lastRow,c:8}}) };
+  for(var rr=4; rr<=lastRow; rr++){ var cA=ws[XLSX.utils.encode_cell({r:rr,c:3})]; if(cA){ cA.z='#,##0.###'; } }
+
+  // ── شیتِ خلاصه (بر اساسِ کالا + واحد) ──
   var byItem = {};
   rows.forEach(function(r){
-    var amt = Math.abs(parseFloat(r.change||'0'))||0;
-    var key = (r.itemName||'-') + (r.unit?(' ('+r.unit+')'):'');
-    if(!byItem[key]) byItem[key]=0;
-    byItem[key]+=amt;
+    var amt=Math.abs(parseFloat(r.change||'0'))||0;
+    var uu=(r.unit||'').trim();
+    var key=(r.itemName||'-')+'\u0000'+uu;
+    if(!byItem[key]) byItem[key]={name:r.itemName||'-',unit:uu,sum:0};
+    byItem[key].sum+=amt;
   });
-  var summary = Object.keys(byItem).map(function(name){
-    return {'نام کالا': name, 'جمع مصرف': byItem[name]};
-  });
+  var sAoa = [];
+  sAoa.push(['📦 خلاصه مصرف — iPrint3D']);
+  sAoa.push(['فیلتر: '+filterLine+'    ·    تاریخ خروجی: '+todayFa]);
+  sAoa.push([]);
+  sAoa.push(['ماده / کالا','واحد','جمع مصرف']);
+  Object.keys(byItem).forEach(function(k){ var it=byItem[k]; sAoa.push([ it.name, it.unit||'—', Math.round(it.sum*1000)/1000 ]); });
+  var wsS = XLSX.utils.aoa_to_sheet(sAoa);
+  wsS['!cols']=[{wch:30},{wch:12},{wch:14}];
+  wsS['!merges']=[{s:{r:0,c:0},e:{r:0,c:2}},{s:{r:1,c:0},e:{r:1,c:2}}];
+  wsS['!views']=[{ RTL:true }];
+  var sLast = 3 + Object.keys(byItem).length;
+  wsS['!autofilter']={ ref: XLSX.utils.encode_range({s:{r:3,c:0},e:{r:sLast,c:2}}) };
+  for(var sr=4; sr<=sLast; sr++){ var cS=wsS[XLSX.utils.encode_cell({r:sr,c:2})]; if(cS){ cS.z='#,##0.###'; } }
 
-  if(typeof XLSX !== 'undefined'){
-    var wb = XLSX.utils.book_new();
-    var wsS = XLSX.utils.json_to_sheet(summary);
-    wsS['!cols'] = [{wch:25},{wch:12}];
-    XLSX.utils.book_append_sheet(wb, wsS, 'خلاصه مصرف');
-    var ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{wch:6},{wch:22},{wch:16},{wch:10},{wch:10},{wch:24},{wch:18},{wch:22},{wch:14}];
-    XLSX.utils.book_append_sheet(wb, ws, 'جزئیات کسر');
-    var fname = 'iPrint3D_گزارش‌مصرف' + (fProj?('_'+(document.getElementById('usage-filter-project').value||'').trim()):'') + '_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
-    XLSX.writeFile(wb, fname);
-    showToast('✅ خروجی Excel دانلود شد ('+rows.length+' رکورد)');
-  } else {
-    var headers = Object.keys(data[0]);
-    var csv = '\ufeff' + headers.join(',') + '\n';
-    csv += data.map(function(r){
-      return headers.map(function(h){ return '"'+String(r[h]||'').replace(/"/g,'""')+'"'; }).join(',');
-    }).join('\n');
-    var blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href=url; a.download='گزارش_مصرف.csv'; a.click();
-    URL.revokeObjectURL(url);
-    showToast('✅ فایل CSV دانلود شد');
-  }
+  var wb = XLSX.utils.book_new();
+  wb.Workbook = { Views:[{ RTL:true }] };
+  XLSX.utils.book_append_sheet(wb, wsS, 'خلاصه مصرف');
+  XLSX.utils.book_append_sheet(wb, ws, 'جزئیات کسر');
+  var _fn = ['iPrint3D_گزارش‌مصرف'];
+  if(lblItem) _fn.push(lblItem);
+  if(lblProj) _fn.push(lblProj);
+  var fname = _fn.join('_') + '_' + todayFa.replace(/\//g,'-') + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  showToast('✅ خروجی Excel دانلود شد ('+rows.length+' رکورد)');
 }
 
 function changeQty(id,dir){
@@ -6815,7 +6852,7 @@ function omCuReopenReceipt(code){
   var ids = rec.items || [];
   var items = (omCustody||[]).filter(function(c){ return ids.indexOf(String(c.id))!==-1; });
   if(!items.length && rec.itemNames){ items = rec.itemNames.map(function(nm){ return { name:nm, qty:1 }; }); }
-  omCuRcSig={ give:null, take:null };   // امضاها در PDF ذخیره‌اند؛ اینجا از نو نمایش نمی‌دهیم
+  omCuRcSig={ give:(rec.give&&rec.give.sig)||null, take:(rec.take&&rec.take.sig)||null };   // امضاها از سرور بازیابی می‌شوند
   omCuRcSigner={ give:rec.give||null, take:rec.take||null };
   omCuRcCtx={ kind:rec.kind, items:items, code:rec.code };
   omCuShowReceipt();
@@ -7199,9 +7236,15 @@ function omCuSignConfirm(){
       omCuSignClose();
       omCuShowReceipt();
       showToast('✅ امضا ثبت شد');
-      // ذخیره‌ی نام/شماره در دیتابیس (امضا در PDF می‌ماند)
+      // ذخیره‌ی امضا (تصویر در Drive + نام/شماره در دیتابیس) — تا بعد از بازکردنِ دوباره هم بماند
       if(omCuRcCtx && omCuRcCtx.code){
-        callSheet('saveCustodyReceiptSigner', { id:omCustodyOrderId, rc:omCuRcCtx.code, who:omCuSignWho, name:omCuSigner.name, phone:omCuSigner.phone, t:Date.now() }, function(){}, 30000);
+        var _who=omCuSignWho, _durl=durl;
+        fetch(SHEET_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify({ action:'saveCustodyReceiptSig', token:SESSION_TOKEN, id:omCustodyOrderId, rc:omCuRcCtx.code, who:_who, name:omCuSigner.name, phone:omCuSigner.phone, base64:(_durl.split(',')[1]||''), mime:(_durl.indexOf('jpeg')!==-1?'image/jpeg':'image/png') })
+        }).then(function(r){ return r.json(); }).then(function(res){
+          if(res && res.status==='ok'){ if(omCuRcSigner && omCuRcSigner[_who]){ omCuRcSigner[_who].sigFileId=res.sigFileId; } }
+          else showToast('⚠ امضا ذخیره نشد؛ دوباره امضا کن');
+        }).catch(function(){ showToast('⚠ امضا در سرور ذخیره نشد'); });
       }
     };
     document.getElementById('om-sig-no').onclick=function(){
