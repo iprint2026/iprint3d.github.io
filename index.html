@@ -802,7 +802,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V247</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V248</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -6782,55 +6782,91 @@ function omRenderCustody(){
   } else {
     omCustody.forEach(function(c,ci){
       var isRet = c.status==='returned';
-      h+='<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;'+(ci<omCustody.length-1?'border-bottom:1px solid #141a30;':'')+(isRet?'opacity:.55':'')+'">'
-        +(c.img?'<img src="'+c.img+'" onclick="omCuViewImg('+ci+')" style="width:46px;height:46px;object-fit:cover;border-radius:9px;border:1px solid #26304f;cursor:pointer;flex:none">'
-               :'<div style="width:46px;height:46px;border-radius:9px;background:#141a30;border:1px solid #26304f;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none">📦</div>')
-        +'<div style="flex:1;min-width:0">'
-          +'<div style="font-weight:700;color:#dfe3f5;word-break:break-word">'+escapeHtml(c.name||'قطعه')+((+c.qty>1)?' <span style="color:#8a93b8;font-weight:500;font-size:11px">× '+prToFa(c.qty)+'</span>':'')+'</div>'
-          +'<div style="font-size:10.5px;color:#7c86a8;margin-top:2px">دریافت: '+prToFa(c.recvDate||'—')+(c.from?' · از: '+escapeHtml(c.from):'')+'</div>'
-          +(c.note?'<div style="font-size:10.5px;color:#9aa3c2;margin-top:2px">'+escapeHtml(c.note)+'</div>':'')
-          +(isRet?'<div style="font-size:11px;color:#34d399;margin-top:4px;font-weight:700">✅ برگردانده شد'+(c.retDate?(' در '+prToFa(c.retDate)):'')+(c.retNote?(' · '+escapeHtml(c.retNote)):'')+(c.retReceipt?(' · 🧾 '+escapeHtml(c.retReceipt)):'')+'</div>'
-                 :'<div style="font-size:11px;color:#7ab8ff;margin-top:4px;font-weight:700">🔵 نزدِ ما'+(c.recvReceipt?(' · 🧾 '+escapeHtml(c.recvReceipt)):'')+'</div>')
+      var pid = String(c.id);
+      var pRecs = (omCustodyReceipts||[]).filter(function(r){ return (r.items||[]).map(String).indexOf(pid)!==-1; });
+      var hasRecv = pRecs.some(function(r){ return r.kind!=='return'; });
+      var hasRet2 = pRecs.some(function(r){ return r.kind==='return'; });
+      var badges = (hasRecv?'<span title="دارای رسیدِ دریافت" style="font-size:9.5px;font-weight:700;color:#ffd479;background:#2a2008;border:1px solid #5c4a12;padding:2px 6px;border-radius:6px;margin-left:5px">🧾 دریافت</span>':'')
+                 + (hasRet2?'<span title="دارای رسیدِ عودت" style="font-size:9.5px;font-weight:700;color:#34d399;background:#0c2018;border:1px solid #14543d;padding:2px 6px;border-radius:6px;margin-left:5px">↩️ عودت</span>':'');
+      h+='<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;'+(ci<omCustody.length-1?'border-bottom:1px solid #141a30;':'')+(isRet?'opacity:.6':'')+'">'
+        +'<div onclick="omCuOpenPartProfile('+ci+')" style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0;cursor:pointer">'
+          +(c.img?'<img src="'+c.img+'" style="width:46px;height:46px;object-fit:cover;border-radius:9px;border:1px solid #26304f;flex:none">'
+                 :'<div style="width:46px;height:46px;border-radius:9px;background:#141a30;border:1px solid #26304f;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none">📦</div>')
+          +'<div style="flex:1;min-width:0">'
+            +'<div style="font-weight:700;color:#dfe3f5;word-break:break-word">'+escapeHtml(c.name||'قطعه')+((+c.qty>1)?' <span style="color:#8a93b8;font-weight:500;font-size:11px">× '+prToFa(c.qty)+'</span>':'')+'</div>'
+            +((hasRecv||hasRet2)?'<div style="margin-top:4px">'+badges+'</div>':'')
+            +'<div style="font-size:10.5px;color:#7c86a8;margin-top:3px">دریافت: '+prToFa(c.recvDate||'—')+(c.from?' · از: '+escapeHtml(c.from):'')+'</div>'
+            +(isRet?'<div style="font-size:11px;color:#34d399;margin-top:4px;font-weight:700">✅ برگردانده'+(c.retDate?(' · '+prToFa(c.retDate)):'')+'</div>'
+                   :'<div style="font-size:11px;color:#7ab8ff;margin-top:4px;font-weight:700">🔵 نزدِ ما</div>')
+            +'<div style="font-size:10px;color:#5f6a8c;margin-top:3px">جزئیات و رسیدها ◀</div>'
+          +'</div>'
         +'</div>'
         +'<div style="display:flex;flex-direction:column;gap:5px;flex:none">'
-          +(!isRet?'<button onclick="omCuReturn('+ci+')" style="background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:7px;padding:5px 9px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit">✅ برگشت</button>':'')
-          +'<button onclick="omCuDelete('+ci+')" style="background:#1a1d2e;border:1px solid #2a2f45;color:#8a93b8;border-radius:7px;padding:4px 9px;font-size:10.5px;cursor:pointer;font-family:inherit">🗑</button>'
+          +(!isRet?'<button onclick="event.stopPropagation();omCuReturn('+ci+')" style="background:#0c2a20;border:1px solid #1e7d52;color:#34d399;border-radius:7px;padding:5px 9px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit">✅ برگشت</button>':'')
+          +'<button onclick="event.stopPropagation();omCuDelete('+ci+')" style="background:#1a1d2e;border:1px solid #2a2f45;color:#8a93b8;border-radius:7px;padding:4px 9px;font-size:10.5px;cursor:pointer;font-family:inherit">🗑</button>'
         +'</div>'
       +'</div>';
     });
   }
   h+='</div>';
-  // بخشِ کشوییِ رسیدهای صادرشده
-  if(omCustodyReceipts && omCustodyReceipts.length){
-    h+='<div style="margin-top:8px;border:1px solid #1a2440;border-radius:11px;overflow:hidden">'
-      +'<div onclick="omCuToggleRcList()" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;background:#0c1120">'
-        +'<span style="font-weight:700;font-size:12.5px;color:#ffd479">🧾 رسیدهای صادرشده ('+prToFa(omCustodyReceipts.length)+')</span>'
-        +'<span style="color:#8a93b8;font-size:13px">'+(omRcListOpen?'▲':'▼')+'</span>'
-      +'</div>';
-    if(omRcListOpen){
-      h+='<div style="padding:4px 12px 10px">';
-      omCustodyReceipts.slice().reverse().forEach(function(r){
-        var isR = r.kind==='return';
-        var who = [];
-        if(r.give && r.give.name) who.push('تحویل‌دهنده: '+escapeHtml(r.give.name));
-        if(r.take && r.take.name) who.push('تحویل‌گیرنده: '+escapeHtml(r.take.name));
-        h+='<div onclick="omCuReopenReceipt(\''+r.code+'\')" style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #141a30;cursor:pointer">'
-          +'<span style="font-size:10px;font-weight:700;color:'+(isR?'#34d399':'#ffd479')+';background:'+(isR?'#0c2018':'#2a2008')+';border:1px solid '+(isR?'#14543d':'#5c4a12')+';padding:3px 8px;border-radius:6px;white-space:nowrap">'+escapeHtml(r.code)+'</span>'
-          +'<div style="flex:1;min-width:0">'
-            +'<div style="font-size:11.5px;color:#dfe3f5;font-weight:600">'+(isR?'عودت':'دریافت')+' · '+prToFa(r.date||'')+((r.itemNames&&r.itemNames.length)?(' · '+escapeHtml(r.itemNames.join('، '))):'')+'</div>'
-            +(who.length?'<div style="font-size:10px;color:#7c86a8;margin-top:2px">'+who.join(' · ')+'</div>':'<div style="font-size:10px;color:#8a6a2a;margin-top:2px">هنوز امضا نشده</div>')
-          +'</div>'
-          +'<span onclick="event.stopPropagation();omCuDeleteReceipt(\''+r.code+'\')" title="حذفِ رسید" style="color:#c66;font-size:13px;padding:2px 6px;cursor:pointer">🗑</span>'
-          +'<span style="color:#7ab8ff;font-size:11px;white-space:nowrap">باز کردن ◀</span>'
-        +'</div>';
-      });
-      h+='</div>';
-    }
-    h+='</div>';
-  }
   wrap.innerHTML=h;
 }
 function omCuToggleRcList(){ omRcListOpen=!omRcListOpen; omRenderCustody(); }
+function omCuOpenPartProfile(ci){
+  var c = omCustody[ci]; if(!c) return;
+  var pid = String(c.id);
+  var isRet = c.status==='returned';
+  var pRecs = (omCustodyReceipts||[]).filter(function(r){ return (r.items||[]).map(String).indexOf(pid)!==-1; });
+  var recHtml='';
+  if(pRecs.length){
+    pRecs.slice().reverse().forEach(function(r){
+      var isR=r.kind==='return';
+      var who=[];
+      if(r.give&&r.give.name) who.push('تحویل‌دهنده: '+escapeHtml(r.give.name));
+      if(r.take&&r.take.name) who.push('تحویل‌گیرنده: '+escapeHtml(r.take.name));
+      var others=(r.itemNames||[]).length;
+      recHtml+='<div onclick="omCuReopenReceipt(\''+r.code+'\')" style="display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid #141a30;cursor:pointer">'
+        +'<span style="font-size:10px;font-weight:700;color:'+(isR?'#34d399':'#ffd479')+';background:'+(isR?'#0c2018':'#2a2008')+';border:1px solid '+(isR?'#14543d':'#5c4a12')+';padding:3px 8px;border-radius:6px;white-space:nowrap">'+escapeHtml(r.code)+'</span>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:12px;color:#dfe3f5;font-weight:700">'+(isR?'رسیدِ عودت':'رسیدِ دریافت')+' · '+prToFa(r.date||'')+'</div>'
+          +(who.length?'<div style="font-size:10px;color:#7c86a8;margin-top:2px">'+who.join(' · ')+'</div>':'<div style="font-size:10px;color:#8a6a2a;margin-top:2px">هنوز امضا نشده</div>')
+          +((others>1)?'<div style="font-size:9.5px;color:#7ab8ff;margin-top:3px">🧾 رسیدِ مشترک · شاملِ '+prToFa(others)+' قطعه: '+escapeHtml((r.itemNames||[]).join('، '))+'</div>':'')
+        +'</div>'
+        +'<span style="color:#7ab8ff;font-size:11px;white-space:nowrap">باز کردن ◀</span>'
+      +'</div>';
+    });
+  } else {
+    recHtml='<div style="color:#6b7280;font-size:11.5px;padding:8px 0">برای این قطعه هنوز رسیدی صادر نشده.</div>';
+  }
+  var body=''
+    +'<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">'
+      +(c.img?'<img src="'+c.img+'" onclick="omCuViewImg('+ci+')" style="width:110px;height:110px;object-fit:cover;border-radius:12px;border:1px solid #26304f;cursor:pointer;flex:none">'
+             :'<div style="width:110px;height:110px;border-radius:12px;background:#141a30;border:1px solid #26304f;display:flex;align-items:center;justify-content:center;font-size:38px;flex:none">📦</div>')
+      +'<div style="flex:1;min-width:180px">'
+        +'<div style="font-size:11px;color:#7c86a8">تعداد</div><div style="font-weight:700;color:#dfe3f5;margin-bottom:8px">'+prToFa(c.qty>0?c.qty:1)+' عدد</div>'
+        +(c.from?'<div style="font-size:11px;color:#7c86a8">از (تحویل‌دهنده)</div><div style="color:#dfe3f5;margin-bottom:8px">'+escapeHtml(c.from)+'</div>':'')
+        +'<div style="font-size:11px;color:#7c86a8">تاریخِ دریافت</div><div style="color:#dfe3f5;margin-bottom:8px">'+prToFa(c.recvDate||'—')+'</div>'
+        +'<div style="font-size:11px;color:#7c86a8">وضعیت</div>'
+        +(isRet?'<div style="color:#34d399;font-weight:700">✅ برگردانده شد'+(c.retDate?(' در '+prToFa(c.retDate)):'')+'</div>'+(c.retNote?'<div style="font-size:11px;color:#9aa3c2;margin-top:3px">'+escapeHtml(c.retNote)+'</div>':'')
+               :'<div style="color:#7ab8ff;font-weight:700">🔵 نزدِ ما</div>')
+      +'</div>'
+    +'</div>'
+    +(c.note?'<div style="margin-top:14px"><div style="font-size:11px;color:#7c86a8">توضیحات</div><div style="color:#dfe3f5;white-space:pre-wrap;line-height:1.8;margin-top:3px">'+escapeHtml(c.note)+'</div></div>':'')
+    +'<div style="margin-top:18px;font-weight:700;color:#ffd479;font-size:13px">🧾 رسیدهای این قطعه ('+prToFa(pRecs.length)+')</div>'
+    +'<div style="margin-top:4px">'+recHtml+'</div>';
+  var ov=document.createElement('div'); ov.id='om-cupart-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:6100;background:rgba(4,6,12,.75);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px 80px';
+  ov.onclick=function(e){ if(e.target===ov) omCuClosePartProfile(); };
+  ov.innerHTML='<div style="background:#0e1220;border:1px solid #23304f;border-radius:16px;max-width:640px;width:100%;overflow:hidden">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;background:#0c1120;border-bottom:1px solid #1a2440">'
+      +'<div style="font-weight:800;color:#dfe3f5;font-size:15px;word-break:break-word;min-width:0">'+escapeHtml(c.name||'قطعه')+'</div>'
+      +'<button onclick="omCuClosePartProfile()" style="background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:9px;padding:7px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;flex:none">بستن</button>'
+    +'</div>'
+    +'<div style="padding:16px">'+body+'</div>'
+  +'</div>';
+  document.body.appendChild(ov);
+}
+function omCuClosePartProfile(){ var o=document.getElementById('om-cupart-ov'); if(o&&o.parentNode) o.parentNode.removeChild(o); }
 function omCuDeleteReceipt(code){
   prConfirm({ title:'حذفِ رسید', okText:'🗑 بله، حذف کن', cancelText:'انصراف',
     message:'رسیدِ «'+escapeHtml(code)+'» به‌طورِ کامل حذف شود؟<br><br><span style="font-size:11.5px;color:#f0a0a0">این کار فایلِ PDF را از پوشه‌ی سفارش پاک می‌کند و همه‌ی داده‌های این رسید (نام و شماره‌ی امضاکننده‌ها و ارجاعِ قطعات) را از دیتابیس حذف می‌کند. این عمل قابلِ بازگشت نیست.</span>',
