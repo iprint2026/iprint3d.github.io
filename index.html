@@ -802,7 +802,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V252</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V253</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -956,7 +956,7 @@ function doPost(e){
         </div>
       </div>
       <div style="position:relative;margin-bottom:16px">
-        <input id="ar-search" class="inp" placeholder="🔍 جستجو بر اساس کد سفارش، نام پروژه یا مشتری..." oninput="archiveRender()" style="width:100%">
+        <input id="ar-search" class="inp" placeholder="🔍 جستجو بر اساس کد سفارش، کد رسیدِ امانت (RC)، نام پروژه یا مشتری..." oninput="archiveRender()" style="width:100%">
       </div>
       <div id="ar-body"><div style="color:#5a6080;text-align:center;padding:30px">در حال بارگذاری...</div></div>
     </div>
@@ -9790,10 +9790,11 @@ function archiveRender(){
   if(!arData.length){ box.innerHTML='<div style="color:#5a6080;text-align:center;padding:40px;border:1px dashed #1a1d2e;border-radius:14px">هنوز برآوردی ذخیره نشده.<br><span style="font-size:12px">از صفحه‌ی برآورد، دکمه‌ی «ذخیره در گزارش ماه» را بزن.</span></div>'; return; }
   var qEl=document.getElementById('ar-search'); var q=qEl?String(qEl.value||'').trim().toLowerCase():'';
   var rows = arData;
-  if(q){ rows = arData.filter(function(e){
+  if(q){ var qn=q.replace(/[^a-z0-9]/gi,''); rows = arData.filter(function(e){
     return (String(e.code||'').toLowerCase().indexOf(q)>=0)
         || (String(e.projectName||'').toLowerCase().indexOf(q)>=0)
-        || (String(e.customer||'').toLowerCase().indexOf(q)>=0);
+        || (String(e.customer||'').toLowerCase().indexOf(q)>=0)
+        || (qn && (e.rcCodes||[]).some(function(rc){ return String(rc).toLowerCase().replace(/[^a-z0-9]/gi,'').indexOf(qn)>=0; }));
   }); }
   if(!rows.length){ box.innerHTML='<div style="color:#5a6080;text-align:center;padding:34px;border:1px dashed #1a1d2e;border-radius:14px">نتیجه‌ای برای «'+escapeHtml(q)+'» پیدا نشد.</div>'; return; }
   var groups={}, order=[];
