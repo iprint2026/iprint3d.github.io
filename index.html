@@ -802,7 +802,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V253</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V256</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -832,12 +832,20 @@ function doPost(e){
           <div class="card" style="margin-bottom:16px">
             <div style="font-weight:600;font-size:14px;margin-bottom:14px">۱) اطلاعات سفارش</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
-              <div><label style="font-size:11px;color:#5a6080">نام مشتری / سازمان</label><input class="inp" id="pr-o-customer" placeholder="مثلاً شرکت ..."></div>
+              <div><label style="font-size:11px;color:#5a6080">نام شخص / مشتری</label><input class="inp" id="pr-o-customer" placeholder="مثلاً آقای اسکویی"></div>
               <div id="pr-wrap-ordername"><label style="font-size:11px;color:#5a6080">اسم سفارش</label><input class="inp" id="pr-o-ordername" placeholder="مثلاً پرینت قطعه ..."></div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
+              <div><label style="font-size:11px;color:#5a6080">سازمان / شرکت <span style="color:#4a5070">(اختیاری — برای گروه‌بندیِ آمار)</span></label><input class="inp" id="pr-o-org" placeholder="مثلاً شرکت A"></div>
               <div><label style="font-size:11px;color:#5a6080">شماره تماس</label><input class="inp" id="pr-o-tel" placeholder="۰۲۱-..."></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
               <div id="pr-wrap-qty"><label style="font-size:11px;color:#5a6080">تعداد سفارش</label><input class="inp" id="pr-o-qty" type="number" min="1" placeholder="مثلاً ۱۰"></div>
+              <div><label style="font-size:11px;color:#5a6080">دستهٔ سفارش <span style="color:#4a5070">(اختیاری)</span></label><input class="inp" id="pr-o-category" list="pr-category-list" placeholder="مثلاً پزشکی، صنعتی..." autocomplete="off"><datalist id="pr-category-list"></datalist></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
+              <div><label style="font-size:11px;color:#5a6080">حوزهٔ کاریِ مشتری <span style="color:#4a5070">(اختیاری)</span></label><input class="inp" id="pr-o-field" list="pr-field-list" placeholder="مثلاً تجهیزات پزشکی" autocomplete="off"><datalist id="pr-field-list"></datalist></div>
+              <div></div>
             </div>
             <div style="margin-top:11px">
               <label style="font-size:11px;color:#5a6080">تاریخ برآورد</label>
@@ -3209,6 +3217,7 @@ function renderUsageReport(){
       +   '<div>🗓️ تاریخ: '+escapeHtml(r.date||'-')+'</div>'
       +   '<div>👤 فرد: '+escapeHtml(r.user||'-')+'</div>'
       +   '<div>🏷️ دلیل: '+escapeHtml(r.reason||'-')+'</div>'
+      +   (r.batch?('<div>🧪 بچ: '+escapeHtml(r.batch)+'</div>'):'')
       +   (r.project?('<div>📁 پروژه: '+escapeHtml(r.project)+'</div>'):'')
       +   (canDo('users')?('<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171;padding:4px 10px" onclick="deleteUsageLogEntry('+o.idx+')">🗑️ حذف این گزارش</button></div>'):'')
       + '</div>'
@@ -3566,6 +3575,7 @@ function confirmConsume(id){
       if(amt > bq){ showToast('مقدار بیشتر از موجودی این بچ است ('+bq+')'); return; }
       var item = items.find(function(i){ return i.id===id; });
       var unitTxt = (item && item.unit && item.unit!=='عدد') ? item.unit : '';
+      var batchLabel = (b && b.batchCode ? String(b.batchCode) : '') + ((b && b.batchName) ? ((b.batchCode?' · ':'')+b.batchName) : '');
 
       if(currentUser && currentUser.role==='admin'){
         // ادمین: مستقیم از بچ کم کن
@@ -3577,7 +3587,7 @@ function confirmConsume(id){
           callSheet('deleteBatch', {id:batchId}, function(res){
             loadBatches(function(){
               syncItemQtyFromBatches(id);
-              callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:(b.batchName||'')},function(){ loadProjects(); });
+              callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:batchLabel},function(){ loadProjects(); });
               renderBatchSection(id);
               showToast('✅ بچ «'+(b.batchName||'')+'» خالی شد و حذف گردید');
               closeDetail();
@@ -3588,7 +3598,7 @@ function confirmConsume(id){
           callSheet('updateBatch', {id:batchId, qty:String(newBq), note:newNote}, function(res){
             loadBatches(function(){
               syncItemQtyFromBatches(id);
-              callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:(b.batchName||'')},function(){ loadProjects(); });
+              callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:batchLabel},function(){ loadProjects(); });
               renderBatchSection(id);
               showToast('✅ مصرف از بچ «'+(b.batchName||'')+'» ثبت شد');
               closeDetail();
@@ -4720,7 +4730,7 @@ function approvePendingChange(id){
     function finishApprove(){
       loadBatches(function(){
         syncItemQtyFromBatches(itemId);
-        callSheet('logUsage',{itemId:itemId,itemName:(item?item.name:''),change:String(-amt),reason:data._reason||'',project:data._project||'',projectKey:data._projectKey||'',user:(ch.user||''),unit:data._unit||'',batch:data._batchName||''},function(){ loadProjects(); });
+        callSheet('logUsage',{itemId:itemId,itemName:(item?item.name:''),change:String(-amt),reason:data._reason||'',project:data._project||'',projectKey:data._projectKey||'',user:(ch.user||''),unit:data._unit||'',batch:((data._batchCode?String(data._batchCode):'')+(data._batchName?((data._batchCode?' · ':'')+data._batchName):''))},function(){ loadProjects(); });
         // درخواست را تأیید‌شده علامت بزن
         callSheet('approvePendingChange', {id:id, adminMsg:adminMsg||('مصرف '+amt+' از بچ تأیید شد')}, function(res){
           loadPendingChanges(); loadFromSheet(); updateAllBadges();
@@ -7412,7 +7422,7 @@ function prToFa(s){ return String(s).replace(/\d/g, function(d){ return prFaD[d]
 // ── راه‌اندازی صفحه (با باز شدن از منو صدا زده می‌شود) ──
 function pricingResetForNext(){
   var d = prState.defaults || {profit:0,institute:0,packaging:0,shipping:0};
-  prState.order = { customer:'', orderName:'', tel:'', qty:'',
+  prState.order = { customer:'', org:'', category:'', field:'', orderName:'', tel:'', qty:'',
     profit:(+d.profit||0), institute:(+d.institute||0),
     packaging:'', shipping:'', notes:'', manualUnit:0 };
   prState.lines = [];
@@ -7455,7 +7465,7 @@ function pricingInit(){
       prState.invoice    = c.invoice  || {logoFileId:'',stampFileId:''};
       // مقداردهی اولیه‌ی سفارش از پیش‌فرض‌ها
       var d = prState.defaults;
-      prState.order = { customer:'', orderName:'', tel:'', qty:'',
+      prState.order = { customer:'', org:'', category:'', field:'', orderName:'', tel:'', qty:'',
                         profit:(+d.profit||0),
                         institute:(+d.institute||0), packaging:'', shipping:'' };
       // یک ردیف نمونه برای شروع
@@ -7611,9 +7621,23 @@ function prMnpSync(){
   if(lbl){ lbl.style.color = on?'#7fe0b8':'#8a93b8'; }
   if(rw){ rw.style.display = on?'flex':'none'; }
 }
-function prRenderOrder(){
-  var o = prState.order;
+// datalistِ هوشمندِ دسته/حوزه: پیش‌فرض‌ها + هر چیزی که قبلاً استفاده شده (از سفارش‌های بارگذاری‌شده و تاریخچهٔ سرور)
+function prRefreshCategoryLists(){
+  var cats = ['هنری','صنعتی','پزشکی','خرید رزین'];
+  var fields = [];
+  function addC(v){ v=(v||'').trim(); if(v && cats.indexOf(v)<0) cats.push(v); }
+  function addF(v){ v=(v||'').trim(); if(v && fields.indexOf(v)<0) fields.push(v); }
+  try{ if(typeof arData!=='undefined' && arData){ arData.forEach(function(e){ addC(e.category); addF(e.field); }); } }catch(e){}
+  try{ if(window._orgHistory){ (window._orgHistory.categories||[]).forEach(addC); (window._orgHistory.fields||[]).forEach(addF); } }catch(e){}
+  var cl=document.getElementById('pr-category-list'); if(cl) cl.innerHTML=cats.map(function(c){return '<option value="'+String(c).replace(/"/g,'&quot;')+'">';}).join('');
+  var fl=document.getElementById('pr-field-list'); if(fl) fl.innerHTML=fields.map(function(f){return '<option value="'+String(f).replace(/"/g,'&quot;')+'">';}).join('');
+}
+function prRenderOrder(){  var o = prState.order;
   document.getElementById('pr-o-customer').value  = o.customer||'';
+  { var _og=document.getElementById('pr-o-org'); if(_og) _og.value = o.org||''; }
+  { var _oc=document.getElementById('pr-o-category'); if(_oc) _oc.value = o.category||''; }
+  { var _of=document.getElementById('pr-o-field'); if(_of) _of.value = o.field||''; }
+  prRefreshCategoryLists();
   document.getElementById('pr-o-ordername').value = o.orderName||'';
   document.getElementById('pr-o-tel').value       = o.tel||'';
   document.getElementById('pr-o-qty').value       = (o.qty!=null && o.qty!=='') ? o.qty : '';
@@ -7766,6 +7790,9 @@ function prMakeLine(kind){
 function prSyncOrderInputs(){
   var o = prState.order, g=function(id){var e=document.getElementById(id);return e?e.value:null;};
   var c=g('pr-o-customer'); if(c!=null) o.customer=c;
+  var _og=g('pr-o-org'); if(_og!=null) o.org=_og;
+  var _oc=g('pr-o-category'); if(_oc!=null) o.category=_oc;
+  var _of=g('pr-o-field'); if(_of!=null) o.field=_of;
   var nm=g('pr-o-ordername'); if(nm!=null) o.orderName=nm;
   var tl=g('pr-o-tel'); if(tl!=null) o.tel=tl;
   var q=g('pr-o-qty'); if(q!=null && q!=='') o.qty=+q;
@@ -8154,7 +8181,7 @@ function prOnInput(e){
       return;
     }
     prState.order.manualUnit = v; var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display=(v>0?'block':'none'); prScheduleCompute(); return; }
-  var omap = {'pr-o-customer':'customer','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
+  var omap = {'pr-o-customer':'customer','pr-o-org':'org','pr-o-category':'category','pr-o-field':'field','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
   if(t.id==='pr-p-matnoprofit'){ prState.order.matNoProfit = !!t.checked; if(prState.order.matNoProfit && !(+prState.order.matRiskX>0)) prState.order.matRiskX = (+((document.getElementById('pr-p-matriskx')||{}).value)||1.2); prMnpSync(); prScheduleCompute(); return; }
   if(t.id==='pr-p-matriskx'){ prState.order.matRiskX = (+t.value>0)?+t.value:1; prScheduleCompute(); return; }
   if(omap[t.id]){ prState.order[omap[t.id]] = v; prScheduleCompute(); return; }
