@@ -319,6 +319,7 @@ tr:hover td{background:#0e1018}
     <div class="nav" onclick="gotoView('usage',this)"><span class="nav-icon">📊</span><span>گزارش مصرف</span></div>
     <div class="nav" onclick="gotoView('pricing',this)"><span class="nav-icon">🧮</span><span>برآورد قیمت</span></div>
     <div class="nav" onclick="gotoView('archive',this)"><span class="nav-icon">📁</span><span>آرشیو و گزارش‌ها</span></div>
+    <div class="nav" onclick="gotoView('custbank',this)"><span class="nav-icon">🏢</span><span>بانک مشتری</span></div>
 
     <div class="nav" onclick="gotoView('users',this)"><span class="nav-icon">👥</span><span>کاربران</span><span id="usersBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
     <div class="nav" id="notifNav" onclick="gotoView('notif',this)"><span class="nav-icon">📋</span><span>درخواست‌ها</span><span id="notifBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
@@ -802,7 +803,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V256</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V259</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -909,6 +910,14 @@ function doPost(e){
             <label style="display:flex;align-items:center;gap:8px;margin-top:7px;font-size:12px;color:#cfd3e6;cursor:pointer">
               <input type="checkbox" id="pr-p-showextrarows" onchange="prState.order.showExtraRows=this.checked; prScheduleCompute();" style="width:16px;height:16px">
               هزینه‌های جانبی به‌صورت ردیف در فاکتور نوشته شوند</label>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:7px;font-size:12px;color:#cfd3e6;cursor:pointer">
+              <input type="checkbox" id="pr-p-setmode" onchange="prState.order.setMode=this.checked; prToggleSetMode(); prScheduleCompute();" style="width:16px;height:16px">
+              چند بخش = یک محصولِ کامل (ست/سری/جفت)</label>
+            <div id="pr-wrap-setcount" style="display:none;margin-top:7px;padding:9px 11px;background:#0c1120;border:1px solid #1a2440;border-radius:9px">
+              <label style="font-size:11px;color:#5a6080">تعدادِ محصولِ نهایی (مبلغِ کل بر این عدد تقسیم می‌شود)</label>
+              <input class="inp" id="pr-p-setcount" type="number" min="1" placeholder="مثلاً ۲۰۰" oninput="prState.order.setCount=this.value; prScheduleCompute();" style="margin-top:4px">
+              <div style="font-size:10.5px;color:#5f6a8c;margin-top:5px">در فاکتور یک ردیف با عنوانِ پروژه و همین تعداد نوشته می‌شود؛ محاسبات و مبلغِ کل تغییر نمی‌کند.</div>
+            </div>
             <div style="margin-top:11px">
               <label style="font-size:11px;color:#5a6080">توضیحات سفارش (اختیاری)</label>
               <textarea class="inp" id="pr-o-notes" rows="3" placeholder="هر توضیحی که لازم است؛ در فایل متنی، اکسل و پروفایل سفارش ذخیره و نمایش داده می‌شود..." style="resize:vertical;line-height:1.8"></textarea>
@@ -1114,6 +1123,24 @@ function doPost(e){
     .ar-secthumbs > div{width:34px!important;height:34px!important}
   }
 </style>
+
+<div id="view-custbank" class="hidden">
+  <div class="page-title">🏢 بانک مشتری</div>
+  <div class="card" style="margin-bottom:14px">
+    <input id="cb-search" class="inp" placeholder="🔍 جستجو: نام شخص، سازمان، تلفن، آدرس، کد سفارش، نام قطعه..." oninput="custBankRender()" autocomplete="off" style="width:100%;margin-bottom:10px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;background:#0c1120;border:1px solid #1a2440;border-radius:9px;overflow:hidden">
+        <button id="cb-tab-done" onclick="custBankTab('done')" style="background:#1e2235;color:#e2e4f0;border:none;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">✅ تمام‌شده / در جریان</button>
+        <button id="cb-tab-est" onclick="custBankTab('est')" style="background:transparent;color:#5a6080;border:none;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">📝 برآورد</button>
+      </div>
+      <select id="cb-year" class="inp" onchange="custBankRender()" style="max-width:140px"><option value="">همهٔ سال‌ها</option></select>
+      <select id="cb-month" class="inp" onchange="custBankRender()" style="max-width:140px"><option value="">همهٔ ماه‌ها</option><option value="01">فروردین</option><option value="02">اردیبهشت</option><option value="03">خرداد</option><option value="04">تیر</option><option value="05">مرداد</option><option value="06">شهریور</option><option value="07">مهر</option><option value="08">آبان</option><option value="09">آذر</option><option value="10">دی</option><option value="11">بهمن</option><option value="12">اسفند</option></select>
+      <button class="btn btn-ghost btn-sm" onclick="custBankInit(true)" style="font-size:12px">🔄 بروزرسانی</button>
+    </div>
+  </div>
+  <div id="cb-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px"></div>
+  <div id="cb-list"></div>
+</div>
 
 <div id="view-invoice">
   <div class="ivbar">
@@ -1882,6 +1909,7 @@ function applyRoleUI(){
     if(txt.includes('گزارش مصرف'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('برآورد قیمت'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('آرشیو و گزارش'))n.style.display=isAdmin?'flex':'none';
+    if(txt.includes('بانک مشتری'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('جستجوی AI'))n.style.display='flex';
   });
   // دکمه خروجی Excel فقط برای ادمین
@@ -1939,6 +1967,7 @@ function gotoView(v,el){
   else if(v==='ai'){}
   else if(v==='pricing'){ if(!canDo('users')){alert('دسترسی ندارید');return;} pricingInit(); }
   else if(v==='archive'){ if(!canDo('users')){alert('دسترسی ندارید');return;} archiveInit(); }
+  else if(v==='custbank'){ if(!canDo('users')){alert('دسترسی ندارید');return;} custBankInit(); }
   else if(v==='usage'){ loadUsageReport(); loadProjects(); }
   else if(v==='users'){
     if(!canDo('users')){alert('دسترسی ندارید');return;}
@@ -3058,6 +3087,165 @@ function smartDateBoth(input){
   }
   return { shamsi: shamsi, milady: milady };
 }
+
+// ── بانک مشتری ──
+var CB_DATA=[]; var CB_TAB='done'; var CB_LOADED=false;
+function custBankInit(force){
+  if(CB_LOADED && !force){ custBankRender(); return; }
+  var box=document.getElementById('cb-list'); if(box) box.innerHTML='<div style="color:#6b7280;padding:20px;text-align:center">در حال بارگذاری…</div>';
+  callSheet('customerBankData',{t:Date.now()},function(res){
+    CB_DATA = (res && res.data && Array.isArray(res.data)) ? res.data : [];
+    CB_LOADED=true;
+    // پرکردنِ فیلترِ سال + تغذیهٔ datalistِ دسته/حوزه
+    var years={}, cats={}, fields={};
+    CB_DATA.forEach(function(r){ var y=(r.dateStr||'').split('/')[0]; if(y) years[y]=1; if(r.category) cats[r.category]=1; if(r.field) fields[r.field]=1; });
+    var ys=Object.keys(years).sort().reverse();
+    var ysel=document.getElementById('cb-year'); if(ysel){ ysel.innerHTML='<option value="">همهٔ سال‌ها</option>'+ys.map(function(y){return '<option value="'+y+'">'+prToFa(y)+'</option>';}).join(''); }
+    window._orgHistory = { categories:Object.keys(cats), fields:Object.keys(fields) };
+    try{ if(typeof prRefreshCategoryLists==='function') prRefreshCategoryLists(); }catch(e){}
+    custBankRender();
+  }, 30000);
+}
+function custBankTab(t){
+  CB_TAB=t;
+  var d=document.getElementById('cb-tab-done'), e=document.getElementById('cb-tab-est');
+  if(d&&e){ var on='background:#1e2235;color:#e2e4f0;', off='background:transparent;color:#5a6080;';
+    d.style.cssText=(t==='done'?on:off)+'border:none;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit';
+    e.style.cssText=(t==='est'?on:off)+'border:none;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit'; }
+  custBankRender();
+}
+function cbIsEst(r){ return String(r.status||'').indexOf('برآورد')!==-1 || !r.status; }
+function cbKey(r){ var org=(r.org||'').trim(); return org ? ('O:'+normalizeProject(org)) : ('C:'+normalizeProject(r.customer||'—')); }
+function cbGroupLabel(r){ return (r.org||'').trim() || (r.customer||'—'); }
+function custBankRender(){
+  var box=document.getElementById('cb-list'); if(!box) return;
+  var q=normalizeProject((document.getElementById('cb-search')||{}).value||'');
+  var fy=(document.getElementById('cb-year')||{}).value||'';
+  var fm=(document.getElementById('cb-month')||{}).value||'';
+  // فیلترِ تب + زمان + جست‌وجو
+  var rows=CB_DATA.filter(function(r){
+    if(CB_TAB==='est' ? !cbIsEst(r) : cbIsEst(r)) return false;
+    if(fy || fm){ var p=(r.dateStr||'').split('/'); if(fy && p[0]!==fy) return false; if(fm && (p[1]||'').replace(/^0?/,'').padStart(2,'0')!==fm) return false; }
+    if(q){
+      var hay=[r.customer,r.org,r.tel,r.address,r.code].concat(r.partNames||[]).join(' ');
+      if(normalizeProject(hay).indexOf(q)<0) return false;
+    }
+    return true;
+  });
+  // گروه‌بندی بر اساسِ سازمان (یا مشتری اگر سازمان نداشت)
+  var groups={};
+  rows.forEach(function(r){
+    var k=cbKey(r);
+    if(!groups[k]) groups[k]={ key:k, label:cbGroupLabel(r), persons:{}, orgs:{}, tel:'', address:'', field:'', count:0, sumAnn:0, sumProfit:0, profitCount:0, sumMul:0, mulCount:0, rows:[] };
+    var g=groups[k];
+    g.count++; g.sumAnn+=(+r.announcedTotal||0);
+    if(r.netProfit!=null){ g.sumProfit+=(+r.netProfit||0); g.profitCount++; }
+    if(+r.profitMul>0){ g.sumMul+=(+r.profitMul); g.mulCount++; }
+    if(r.customer) g.persons[r.customer]=1;
+    if(r.org) g.orgs[r.org]=1;
+    if(!g.tel && r.tel) g.tel=r.tel;
+    if(!g.address && r.address) g.address=r.address;
+    if(!g.field && r.field) g.field=r.field;
+    g.rows.push(r);
+  });
+  var list=Object.keys(groups).map(function(k){return groups[k];});
+  list.sort(function(a,b){ return b.sumProfit-a.sumProfit || b.sumAnn-a.sumAnn; });
+  // کارت‌های آماری کلی
+  var tCust=list.length, tOrders=rows.length, tAnn=0, tProfit=0, tProfitKnown=0;
+  rows.forEach(function(r){ tAnn+=(+r.announcedTotal||0); if(r.netProfit!=null){ tProfit+=(+r.netProfit||0); tProfitKnown++; } });
+  function statCard(lbl,val,col){ return '<div class="card" style="padding:12px"><div style="font-size:11px;color:#7c86a8">'+lbl+'</div><div style="font-size:17px;font-weight:800;color:'+(col||'#dfe3f5')+';margin-top:3px">'+val+'</div></div>'; }
+  var sb=document.getElementById('cb-stats');
+  if(sb) sb.innerHTML = statCard('مشتری/سازمان', prToFa(tCust))
+    + statCard('سفارش‌ها', prToFa(tOrders))
+    + statCard('مبلغِ اعلامیِ کل', prToFa(prSep(Math.round(tAnn)))+' <span style="font-size:11px;color:#7c86a8">تومان</span>', '#ffd479')
+    + statCard('سودِ کل'+(tProfitKnown<tOrders?' *':''), prToFa(prSep(Math.round(tProfit)))+' <span style="font-size:11px;color:#7c86a8">تومان</span>', '#34d399');
+  if(!list.length){ box.innerHTML='<div style="color:#6b7280;padding:30px;text-align:center">موردی یافت نشد.</div>'; return; }
+  var h='';
+  list.forEach(function(g){
+    var persons=Object.keys(g.persons), orgs=Object.keys(g.orgs);
+    var avgMul=g.mulCount?(g.sumMul/g.mulCount):0;
+    var marginPct=g.sumAnn>0?Math.round(g.sumProfit/g.sumAnn*100):0;
+    h+='<div class="card" onclick="custBankProfile(\''+g.key.replace(/'/g,"\\'")+'\')" style="margin-bottom:10px;cursor:pointer">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:180px">'
+          +'<div style="font-weight:800;color:#dfe3f5;font-size:15px">'+(orgs.length?'🏢 ':'👤 ')+escapeHtml(g.label)+'</div>'
+          +(persons.length?'<div style="font-size:11px;color:#7c86a8;margin-top:3px">اشخاص: '+escapeHtml(persons.join('، '))+'</div>':'')
+          +(g.tel?'<div style="font-size:11px;color:#7c86a8;margin-top:2px">📞 '+escapeHtml(g.tel)+'</div>':'')
+          +(g.field?'<div style="font-size:11px;color:#7ab8ff;margin-top:2px">حوزه: '+escapeHtml(g.field)+'</div>':'')
+        +'</div>'
+        +'<div style="text-align:left;font-size:12px;line-height:1.9">'
+          +'<div style="color:#c7cce0">🧾 '+prToFa(g.count)+' سفارش</div>'
+          +'<div style="color:#ffd479">💰 '+prToFa(prSep(Math.round(g.sumAnn)))+' ت</div>'
+          +'<div style="color:#34d399">💎 '+(g.profitCount?prToFa(prSep(Math.round(g.sumProfit)))+' ت':'—')+'</div>'
+          +'<div style="color:#a78bfa">📊 میانگین ضریب: '+(avgMul?prToFa(avgMul.toFixed(2))+'×':'—')+(g.sumAnn>0?' · حاشیه '+prToFa(marginPct)+'٪':'')+'</div>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+  });
+  box.innerHTML=h;
+}
+function custBankProfile(key){
+  var rows=CB_DATA.filter(function(r){ return cbKey(r)===key && (CB_TAB==='est'?cbIsEst(r):!cbIsEst(r)); });
+  if(!rows.length) return;
+  var label=cbGroupLabel(rows[0]);
+  var persons={}, orgs={}, tel='', address='', field='';
+  var sumAnn=0,sumProfit=0,profitCount=0,sumMul=0,mulCount=0, byMonth={};
+  rows.forEach(function(r){
+    if(r.customer)persons[r.customer]=1; if(r.org)orgs[r.org]=1;
+    if(!tel&&r.tel)tel=r.tel; if(!address&&r.address)address=r.address; if(!field&&r.field)field=r.field;
+    sumAnn+=(+r.announcedTotal||0); if(r.netProfit!=null){sumProfit+=(+r.netProfit||0);profitCount++;}
+    if(+r.profitMul>0){sumMul+=(+r.profitMul);mulCount++;}
+    var mk=(r.dateStr||'').split('/').slice(0,2).join('/')||'—'; if(!byMonth[mk])byMonth[mk]={ann:0,profit:0,cnt:0}; byMonth[mk].ann+=(+r.announcedTotal||0); byMonth[mk].profit+=(+r.netProfit||0); byMonth[mk].cnt++;
+  });
+  var avgMul=mulCount?(sumMul/mulCount):0;
+  // تفکیکِ ماه/سال
+  var months=Object.keys(byMonth).sort().reverse();
+  var monthRows=months.map(function(m){ var b=byMonth[m]; return '<tr><td style="padding:6px 8px;color:#c7cce0">'+prToFa(m)+'</td><td style="padding:6px 8px;text-align:center;color:#7c86a8">'+prToFa(b.cnt)+'</td><td style="padding:6px 8px;text-align:left;color:#ffd479">'+prToFa(prSep(Math.round(b.ann)))+'</td><td style="padding:6px 8px;text-align:left;color:#34d399">'+prToFa(prSep(Math.round(b.profit)))+'</td></tr>'; }).join('');
+  // لیستِ پروژه‌ها
+  var projRows=rows.slice().sort(function(a,b){return (a.dateStr<b.dateStr)?1:-1;}).map(function(r){
+    return '<tr>'
+      +'<td style="padding:6px 8px"><span style="font-size:10px;font-weight:700;color:#7ab8ff;background:#0c1c3a;border:1px solid #1e3a6e;padding:2px 7px;border-radius:5px;white-space:nowrap">'+escapeHtml(r.code||'—')+'</span></td>'
+      +'<td style="padding:6px 8px;color:#c7cce0">'+prToFa(r.dateStr||'—')+'</td>'
+      +'<td style="padding:6px 8px;color:#dfe3f5">'+escapeHtml((r.partNames&&r.partNames[0])||'—')+(r.category?' <span style="font-size:9.5px;color:#a78bfa">['+escapeHtml(r.category)+']</span>':'')+'</td>'
+      +'<td style="padding:6px 8px;text-align:left;color:#ffd479">'+prToFa(prSep(Math.round(+r.announcedTotal||0)))+'</td>'
+      +'<td style="padding:6px 8px;text-align:left;color:#34d399">'+(r.netProfit!=null?prToFa(prSep(Math.round(r.netProfit))):'—')+'</td>'
+      +'</tr>';
+  }).join('');
+  var body=''
+    +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">'
+      +'<div class="card" style="flex:1;min-width:200px;padding:12px">'
+        +'<div style="font-weight:700;color:#dfe3f5;margin-bottom:6px">اطلاعاتِ تماس</div>'
+        +(Object.keys(orgs).length?'<div style="font-size:12px;color:#c7cce0">🏢 سازمان: '+escapeHtml(Object.keys(orgs).join('، '))+'</div>':'')
+        +'<div style="font-size:12px;color:#c7cce0;margin-top:3px">👤 اشخاص: '+escapeHtml(Object.keys(persons).join('، ')||'—')+'</div>'
+        +'<div style="font-size:12px;color:#c7cce0;margin-top:3px">📞 '+escapeHtml(tel||'—')+'</div>'
+        +'<div style="font-size:12px;color:#c7cce0;margin-top:3px">📍 '+escapeHtml(address||'—')+'</div>'
+        +(field?'<div style="font-size:12px;color:#7ab8ff;margin-top:3px">حوزهٔ کاری: '+escapeHtml(field)+'</div>':'')
+      +'</div>'
+      +'<div class="card" style="flex:1;min-width:200px;padding:12px">'
+        +'<div style="font-weight:700;color:#dfe3f5;margin-bottom:6px">جمع‌بندی</div>'
+        +'<div style="font-size:12px;color:#c7cce0">🧾 تعداد سفارش: <b>'+prToFa(rows.length)+'</b></div>'
+        +'<div style="font-size:12px;color:#ffd479;margin-top:3px">💰 مبلغِ کل: <b>'+prToFa(prSep(Math.round(sumAnn)))+'</b> تومان</div>'
+        +'<div style="font-size:12px;color:#34d399;margin-top:3px">💎 سودِ کل: <b>'+(profitCount?prToFa(prSep(Math.round(sumProfit))):'—')+'</b> تومان'+(profitCount<rows.length?' <span style="color:#8a6a2a;font-size:10px">(بعضی سفارش‌ها سود ندارند)</span>':'')+'</div>'
+        +'<div style="font-size:12px;color:#a78bfa;margin-top:3px">📊 میانگین ضریب سود: <b>'+(avgMul?prToFa(avgMul.toFixed(2))+'×':'—')+'</b></div>'
+      +'</div>'
+    +'</div>'
+    +'<div style="font-weight:700;color:#ffd479;font-size:13px;margin-bottom:6px">📅 تفکیکِ ماه/سال</div>'
+    +'<div class="card" style="padding:4px 6px;margin-bottom:14px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#7c86a8"><td style="padding:6px 8px">ماه</td><td style="padding:6px 8px;text-align:center">تعداد</td><td style="padding:6px 8px;text-align:left">مبلغ</td><td style="padding:6px 8px;text-align:left">سود</td></tr></thead><tbody>'+monthRows+'</tbody></table></div>'
+    +'<div style="font-weight:700;color:#ffd479;font-size:13px;margin-bottom:6px">🗂️ پروژه‌های '+(CB_TAB==='est'?'برآورد':'انجام‌شده')+'</div>'
+    +'<div class="card" style="padding:4px 6px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#7c86a8"><td style="padding:6px 8px">کد</td><td style="padding:6px 8px">تاریخ</td><td style="padding:6px 8px">قطعه/دسته</td><td style="padding:6px 8px;text-align:left">مبلغ</td><td style="padding:6px 8px;text-align:left">سود</td></tr></thead><tbody>'+projRows+'</tbody></table></div>';
+  var ov=document.createElement('div'); ov.id='cb-profile-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:6300;background:rgba(4,6,12,.8);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px 80px';
+  ov.onclick=function(e){ if(e.target===ov) custBankCloseProfile(); };
+  ov.innerHTML='<div style="background:#0e1220;border:1px solid #23304f;border-radius:16px;max-width:820px;width:100%;overflow:hidden">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;background:#0c1120;border-bottom:1px solid #1a2440">'
+      +'<div style="font-weight:800;color:#dfe3f5;font-size:16px;min-width:0">'+(Object.keys(orgs).length?'🏢 ':'👤 ')+escapeHtml(label)+'</div>'
+      +'<button onclick="custBankCloseProfile()" style="background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:9px;padding:7px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;flex:none">بستن</button>'
+    +'</div>'
+    +'<div style="padding:16px">'+body+'</div>'
+  +'</div>';
+  document.body.appendChild(ov);
+}
+function custBankCloseProfile(){ var o=document.getElementById('cb-profile-ov'); if(o&&o.parentNode) o.parentNode.removeChild(o); }
 
 // ── گزارش مصرف ──
 var USAGE_LOG = [];
@@ -7422,7 +7610,7 @@ function prToFa(s){ return String(s).replace(/\d/g, function(d){ return prFaD[d]
 // ── راه‌اندازی صفحه (با باز شدن از منو صدا زده می‌شود) ──
 function pricingResetForNext(){
   var d = prState.defaults || {profit:0,institute:0,packaging:0,shipping:0};
-  prState.order = { customer:'', org:'', category:'', field:'', orderName:'', tel:'', qty:'',
+  prState.order = { customer:'', org:'', category:'', field:'', setMode:false, setCount:'', orderName:'', tel:'', qty:'',
     profit:(+d.profit||0), institute:(+d.institute||0),
     packaging:'', shipping:'', notes:'', manualUnit:0 };
   prState.lines = [];
@@ -7465,7 +7653,7 @@ function pricingInit(){
       prState.invoice    = c.invoice  || {logoFileId:'',stampFileId:''};
       // مقداردهی اولیه‌ی سفارش از پیش‌فرض‌ها
       var d = prState.defaults;
-      prState.order = { customer:'', org:'', category:'', field:'', orderName:'', tel:'', qty:'',
+      prState.order = { customer:'', org:'', category:'', field:'', setMode:false, setCount:'', orderName:'', tel:'', qty:'',
                         profit:(+d.profit||0),
                         institute:(+d.institute||0), packaging:'', shipping:'' };
       // یک ردیف نمونه برای شروع
@@ -7647,6 +7835,7 @@ function prRenderOrder(){  var o = prState.order;
   document.getElementById('pr-p-shipping').value  = (+o.shipping>0) ? prSep(+o.shipping) : '';
   var se=document.getElementById('pr-p-showextras'); if(se) se.checked = !!o.showExtras;
   var se2=document.getElementById('pr-p-showextrarows'); if(se2) se2.checked = !!o.showExtraRows;
+  { var sm=document.getElementById('pr-p-setmode'); if(sm) sm.checked = !!o.setMode; var sc=document.getElementById('pr-p-setcount'); if(sc) sc.value = o.setCount||''; prToggleSetMode(); }
   var nt=document.getElementById('pr-o-notes'); if(nt) nt.value = o.notes||'';
   var dt=document.getElementById('pr-o-date');
   if(dt){
@@ -8621,7 +8810,7 @@ function prRenderTape(r){
     h2 += prModelingBox(r);
     h2 += prMaterialsBox(r);
     document.getElementById('pr-tape').innerHTML = h2;
-    document.getElementById('pr-final-unit').textContent  = prFmt(r.perUnit);
+    { var _o2=(prState&&prState.order)||{}; var _si2=prSetInfo(_o2, r.orderTotal); if(_si2){ var _sp2=prSepSum(_o2,r); document.getElementById('pr-final-unit').textContent = prFmt(Math.round(((+r.orderTotal||0)-_sp2)/_si2.n))+' (هر محصولِ کامل)'; } else { document.getElementById('pr-final-unit').textContent = prFmt(r.perUnit); } }
     document.getElementById('pr-final-total').textContent = prFmt(r.orderTotal);
     return;
   }
@@ -8674,7 +8863,7 @@ function prRenderTape(r){
   h += prModelingBox(r);
   h += prMaterialsBox(r);
   document.getElementById('pr-tape').innerHTML = h;
-  document.getElementById('pr-final-unit').textContent  = prFmt(r.perUnit);
+  { var _o2=(prState&&prState.order)||{}; var _si2=prSetInfo(_o2, r.orderTotal); if(_si2){ var _sp2=prSepSum(_o2,r); document.getElementById('pr-final-unit').textContent = prFmt(Math.round(((+r.orderTotal||0)-_sp2)/_si2.n))+' (هر محصولِ کامل)'; } else { document.getElementById('pr-final-unit').textContent = prFmt(r.perUnit); } }
   document.getElementById('pr-final-total').textContent = prFmt(r.orderTotal);
 }
 function prMaterialsBox(r){
@@ -9187,13 +9376,61 @@ function ivOpenInvoice(opts){
 }
 function ivShowInvoice(){
   if(typeof prLastResult==='undefined' || !prLastResult){ showToast('اول یک برآورد بساز تا فاکتور از روی آن پر شود'); return; }
+  try{ if(typeof prSyncOrderInputs==='function') prSyncOrderInputs(); }catch(e){}   // مقادیرِ تازهٔ فرم (تلفن، سازمان...) قبل از ساختِ فاکتور همگام شوند
   var r=prLastResult, o=(prState&&prState.order)||{};
   var built = prBuildInvoiceItems(r, o);
   ivOpenInvoice({ code:o.orderName, qty:(r.multi? (r.qty||1) : o.qty), unit:built.fallbackUnit, items:built.items, customer:o.customer, tel:o.tel, estimateId:'', folderId:'', orderCode:(prState&&prState.savedCode)||'' });
 }
+function prToggleSetMode(){
+  var w=document.getElementById('pr-wrap-setcount');
+  var on=!!(prState && prState.order && prState.order.setMode);
+  if(w) w.style.display = on ? 'block' : 'none';
+}
+// حالتِ ست: اگر تیک خورده و عددِ معتبر وارد شده باشد، {n, unit} برمی‌گرداند وگرنه null (رفتارِ قبلی)
+function prSepSum(o, r){
+  o=o||{}; var sep=0;
+  if(o.showDesignRow) sep += Math.round(+r.modelingAnnounced||0);
+  if(o.showExtras){ sep += Math.round(+r.packaging||0) + Math.round(+r.shipping||0); }
+  if(o.showExtraRows && r.extraCosts){ r.extraCosts.forEach(function(x){ sep += Math.round(+x.amount||0); }); }
+  if(o.showPrePro && r.preProItems){ r.preProItems.forEach(function(pp){ sep += Math.round(+pp.total||0); }); }
+  return sep;
+}
+function prSetInfo(order, orderTotal){
+  var o=order||{};
+  if(!o.setMode) return null;
+  var n=parseInt(String(o.setCount||'').replace(/[^\d]/g,''),10);
+  if(!n || n<1) return null;   // عددِ خالی/نامعتبر → رفتارِ قبلی، چیزی خراب نمی‌شود
+  return { n:n, unit: Math.round((+orderTotal||0)/n) };
+}
 // سازنده‌ی یکپارچه‌ی ردیف‌های فاکتور (تک‌بخشی و چندبخشی)
 function prBuildInvoiceItems(r, o){
   o = o||{};
+  // حالتِ ست: ردیف‌های جداشده (طراحی/بسته‌بندی/جانبی/پیش‌تولید) سرِ جایشان می‌مانند و
+  // فقط مبلغِ باقی‌ماندهٔ محصول بر تعدادِ ست تقسیم می‌شود.
+  var _si = prSetInfo(o, r.orderTotal);
+  if(_si){
+    var _tot = Math.round(+r.orderTotal||0);
+    var _rows = [];
+    var _sep = 0;
+    if(o.showDesignRow && (+r.modelingAnnounced||0)){ var _m=Math.round(+r.modelingAnnounced||0); _sep+=_m; _rows.push({ code:(o.designName||'طراحی / مدلسازی'), qty:1, unit:_m, total:_m }); }
+    if(o.showExtras){
+      if(+r.packaging){ var _p=Math.round(+r.packaging); _sep+=_p; _rows.push({ code:'بسته‌بندی', qty:1, unit:_p, total:_p }); }
+      if(+r.shipping){ var _s=Math.round(+r.shipping); _sep+=_s; _rows.push({ code:'ارسال', qty:1, unit:_s, total:_s }); }
+    }
+    if(o.showExtraRows && r.extraCosts && r.extraCosts.length){
+      r.extraCosts.forEach(function(x){ if(+x.amount){ var _a=Math.round(+x.amount); _sep+=_a; _rows.push({ code:(x.name||'هزینهٔ جانبی'), qty:1, unit:_a, total:_a }); } });
+    }
+    if(o.showPrePro && r.preProItems && r.preProItems.length){
+      r.preProItems.forEach(function(pp){ var _t=Math.round(+pp.total||0); if(_t){ _sep+=_t; _rows.push({ code:(pp.name||'هزینهٔ پیش‌تولید'), qty:(+pp.qty||1), unit:Math.round(_t/Math.max(1,+pp.qty||1)), total:_t }); } });
+    }
+    var _prodTotal = _tot - _sep;
+    var _prodUnit = Math.round(_prodTotal/_si.n);
+    var _items = [{ code:(o.orderName||'محصول'), qty:_si.n, unit:_prodUnit, total:_prodTotal }].concat(_rows);
+    // لنگرِ دقت: جمعِ ردیف‌ها دقیقاً برابرِ مبلغِ کل
+    var _have = _items.reduce(function(a,it){ return a+(+it.total||0); },0);
+    if(_have !== _tot) _items[0].total = (+_items[0].total||0) + (_tot - _have);
+    return { items:_items, fallbackUnit:_prodUnit };
+  }
   var totalQty = Math.max(1, r.multi ? (r.qty||1) : (+o.qty||1));
   var showModeling = !!o.showDesignRow;            // تیکِ «نمایش مدلسازی در فاکتور»
   var showExtras   = !!o.showExtras;
