@@ -808,7 +808,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V262</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V264</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -2398,6 +2398,7 @@ function renderBatchSection(itemId){
         +   '<div style="font-size:13px;color:#e2e4f0;font-weight:600">'+(item?escapeHtml(item.name)+' — ':'')+escapeHtml(b.batchName||'بدون نام')+'</div>'
         +   (b.batchCode?('<div style="font-size:11px;color:#60a5fa;margin-top:2px;font-family:monospace">🔖 '+escapeHtml(b.batchCode)+'</div>'):'')
         +   '<div style="font-size:11px;color:#9aa3c2;margin-top:2px">📦 '+q+(unit?(' '+escapeHtml(unit)):'')+'</div>'
+        +   (function(){ var _e=(b.entryDate&&String(b.entryDate).trim()) ? String(b.entryDate).trim() : (b.date?String(b.date).split(',')[0].trim():''); return _e ? ('<div style="font-size:11px;color:#4ade80;margin-top:2px">📥 تاریخ ورود: '+escapeHtml(_e)+(b.entryDate?'':' <span style="color:#5a6080">(تاریخ ثبت)</span>')+'</div>') : ''; })()
         +   statusBar
         +   (b.note?('<div style="font-size:11px;color:#5a6080;margin-top:2px;white-space:pre-wrap;line-height:1.6">📝 '+escapeHtml(b.note)+'</div>'):'')
         + '</div>'
@@ -2590,6 +2591,9 @@ function showBatchModal(itemId, batch){
     +   '<input class="inp" id="batch-qty" type="number" step="any" min="0" value="'+escapeHtml(String(isEdit?(batch.qty||''):''))+'" placeholder="مثلاً 5" style="flex:1">'
     +   batchUnitSelectorHtml(unit)
     + '</div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ ورود <span style="color:#5a6080">(اختیاری — خالی بگذارید تا تاریخ امروز ثبت شود)</span></label>'
+    + '<input class="inp" id="batch-entry" value="'+escapeHtml(isEdit?(batch.entryDate||''):'')+'" placeholder="مثلاً 1405/05/09 یا 2026/07/31" oninput="previewEntryDate()" style="margin-bottom:4px">'
+    + '<div id="batch-entry-preview" style="font-size:11px;color:#60a5fa;margin-bottom:12px;min-height:14px"></div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ انقضا</label>'
     + '<input class="inp" id="batch-expiry" value="'+escapeHtml(isEdit?(batch.expiry||''):'')+'" placeholder="مثلاً 1405/12/29 یا 2027/03/20" oninput="previewBatchDate()" style="margin-bottom:4px">'
     + '<div id="batch-date-preview" style="font-size:11px;color:#60a5fa;margin-bottom:6px;min-height:14px"></div>'
@@ -2613,6 +2617,22 @@ function closeBatchModal(e){
   if(h) h.remove();
 }
 // پیش‌نمایش زنده تاریخ (هر دو فرم شمسی و میلادی)
+function previewEntryDate(){
+  var inp = document.getElementById('batch-entry');
+  var prev = document.getElementById('batch-entry-preview');
+  if(!inp || !prev) return;
+  var both = smartDateBoth(inp.value);
+  if(both){
+    prev.innerHTML = '📅 شمسی: <b>'+both.shamsi+'</b> &nbsp;|&nbsp; 🌍 میلادی: <b>'+both.milady+'</b>';
+    prev.style.color = '#60a5fa';
+  } else if(inp.value.trim()){
+    prev.textContent = 'فرمت: سال/ماه/روز';
+    prev.style.color = '#5a6080';
+  } else {
+    prev.textContent = 'خالی = تاریخ امروز ثبت می‌شود';
+    prev.style.color = '#5a6080';
+  }
+}
 function previewBatchDate(){
   var inp = document.getElementById('batch-expiry');
   var prev = document.getElementById('batch-date-preview');
@@ -2632,6 +2652,17 @@ function saveBatch(itemId, batchId){
   var name = (document.getElementById('batch-name').value||'').trim();
   var qtyRaw = parseFloat(document.getElementById('batch-qty').value||'0')||0;
   var expiry = (document.getElementById('batch-expiry').value||'').trim();
+  // تاریخ ورود: اگر کاربر پر کرده باشد همان (شمسی/میلادی خودکار تشخیص داده می‌شود)،
+  // اگر خالی باشد فقط هنگامِ ساختِ بچِ جدید تاریخِ امروز ثبت می‌شود.
+  // در ویرایش، اگر کاربر دست نزند مقدارِ قبلی دست‌نخورده می‌ماند و هرگز خودکار به امروز تغییر نمی‌کند.
+  var _entRaw = ((document.getElementById('batch-entry')||{}).value||'').trim();
+  var entryDate;
+  if(_entRaw){
+    var _eb = smartDateBoth(_entRaw);
+    entryDate = _eb ? _eb.shamsi : _entRaw;
+  } else {
+    entryDate = batchId ? '' : todayShamsi();   // ویرایش: خالی یعنی «تغییر نده» — بک‌اند مقدارِ قبلی را نگه می‌دارد
+  }
   var note = (document.getElementById('batch-note').value||'').trim();
   if(qtyRaw<=0){ showToast('مقدار را وارد کنید'); return; }
   // تبدیل واحد به واحد پایه کالا
@@ -2649,13 +2680,13 @@ function saveBatch(itemId, batchId){
   closeBatchModal();
   showToast('⏳ در حال ذخیره...');
   if(batchId){
-    callSheet('updateBatch', {id:batchId, batchName:name, qty:String(qty), expiry:expiry, note:note}, function(res){
+    callSheet('updateBatch', {id:batchId, batchName:name, qty:String(qty), expiry:expiry, note:note, entryDate:entryDate}, function(res){
       afterBatchChange(itemId, res);
     });
   } else {
     // تولید کد بچ خودکار: کد کالا + -B + شماره بعدی
     var bcode = genBatchCode(itemId);
-    callSheet('addBatch', {itemId:itemId, batchCode:bcode, batchName:name, qty:String(qty), expiry:expiry, note:note}, function(res){
+    callSheet('addBatch', {itemId:itemId, batchCode:bcode, batchName:name, qty:String(qty), expiry:expiry, note:note, entryDate:entryDate}, function(res){
       afterBatchChange(itemId, res);
       // ثبتِ ورود در لاگ (مقدارِ مثبت) تا در گزارشِ ورودی‌ها دیده شود
       try{
@@ -3073,6 +3104,12 @@ function gregorianToJalali(gy,gm,gd){
 }
 function pad2(n){ return ('0'+n).slice(-2); }
 // از یک ورودی تاریخ (شمسی یا میلادی)، هر دو فرم رو برگردون
+function todayShamsi(){
+  try{
+    var s = new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn',{year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    return s.replace(/[^\d]/g,'/').replace(/\/+/g,'/').replace(/^\/|\/$/g,'');
+  }catch(e){ return ''; }
+}
 function smartDateBoth(input){
   input = String(input||'').trim();
   var y,m,d;
@@ -4586,6 +4623,14 @@ function addItem(){
     items.push(item);
     saveItems();
     callSheet('add',item,function(){});
+    // ثبتِ موجودیِ اولیه به‌عنوانِ ورود (تا در گزارشِ ورود دیده شود)
+    if(qty>0){
+      try{
+        callSheet('logUsage',{ itemId:id, itemName:name, change:String(qty),
+          reason:'ثبت کالای جدید', project:'', projectKey:'', user:(currentUser?currentUser.user:''),
+          unit:(unit&&unit!=='عدد'?unit:''), batch:'' }, function(){ });
+      }catch(e){}
+    }
     showToast('✅ کالا «'+name+'» با کد '+code+' ثبت شد');
   } else {
     var initMsg = prompt('توضیح برای ادمین (اختیاری):\nمثلاً: این کالا برای پروژه X نیاز است') || '';
