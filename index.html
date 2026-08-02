@@ -803,7 +803,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V259</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V261</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1155,6 +1155,8 @@ function doPost(e){
     </span>
     <button class="btn" onclick="ivExportPDF_canvas()">خروجی PDF</button>
     <button class="btn" id="iv-btn-savefolder" style="display:none;background:#6366f1;border-color:#6366f1;color:#fff" onclick="ivSaveInvoiceToFolder()">💾 ذخیره‌ی فاکتور در پوشه‌ی سفارش</button>
+    <button class="btn no-print" onclick="ivResetRows()" title="ردیف‌های جدول را به آخرین وضعیتِ برآورد برگردان">🔄 بازسازی ردیف‌ها از برآورد</button>
+    <button class="btn no-print" onclick="ivResetBuyer()" title="مشخصات خریدار را به دادهٔ برآورد برگردان">🔄 بازسازی مشخصات خریدار</button>
     <button class="btn" onclick="ivExportWord()">خروجی Word</button>
     <button class="btn red" onclick="ivPrint()" style="font-weight:700">چاپ</button>
   </div>
@@ -9342,6 +9344,23 @@ function ivFileName(ext){
   var parts=[]; if(cust&&cust!=='—') parts.push(cust); parts.push(ord); if(dt&&dt!=='—') parts.push(dt);
   return 'فاکتور - ' + parts.join(' - ') + '.' + ext;
 }
+var ivFreshSnap = null;   // دادهٔ تازهٔ برآورد هنگام باز شدنِ فاکتور (مبنای بازگردانی)
+// بازگردانیِ ردیف‌های جدول به دادهٔ تازهٔ برآورد (مشخصات و نکات دست‌نمی‌خورد)
+function ivResetRows(){
+  if(!ivFreshSnap || !ivFreshSnap.items || !ivFreshSnap.items.length){ showToast('دادهٔ برآورد در دسترس نیست'); return; }
+  if(!confirm('ردیف‌های جدول به آخرین وضعیتِ برآورد برگردد؟\nتغییراتِ دستیِ ردیف‌ها از بین می‌رود (مشخصات خریدار و نکات دست‌نمی‌خورد).')) return;
+  ivItems = ivFreshSnap.items.map(function(x){ return JSON.parse(JSON.stringify(x)); });
+  ivRender();
+  showToast('✅ ردیف‌ها از برآورد بازسازی شد — برای ماندگاری، ذخیره کن');
+}
+// بازگردانیِ مشخصات خریدار به دادهٔ برآورد (ردیف‌های جدول دست‌نمی‌خورد)
+function ivResetBuyer(){
+  if(!ivFreshSnap){ showToast('دادهٔ برآورد در دسترس نیست'); return; }
+  if(!confirm('مشخصات خریدار به دادهٔ برآورد برگردد؟\nردیف‌های جدول دست‌نمی‌خورد.')) return;
+  var n=document.getElementById('iv-bname'); if(n) n.textContent = ivFreshSnap.customer || '—';
+  var t=document.getElementById('iv-btel');  if(t) t.textContent = ivFreshSnap.tel || '—';
+  showToast('✅ مشخصات خریدار بازسازی شد — برای ماندگاری، ذخیره کن');
+}
 function ivOpenInvoice(opts){
   opts=opts||{};
   var code=(opts.code && String(opts.code).trim()) ? String(opts.code).trim() : 'پرینت قطعه (مطابق برآورد iPrint3D)';
@@ -9350,15 +9369,21 @@ function ivOpenInvoice(opts){
   } else {
     ivItems = [{ code:code, desc:'', qty:Math.max(1,+opts.qty||1), unit:Math.round(+opts.unit||0) }];
   }
-  // بلوکِ خریدار از چیدمانِ جاری رندر می‌شود (پیش‌فرض = همان شکلِ همیشگی)
+  // بلوکِ خریدار با مقادیرِ تازهٔ برآورد رندر می‌شود (نام و تلفن پیش از رندر تزریق می‌شوند تا گم نشوند)
   ivBuyerEdit = false;
-  ivRenderBuyer();
+  var _bv = {};
+  try{ _bv = ivBuyerValues() || {}; }catch(e){ _bv = {}; }
+  _bv['iv-bname'] = opts.customer || '—';
+  _bv['iv-btel']  = opts.tel || '—';
+  ivRenderBuyer(_bv);
   setTimeout(function(){ try{ ivFitPage(); }catch(e){} }, 60);
-  document.getElementById('iv-bname').textContent = opts.customer || '—';
+  { var _n=document.getElementById('iv-bname'); if(_n) _n.textContent = opts.customer || '—'; }
   var tel=document.getElementById('iv-btel'); if(tel) tel.textContent = opts.tel || '—';
   try{ document.getElementById('iv-date').textContent = opts.dateStr || new Intl.DateTimeFormat('fa-IR').format(new Date()); }catch(e){}
   ivCurrentEstimateId = opts.estimateId || '';
   ivCurrentFolderId   = opts.folderId   || '';
+  // عکسِ لحظه‌ایِ دادهٔ تازهٔ برآورد — برای دکمه‌های «بازگردانی از برآورد»
+  ivFreshSnap = { items: ivItems.map(function(x){ return JSON.parse(JSON.stringify(x)); }), customer: opts.customer||'', tel: opts.tel||'' };
   ivMeta = { customer: opts.customer||'', orderName: (opts.code&&String(opts.code).indexOf('مطابق')<0)?opts.code:'سفارش', dateStr: opts.dateStr||'' };
   var ocode = (opts.orderCode && String(opts.orderCode).trim()) || '';
   var no=document.getElementById('iv-no'); if(no) no.textContent = ocode || '—';
@@ -10259,7 +10284,7 @@ function ivApplyData(inv){
       ivRender();
     }
     if(inv.buyerLayout && inv.buyerLayout.length){ ivBuyerLayout = ivNormalizeBuyerLayout(inv.buyerLayout); ivRenderBuyer(); }
-    if(inv.buyer){ ivBuyerFieldIds().forEach(function(id){ if(inv.buyer[id]!=null){ var el=document.getElementById(id); if(el) el.textContent = inv.buyer[id]; } }); }
+    if(inv.buyer){ ivBuyerFieldIds().forEach(function(id){ var sv=inv.buyer[id]; if(sv==null) return; var svs=String(sv).trim(); if(svs==='' || svs==='—'){ return; } var el=document.getElementById(id); if(el) el.textContent = sv; }); }
     if(inv.notes && typeof ivNotes!=='undefined'){ ivNotes = inv.notes.slice(); if(typeof ivRenderNotes==='function') ivRenderNotes(); }
     if(inv.pageSize && typeof ivSetSize==='function'){ ivSetSize(inv.pageSize); }
     return true;
