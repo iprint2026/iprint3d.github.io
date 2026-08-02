@@ -607,6 +607,11 @@ tr:hover td{background:#0e1018}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
           <input class="inp" id="usage-filter-project" placeholder="🔍 فیلتر بر اساس پروژه..." oninput="renderUsageReport()" style="flex:1;min-width:160px">
           <input class="inp" id="usage-filter-item" placeholder="🔍 فیلتر بر اساس کالا/متریال..." oninput="renderUsageReport()" style="flex:1;min-width:160px">
+          <select class="inp" id="usage-filter-type" onchange="renderUsageReport()" style="flex:0 0 130px">
+            <option value="">همه (ورود و مصرف)</option>
+            <option value="out">فقط مصرف / کسر</option>
+            <option value="in">فقط ورود / خرید</option>
+          </select>
           <select class="inp" id="usage-filter-reason" onchange="renderUsageReport()" style="max-width:160px">
             <option value="">همه دلایل</option>
             <option value="پروژه چاپ">پروژه چاپ</option>
@@ -803,7 +808,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V261</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V262</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -2652,6 +2657,12 @@ function saveBatch(itemId, batchId){
     var bcode = genBatchCode(itemId);
     callSheet('addBatch', {itemId:itemId, batchCode:bcode, batchName:name, qty:String(qty), expiry:expiry, note:note}, function(res){
       afterBatchChange(itemId, res);
+      // ثبتِ ورود در لاگ (مقدارِ مثبت) تا در گزارشِ ورودی‌ها دیده شود
+      try{
+        callSheet('logUsage',{ itemId:itemId, itemName:(item?item.name:''), change:String(qty),
+          reason:'ورود / خرید', project:'', projectKey:'', user:(currentUser?currentUser.user:''),
+          unit:(baseUnit&&baseUnit!=='عدد'?baseUnit:''), batch:(bcode+' · '+name) }, function(){ });
+      }catch(e){}
     });
   }
 }
@@ -3293,6 +3304,8 @@ function loadUsageReport(){
   });
 }
 
+// ورودی است یا کسر؟ (مقدارِ مثبت = ورود/خرید)
+function isUsageIn(r){ return (parseFloat((r&&r.change)||'0')||0) > 0; }
 // واحدِ یک رکوردِ مصرف: اگر در لاگ خالی بود، از واحدِ خودِ کالا (لیستِ items) خوانده می‌شود
 function unitOfUsage(r){
   var u = (r && r.unit) ? String(r.unit).trim() : '';
@@ -3306,6 +3319,7 @@ function renderUsageReport(){
   if(!el) return;
   var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
   var fItem = normalizeProject(document.getElementById('usage-filter-item').value||'');
+  var fType = (document.getElementById('usage-filter-type')||{}).value || '';
   var fReason = document.getElementById('usage-filter-reason').value||'';
   var sortMode = (document.getElementById('usage-sort')||{}).value || 'date_desc';
 
@@ -3341,7 +3355,9 @@ function renderUsageReport(){
         okT = (pd.ts >= fromTs);
       }
     }
-    return okP && okI && okR && okT;
+    var _isIn = (parseFloat(r.change||'0')||0) > 0;
+    var okTy = !fType || (fType==='in' ? _isIn : !_isIn);
+    return okP && okI && okR && okT && okTy;
   });
 
   if(!rows.length){
@@ -3370,15 +3386,17 @@ function renderUsageReport(){
     var unit = unitOfUsage(r);
     var name = r.itemName||'-';
     var key = name+'\u0000'+unit;
-    if(!byItem[key]) byItem[key]={name:name, unit:unit, sum:0};
-    byItem[key].sum += amt;
+    if(!byItem[key]) byItem[key]={name:name, unit:unit, sum:0, inSum:0};
+    if(isUsageIn(r)) byItem[key].inSum += amt; else byItem[key].sum += amt;
   });
-  var summaryHtml = '<div class="card" style="margin-bottom:14px"><div style="font-weight:600;color:#4ade80;margin-bottom:10px">📦 جمع مصرف'+(fProj?' (فیلترشده)':'')+'</div>';
+  var summaryHtml = '<div class="card" style="margin-bottom:14px"><div style="font-weight:600;color:#4ade80;margin-bottom:10px">📦 جمع مصرف و ورود'+(fProj?' (فیلترشده)':'')+'</div>';
   Object.keys(byItem).forEach(function(k){
     var it = byItem[k];
-    var v = Math.round(it.sum*1000)/1000;
     var unitLabel = it.unit ? (' '+it.unit) : '';
-    summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+escapeHtml(it.name)+'</span><span style="color:#f87171;font-weight:700">'+v+escapeHtml(unitLabel)+'</span></div>';
+    var parts=[];
+    if(it.sum>0)   parts.push('<span style="color:#f87171;font-weight:700">➖ '+(Math.round(it.sum*1000)/1000)+escapeHtml(unitLabel)+'</span>');
+    if(it.inSum>0) parts.push('<span style="color:#4ade80;font-weight:700">➕ '+(Math.round(it.inSum*1000)/1000)+escapeHtml(unitLabel)+'</span>');
+    summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+escapeHtml(it.name)+'</span><span style="display:flex;gap:12px">'+parts.join('')+'</span></div>';
   });
   summaryHtml += '</div>';
   if(summaryEl) summaryEl.innerHTML = summaryHtml;
@@ -3394,7 +3412,7 @@ function renderUsageReport(){
       +   '<input type="checkbox" class="usage-chk" data-idx="'+o.idx+'" onchange="updateUsageSelectedCount()" onclick="event.stopPropagation()" style="width:17px;height:17px;cursor:pointer;flex-shrink:0">'
       +   '<div onclick="toggleUsageRow('+o.idx+')" style="flex:1;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0">'
       +     '<span style="font-size:13px;color:#e2e4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
-      +       '<b style="color:#f87171">'+amt+escapeHtml(unit)+'</b> کسر «'+escapeHtml(r.itemName||'-')+'»'
+      +       '<b style="color:'+(isUsageIn(r)?'#4ade80':'#f87171')+'">'+(isUsageIn(r)?'➕ ':'')+amt+escapeHtml(unit)+'</b> '+(isUsageIn(r)?'ورود':'کسر')+' «'+escapeHtml(r.itemName||'-')+'»'
       +       (r.project?(' • 📁 '+escapeHtml(r.project)):'')
       +     '</span>'
       +     '<span style="font-size:11px;color:#5a6080;white-space:nowrap;flex-shrink:0">'+escapeHtml(r.date||'')+' ▼</span>'
@@ -3403,7 +3421,7 @@ function renderUsageReport(){
       // جزئیات (مخفی)
       + '<div id="usage-detail-'+o.idx+'" style="display:none;padding:0 12px 12px 40px;font-size:12px;color:#9aa3c2;line-height:1.9;border-top:1px solid #1a1d2e">'
       +   '<div style="padding-top:8px">📦 ماده/کالا: <b style="color:#c7cce0">'+escapeHtml(r.itemName||'-')+'</b></div>'
-      +   '<div>➖ مقدار کسر: <b style="color:#f87171">'+amt+escapeHtml(unit)+'</b></div>'
+      +   '<div>'+(isUsageIn(r)?'➕ مقدار ورود: <b style="color:#4ade80">':'➖ مقدار کسر: <b style="color:#f87171">')+amt+escapeHtml(unit)+'</b></div>'
       +   '<div>🗓️ تاریخ: '+escapeHtml(r.date||'-')+'</div>'
       +   '<div>👤 فرد: '+escapeHtml(r.user||'-')+'</div>'
       +   '<div>🏷️ دلیل: '+escapeHtml(r.reason||'-')+'</div>'
@@ -3471,6 +3489,7 @@ function exportUsageToExcel(){
   } else {
     var fProj = normalizeProject(document.getElementById('usage-filter-project').value||'');
     var fItem = normalizeProject(document.getElementById('usage-filter-item').value||'');
+    var fTypeX = (document.getElementById('usage-filter-type')||{}).value || '';
     var fReason = document.getElementById('usage-filter-reason').value||'';
     var timeMode = (document.getElementById('usage-filter-time')||{}).value || '';
     var nowTs = Date.now(); var fromTs = null; var cJM=0, cJY=0;
@@ -3490,7 +3509,9 @@ function exportUsageToExcel(){
         else if(timeMode==='custom') okT = (pd.jm===cJM && pd.jy===cJY);
         else if(fromTs!==null) okT = (pd.ts >= fromTs);
       }
-      return okP && okI && okR && okT;
+      var _isIn2 = (parseFloat(r.change||'0')||0) > 0;
+      var okTy2 = !fTypeX || (fTypeX==='in' ? _isIn2 : !_isIn2);
+      return okP && okI && okR && okT && okTy2;
     });
   }
   if(!rows.length){ showToast('رکوردی برای خروجی وجود ندارد'); return; }
@@ -3505,6 +3526,7 @@ function exportUsageToExcel(){
   if(lblProj) _bits.push('پروژه: '+lblProj);
   if(lblItem) _bits.push('کالا: '+lblItem);
   if(lblReason) _bits.push('دلیل: '+lblReason);
+  { var _tv=(document.getElementById('usage-filter-type')||{}).value||''; if(_tv) _bits.push('نوع: '+(_tv==='in'?'ورود/خرید':'مصرف/کسر')); }
   if(lblTime) _bits.push('بازه: '+lblTime);
   if(checked && checked.length) _bits.push('موارد انتخابی');
   var filterLine = _bits.length ? _bits.join('   |   ') : 'بدون فیلتر (همه)';
@@ -3524,7 +3546,7 @@ function exportUsageToExcel(){
   }
 
   // ── شیتِ جزئیاتِ کسر ──
-  var headers = ['ردیف','تاریخ کسر','کاربر','مقدار','واحد','ماده / کالا','بچ','پروژه','دلیل'];
+  var headers = ['ردیف','نوع','تاریخ','کاربر','مقدار','واحد','ماده / کالا','بچ','پروژه','دلیل'];
   var aoa = [];
   aoa.push(['📦 گزارش مصرف — iPrint3D']);
   aoa.push(['فیلتر: '+filterLine+'    ·    تعداد رکورد: '+rows.length+'    ·    تاریخ خروجی: '+todayFa]);
@@ -3532,15 +3554,15 @@ function exportUsageToExcel(){
   aoa.push(headers);
   var ordered = rows.slice().reverse();
   ordered.forEach(function(r,idx){
-    aoa.push([ idx+1, r.date||'', r.user||'', Math.abs(parseFloat(r.change||'0'))||0, (r.unit||'عدد'), r.itemName||'', r.batch||'', r.project||'', r.reason||'' ]);
+    aoa.push([ idx+1, (isUsageIn(r)?'ورود':'مصرف'), r.date||'', r.user||'', Math.abs(parseFloat(r.change||'0'))||0, unitOfUsage(r)||'عدد', r.itemName||'', r.batch||'', r.project||'', r.reason||'' ]);
   });
   var ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:6},{wch:16},{wch:16},{wch:11},{wch:9},{wch:26},{wch:18},{wch:22},{wch:14}];
-  ws['!merges'] = [ {s:{r:0,c:0},e:{r:0,c:8}}, {s:{r:1,c:0},e:{r:1,c:8}} ];
+  ws['!cols'] = [{wch:6},{wch:9},{wch:16},{wch:16},{wch:11},{wch:9},{wch:26},{wch:18},{wch:22},{wch:14}];
+  ws['!merges'] = [ {s:{r:0,c:0},e:{r:0,c:9}}, {s:{r:1,c:0},e:{r:1,c:9}} ];
   ws['!views'] = [{ RTL:true }];
   var lastRow = 3 + ordered.length;
-  ws['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:3,c:0},e:{r:lastRow,c:8}}) };
-  for(var rr=4; rr<=lastRow; rr++){ var cA=ws[XLSX.utils.encode_cell({r:rr,c:3})]; if(cA){ cA.z='#,##0.###'; } }
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:3,c:0},e:{r:lastRow,c:9}}) };
+  for(var rr=4; rr<=lastRow; rr++){ var cA=ws[XLSX.utils.encode_cell({r:rr,c:4})]; if(cA){ cA.z='#,##0.###'; } }
 
   // ── شیتِ خلاصه (بر اساسِ کالا + واحد) ──
   var byItem = {};
@@ -3548,22 +3570,22 @@ function exportUsageToExcel(){
     var amt=Math.abs(parseFloat(r.change||'0'))||0;
     var uu=unitOfUsage(r);
     var key=(r.itemName||'-')+'\u0000'+uu;
-    if(!byItem[key]) byItem[key]={name:r.itemName||'-',unit:uu,sum:0};
-    byItem[key].sum+=amt;
+    if(!byItem[key]) byItem[key]={name:r.itemName||'-',unit:uu,sum:0,inSum:0};
+    if(isUsageIn(r)) byItem[key].inSum+=amt; else byItem[key].sum+=amt;
   });
   var sAoa = [];
   sAoa.push(['📦 خلاصه مصرف — iPrint3D']);
   sAoa.push(['فیلتر: '+filterLine+'    ·    تاریخ خروجی: '+todayFa]);
   sAoa.push([]);
-  sAoa.push(['ماده / کالا','واحد','جمع مصرف']);
-  Object.keys(byItem).forEach(function(k){ var it=byItem[k]; sAoa.push([ it.name, it.unit||'—', Math.round(it.sum*1000)/1000 ]); });
+  sAoa.push(['ماده / کالا','واحد','جمع مصرف','جمع ورود','خالص (ورود − مصرف)']);
+  Object.keys(byItem).forEach(function(k){ var it=byItem[k]; sAoa.push([ it.name, it.unit||'—', Math.round(it.sum*1000)/1000, Math.round(it.inSum*1000)/1000, Math.round((it.inSum-it.sum)*1000)/1000 ]); });
   var wsS = XLSX.utils.aoa_to_sheet(sAoa);
-  wsS['!cols']=[{wch:30},{wch:12},{wch:14}];
-  wsS['!merges']=[{s:{r:0,c:0},e:{r:0,c:2}},{s:{r:1,c:0},e:{r:1,c:2}}];
+  wsS['!cols']=[{wch:30},{wch:12},{wch:14},{wch:14},{wch:18}];
+  wsS['!merges']=[{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}}];
   wsS['!views']=[{ RTL:true }];
   var sLast = 3 + Object.keys(byItem).length;
-  wsS['!autofilter']={ ref: XLSX.utils.encode_range({s:{r:3,c:0},e:{r:sLast,c:2}}) };
-  for(var sr=4; sr<=sLast; sr++){ var cS=wsS[XLSX.utils.encode_cell({r:sr,c:2})]; if(cS){ cS.z='#,##0.###'; } }
+  wsS['!autofilter']={ ref: XLSX.utils.encode_range({s:{r:3,c:0},e:{r:sLast,c:4}}) };
+  for(var sr=4; sr<=sLast; sr++){ [2,3,4].forEach(function(cc){ var cS=wsS[XLSX.utils.encode_cell({r:sr,c:cc})]; if(cS){ cS.z='#,##0.###'; } }); }
 
   var wb = XLSX.utils.book_new();
   wb.Workbook = { Views:[{ RTL:true }] };
