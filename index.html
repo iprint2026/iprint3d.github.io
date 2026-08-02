@@ -808,7 +808,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V267</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V269</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -3398,10 +3398,41 @@ function virtualEntryRecords(){
 // ورودی است یا کسر؟ (مقدارِ مثبت = ورود/خرید)
 function isUsageIn(r){ return (parseFloat((r&&r.change)||'0')||0) > 0; }
 // واحدِ یک رکوردِ مصرف: اگر در لاگ خالی بود، از واحدِ خودِ کالا (لیستِ items) خوانده می‌شود
+// نامِ کالای یک رکورد: اگر خالی بود، از itemId یا از کدِ بچ پیدا می‌شود
+function itemNameOfUsage(r){
+  var n = (r && r.itemName) ? String(r.itemName).trim() : '';
+  if(n) return n;
+  try{ if(typeof items!=='undefined' && items && r.itemId){ var it=items.find(function(x){ return String(x.id)===String(r.itemId); }); if(it && it.name) return String(it.name).trim(); } }catch(e){}
+  try{
+    if(r && r.batch && typeof BATCHES!=='undefined' && BATCHES && typeof items!=='undefined' && items){
+      var code=String(r.batch).split('\u00b7')[0].trim();
+      var b=BATCHES.find(function(x){ return String(x.batchCode||'').trim()===code; });
+      if(b){ var it2=items.find(function(x){ return String(x.id)===String(b.itemId); }); if(it2 && it2.name) return String(it2.name).trim(); }
+    }
+  }catch(e){}
+  return '-';
+}
+// نمایشِ هوشمندِ مقدار+واحد: زیر ۱۰۰۰ گرم → گرم، ۱۰۰۰ گرم و بیشتر → کیلوگرم (برای نظم و کم‌شدنِ شلوغی)
+function fmtAmountUnit(amt, unit){
+  amt = (typeof amt==='number' ? amt : parseFloat(amt)||0);
+  var u = String(unit||'').trim();
+  if(u==='گرم' && Math.abs(amt) >= 1000){ return (Math.round((amt/1000)*1000)/1000) + ' کیلوگرم'; }
+  if(u==='کیلوگرم' && Math.abs(amt) > 0 && Math.abs(amt) < 1){ return (Math.round(amt*1000*1000)/1000) + ' گرم'; }
+  var v = Math.round(amt*1000)/1000;
+  return v + (u ? (' '+u) : '');
+}
 function unitOfUsage(r){
   var u = (r && r.unit) ? String(r.unit).trim() : '';
   if(u) return u;
   try{ if(typeof items!=='undefined' && items){ var it=items.find(function(x){ return String(x.id)===String(r.itemId); }); if(it && it.unit) return String(it.unit).trim(); } }catch(e){}
+  // اگر از روی کالا پیدا نشد، از کدِ بچ به کالایش برس
+  try{
+    if(r && r.batch && typeof BATCHES!=='undefined' && BATCHES && typeof items!=='undefined' && items){
+      var code=String(r.batch).split('·')[0].trim();
+      var b=BATCHES.find(function(x){ return String(x.batchCode||'').trim()===code; });
+      if(b){ var it2=items.find(function(x){ return String(x.id)===String(b.itemId); }); if(it2 && it2.unit) return String(it2.unit).trim(); }
+    }
+  }catch(e){}
   return '';
 }
 function renderUsageReport(){
@@ -3476,7 +3507,7 @@ function renderUsageReport(){
   rows.forEach(function(o){
     var r=o.r; var amt = amtOf(r);
     var unit = unitOfUsage(r);
-    var name = r.itemName||'-';
+    var name = itemNameOfUsage(r);
     var key = name+'\u0000'+unit;
     if(!byItem[key]) byItem[key]={name:name, unit:unit, sum:0, inSum:0};
     if(isUsageIn(r)) byItem[key].inSum += amt; else byItem[key].sum += amt;
@@ -3486,8 +3517,8 @@ function renderUsageReport(){
     var it = byItem[k];
     var unitLabel = it.unit ? (' '+it.unit) : '';
     var parts=[];
-    if(it.sum>0)   parts.push('<span style="color:#f87171;font-weight:700">➖ '+(Math.round(it.sum*1000)/1000)+escapeHtml(unitLabel)+'</span>');
-    if(it.inSum>0) parts.push('<span style="color:#4ade80;font-weight:700">➕ '+(Math.round(it.inSum*1000)/1000)+escapeHtml(unitLabel)+'</span>');
+    if(it.sum>0)   parts.push('<span style="color:#f87171;font-weight:700">➖ '+escapeHtml(fmtAmountUnit(it.sum, it.unit))+'</span>');
+    if(it.inSum>0) parts.push('<span style="color:#4ade80;font-weight:700">➕ '+escapeHtml(fmtAmountUnit(it.inSum, it.unit))+'</span>');
     summaryHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2e;font-size:14px"><span style="color:#c7cce0">'+escapeHtml(it.name)+'</span><span style="display:flex;gap:12px">'+parts.join('')+'</span></div>';
   });
   summaryHtml += '</div>';
@@ -3504,7 +3535,7 @@ function renderUsageReport(){
       +   (r._virtual ? '<span title="از روی بچ ساخته شده — رکوردِ لاگ نیست" style="width:17px;flex-shrink:0;text-align:center;color:#4ade80;font-size:12px">📦</span>' : '<input type="checkbox" class="usage-chk" data-idx="'+o.idx+'" onchange="updateUsageSelectedCount()" onclick="event.stopPropagation()" style="width:17px;height:17px;cursor:pointer;flex-shrink:0">')
       +   '<div onclick="toggleUsageRow('+o.idx+')" style="flex:1;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0">'
       +     '<span style="font-size:13px;color:#e2e4f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
-      +       '<b style="color:'+(isUsageIn(r)?'#4ade80':'#f87171')+'">'+(isUsageIn(r)?'➕ ':'')+amt+escapeHtml(unit)+'</b> '+(isUsageIn(r)?'ورود':'کسر')+' «'+escapeHtml(r.itemName||'-')+'»'
+      +       '<b style="color:'+(isUsageIn(r)?'#4ade80':'#f87171')+'">'+(isUsageIn(r)?'➕ ':'')+escapeHtml(fmtAmountUnit(amt, _u))+'</b> '+(isUsageIn(r)?'ورود':'کسر')+' «'+escapeHtml(itemNameOfUsage(r))+'»'
       +       (r.project?(' • 📁 '+escapeHtml(r.project)):'')
       +     '</span>'
       +     '<span style="font-size:11px;color:#5a6080;white-space:nowrap;flex-shrink:0">'+escapeHtml(r.date||'')+' ▼</span>'
@@ -3513,7 +3544,7 @@ function renderUsageReport(){
       // جزئیات (مخفی)
       + '<div id="usage-detail-'+o.idx+'" style="display:none;padding:0 12px 12px 40px;font-size:12px;color:#9aa3c2;line-height:1.9;border-top:1px solid #1a1d2e">'
       +   '<div style="padding-top:8px">📦 ماده/کالا: <b style="color:#c7cce0">'+escapeHtml(r.itemName||'-')+'</b></div>'
-      +   '<div>'+(isUsageIn(r)?'➕ مقدار ورود: <b style="color:#4ade80">':'➖ مقدار کسر: <b style="color:#f87171">')+amt+escapeHtml(unit)+'</b></div>'
+      +   '<div>'+(isUsageIn(r)?'➕ مقدار ورود: <b style="color:#4ade80">':'➖ مقدار کسر: <b style="color:#f87171">')+escapeHtml(fmtAmountUnit(amt, _u))+'</b></div>'
       +   '<div>🗓️ تاریخ: '+escapeHtml(r.date||'-')+'</div>'
       +   '<div>👤 فرد: '+escapeHtml(r.user||'-')+'</div>'
       +   '<div>🏷️ دلیل: '+escapeHtml(r.reason||'-')+'</div>'
@@ -3629,7 +3660,7 @@ function exportUsageToExcel(){
     var hs = ['ردیف','تاریخ کسر','کاربر','مقدار','واحد','ماده / کالا','بچ','پروژه','دلیل'];
     var csv = '\ufeff' + hs.join(',') + '\n';
     rows.slice().reverse().forEach(function(r,idx){
-      var row = [idx+1, r.date||'', r.user||'', Math.abs(parseFloat(r.change||'0'))||0, r.unit||'عدد', r.itemName||'', r.batch||'', r.project||'', r.reason||''];
+      var row = [idx+1, r.date||'', r.user||'', Math.abs(parseFloat(r.change||'0'))||0, unitOfUsage(r), itemNameOfUsage(r), r.batch||'', r.project||'', r.reason||''];
       csv += row.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',')+'\n';
     });
     var blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); var url=URL.createObjectURL(blob);
@@ -3646,7 +3677,7 @@ function exportUsageToExcel(){
   aoa.push(headers);
   var ordered = rows.slice().reverse();
   ordered.forEach(function(r,idx){
-    aoa.push([ idx+1, (isUsageIn(r)?'ورود':'مصرف'), r.date||'', r.user||'', Math.abs(parseFloat(r.change||'0'))||0, unitOfUsage(r)||'عدد', r.itemName||'', r.batch||'', r.project||'', r.reason||'' ]);
+    aoa.push([ idx+1, (isUsageIn(r)?'ورود':'مصرف'), r.date||'', r.user||'', Math.abs(parseFloat(r.change||'0'))||0, unitOfUsage(r), r.itemName||'', r.batch||'', r.project||'', r.reason||'' ]);
   });
   var ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = [{wch:6},{wch:9},{wch:16},{wch:16},{wch:11},{wch:9},{wch:26},{wch:18},{wch:22},{wch:14}];
@@ -3662,7 +3693,7 @@ function exportUsageToExcel(){
     var amt=Math.abs(parseFloat(r.change||'0'))||0;
     var uu=unitOfUsage(r);
     var key=(r.itemName||'-')+'\u0000'+uu;
-    if(!byItem[key]) byItem[key]={name:r.itemName||'-',unit:uu,sum:0,inSum:0};
+    if(!byItem[key]) byItem[key]={name:itemNameOfUsage(r),unit:uu,sum:0,inSum:0};
     if(isUsageIn(r)) byItem[key].inSum+=amt; else byItem[key].sum+=amt;
   });
   var sAoa = [];
