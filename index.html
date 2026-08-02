@@ -808,7 +808,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V265</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V267</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -3354,15 +3354,19 @@ function virtualEntryRecords(){
         if(code) logged[code] = true;
       }
     });
+    var seenCode = {};
     BATCHES.forEach(function(b){
       var code = String(b.batchCode||'').trim();
       if(code && logged[code]) return;                   // از قبل در لاگ هست → دوباره‌شماری نشود
+      if(code && seenCode[code]) return;                 // کدِ بچِ تکراری → فقط یک بار
       var qty = parseFloat(b.qty||'0')||0;
       if(qty <= 0) return;
       var d = (b.entryDate && String(b.entryDate).trim()) ? String(b.entryDate).trim()
             : (b.date ? String(b.date).split(',')[0].trim() : '');
       if(!d) return;
       var it = (typeof items!=='undefined' && items) ? items.find(function(x){ return String(x.id)===String(b.itemId); }) : null;
+      if(!it) return;                                    // بچِ یتیم (کالایش حذف شده) → در گزارش نیاید
+      if(code) seenCode[code] = true;
       out.push({
         itemId: b.itemId, itemName: (it?it.name:''), change: String(qty), date: d,
         reason: (b.entryDate?'ورود (تاریخ ورود بچ)':'ورود (تاریخ ثبت بچ)'),
@@ -3370,6 +3374,22 @@ function virtualEntryRecords(){
         unit: (it && it.unit && it.unit!=='عدد') ? it.unit : '',
         batch: code + (b.batchName?(' · '+b.batchName):''),
         _virtual: true
+      });
+    });
+    // کالاهای بدونِ بچ: از تاریخِ ثبتِ خودِ کالا رکوردِ ورود ساخته می‌شود
+    var loggedItems = {};
+    (USAGE_LOG||[]).forEach(function(r){ if((parseFloat(r.change||'0')||0) > 0 && r.itemId) loggedItems[String(r.itemId)] = true; });
+    (typeof items!=='undefined' && items ? items : []).forEach(function(it){
+      if(String(it.id) in loggedItems) return;                       // از قبل رکوردِ ورود دارد
+      if(BATCHES.some(function(b){ return String(b.itemId)===String(it.id); })) return;  // بچ دارد → بالا حساب شد
+      var q = parseFloat(it.qty||'0')||0;
+      if(q <= 0) return;
+      var d2 = it.date ? String(it.date).split(',')[0].trim() : '';
+      if(!d2) return;
+      out.push({
+        itemId: it.id, itemName: it.name||'', change: String(q), date: d2,
+        reason:'ورود (تاریخ ثبت کالا)', project:'', projectKey:'', user:'',
+        unit: (it.unit && it.unit!=='عدد') ? it.unit : '', batch:'', _virtual:true
       });
     });
   }catch(e){}
