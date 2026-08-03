@@ -462,6 +462,10 @@ tr:hover td{background:#0e1018}
               <input class="inp" type="number" inputmode="decimal" id="ni-qty" placeholder="0" min="0" style="font-size:16px">
               <span id="unitBadge" style="background:#1e2235;padding:6px 10px;border-radius:8px;font-size:12px;color:#9aa3c2;white-space:nowrap;min-width:50px;text-align:center">عدد</span>
             </div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 11px;background:#0c1120;border:1px solid #1a2440;border-radius:9px;cursor:pointer">
+              <input type="checkbox" id="ni-purchased" style="width:16px;height:16px">
+              <span style="font-size:12px;color:#cfd3e6">🛒 این کالا <b>خریداری</b> شده (هزینه دارد)<div style="font-size:10.5px;color:#5f6a8c;margin-top:2px">اگر تیک نخورد، فقط «ورود» ثبت می‌شود — برای اجناسی که از قبل موجود بودند.</div></span>
+            </label>
           </div>
         </div>
         <div class="grid2">
@@ -610,7 +614,8 @@ tr:hover td{background:#0e1018}
           <select class="inp" id="usage-filter-type" onchange="renderUsageReport()" style="flex:0 0 130px">
             <option value="">همه (ورود و مصرف)</option>
             <option value="out">فقط مصرف / کسر</option>
-            <option value="in">فقط ورود / خرید</option>
+            <option value="in">فقط ورود (همه)</option>
+            <option value="buy">فقط خرید (هزینه‌دار)</option>
           </select>
           <select class="inp" id="usage-filter-reason" onchange="renderUsageReport()" style="max-width:160px">
             <option value="">همه دلایل</option>
@@ -808,7 +813,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V269</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V270</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -2398,7 +2403,7 @@ function renderBatchSection(itemId){
         +   '<div style="font-size:13px;color:#e2e4f0;font-weight:600">'+(item?escapeHtml(item.name)+' — ':'')+escapeHtml(b.batchName||'بدون نام')+'</div>'
         +   (b.batchCode?('<div style="font-size:11px;color:#60a5fa;margin-top:2px;font-family:monospace">🔖 '+escapeHtml(b.batchCode)+'</div>'):'')
         +   '<div style="font-size:11px;color:#9aa3c2;margin-top:2px">📦 '+q+(unit?(' '+escapeHtml(unit)):'')+'</div>'
-        +   (function(){ var _e=(b.entryDate&&String(b.entryDate).trim()) ? String(b.entryDate).trim() : (b.date?String(b.date).split(',')[0].trim():''); return _e ? ('<div style="font-size:11px;color:#4ade80;margin-top:2px">📥 تاریخ ورود: '+escapeHtml(_e)+(b.entryDate?'':' <span style="color:#5a6080">(تاریخ ثبت)</span>')+'</div>') : ''; })()
+        +   (function(){ var _e=(b.entryDate&&String(b.entryDate).trim()) ? String(b.entryDate).trim() : (b.date?String(b.date).split(',')[0].trim():''); return (_e ? ('<div style="font-size:11px;color:#4ade80;margin-top:2px">📥 تاریخ ورود: '+escapeHtml(_e)+(b.entryDate?'':' <span style="color:#5a6080">(تاریخ ثبت)</span>')+'</div>') : '') + (b.purchased?'<div style="font-size:11px;color:#fbbf24;margin-top:2px">🛒 خریداری‌شده (هزینه‌دار)</div>':''); })()
         +   statusBar
         +   (b.note?('<div style="font-size:11px;color:#5a6080;margin-top:2px;white-space:pre-wrap;line-height:1.6">📝 '+escapeHtml(b.note)+'</div>'):'')
         + '</div>'
@@ -2594,6 +2599,10 @@ function showBatchModal(itemId, batch){
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ ورود <span style="color:#5a6080">(اختیاری — خالی بگذارید تا تاریخ امروز ثبت شود)</span></label>'
     + '<input class="inp" id="batch-entry" value="'+escapeHtml(isEdit?(batch.entryDate||''):'')+'" placeholder="مثلاً 1405/05/09 یا 2026/07/31" oninput="previewEntryDate()" style="margin-bottom:4px">'
     + '<div id="batch-entry-preview" style="font-size:11px;color:#60a5fa;margin-bottom:12px;min-height:14px"></div>'
+    + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:9px 11px;background:#0c1120;border:1px solid #1a2440;border-radius:9px;cursor:pointer">'
+    +   '<input type="checkbox" id="batch-purchased"'+((isEdit && batch.purchased)?' checked':'')+' style="width:16px;height:16px">'
+    +   '<span style="font-size:12px;color:#cfd3e6">🛒 این مورد <b>خریداری</b> شده (هزینه دارد)<div style="font-size:10.5px;color:#5f6a8c;margin-top:2px">اگر تیک نخورد، فقط «ورود» ثبت می‌شود — برای اجناسی که از قبل موجود بودند و فقط وارد سیستم می‌شوند.</div></span>'
+    + '</label>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخ انقضا</label>'
     + '<input class="inp" id="batch-expiry" value="'+escapeHtml(isEdit?(batch.expiry||''):'')+'" placeholder="مثلاً 1405/12/29 یا 2027/03/20" oninput="previewBatchDate()" style="margin-bottom:4px">'
     + '<div id="batch-date-preview" style="font-size:11px;color:#60a5fa;margin-bottom:6px;min-height:14px"></div>'
@@ -2655,6 +2664,7 @@ function saveBatch(itemId, batchId){
   // تاریخ ورود: اگر کاربر پر کرده باشد همان (شمسی/میلادی خودکار تشخیص داده می‌شود)،
   // اگر خالی باشد فقط هنگامِ ساختِ بچِ جدید تاریخِ امروز ثبت می‌شود.
   // در ویرایش، اگر کاربر دست نزند مقدارِ قبلی دست‌نخورده می‌ماند و هرگز خودکار به امروز تغییر نمی‌کند.
+  var _purchased = !!((document.getElementById('batch-purchased')||{}).checked);
   var _entRaw = ((document.getElementById('batch-entry')||{}).value||'').trim();
   var entryDate;
   if(_entRaw){
@@ -2680,18 +2690,18 @@ function saveBatch(itemId, batchId){
   closeBatchModal();
   showToast('⏳ در حال ذخیره...');
   if(batchId){
-    callSheet('updateBatch', {id:batchId, batchName:name, qty:String(qty), expiry:expiry, note:note, entryDate:entryDate}, function(res){
+    callSheet('updateBatch', {id:batchId, batchName:name, qty:String(qty), expiry:expiry, note:note, entryDate:entryDate, purchased:(_purchased?'1':'')}, function(res){
       afterBatchChange(itemId, res);
     });
   } else {
     // تولید کد بچ خودکار: کد کالا + -B + شماره بعدی
     var bcode = genBatchCode(itemId);
-    callSheet('addBatch', {itemId:itemId, batchCode:bcode, batchName:name, qty:String(qty), expiry:expiry, note:note, entryDate:entryDate}, function(res){
+    callSheet('addBatch', {itemId:itemId, batchCode:bcode, batchName:name, qty:String(qty), expiry:expiry, note:note, entryDate:entryDate, purchased:(_purchased?'1':'')}, function(res){
       afterBatchChange(itemId, res);
       // ثبتِ ورود در لاگ (مقدارِ مثبت) تا در گزارشِ ورودی‌ها دیده شود
       try{
         callSheet('logUsage',{ itemId:itemId, itemName:(item?item.name:''), change:String(qty),
-          reason:'ورود / خرید', project:'', projectKey:'', user:(currentUser?currentUser.user:''),
+          reason:(_purchased?'خرید':'ورود (بدون هزینه)'), project:'', projectKey:'', user:(currentUser?currentUser.user:''),
           unit:(baseUnit&&baseUnit!=='عدد'?baseUnit:''), batch:(bcode+' · '+name) }, function(){ });
       }catch(e){}
     });
@@ -3369,7 +3379,7 @@ function virtualEntryRecords(){
       if(code) seenCode[code] = true;
       out.push({
         itemId: b.itemId, itemName: (it?it.name:''), change: String(qty), date: d,
-        reason: (b.entryDate?'ورود (تاریخ ورود بچ)':'ورود (تاریخ ثبت بچ)'),
+        reason: (b.purchased ? 'خرید' : (b.entryDate?'ورود (تاریخ ورود بچ)':'ورود (تاریخ ثبت بچ)')),
         project:'', projectKey:'', user:'',
         unit: (it && it.unit && it.unit!=='عدد') ? it.unit : '',
         batch: code + (b.batchName?(' · '+b.batchName):''),
@@ -3479,7 +3489,8 @@ function renderUsageReport(){
       }
     }
     var _isIn = (parseFloat(r.change||'0')||0) > 0;
-    var okTy = !fType || (fType==='in' ? _isIn : !_isIn);
+    var _isBuy = _isIn && /خرید/.test(String(r.reason||''));
+    var okTy = !fType || (fType==='buy' ? _isBuy : (fType==='in' ? _isIn : !_isIn));
     return okP && okI && okR && okT && okTy;
   });
 
@@ -3633,7 +3644,8 @@ function exportUsageToExcel(){
         else if(fromTs!==null) okT = (pd.ts >= fromTs);
       }
       var _isIn2 = (parseFloat(r.change||'0')||0) > 0;
-      var okTy2 = !fTypeX || (fTypeX==='in' ? _isIn2 : !_isIn2);
+      var _isBuy2 = _isIn2 && /خرید/.test(String(r.reason||''));
+      var okTy2 = !fTypeX || (fTypeX==='buy' ? _isBuy2 : (fTypeX==='in' ? _isIn2 : !_isIn2));
       return okP && okI && okR && okT && okTy2;
     });
   }
@@ -3649,7 +3661,7 @@ function exportUsageToExcel(){
   if(lblProj) _bits.push('پروژه: '+lblProj);
   if(lblItem) _bits.push('کالا: '+lblItem);
   if(lblReason) _bits.push('دلیل: '+lblReason);
-  { var _tv=(document.getElementById('usage-filter-type')||{}).value||''; if(_tv) _bits.push('نوع: '+(_tv==='in'?'ورود/خرید':'مصرف/کسر')); }
+  { var _tv=(document.getElementById('usage-filter-type')||{}).value||''; if(_tv) _bits.push('نوع: '+(_tv==='buy'?'خرید (هزینه‌دار)':(_tv==='in'?'ورود (همه)':'مصرف/کسر'))); }
   if(lblTime) _bits.push('بازه: '+lblTime);
   if(checked && checked.length) _bits.push('موارد انتخابی');
   var filterLine = _bits.length ? _bits.join('   |   ') : 'بدون فیلتر (همه)';
@@ -4713,7 +4725,7 @@ function addItem(){
     if(qty>0){
       try{
         callSheet('logUsage',{ itemId:id, itemName:name, change:String(qty),
-          reason:'ثبت کالای جدید', project:'', projectKey:'', user:(currentUser?currentUser.user:''),
+          reason:(((document.getElementById('ni-purchased')||{}).checked)?'خرید':'ورود (بدون هزینه)'), project:'', projectKey:'', user:(currentUser?currentUser.user:''),
           unit:(unit&&unit!=='عدد'?unit:''), batch:'' }, function(){ });
       }catch(e){}
     }
