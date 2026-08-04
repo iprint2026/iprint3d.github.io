@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V272</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V273</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -10175,6 +10175,9 @@ function ivExportWord(){
 function pricingSaveEstimate(){
   if(typeof prState==='undefined' || !prHasAnyLine()){ showToast('اول یک برآورد بساز'); return; }
   prSyncMnpFromDom();
+  // فیلدهای سفارش (نام/سازمان/تلفن/…) مستقیم از DOM خوانده شوند تا اگر listener صدا نخورده باشد
+  // (autofill مرورگر، paste، و…) مقدارِ فعلیِ فرم قطعاً ذخیره شود. (V273 — رفعِ باگِ تلفن)
+  try{ if(typeof prSyncOrderInputs==='function') prSyncOrderInputs(); }catch(e){}
   var btn=document.getElementById('pr-btn-save'); var old=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.innerHTML='در حال ذخیره...'; }
   callSheetPayload('saveEstimate', prPayload(), null, function(res){
