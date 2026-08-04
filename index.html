@@ -466,6 +466,11 @@ tr:hover td{background:#0e1018}
               <input type="checkbox" id="ni-purchased" style="width:16px;height:16px">
               <span style="font-size:12px;color:#cfd3e6">🛒 این کالا <b>خریداری</b> شده (هزینه دارد)<div style="font-size:10.5px;color:#5f6a8c;margin-top:2px">اگر تیک نخورد، فقط «ورود» ثبت می‌شود — برای اجناسی که از قبل موجود بودند.</div></span>
             </label>
+            <div style="margin-top:10px">
+              <label style="font-size:12px;color:#9aa3c2">📥 تاریخ ورود <span style="color:#5a6080">(اختیاری — خالی = امروز · شمسی یا میلادی)</span></label>
+              <input class="inp" id="ni-entry" placeholder="مثلاً 1405/05/09 یا 2026/07/31" oninput="previewNiEntryDate()" autocomplete="off" style="margin-top:4px">
+              <div id="ni-entry-preview" style="font-size:11px;color:#5a6080;margin-top:4px;min-height:14px"></div>
+            </div>
           </div>
         </div>
         <div class="grid2">
@@ -813,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V270</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V272</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -2626,6 +2631,14 @@ function closeBatchModal(e){
   if(h) h.remove();
 }
 // پیش‌نمایش زنده تاریخ (هر دو فرم شمسی و میلادی)
+function previewNiEntryDate(){
+  var inp=document.getElementById('ni-entry'), prev=document.getElementById('ni-entry-preview');
+  if(!inp||!prev) return;
+  var both=smartDateBoth(inp.value);
+  if(both){ prev.innerHTML='📅 شمسی: <b>'+both.shamsi+'</b> &nbsp;|&nbsp; 🌍 میلادی: <b>'+both.milady+'</b>'; prev.style.color='#60a5fa'; }
+  else if(inp.value.trim()){ prev.textContent='فرمت: سال/ماه/روز'; prev.style.color='#5a6080'; }
+  else { prev.textContent='خالی = تاریخ امروز ثبت می‌شود'; prev.style.color='#5a6080'; }
+}
 function previewEntryDate(){
   var inp = document.getElementById('batch-entry');
   var prev = document.getElementById('batch-entry-preview');
@@ -4712,7 +4725,7 @@ function addItem(){
     status:(statusEl?statusEl.value:'نو'),
     barcode:barcode,
     subcats:JSON.stringify(subcats),
-    date:new Date().toLocaleDateString('fa-IR'),
+    date:(function(){ var v=((document.getElementById('ni-entry')||{}).value||'').trim(); if(v){ var b=smartDateBoth(v); return b?b.shamsi:v; } return new Date().toLocaleDateString('fa-IR'); })(),
     image:''
   };
 
@@ -4721,11 +4734,14 @@ function addItem(){
     items.push(item);
     saveItems();
     callSheet('add',item,function(){});
+    // تاریخِ ورود: اگر کاربر وارد کرده باشد همان (تشخیصِ خودکارِ شمسی/میلادی)، وگرنه امروز
+    var _niRaw=((document.getElementById('ni-entry')||{}).value||'').trim();
+    var _niEntry=''; if(_niRaw){ var _nb=smartDateBoth(_niRaw); _niEntry=_nb?_nb.shamsi:_niRaw; }
     // ثبتِ موجودیِ اولیه به‌عنوانِ ورود (تا در گزارشِ ورود دیده شود)
     if(qty>0){
       try{
         callSheet('logUsage',{ itemId:id, itemName:name, change:String(qty),
-          reason:(((document.getElementById('ni-purchased')||{}).checked)?'خرید':'ورود (بدون هزینه)'), project:'', projectKey:'', user:(currentUser?currentUser.user:''),
+          reason:(((document.getElementById('ni-purchased')||{}).checked)?'خرید':'ورود (بدون هزینه)'), date:_niEntry, project:'', projectKey:'', user:(currentUser?currentUser.user:''),
           unit:(unit&&unit!=='عدد'?unit:''), batch:'' }, function(){ });
       }catch(e){}
     }
@@ -9526,6 +9542,44 @@ function ivResetBuyer(){
   var t=document.getElementById('iv-btel');  if(t) t.textContent = ivFreshSnap.tel || '—';
   showToast('✅ مشخصات خریدار بازسازی شد — برای ماندگاری، ذخیره کن');
 }
+// ═══ عیب‌یابِ تلفن: در کنسول اجرا کن → debugTel()
+// نشان می‌دهد تلفن در کدام مرحله گم می‌شود.
+function debugTel(){
+  var L=[];
+  function add(t,v,ok){ L.push((ok===false?'❌ ':(ok===true?'✅ ':'• '))+t+': '+(v===''||v==null?'(خالی)':JSON.stringify(v))); }
+  L.push('═══ عیب‌یابِ تلفن ═══');
+  // ۱) خودِ فیلدِ فرمِ برآورد
+  var el=document.getElementById('pr-o-tel');
+  add('۱) فیلدِ فرم (pr-o-tel) موجود؟', !!el, !!el);
+  if(el) add('   مقدارِ داخلِ فیلد', el.value, !!(el.value||'').trim());
+  // ۲) state
+  try{ if(typeof prSyncOrderInputs==='function') prSyncOrderInputs(); }catch(e){ L.push('❌ خطا در prSyncOrderInputs: '+e); }
+  var o=(typeof prState!=='undefined' && prState && prState.order)?prState.order:null;
+  add('۲) prState.order موجود؟', !!o, !!o);
+  if(o) add('   prState.order.tel (بعد از sync)', o.tel, !!(o.tel||'').trim());
+  // ۳) عکسِ لحظه‌ایِ فاکتور
+  add('۳) ivFreshSnap.tel', (typeof ivFreshSnap!=='undefined' && ivFreshSnap)?ivFreshSnap.tel:'(هنوز فاکتور باز نشده)');
+  // ۴) خودِ خانهٔ تلفنِ فاکتور
+  var t=document.getElementById('iv-btel');
+  add('۴) خانهٔ فاکتور (iv-btel) موجود؟', !!t, !!t);
+  if(t) add('   متنِ داخلِ خانه', t.textContent, (t.textContent||'').trim()!=='' && (t.textContent||'').trim()!=='—');
+  // ۵) دادهٔ ذخیره‌شدهٔ فاکتور (که ممکن است روی مقدارِ تازه بنشیند)
+  add('۵) شناسهٔ برآوردِ باز', (typeof ivCurrentEstimateId!=='undefined')?ivCurrentEstimateId:'(نامشخص)');
+  // نتیجه‌گیری
+  L.push('');
+  var formTel = el?String(el.value||'').trim():'';
+  var stTel   = o?String(o.tel||'').trim():'';
+  var cellTel = t?String(t.textContent||'').trim():'';
+  if(!formTel) L.push('⇒ نتیجه: تلفن در خودِ فرمِ برآورد خالی است. اول در فرم واردش کن.');
+  else if(!stTel) L.push('⇒ نتیجه: تلفن در فرم هست ولی به state نمی‌رسد ⇒ مشکل در prSyncOrderInputs / شناسهٔ فیلد.');
+  else if(!t) L.push('⇒ نتیجه: فاکتور هنوز باز نشده یا خانهٔ iv-btel ساخته نشده. اول فاکتور را باز کن بعد دوباره debugTel() بزن.');
+  else if(cellTel==='' || cellTel==='—') L.push('⇒ نتیجه: تا state درست است ولی در فاکتور ننشسته ⇒ یا دادهٔ ذخیره‌شدهٔ قدیمیِ فاکتور رویش نشسته، یا بک‌اند tel برنمی‌گرداند (اگر از آرشیو باز کرده‌ای، بک‌اندِ V224 به بعد لازم است).');
+  else L.push('⇒ نتیجه: ✅ تلفن درست در فاکتور نشسته: '+cellTel);
+  var out=L.join('\n');
+  console.log(out);
+  try{ alert(out); }catch(e){}
+  return out;
+}
 function ivOpenInvoice(opts){
   opts=opts||{};
   var code=(opts.code && String(opts.code).trim()) ? String(opts.code).trim() : 'پرینت قطعه (مطابق برآورد iPrint3D)';
@@ -10459,7 +10513,19 @@ function ivApplyData(inv){
 function ivLoadSavedData(estimateId, cb){
   if(!estimateId){ if(cb) cb(false); return; }
   callSheet('getInvoiceData', { id:estimateId, t:Date.now() }, function(res){
-    if(res && res.status==='ok' && res.invoice){ var ok=ivApplyData(res.invoice); if(cb) cb(ok); }
+    if(res && res.status==='ok' && res.invoice){
+      var ok=ivApplyData(res.invoice);
+      // تلفن/نام تازهٔ برآورد دوباره اعمال می‌شود تا نسخهٔ ذخیره‌شدهٔ قدیمی آن را پاک نکند
+      try{
+        if(ivFreshSnap){
+          var _t=document.getElementById('iv-btel');
+          if(_t && ivFreshSnap.tel && (( _t.textContent||'').trim()==='' || (_t.textContent||'').trim()==='—')) _t.textContent = ivFreshSnap.tel;
+          var _n=document.getElementById('iv-bname');
+          if(_n && ivFreshSnap.customer && ((_n.textContent||'').trim()==='' || (_n.textContent||'').trim()==='—')) _n.textContent = ivFreshSnap.customer;
+        }
+      }catch(e){}
+      if(cb) cb(ok);
+    }
     else { if(cb) cb(false); }
   });
 }
