@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V279</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V280</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -889,6 +889,14 @@ function doPost(e){
               <button class="btn btn-ghost btn-sm" onclick="pricingPickImage()">🖼 افزودن تصویر سفارش</button>
               <span id="pr-image-ind" style="font-size:11.5px;color:#34d399"></span>
             </div>
+          </div>
+
+          <div class="card" id="pr-sched-card" style="margin-bottom:16px;padding:0;overflow:hidden">
+            <div onclick="schedToggle()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:13px 14px;cursor:pointer;background:#0c1120">
+              <div style="font-weight:600;font-size:14px">زمان‌بندی تولید <span id="sched-badge" style="font-size:11px;color:#5a6080;font-weight:400"></span></div>
+              <span id="sched-arrow" style="color:#8a93b8;font-size:13px">▼</span>
+            </div>
+            <div id="sched-body" style="display:none;padding:14px;border-top:1px solid #1a2440"></div>
           </div>
 
           <div class="card" style="margin-bottom:16px">
@@ -8084,6 +8092,7 @@ function prRenderOrder(){  var o = prState.order;
   { var _of=document.getElementById('pr-o-field'); if(_of) _of.value = o.field||''; }
   prRefreshCategoryLists();
   document.getElementById('pr-o-ordername').value = o.orderName||'';
+  try{ schedOpen=false; schedRender(); }catch(e){}
   document.getElementById('pr-o-tel').value       = o.tel||'';
   { var _fEc=document.getElementById('pr-o-econ'); if(_fEc) _fEc.value = o.econ||''; }
   { var _fRg=document.getElementById('pr-o-regid'); if(_fRg) _fRg.value = o.regid||''; }
@@ -8266,6 +8275,131 @@ function prPasteCustomer(){
   uiConfirm({ title:'جایگزینیِ اطلاعاتِ فرم', danger:false, okText:'بله، جایگزین کن',
     html:'بعضی فیلدهای فرم از قبل پر هستند و با اطلاعاتِ «<b style="color:#dfe3f5">'+escapeHtml(who)+'</b>» جایگزین می‌شوند.<br><br><span style="color:#8a93b2;font-size:12px">فیلدهایی که در اطلاعاتِ کپی‌شده خالی‌اند، دست‌نخورده می‌مانند. ردیف‌های قیمت و محاسبات اصلاً تغییر نمی‌کنند.</span>' }, doPaste);
 }
+
+// ══════════════ زمان‌بندی تولید (V280) ══════════════
+// در order.schedule ذخیره می‌شود — کلیدِ جدا. هیچ ربطی به قیمت ندارد.
+var schedOpen = false;
+var SCHED_DAYS = [ {k:'sat',n:'شنبه'}, {k:'sun',n:'یک‌شنبه'}, {k:'mon',n:'دوشنبه'},
+                   {k:'tue',n:'سه‌شنبه'}, {k:'wed',n:'چهارشنبه'}, {k:'thu',n:'پنج‌شنبه'}, {k:'fri',n:'جمعه'} ];
+
+function schedDefault(){
+  return { hoursPerDay:10, operators:1, mode:'serial', startDate:'', machines:{},
+           days:{sat:true,sun:true,mon:true,tue:true,wed:true,thu:false,fri:false}, holidaysOff:true };
+}
+function schedGet(){
+  if(!prState.order) prState.order = {};
+  var d = schedDefault();
+  var s = prState.order.schedule;
+  if(s && typeof s==='object'){
+    for(var k in d) if(s.hasOwnProperty(k) && s[k]!=null) d[k]=s[k];
+    if(!d.days || typeof d.days!=='object') d.days = schedDefault().days;
+    if(!d.machines || typeof d.machines!=='object') d.machines = {};
+  }
+  return d;
+}
+function schedToggle(){ schedOpen=!schedOpen; schedRender(); }
+
+// دستگاه‌هایی که واقعاً در این سفارش استفاده شده‌اند
+function schedUsedMachines(){
+  var used = {}, lines = [];
+  try{
+    if(prState.order && prState.order.sections && prState.order.sections.length){
+      prState.order.sections.forEach(function(sec){ (sec.lines||[]).forEach(function(l){ lines.push(l); }); });
+    } else { lines = prState.lines || []; }
+  }catch(e){ lines = prState.lines || []; }
+  lines.forEach(function(l){
+    if(!l || !l.machineId) return;
+    if(l.kind!=='machine_fdm' && l.kind!=='machine_dlp') return;
+    used[l.machineId] = true;
+  });
+  var out = [];
+  (prState.machines||[]).forEach(function(m){ if(used[m.id]) out.push(m); });
+  return out;
+}
+
+function schedRender(){
+  var body=document.getElementById('sched-body'), arrow=document.getElementById('sched-arrow'), badge=document.getElementById('sched-badge');
+  if(!body) return;
+  var c = schedGet();
+  if(arrow) arrow.textContent = schedOpen ? '▲' : '▼';
+  if(badge) badge.textContent = prState.order && prState.order.schedule ? '· تنظیم‌شده' : '· تنظیم نشده';
+  body.style.display = schedOpen ? 'block' : 'none';
+  if(!schedOpen){ body.innerHTML=''; return; }
+
+  var mach = schedUsedMachines();
+  var machHtml = mach.length
+    ? mach.map(function(m){
+        var v = (c.machines && c.machines[m.id]) ? c.machines[m.id] : 1;
+        return '<div><label style="font-size:11px;color:#5a6080">تعداد «'+escapeHtml(m.name||m.id)+'»</label>'
+             + '<input class="inp" type="number" min="1" step="1" value="'+(+v||1)+'" oninput="schedSetMachine(\''+String(m.id).replace(/'/g,"\\'")+'\',this.value)"></div>';
+      }).join('')
+    : '<div style="font-size:12px;color:#5a6080;grid-column:1/-1">هنوز دستگاهی در ردیف‌های هزینه انتخاب نشده است.</div>';
+
+  var daysHtml = SCHED_DAYS.map(function(d){
+    var on = !!(c.days && c.days[d.k]);
+    return '<label style="display:inline-flex;align-items:center;gap:5px;background:'+(on?'#132a4d':'#12141f')+';border:1px solid '+(on?'#1e3a6e':'#22263a')+';border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">'
+         + '<input type="checkbox" '+(on?'checked':'')+' onchange="schedSetDay(\''+d.k+'\',this.checked)" style="margin:0">'
+         + '<span style="color:'+(on?'#7ab8ff':'#6b7280')+'">'+d.n+'</span></label>';
+  }).join('');
+
+  body.innerHTML =
+     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">'
+    +  '<div><label style="font-size:11px;color:#5a6080">ساعت کاری در هر روز</label><input class="inp" id="sched-hours" type="number" min="1" max="24" step="0.5" value="'+(+c.hoursPerDay||10)+'" oninput="schedSet(\'hoursPerDay\',this.value)"></div>'
+    +  '<div><label style="font-size:11px;color:#5a6080">تعداد اپراتور</label><input class="inp" id="sched-ops" type="number" min="1" step="1" value="'+(+c.operators||1)+'" oninput="schedSet(\'operators\',this.value)"></div>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">'+machHtml+'</div>'
+    + '<div style="margin-top:13px"><label style="font-size:11px;color:#5a6080">روزهای کاریِ این پروژه</label>'
+    +   '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:6px">'+daysHtml+'</div></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:13px">'
+    +   '<div><label style="font-size:11px;color:#5a6080">تاریخ شروع <span style="color:#4a5070">(خالی = امروز)</span></label><input class="inp" id="sched-start" placeholder="۱۴۰۵/۰۵/۱۶" value="'+escapeHtml(c.startDate||'')+'" oninput="schedSet(\'startDate\',this.value)" autocomplete="off"></div>'
+    +   '<div><label style="font-size:11px;color:#5a6080">حالت کار</label>'
+    +     '<select class="inp" onchange="schedSet(\'mode\',this.value)">'
+    +       '<option value="serial"'+(c.mode==='serial'?' selected':'')+'>سریالی — اپراتور منتظر اتمام پرینت می‌ماند</option>'
+    +       '<option value="parallel"'+(c.mode==='parallel'?' selected':'')+'>همزمان — کار دستی حین پرینت انجام می‌شود</option>'
+    +     '</select></div>'
+    + '</div>'
+    + '<label style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;color:#c7cce0;cursor:pointer">'
+    +   '<input type="checkbox" '+(c.holidaysOff?'checked':'')+' onchange="schedSet(\'holidaysOff\',this.checked)" style="margin:0">'
+    +   'تعطیلاتِ رسمیِ تقویم کنار گذاشته شوند</label>'
+    + '<div style="display:flex;gap:8px;align-items:center;margin-top:14px;padding-top:13px;border-top:1px dashed #1a2440;flex-wrap:wrap">'
+    +   '<button class="btn btn-sm" onclick="schedSave(this)" style="background:#6366f1;border-color:#6366f1;color:#fff">ذخیرهٔ زمان‌بندی</button>'
+    +   '<button class="btn btn-ghost btn-sm" onclick="schedCompute()">محاسبه</button>'
+    +   '<span id="sched-msg" style="font-size:11.5px;color:#8a93b2"></span>'
+    + '</div>'
+    + '<div id="sched-out" style="margin-top:13px"></div>';
+}
+
+function schedCompute(){
+  var o=document.getElementById('sched-out'); if(!o) return;
+  o.innerHTML='<div style="background:#0b1020;border:1px solid #1a2440;border-radius:10px;padding:12px;font-size:12px;color:#8a93b2">موتورِ محاسبه در مرحلهٔ بعد اضافه می‌شود. فعلاً فقط تنظیمات ذخیره می‌شود.</div>';
+}
+function schedEnsure(){ if(!prState.order) prState.order={}; if(!prState.order.schedule) prState.order.schedule = schedDefault(); return prState.order.schedule; }
+function schedSet(k,v){
+  var s = schedEnsure();
+  if(k==='hoursPerDay'||k==='operators') v = (String(v).trim()==='') ? '' : +v;
+  s[k]=v;
+  var b=document.getElementById('sched-badge'); if(b) b.textContent='· ذخیره نشده';
+}
+function schedSetDay(k,on){ var s=schedEnsure(); if(!s.days) s.days=schedDefault().days; s.days[k]=!!on; schedRender(); }
+function schedSetMachine(id,v){ var s=schedEnsure(); if(!s.machines) s.machines={}; s.machines[id]=Math.max(1,+v||1); }
+
+function schedSave(btn){
+  if(!prState.editId){ showToast('اول سفارش را ذخیره کن، بعد زمان‌بندی'); return; }
+  schedEnsure();
+  var old = btn?btn.innerHTML:''; if(btn){ btn.disabled=true; btn.innerHTML='در حال ذخیره...'; }
+  callSheetPayload('saveSchedule', JSON.stringify({ id:prState.editId, schedule:prState.order.schedule }), null, function(res){
+    if(btn){ btn.disabled=false; btn.innerHTML=old; }
+    var m=document.getElementById('sched-msg');
+    if(res && res.status==='ok'){
+      showToast('زمان‌بندی ذخیره شد');
+      var b=document.getElementById('sched-badge'); if(b) b.textContent='· تنظیم‌شده';
+      if(m){ m.style.color='#34d399'; m.textContent='ذخیره شد'; }
+    } else {
+      if(m){ m.style.color='#f87171'; m.textContent=(res&&res.message)?res.message:'ذخیره نشد — دوباره تلاش کن'; }
+    }
+  });
+}
+
 function prSyncOrderInputs(){
   var o = prState.order, g=function(id){var e=document.getElementById(id);return e?e.value:null;};
   var c=g('pr-o-customer'); if(c!=null) o.customer=c;
@@ -8836,8 +8970,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V279 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V279";
+try{ if(window.console) console.log('%c iPrint3D FRONT V280 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V280";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
