@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V282</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V283</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8393,9 +8393,186 @@ function schedTargetId(){
   try{ if(prState && prState.editId) return prState.editId; }catch(e){}
   return '';
 }
+// ══════════ موتورِ محاسبهٔ زمان‌بندی (V283) ══════════
+// فقط می‌خواند و محاسبه می‌کند. هیچ داده‌ای را تغییر نمی‌دهد و به قیمت کاری ندارد.
+
+function schedFmtHours(h){
+  h = +h || 0;
+  var totalMin = Math.round(h*60);
+  var hh = Math.floor(totalMin/60), mm = totalMin%60;
+  if(hh && mm) return prToFa(hh)+' ساعت و '+prToFa(mm)+' دقیقه';
+  if(hh) return prToFa(hh)+' ساعت';
+  return prToFa(mm)+' دقیقه';
+}
+function schedNum(n,d){ n=+n; return isNaN(n)?(d||0):n; }
+
+// جمع‌آوریِ قطعات: هر بخش (یا کلِ سفارش در حالتِ تک‌بخشی)
+function schedParts(){
+  var parts = [];
+  var o = prState.order || {};
+  function build(name, qty, lines){
+    var p = { name:name||'قطعه', qty:Math.max(1, schedNum(qty,1)),
+              plateTime:0, perPlate:0, laborMin:0, fdmHours:0, machineId:'', machineName:'' };
+    (lines||[]).forEach(function(l){
+      if(!l) return;
+      if(l.kind==='machine_dlp'){
+        p.plateTime += schedNum(l.plateTime,0);
+        p.perPlate   = Math.max(p.perPlate, schedNum(l.perPlate,1));
+        if(!p.machineId) p.machineId = l.machineId||'';
+      } else if(l.kind==='machine_fdm'){
+        p.fdmHours += schedNum(l.hours,0);
+        if(!p.machineId) p.machineId = l.machineId||'';
+      } else if(l.kind==='labor' || l.kind==='finishing'){
+        p.laborMin += schedNum(l.minutes,0);
+      }
+    });
+    (prState.machines||[]).forEach(function(m){ if(m.id===p.machineId) p.machineName = m.name||m.id; });
+    if(p.plateTime>0 || p.fdmHours>0 || p.laborMin>0) parts.push(p);
+  }
+  if(o.sections && o.sections.length){
+    o.sections.forEach(function(sec){ build(sec.name, sec.qty, sec.lines); });
+  } else {
+    build(o.orderName || 'سفارش', o.qty, prState.lines||[]);
+  }
+  return parts;
+}
+
 function schedCompute(){
-  Array.prototype.forEach.call(document.querySelectorAll('.sched-out'),function(o){
-    o.innerHTML='<div style="background:#0b1020;border:1px solid #1a2440;border-radius:10px;padding:12px;font-size:12px;color:#8a93b2">موتورِ محاسبه در مرحلهٔ بعد اضافه می‌شود. فعلاً فقط تنظیمات ذخیره می‌شود.</div>';
+  var c = schedGet();
+  var parts = schedParts();
+  var out = document.querySelectorAll('.sched-out');
+  function paint(html){ Array.prototype.forEach.call(out,function(o){ o.innerHTML=html; }); }
+
+  if(!parts.length){ paint('<div style="background:#2a1416;border:1px solid #5a2a2e;border-radius:10px;padding:12px;font-size:12px;color:#f0a6a8">ردیفِ دستگاه یا نیروی انسانی پیدا نشد. اول ردیف‌های هزینه را کامل کن.</div>'); return; }
+
+  var hpd = schedNum(c.hoursPerDay,10); if(hpd<=0) hpd=10;
+  var ops = Math.max(1, schedNum(c.operators,1));
+  var dayCount = 0; SCHED_DAYS.forEach(function(d){ if(c.days && c.days[d.k]) dayCount++; });
+  if(!dayCount){ paint('<div style="background:#2a1416;border:1px solid #5a2a2e;border-radius:10px;padding:12px;font-size:12px;color:#f0a6a8">هیچ روزِ کاری‌ای تیک نخورده است.</div>'); return; }
+
+  // ── مرحلهٔ ۱: تفکیکِ هر قطعه ──
+  var H='', totMach=0, totLabor=0, byMachine={};
+  parts.forEach(function(p,i){
+    var isDlp = p.plateTime>0;
+    var plates = isDlp ? Math.ceil(p.qty / Math.max(1,p.perPlate)) : 0;
+    var machH  = isDlp ? plates * p.plateTime : (p.fdmHours * p.qty);
+    var laborH = (p.laborMin * p.qty) / 60;
+    totMach += machH; totLabor += laborH;
+    var mk = p.machineId || '—';
+    byMachine[mk] = (byMachine[mk]||0) + machH;
+
+    H += '<div style="border:1px solid #232742;border-radius:10px;margin-bottom:9px;overflow:hidden">'
+      +  '<div style="background:#141833;padding:7px 10px;font-weight:700;font-size:12.5px;color:#cbbcff">'
+      +    '<span style="background:#7c5af5;color:#fff;width:19px;height:19px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;margin-left:6px">'+prToFa(i+1)+'</span>'
+      +    escapeHtml(p.name)+' <span style="color:#8a82c0;font-weight:600;font-size:11px">· '+prToFa(p.qty)+' عدد</span></div>'
+      +  '<div style="padding:8px 11px;font-size:12px;color:#c7cce0;line-height:2">';
+    if(isDlp){
+      H += 'هر سینی: '+schedFmtHours(p.plateTime)+' · '+prToFa(p.perPlate)+' عدد در سینی<br>'
+        +  'تعداد سینی: '+prToFa(p.qty)+' ÷ '+prToFa(p.perPlate)+' = <b>'+prToFa(plates)+' سینی</b>'
+        +  (p.qty % p.perPlate ? ' <span style="color:#8a6a2a;font-size:11px">(سینیِ آخر ناقص)</span>' : '')+'<br>'
+        +  'زمانِ دستگاه: '+prToFa(plates)+' × '+schedFmtHours(p.plateTime)+' = <b style="color:#7ab8ff">'+schedFmtHours(machH)+'</b><br>';
+    } else {
+      H += 'زمانِ دستگاه هر عدد: '+schedFmtHours(p.fdmHours)+'<br>'
+        +  'زمانِ دستگاه: '+prToFa(p.qty)+' × '+schedFmtHours(p.fdmHours)+' = <b style="color:#7ab8ff">'+schedFmtHours(machH)+'</b><br>';
+    }
+    if(p.laborMin>0){
+      H += 'نیروی انسانی هر عدد: '+prToFa(p.laborMin)+' دقیقه<br>'
+        +  'جمعِ نیرو: '+prToFa(p.qty)+' × '+prToFa(p.laborMin)+' دقیقه = <b style="color:#34d399">'+schedFmtHours(laborH)+'</b>';
+    } else { H += '<span style="color:#5a6080">نیروی انسانی ثبت نشده</span>'; }
+    H += '</div></div>';
+  });
+
+  // ── مرحلهٔ ۲: ظرفیتِ روزانه ──
+  var machNames = {};
+  (prState.machines||[]).forEach(function(m){ machNames[m.id]=m.name||m.id; });
+  var machDays = 0, machDetail='';
+  for(var mid in byMachine){
+    var cnt = Math.max(1, schedNum((c.machines||{})[mid], 1));
+    var d = byMachine[mid] / (cnt * hpd);
+    machDays = Math.max(machDays, d);
+    machDetail += '<div>· '+escapeHtml(machNames[mid]||'دستگاه')+': '+schedFmtHours(byMachine[mid])
+               +  ' ÷ ('+prToFa(cnt)+' دستگاه × '+prToFa(hpd)+' ساعت) = <b>'+prToFa(d.toFixed(1))+' روز</b></div>';
+  }
+  var laborDays = totLabor / (ops * hpd);
+  var isSerial = (c.mode !== 'parallel');
+  var totalDaysRaw = isSerial ? ((totMach + totLabor) / (ops>0?1:1) / hpd) : Math.max(machDays, laborDays);
+  if(isSerial){
+    // سریالی: دستگاه و نیرو پشتِ هم؛ چند اپراتور فقط بخشِ نیرو را کوتاه می‌کند
+    totalDaysRaw = (totMach / hpd) + (totLabor / (ops * hpd));
+  }
+  var workDays = Math.ceil(totalDaysRaw);
+
+  var S = '<div style="border:1px solid #232742;border-radius:10px;margin-bottom:9px;overflow:hidden">'
+    + '<div style="background:#141833;padding:7px 10px;font-weight:700;font-size:12.5px;color:#ffd479">جمعِ کل و ظرفیت</div>'
+    + '<div style="padding:8px 11px;font-size:12px;color:#c7cce0;line-height:2">'
+    +   'جمعِ زمانِ دستگاه: <b style="color:#7ab8ff">'+schedFmtHours(totMach)+'</b><br>'
+    +   'جمعِ نیروی انسانی: <b style="color:#34d399">'+schedFmtHours(totLabor)+'</b><br>'
+    +   '<div style="margin:6px 0;padding:7px 9px;background:#0b1020;border-radius:8px;font-size:11.5px">'+machDetail
+    +     '<div>· نیرو: '+schedFmtHours(totLabor)+' ÷ ('+prToFa(ops)+' اپراتور × '+prToFa(hpd)+' ساعت) = <b>'+prToFa(laborDays.toFixed(1))+' روز</b></div></div>'
+    +   'حالت: <b>'+(isSerial?'سریالی':'همزمان')+'</b> — '
+    +   (isSerial ? 'دستگاه و نیرو پشتِ هم جمع می‌شوند'
+                 : 'بزرگ‌ترین (گلوگاه) ملاک است')+'<br>'
+    +   'نتیجه: <b style="color:#ffd479">'+prToFa(totalDaysRaw.toFixed(1))+' روز کاری</b>'
+    + '</div></div>';
+
+  // ── مرحلهٔ ۳: تبدیل به تاریخ ──
+  var dayNames = SCHED_DAYS.filter(function(d){ return c.days && c.days[d.k]; }).map(function(d){ return d.n; }).join('، ');
+  var R = '<div style="border:1px solid #2a4a3a;border-radius:10px;overflow:hidden;background:#0c1a14">'
+    + '<div style="background:#12281e;padding:7px 10px;font-weight:700;font-size:12.5px;color:#34d399">نتیجهٔ نهایی</div>'
+    + '<div style="padding:10px 11px;font-size:12px;color:#c7cce0;line-height:2">'
+    +   'روزهای کاری: <b style="color:#34d399;font-size:15px">'+prToFa(workDays)+' روز</b><br>'
+    +   'روزهای کاریِ هفته: '+escapeHtml(dayNames)+' ('+prToFa(dayCount)+' روز)<br>'
+    +   '<div id="sched-date-line" style="color:#8a93b2">در حالِ محاسبهٔ تاریخِ تحویل...</div>'
+    + '</div></div>';
+
+  paint('<div style="font-weight:700;font-size:12.5px;color:#8a93b8;margin-bottom:8px">تفکیکِ قطعات</div>'+H+S+R);
+  schedDeliveryDate(workDays, c, function(txt){
+    Array.prototype.forEach.call(document.querySelectorAll('#sched-date-line'),function(el){ el.innerHTML=txt; });
+  });
+}
+
+// تبدیلِ روزِ کاری به تاریخِ تحویل با تقویمِ تعطیلات
+// روزِ هفته از خودِ شیتِ تقویم می‌آید (ستونِ جمعه‌ها) و بقیهٔ روزها از چرخهٔ ۷روزه.
+function schedDeliveryDate(workDays, c, cb){
+  var start = String(c.startDate||'').trim().replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);});
+  var m = start.match(/^(\d{3,4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
+  if(!m){ cb('<span style="color:#8a6a2a">تاریخِ شروع وارد نشده — تاریخِ تحویل محاسبه نشد.</span>'); return; }
+  var yy=+m[1], mm=+m[2], dd=+m[3];
+  callSheet('calendarGet', { year:yy, t:Date.now() }, function(r){
+    if(!(r && r.status==='ok')){ cb('<span style="color:#8a6a2a">تقویم در دسترس نبود — فقط روزِ کاری محاسبه شد.</span>'); return; }
+    var official = r.official||{}, fridays = r.fridays||{};
+    var mons=[31,31,31,31,31,31,30,30,30,30,30,29];
+    function p2(n){ return (n<10?'0':'')+n; }
+    function key(o){ return o.y+'/'+p2(o.m)+'/'+p2(o.d); }
+    function next(o){ o.d++; var lim=mons[o.m-1]||30; if(o.d>lim){ o.d=1; o.m++; if(o.m>12){ o.m=1; o.y++; } } }
+
+    // لنگرِ روزِ هفته: اولین جمعه‌ای که در تقویم پیدا کنیم مبنا می‌شود
+    var cur={y:yy,m:mm,d:dd}, scan={y:yy,m:mm,d:dd}, anchorIdx=-1, steps=0;
+    while(steps<400){ if(fridays[key(scan)]){ anchorIdx=steps; break; } next(scan); steps++; }
+    // idx روزِ هفته نسبت به شروع: (i - anchorIdx) mod 7 == 0  یعنی جمعه
+    var DOW=['sat','sun','mon','tue','wed','thu','fri'];
+
+    var counted=0, guard=0, last=null, skippedHol=0, skippedDow=0, i=0;
+    while(counted<workDays && guard<3000){
+      guard++;
+      var k=key(cur);
+      var dowKey;
+      if(anchorIdx>=0){
+        var diff=((i-anchorIdx)%7+7)%7;      // 0 = جمعه
+        dowKey = DOW[(6+diff)%7];
+      } else { dowKey = null; }
+      var isOfficial = c.holidaysOff && official.hasOwnProperty(k);
+      var dowOk = dowKey ? !!(c.days && c.days[dowKey]) : true;
+      if(isOfficial) skippedHol++;
+      else if(!dowOk) skippedDow++;
+      else { counted++; last=k; }
+      if(counted<workDays){ next(cur); i++; }
+    }
+    var txt = 'تاریخِ تحویلِ تخمینی: <b style="color:#34d399;font-size:14px">'+prToFa(last||'—')+'</b>';
+    txt += '<div style="font-size:11px;color:#8a93b2;margin-top:3px">'
+        +  'در این بازه '+prToFa(skippedDow)+' روزِ غیرکاری و '+prToFa(skippedHol)+' روزِ تعطیلِ رسمی کنار گذاشته شد.</div>';
+    if(anchorIdx<0) txt += '<div style="font-size:11px;color:#8a6a2a">روزِ هفته از تقویم تشخیص داده نشد؛ فقط تعطیلاتِ رسمی لحاظ شد.</div>';
+    cb(txt);
   });
 }
 function schedEnsure(){ if(!prState.order) prState.order={}; if(!prState.order.schedule) prState.order.schedule = schedDefault(); return prState.order.schedule; }
@@ -8996,8 +9173,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V282 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V282";
+try{ if(window.console) console.log('%c iPrint3D FRONT V283 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V283";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
