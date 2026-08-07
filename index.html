@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V278</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V279</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -3177,6 +3177,9 @@ function smartDateBoth(input){
 
 // ── بانک مشتری ──
 var CB_DATA=[]; var CB_TAB='done'; var CB_LOADED=false;
+// V279 — بعد از هر تغییری در سفارش‌ها (حذف/ذخیره) کشِ بانک مشتری باطل می‌شود،
+// چون بانک مشتری جدولِ مستقل نیست و هر بار از روی خودِ سفارش‌ها ساخته می‌شود.
+function custBankInvalidate(){ try{ CB_LOADED=false; }catch(e){} }
 function custBankInit(force){
   if(CB_LOADED && !force){ custBankRender(); return; }
   var box=document.getElementById('cb-list'); if(box) box.innerHTML='<div style="color:#6b7280;padding:20px;text-align:center">در حال بارگذاری…</div>';
@@ -8833,8 +8836,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V278 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V278";
+try{ if(window.console) console.log('%c iPrint3D FRONT V279 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V279";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -10326,6 +10329,7 @@ function pricingSaveEstimate(){
     }
     var savedCode = res.code||'';
     var _wasEdit = !!prState.editId, _savedId = res.id;
+    custBankInvalidate();
     showToast(res.edited ? ('✅ ویرایش ذخیره شد · کد '+savedCode) : (savedCode ? ('✅ ذخیره شد · کد سفارش: '+savedCode) : '✅ سفارش ذخیره شد'));
     var buildXlsx = function(){
       if(btn){ btn.innerHTML='در حال ساخت اکسل...'; }
@@ -10710,6 +10714,7 @@ async function ivSaveInvoiceToFolder(){
       await fetch(url, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
         body: JSON.stringify({ action:'saveInvoiceData', token:SESSION_TOKEN, id:ivCurrentEstimateId, invoice: JSON.stringify(ivCollectData()) }) });
     } catch(e){ if(window.console) console.log('saveInvoiceData failed', e); }
+    custBankInvalidate();   // V279 — فیلدهای خریدارِ فاکتور به order برمی‌گردند، پس بانک باید تازه شود
     setTimeout(function(){
       callSheet('orderHasInvoice', { id:ivCurrentEstimateId, t:Date.now() }, function(r){
         if(btn){ btn.disabled=false; btn.innerHTML=old; }
@@ -10737,7 +10742,7 @@ function archiveDelete(id){
         +'<span style="color:#8a93b2;font-size:12px">اگر این تنها سفارشِ آن مشتری باشد، آن مشتری کلاً از بانک مشتریان حذف می‌شود.</span>'
   }, function(){
     callSheet('deleteEstimate', { id:id }, function(res){
-      if(res && res.status==='ok'){ showToast('سفارش حذف شد'); archiveInit(); }
+      if(res && res.status==='ok'){ showToast('سفارش حذف شد'); custBankInvalidate(); archiveInit(); }
       else showToast('خطا در حذف');
     });
   });
@@ -11459,7 +11464,7 @@ function omDelete(id){
         +'<span style="color:#8a93b2;font-size:12px">اگر این تنها سفارشِ آن مشتری باشد، آن مشتری کلاً از بانک مشتریان حذف می‌شود.</span>'
   }, function(){
     callSheet('deleteEstimate', { id:id }, function(res){
-      if(res && res.status==='ok'){ showToast('سفارش حذف شد'); orderModalClose(); archiveInit(); }
+      if(res && res.status==='ok'){ showToast('سفارش حذف شد'); custBankInvalidate(); orderModalClose(); archiveInit(); }
       else showToast('خطا در حذف');
     });
   });
