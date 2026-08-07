@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V280</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V281</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -891,14 +891,6 @@ function doPost(e){
             </div>
           </div>
 
-          <div class="card" id="pr-sched-card" style="margin-bottom:16px;padding:0;overflow:hidden">
-            <div onclick="schedToggle()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:13px 14px;cursor:pointer;background:#0c1120">
-              <div style="font-weight:600;font-size:14px">زمان‌بندی تولید <span id="sched-badge" style="font-size:11px;color:#5a6080;font-weight:400"></span></div>
-              <span id="sched-arrow" style="color:#8a93b8;font-size:13px">▼</span>
-            </div>
-            <div id="sched-body" style="display:none;padding:14px;border-top:1px solid #1a2440"></div>
-          </div>
-
           <div class="card" style="margin-bottom:16px">
             <div style="font-weight:600;font-size:14px;margin-bottom:14px">۲) ردیف‌های هزینه</div>
             <div id="pr-lines"></div>
@@ -966,6 +958,7 @@ function doPost(e){
           <div class="card" style="padding:0;overflow:hidden">
             <div style="padding:14px 18px;border-bottom:1px solid #1a1d2e;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:14px">خروجی قیمت</span><span id="pr-calc-status" style="font-size:11px;color:#5a6080"></span></div>
             <div id="pr-tape" style="padding:10px 18px;font-size:13px"></div>
+            <div id="pr-sched-slot" style="padding:0 12px 12px"></div>
             <div style="padding:8px 18px 4px;border-top:1px solid #1a1d2e">
               <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#9aa3c2">قیمت اعلامی یک عدد</span><span id="pr-final-unit" style="font-weight:700;color:#fbbf24">—</span></div>
               <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#9aa3c2">قیمت اعلامی کل پروژه</span><span id="pr-final-total" style="font-weight:700;color:#fbbf24">—</span></div>
@@ -8318,14 +8311,25 @@ function schedUsedMachines(){
 }
 
 function schedRender(){
-  var body=document.getElementById('sched-body'), arrow=document.getElementById('sched-arrow'), badge=document.getElementById('sched-badge');
-  if(!body) return;
+  ['pr-sched-slot','om-sched-slot'].forEach(function(slotId){ schedRenderInto(slotId); });
+}
+function schedRenderInto(slotId){
+  var slot = document.getElementById(slotId);
+  if(!slot) return;
+  var oid = schedTargetId();
+  if(!oid){ slot.innerHTML=''; return; }   // فقط برای سفارشِ ذخیره‌شده معنا دارد
   var c = schedGet();
-  if(arrow) arrow.textContent = schedOpen ? '▲' : '▼';
-  if(badge) badge.textContent = prState.order && prState.order.schedule ? '· تنظیم‌شده' : '· تنظیم نشده';
-  body.style.display = schedOpen ? 'block' : 'none';
-  if(!schedOpen){ body.innerHTML=''; return; }
-
+  var isSet = !!(prState.order && prState.order.schedule);
+  slot.innerHTML =
+     '<div class="card" style="padding:0;overflow:hidden;margin:0">'
+    +  '<div onclick="schedToggle()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 13px;cursor:pointer;background:#0c1120">'
+    +    '<div style="font-weight:600;font-size:13.5px">زمان‌بندی تولید <span class="sched-badge" style="font-size:11px;color:'+(isSet?'#34d399':'#5a6080')+';font-weight:400">· '+(isSet?'تنظیم‌شده':'تنظیم نشده')+'</span></div>'
+    +    '<span style="color:#8a93b8;font-size:13px">'+(schedOpen?'▲':'▼')+'</span>'
+    +  '</div>'
+    +  (schedOpen ? '<div style="padding:13px;border-top:1px solid #1a2440">'+schedFormHtml(c)+'</div>' : '')
+    +'</div>';
+}
+function schedFormHtml(c){
   var mach = schedUsedMachines();
   var machHtml = mach.length
     ? mach.map(function(m){
@@ -8333,7 +8337,7 @@ function schedRender(){
         return '<div><label style="font-size:11px;color:#5a6080">تعداد «'+escapeHtml(m.name||m.id)+'»</label>'
              + '<input class="inp" type="number" min="1" step="1" value="'+(+v||1)+'" oninput="schedSetMachine(\''+String(m.id).replace(/'/g,"\\'")+'\',this.value)"></div>';
       }).join('')
-    : '<div style="font-size:12px;color:#5a6080;grid-column:1/-1">هنوز دستگاهی در ردیف‌های هزینه انتخاب نشده است.</div>';
+    : '<div style="font-size:12px;color:#5a6080;grid-column:1/-1">دستگاهی در ردیف‌های هزینه انتخاب نشده است.</div>';
 
   var daysHtml = SCHED_DAYS.map(function(d){
     var on = !!(c.days && c.days[d.k]);
@@ -8342,16 +8346,15 @@ function schedRender(){
          + '<span style="color:'+(on?'#7ab8ff':'#6b7280')+'">'+d.n+'</span></label>';
   }).join('');
 
-  body.innerHTML =
-     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">'
-    +  '<div><label style="font-size:11px;color:#5a6080">ساعت کاری در هر روز</label><input class="inp" id="sched-hours" type="number" min="1" max="24" step="0.5" value="'+(+c.hoursPerDay||10)+'" oninput="schedSet(\'hoursPerDay\',this.value)"></div>'
-    +  '<div><label style="font-size:11px;color:#5a6080">تعداد اپراتور</label><input class="inp" id="sched-ops" type="number" min="1" step="1" value="'+(+c.operators||1)+'" oninput="schedSet(\'operators\',this.value)"></div>'
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">'
+    +  '<div><label style="font-size:11px;color:#5a6080">ساعت کاری در هر روز</label><input class="inp" type="number" min="1" max="24" step="0.5" value="'+(+c.hoursPerDay||10)+'" oninput="schedSet(\'hoursPerDay\',this.value)"></div>'
+    +  '<div><label style="font-size:11px;color:#5a6080">تعداد اپراتور</label><input class="inp" type="number" min="1" step="1" value="'+(+c.operators||1)+'" oninput="schedSet(\'operators\',this.value)"></div>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">'+machHtml+'</div>'
     + '<div style="margin-top:13px"><label style="font-size:11px;color:#5a6080">روزهای کاریِ این پروژه</label>'
     +   '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:6px">'+daysHtml+'</div></div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:13px">'
-    +   '<div><label style="font-size:11px;color:#5a6080">تاریخ شروع <span style="color:#4a5070">(خالی = امروز)</span></label><input class="inp" id="sched-start" placeholder="۱۴۰۵/۰۵/۱۶" value="'+escapeHtml(c.startDate||'')+'" oninput="schedSet(\'startDate\',this.value)" autocomplete="off"></div>'
+    +   '<div><label style="font-size:11px;color:#5a6080">تاریخ شروع <span style="color:#4a5070">(خالی = امروز)</span></label><input class="inp" placeholder="۱۴۰۵/۰۵/۱۶" value="'+escapeHtml(c.startDate||'')+'" oninput="schedSet(\'startDate\',this.value)" autocomplete="off"></div>'
     +   '<div><label style="font-size:11px;color:#5a6080">حالت کار</label>'
     +     '<select class="inp" onchange="schedSet(\'mode\',this.value)">'
     +       '<option value="serial"'+(c.mode==='serial'?' selected':'')+'>سریالی — اپراتور منتظر اتمام پرینت می‌ماند</option>'
@@ -8364,38 +8367,60 @@ function schedRender(){
     + '<div style="display:flex;gap:8px;align-items:center;margin-top:14px;padding-top:13px;border-top:1px dashed #1a2440;flex-wrap:wrap">'
     +   '<button class="btn btn-sm" onclick="schedSave(this)" style="background:#6366f1;border-color:#6366f1;color:#fff">ذخیرهٔ زمان‌بندی</button>'
     +   '<button class="btn btn-ghost btn-sm" onclick="schedCompute()">محاسبه</button>'
-    +   '<span id="sched-msg" style="font-size:11.5px;color:#8a93b2"></span>'
+    +   '<span class="sched-msg" style="font-size:11.5px;color:#8a93b2"></span>'
     + '</div>'
-    + '<div id="sched-out" style="margin-top:13px"></div>';
+    + '<div class="sched-out" style="margin-top:13px"></div>';
 }
-
+// شناسهٔ سفارشِ هدف: در صفحهٔ برآورد از prState، در پروفایل از سفارشِ باز
+// در پروفایلِ سفارش، زمان‌بندیِ همان سفارش از سرور خوانده می‌شود
+function schedLoadFor(id){
+  var slot=document.getElementById('om-sched-slot'); if(slot) slot.innerHTML='';
+  callSheet('getEstimateForEdit', { id:id, t:Date.now() }, function(r){
+    if(OM_CURRENT_ID !== id) return;                 // کاربر مودال را عوض کرده
+    try{
+      var ord = (r && r.status==='ok' && r.order) ? r.order : null;
+      if(!prState) return;
+      prState.order = prState.order || {};
+      prState.order.schedule = (ord && ord.schedule) ? ord.schedule : null;
+      if(ord){ prState.lines = ord.lines || prState.lines; prState.order.sections = ord.sections || prState.order.sections; }
+    }catch(e){}
+    schedOpen=false; schedRender();
+  });
+}
+function schedTargetId(){
+  try{ if(typeof OM_CURRENT_ID!=='undefined' && OM_CURRENT_ID) return OM_CURRENT_ID; }catch(e){}
+  try{ if(prState && prState.editId) return prState.editId; }catch(e){}
+  return '';
+}
 function schedCompute(){
-  var o=document.getElementById('sched-out'); if(!o) return;
-  o.innerHTML='<div style="background:#0b1020;border:1px solid #1a2440;border-radius:10px;padding:12px;font-size:12px;color:#8a93b2">موتورِ محاسبه در مرحلهٔ بعد اضافه می‌شود. فعلاً فقط تنظیمات ذخیره می‌شود.</div>';
+  Array.prototype.forEach.call(document.querySelectorAll('.sched-out'),function(o){
+    o.innerHTML='<div style="background:#0b1020;border:1px solid #1a2440;border-radius:10px;padding:12px;font-size:12px;color:#8a93b2">موتورِ محاسبه در مرحلهٔ بعد اضافه می‌شود. فعلاً فقط تنظیمات ذخیره می‌شود.</div>';
+  });
 }
 function schedEnsure(){ if(!prState.order) prState.order={}; if(!prState.order.schedule) prState.order.schedule = schedDefault(); return prState.order.schedule; }
 function schedSet(k,v){
   var s = schedEnsure();
   if(k==='hoursPerDay'||k==='operators') v = (String(v).trim()==='') ? '' : +v;
   s[k]=v;
-  var b=document.getElementById('sched-badge'); if(b) b.textContent='· ذخیره نشده';
+  Array.prototype.forEach.call(document.querySelectorAll('.sched-badge'),function(b){ b.style.color='#fbbf24'; b.textContent='· ذخیره نشده'; });
 }
 function schedSetDay(k,on){ var s=schedEnsure(); if(!s.days) s.days=schedDefault().days; s.days[k]=!!on; schedRender(); }
 function schedSetMachine(id,v){ var s=schedEnsure(); if(!s.machines) s.machines={}; s.machines[id]=Math.max(1,+v||1); }
 
 function schedSave(btn){
-  if(!prState.editId){ showToast('اول سفارش را ذخیره کن، بعد زمان‌بندی'); return; }
+  var oid = schedTargetId();
+  if(!oid){ showToast('اول سفارش را ذخیره کن، بعد زمان‌بندی'); return; }
   schedEnsure();
   var old = btn?btn.innerHTML:''; if(btn){ btn.disabled=true; btn.innerHTML='در حال ذخیره...'; }
-  callSheetPayload('saveSchedule', JSON.stringify({ id:prState.editId, schedule:prState.order.schedule }), null, function(res){
+  callSheetPayload('saveSchedule', JSON.stringify({ id:oid, schedule:prState.order.schedule }), null, function(res){
     if(btn){ btn.disabled=false; btn.innerHTML=old; }
-    var m=document.getElementById('sched-msg');
+    var msgs=document.querySelectorAll('.sched-msg');
     if(res && res.status==='ok'){
       showToast('زمان‌بندی ذخیره شد');
-      var b=document.getElementById('sched-badge'); if(b) b.textContent='· تنظیم‌شده';
-      if(m){ m.style.color='#34d399'; m.textContent='ذخیره شد'; }
+      schedRender();
+      Array.prototype.forEach.call(document.querySelectorAll('.sched-msg'),function(m){ m.style.color='#34d399'; m.textContent='ذخیره شد'; });
     } else {
-      if(m){ m.style.color='#f87171'; m.textContent=(res&&res.message)?res.message:'ذخیره نشد — دوباره تلاش کن'; }
+      Array.prototype.forEach.call(msgs,function(m){ m.style.color='#f87171'; m.textContent=(res&&res.message)?res.message:'ذخیره نشد — دوباره تلاش کن'; });
     }
   });
 }
@@ -8970,8 +8995,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V280 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V280";
+try{ if(window.console) console.log('%c iPrint3D FRONT V281 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V281";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -11028,7 +11053,7 @@ function archiveImage(id){ imgModalOpen(id); }
 // ════════════════════════════════════════════════════════════
 //  پروفایل سفارش (Phase 3) — نمایش کاملِ یک سفارش
 // ════════════════════════════════════════════════════════════
-function orderModalClose(){ document.getElementById('order-modal').style.display='none'; }
+function orderModalClose(){ OM_CURRENT_ID=''; document.getElementById('order-modal').style.display='none'; }
 function omLoadProfileImage(elId, fileId){
   if(!fileId) return;
   callSheet('getOrderFileBlob', { fileId:fileId, t:Date.now() }, function(r){
@@ -11041,9 +11066,11 @@ function omLoadProfileImage(elId, fileId){
     } else { el.textContent='✕'; el.style.color='#7a3a3a'; }
   }, 40000);
 }
+var OM_CURRENT_ID = '';
 function archiveProfile(id){
   var e=null; for(var i=0;i<arData.length;i++){ if(arData[i].id===id){ e=arData[i]; break; } }
   if(!e){ showToast('سفارش پیدا نشد'); return; }
+  OM_CURRENT_ID = id;
   omCurrentCustomer = e.customer||'';
   omSecsAllOpen=false;
   var st = e.status||'برآورد';
@@ -11063,6 +11090,7 @@ function archiveProfile(id){
   else if(done) lc = '<button class="btn btn-ghost btn-sm" onclick="omSetStatus(\''+id+'\',\'در جریان ساخت\')">↩ بازگشت به ساخت</button>';
   document.getElementById('om-body').innerHTML =
     '<div id="om-image" style="margin-bottom:16px"></div>'
+    +'<div id="om-sched-slot" style="margin-bottom:16px"></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">'
       +'<button class="btn btn-sm" style="background:#10233f;border-color:#1e4e7e;color:#7ab8ff" onclick="pricingEditOrder(\''+id+'\')">✏️ ویرایش سفارش</button>'
       +'<button class="btn btn-sm" style="background:#3a2a0c;border-color:#8a6d1e;color:#fbbf24" onclick="omUpgradeCalc(\''+id+'\')" title="بازمحاسبه با سازوکار جدید">🔄 آپدیت محاسبات</button>'
@@ -11094,6 +11122,7 @@ function archiveProfile(id){
   document.getElementById('order-modal').style.display='flex';
   document.getElementById('order-modal').scrollTop=0;
   omLoadLog();
+  schedLoadFor(id);
   callSheet('getOrderFiles', { id:id, t:Date.now() }, function(res){
     var imgEl=document.getElementById('om-image'), filesEl=document.getElementById('om-files');
     if(!imgEl || !filesEl) return;
