@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V276</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V277</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8754,6 +8754,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
+try{ if(window.console) console.log('%c iPrint3D FRONT V277 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = 'V277';
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -9620,6 +9622,20 @@ function debugTel(){
   try{ alert(out); }catch(e){}
   return out;
 }
+// V277 — اعمالِ (مجددِ) فیلدهای تکمیلیِ خریدار از عکسِ لحظه‌ایِ برآورد.
+// idempotent است: فقط خانه‌های خالی/«—» را پر می‌کند و مقدارِ دستیِ کاربر را دست نمی‌زند.
+function ivApplyBuyerExtras(force){
+  try{
+    var s = ivFreshSnap || {};
+    var m = {'iv-beco':s.econ,'iv-breg':s.regid,'iv-bfax':s.fax,'iv-baddr':s.address,'iv-bpost':s.post,'iv-btel':s.tel,'iv-bname':s.customer};
+    for(var k in m){
+      var v = m[k]; if(v==null || String(v).trim()==='') continue;
+      var el = document.getElementById(k); if(!el) continue;
+      var cur = String(el.textContent||'').trim();
+      if(force || cur==='' || cur==='—') el.textContent = String(v);
+    }
+  }catch(e){ if(window.console) console.log('ivApplyBuyerExtras', e); }
+}
 function ivOpenInvoice(opts){
   opts=opts||{};
   var code=(opts.code && String(opts.code).trim()) ? String(opts.code).trim() : 'پرینت قطعه (مطابق برآورد iPrint3D)';
@@ -10427,7 +10443,10 @@ function archiveOpenInvoice(id){
       tel:res.tel, econ:res.econ, regid:res.regid, fax:res.fax, address:res.address, post:res.post,
       dateStr:res.dateStr, estimateId:id, folderId:res.folderId, orderCode:res.code });
     // اگر قبلاً محتوای فاکتور ذخیره شده، رویِ نسخه‌ی ساخته‌شده از برآورد بنشان (آدرس/توضیحات/اعداد ویرایش‌شده)
-    ivLoadSavedData(id, function(loaded){ if(loaded) showToast('✅ آخرین نسخه‌ی ذخیره‌شده‌ی فاکتور بازیابی شد'); });
+    ivLoadSavedData(id, function(loaded){
+      ivApplyBuyerExtras(false);   // V277 — خانه‌های خالی‌مانده از دادهٔ برآورد پر شوند
+      if(loaded) showToast('✅ آخرین نسخه‌ی ذخیره‌شده‌ی فاکتور بازیابی شد');
+    });
   });
 }
 // ── ذخیره/بازیابیِ محتوای فاکتور (تا با «ویرایش فاکتور» گم نشود) ──
