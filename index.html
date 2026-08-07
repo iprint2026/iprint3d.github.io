@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V273</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V274</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -862,6 +862,17 @@ function doPost(e){
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
               <div><label style="font-size:11px;color:#5a6080">حوزهٔ کاریِ مشتری <span style="color:#4a5070">(اختیاری)</span></label><input class="inp" id="pr-o-field" list="pr-field-list" placeholder="مثلاً تجهیزات پزشکی" autocomplete="off"><datalist id="pr-field-list"></datalist></div>
               <div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
+              <div><label style="font-size:11px;color:#5a6080">کد اقتصادی <span style="color:#4a5070">(اختیاری)</span></label><input class="inp" id="pr-o-econ" placeholder="—" autocomplete="off"></div>
+              <div><label style="font-size:11px;color:#5a6080">شناسه ثبت <span style="color:#4a5070">(اختیاری)</span></label><input class="inp" id="pr-o-regid" placeholder="—" autocomplete="off"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">
+              <div><label style="font-size:11px;color:#5a6080">فکس <span style="color:#4a5070">(اختیاری)</span></label><input class="inp" id="pr-o-fax" placeholder="۰۲۱-..." autocomplete="off"></div>
+              <div><label style="font-size:11px;color:#5a6080">کد پستی <span style="color:#4a5070">(اختیاری)</span></label><input class="inp" id="pr-o-post" placeholder="—" autocomplete="off"></div>
+            </div>
+            <div style="margin-top:11px">
+              <div><label style="font-size:11px;color:#5a6080">نشانی <span style="color:#4a5070">(اختیاری)</span></label><input class="inp" id="pr-o-address" placeholder="نشانیِ کامل..." autocomplete="off"></div>
             </div>
             <div style="margin-top:11px">
               <label style="font-size:11px;color:#5a6080">تاریخ برآورد</label>
@@ -3261,11 +3272,12 @@ function custBankProfile(key){
   var rows=CB_DATA.filter(function(r){ return cbKey(r)===key && (CB_TAB==='est'?cbIsEst(r):!cbIsEst(r)); });
   if(!rows.length) return;
   var label=cbGroupLabel(rows[0]);
-  var persons={}, orgs={}, tel='', address='', field='';
+  var persons={}, orgs={}, tel='', address='', field='', econ='', regid='', fax='', post='';
   var sumAnn=0,sumProfit=0,profitCount=0,sumMul=0,mulCount=0, byMonth={};
   rows.forEach(function(r){
     if(r.customer)persons[r.customer]=1; if(r.org)orgs[r.org]=1;
     if(!tel&&r.tel)tel=r.tel; if(!address&&r.address)address=r.address; if(!field&&r.field)field=r.field;
+    if(!econ&&r.econ)econ=r.econ; if(!regid&&r.regid)regid=r.regid; if(!fax&&r.fax)fax=r.fax; if(!post&&r.post)post=r.post;
     sumAnn+=(+r.announcedTotal||0); if(r.netProfit!=null){sumProfit+=(+r.netProfit||0);profitCount++;}
     if(+r.profitMul>0){sumMul+=(+r.profitMul);mulCount++;}
     var mk=(r.dateStr||'').split('/').slice(0,2).join('/')||'—'; if(!byMonth[mk])byMonth[mk]={ann:0,profit:0,cnt:0}; byMonth[mk].ann+=(+r.announcedTotal||0); byMonth[mk].profit+=(+r.netProfit||0); byMonth[mk].cnt++;
@@ -3290,8 +3302,9 @@ function custBankProfile(key){
         +'<div style="font-weight:700;color:#dfe3f5;margin-bottom:6px">اطلاعاتِ تماس</div>'
         +(Object.keys(orgs).length?'<div style="font-size:12px;color:#c7cce0">🏢 سازمان: '+escapeHtml(Object.keys(orgs).join('، '))+'</div>':'')
         +'<div style="font-size:12px;color:#c7cce0;margin-top:3px">👤 اشخاص: '+escapeHtml(Object.keys(persons).join('، ')||'—')+'</div>'
-        +'<div style="font-size:12px;color:#c7cce0;margin-top:3px">📞 '+escapeHtml(tel||'—')+'</div>'
-        +'<div style="font-size:12px;color:#c7cce0;margin-top:3px">📍 '+escapeHtml(address||'—')+'</div>'
+        +'<div style="font-size:12px;color:#c7cce0;margin-top:3px">📞 '+escapeHtml(tel||'—')+(fax?' &nbsp;·&nbsp; 📠 '+escapeHtml(fax):'')+'</div>'
+        +'<div style="font-size:12px;color:#c7cce0;margin-top:3px">📍 '+escapeHtml(address||'—')+(post?' &nbsp;·&nbsp; کد پستی: '+escapeHtml(post):'')+'</div>'
+        +((econ||regid)?'<div style="font-size:12px;color:#c7cce0;margin-top:3px">'+(econ?'کد اقتصادی: '+escapeHtml(econ):'')+(econ&&regid?' &nbsp;·&nbsp; ':'')+(regid?'شناسه ثبت: '+escapeHtml(regid):'')+'</div>':'')
         +(field?'<div style="font-size:12px;color:#7ab8ff;margin-top:3px">حوزهٔ کاری: '+escapeHtml(field)+'</div>':'')
       +'</div>'
       +'<div class="card" style="flex:1;min-width:200px;padding:12px">'
@@ -8011,6 +8024,11 @@ function prRenderOrder(){  var o = prState.order;
   prRefreshCategoryLists();
   document.getElementById('pr-o-ordername').value = o.orderName||'';
   document.getElementById('pr-o-tel').value       = o.tel||'';
+  { var _fEc=document.getElementById('pr-o-econ'); if(_fEc) _fEc.value = o.econ||''; }
+  { var _fRg=document.getElementById('pr-o-regid'); if(_fRg) _fRg.value = o.regid||''; }
+  { var _fFx=document.getElementById('pr-o-fax'); if(_fFx) _fFx.value = o.fax||''; }
+  { var _fAd=document.getElementById('pr-o-address'); if(_fAd) _fAd.value = o.address||''; }
+  { var _fPs=document.getElementById('pr-o-post'); if(_fPs) _fPs.value = o.post||''; }
   document.getElementById('pr-o-qty').value       = (o.qty!=null && o.qty!=='') ? o.qty : '';
   document.getElementById('pr-p-profit').value    = o.profit;
   document.getElementById('pr-p-institute').value = o.institute;
@@ -8167,6 +8185,11 @@ function prSyncOrderInputs(){
   var _of=g('pr-o-field'); if(_of!=null) o.field=_of;
   var nm=g('pr-o-ordername'); if(nm!=null) o.orderName=nm;
   var tl=g('pr-o-tel'); if(tl!=null) o.tel=tl;
+  var _ec=g('pr-o-econ'); if(_ec!=null) o.econ=_ec;
+  var _rg=g('pr-o-regid'); if(_rg!=null) o.regid=_rg;
+  var _fx=g('pr-o-fax'); if(_fx!=null) o.fax=_fx;
+  var _ad=g('pr-o-address'); if(_ad!=null) o.address=_ad;
+  var _ps=g('pr-o-post'); if(_ps!=null) o.post=_ps;
   var q=g('pr-o-qty'); if(q!=null && q!=='') o.qty=+q;
   var pf=g('pr-p-profit'); if(pf!=null && pf!=='') o.profit=+pf;
   var ins=g('pr-p-institute'); if(ins!=null && ins!=='') o.institute=+ins;
@@ -8553,7 +8576,7 @@ function prOnInput(e){
       return;
     }
     prState.order.manualUnit = v; var mn=document.getElementById('pr-manual-note'); if(mn) mn.style.display=(v>0?'block':'none'); prScheduleCompute(); return; }
-  var omap = {'pr-o-customer':'customer','pr-o-org':'org','pr-o-category':'category','pr-o-field':'field','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
+  var omap = {'pr-o-customer':'customer','pr-o-org':'org','pr-o-category':'category','pr-o-field':'field','pr-o-ordername':'orderName','pr-o-tel':'tel','pr-o-econ':'econ','pr-o-regid':'regid','pr-o-fax':'fax','pr-o-address':'address','pr-o-post':'post','pr-o-qty':'qty','pr-p-profit':'profit','pr-p-institute':'institute','pr-p-packaging':'packaging','pr-p-shipping':'shipping'};
   if(t.id==='pr-p-matnoprofit'){ prState.order.matNoProfit = !!t.checked; if(prState.order.matNoProfit && !(+prState.order.matRiskX>0)) prState.order.matRiskX = (+((document.getElementById('pr-p-matriskx')||{}).value)||1.2); prMnpSync(); prScheduleCompute(); return; }
   if(t.id==='pr-p-matriskx'){ prState.order.matRiskX = (+t.value>0)?+t.value:1; prScheduleCompute(); return; }
   if(omap[t.id]){ prState.order[omap[t.id]] = v; prScheduleCompute(); return; }
@@ -9598,6 +9621,10 @@ function ivOpenInvoice(opts){
   setTimeout(function(){ try{ ivFitPage(); }catch(e){} }, 60);
   { var _n=document.getElementById('iv-bname'); if(_n) _n.textContent = opts.customer || '—'; }
   var tel=document.getElementById('iv-btel'); if(tel) tel.textContent = opts.tel || '—';
+  // فیلدهای تکمیلیِ خریدار (کد اقتصادی/شناسه ثبت/فکس/نشانی/کد پستی) — فقط اگر برآورد مقدار دارد نشانده می‌شوند
+  // تا مقدارِ ذخیره‌شدهٔ فاکتورهای قبلی بی‌دلیل پاک نشود؛ ivLoadSavedData بعداً نسخهٔ ذخیره‌شده را رویش می‌نشاند.
+  (function(){ var _bmap={'iv-beco':opts.econ,'iv-breg':opts.regid,'iv-bfax':opts.fax,'iv-baddr':opts.address,'iv-bpost':opts.post};
+    for(var _k in _bmap){ var _el=document.getElementById(_k); if(_el && _bmap[_k]!=null && String(_bmap[_k]).trim()!=='') _el.textContent = String(_bmap[_k]); } })();
   try{ document.getElementById('iv-date').textContent = opts.dateStr || new Intl.DateTimeFormat('fa-IR').format(new Date()); }catch(e){}
   ivCurrentEstimateId = opts.estimateId || '';
   ivCurrentFolderId   = opts.folderId   || '';
@@ -9623,7 +9650,7 @@ function ivShowInvoice(){
   try{ if(typeof prSyncOrderInputs==='function') prSyncOrderInputs(); }catch(e){}   // مقادیرِ تازهٔ فرم (تلفن، سازمان...) قبل از ساختِ فاکتور همگام شوند
   var r=prLastResult, o=(prState&&prState.order)||{};
   var built = prBuildInvoiceItems(r, o);
-  ivOpenInvoice({ code:o.orderName, qty:(r.multi? (r.qty||1) : o.qty), unit:built.fallbackUnit, items:built.items, customer:o.customer, tel:o.tel, estimateId:'', folderId:'', orderCode:(prState&&prState.savedCode)||'' });
+  ivOpenInvoice({ code:o.orderName, qty:(r.multi? (r.qty||1) : o.qty), unit:built.fallbackUnit, items:built.items, customer:o.customer, tel:o.tel, econ:o.econ, regid:o.regid, fax:o.fax, address:o.address, post:o.post, estimateId:'', folderId:'', orderCode:(prState&&prState.savedCode)||'' });
 }
 function prToggleSetMode(){
   var w=document.getElementById('pr-wrap-setcount');
