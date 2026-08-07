@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V275</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V276</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9578,6 +9578,8 @@ function ivResetBuyer(){
   if(!confirm('مشخصات خریدار به دادهٔ برآورد برگردد؟\nردیف‌های جدول دست‌نمی‌خورد.')) return;
   var n=document.getElementById('iv-bname'); if(n) n.textContent = ivFreshSnap.customer || '—';
   var t=document.getElementById('iv-btel');  if(t) t.textContent = ivFreshSnap.tel || '—';
+  (function(){ var _m={'iv-beco':ivFreshSnap.econ,'iv-breg':ivFreshSnap.regid,'iv-bfax':ivFreshSnap.fax,'iv-baddr':ivFreshSnap.address,'iv-bpost':ivFreshSnap.post};
+    for(var _k in _m){ var _e=document.getElementById(_k); if(_e) _e.textContent = (_m[_k]!=null && String(_m[_k]).trim()!=='') ? String(_m[_k]) : '—'; } })();
   showToast('✅ مشخصات خریدار بازسازی شد — برای ماندگاری، ذخیره کن');
 }
 // ═══ عیب‌یابِ تلفن: در کنسول اجرا کن → debugTel()
@@ -9644,7 +9646,7 @@ function ivOpenInvoice(opts){
   ivCurrentEstimateId = opts.estimateId || '';
   ivCurrentFolderId   = opts.folderId   || '';
   // عکسِ لحظه‌ایِ دادهٔ تازهٔ برآورد — برای دکمه‌های «بازگردانی از برآورد»
-  ivFreshSnap = { items: ivItems.map(function(x){ return JSON.parse(JSON.stringify(x)); }), customer: opts.customer||'', tel: opts.tel||'' };
+  ivFreshSnap = { items: ivItems.map(function(x){ return JSON.parse(JSON.stringify(x)); }), customer: opts.customer||'', tel: opts.tel||'', econ: opts.econ||'', regid: opts.regid||'', fax: opts.fax||'', address: opts.address||'', post: opts.post||'' };
   ivMeta = { customer: opts.customer||'', orderName: (opts.code&&String(opts.code).indexOf('مطابق')<0)?opts.code:'سفارش', dateStr: opts.dateStr||'' };
   var ocode = (opts.orderCode && String(opts.orderCode).trim()) || '';
   var no=document.getElementById('iv-no'); if(no) no.textContent = ocode || '—';
@@ -10422,7 +10424,8 @@ function archiveOpenInvoice(id){
   callSheet('getEstimate', { id:id, t:Date.now() }, function(res){
     if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در بارگذاری سفارش'); return; }
     ivOpenInvoice({ code:res.orderName, qty:res.qty, unit:res.perUnit, items:res.items, customer:res.customer,
-      tel:res.tel, dateStr:res.dateStr, estimateId:id, folderId:res.folderId, orderCode:res.code });
+      tel:res.tel, econ:res.econ, regid:res.regid, fax:res.fax, address:res.address, post:res.post,
+      dateStr:res.dateStr, estimateId:id, folderId:res.folderId, orderCode:res.code });
     // اگر قبلاً محتوای فاکتور ذخیره شده، رویِ نسخه‌ی ساخته‌شده از برآورد بنشان (آدرس/توضیحات/اعداد ویرایش‌شده)
     ivLoadSavedData(id, function(loaded){ if(loaded) showToast('✅ آخرین نسخه‌ی ذخیره‌شده‌ی فاکتور بازیابی شد'); });
   });
