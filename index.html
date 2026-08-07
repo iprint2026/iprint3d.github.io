@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V286</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V287</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8305,8 +8305,15 @@ function schedUsedMachines(){
     if(!l || !l.machineId) return;
     used[l.machineId] = true;
   });
+  // فهرست از خودِ شناسه‌های استفاده‌شده ساخته می‌شود؛ نامِ خوانا اگر موجود بود از prState.machines
+  var byId = {};
+  (prState.machines||[]).forEach(function(m){ byId[m.id] = m; });
   var out = [];
-  (prState.machines||[]).forEach(function(m){ if(used[m.id]) out.push(m); });
+  for(var id in used){
+    if(!used.hasOwnProperty(id)) continue;
+    var def = byId[id];
+    out.push({ id:id, name:(def && def.name) ? def.name : id, type:(def && def.type) || '' });
+  }
   return out;
 }
 
@@ -8395,6 +8402,18 @@ function schedLoadFor(id){
       if(!prState.order.schedule) prState.order.schedule = null;
       prState.lines = (r && r.lines) ? r.lines : [];                 // lines بیرونِ order برمی‌گردد
     }catch(e){}
+    // اگر فهرستِ تعریفِ دستگاه‌ها هنوز نیامده، یک‌بار بگیر تا نامِ خوانا نشان داده شود
+    if(!(prState.machines && prState.machines.length)){
+      callSheet('getPricingConfig', { t:Date.now() }, function(cr){
+        try{
+          if(cr && cr.status==='ok' && cr.config && Array.isArray(cr.config.machines)){
+            prState.machines = cr.config.machines;
+          }
+        }catch(e){}
+        schedOpen=false; schedRender();
+      });
+      return;
+    }
     schedOpen=false; schedRender();
   });
 }
@@ -8495,6 +8514,7 @@ function schedCompute(){
   // ── مرحلهٔ ۲: ظرفیتِ روزانه ──
   var machNames = {};
   (prState.machines||[]).forEach(function(m){ machNames[m.id]=m.name||m.id; });
+  schedUsedMachines().forEach(function(m){ if(!machNames[m.id]) machNames[m.id]=m.name; });
   var parMax = 0, serSum = 0, machDetail='', hasSerial=false, parCount=0;
   for(var mid in byMachine){
     var cnt = Math.max(1, schedNum((c.machines||{})[mid], 1));
@@ -9224,8 +9244,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V286 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V286";
+try{ if(window.console) console.log('%c iPrint3D FRONT V287 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V287";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
