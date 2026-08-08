@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V291</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V292</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8759,7 +8759,11 @@ function schedCompute(){
     if(dateList && dateList.length){
       Array.prototype.forEach.call(document.querySelectorAll('.sched-dcell'),function(el){
         var n = +el.getAttribute('data-d');
-        if(n>=1 && dateList[n-1]) el.textContent = prToFa(dateList[n-1]);
+        if(n>=1 && dateList[n-1]){
+          var it = dateList[n-1];
+          var nm = { sat:'شنبه', sun:'یک‌شنبه', mon:'دوشنبه', tue:'سه‌شنبه', wed:'چهارشنبه', thu:'پنج‌شنبه', fri:'جمعه' }[it.dow] || '';
+          el.innerHTML = (nm ? '<span style="color:#8a93b2">'+nm+'</span><br>' : '') + prToFa(it.k);
+        }
       });
     }
   });
@@ -8799,7 +8803,7 @@ function schedDeliveryDate(workDays, c, cb){
       var dowOk = dowKey ? !!(c.days && c.days[dowKey]) : true;
       if(isOfficial) skippedHol++;
       else if(!dowOk) skippedDow++;
-      else { counted++; last=k; dateList.push(k); }
+      else { counted++; last=k; dateList.push({ k:k, dow:dowKey }); }
       if(counted<workDays){ next(cur); i++; }
     }
     var _dateOnly = last||'';
@@ -9430,8 +9434,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V291 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V291";
+try{ if(window.console) console.log('%c iPrint3D FRONT V292 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V292";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
