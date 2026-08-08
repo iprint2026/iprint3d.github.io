@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V296</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V297</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8788,6 +8788,7 @@ function schedCompute(){
 // روزِ هفته از خودِ شیتِ تقویم می‌آید (ستونِ جمعه‌ها) و بقیهٔ روزها از چرخهٔ ۷روزه.
 function schedDeliveryDate(workDays, c, cb){
   var start = String(c.startDate||'').trim().replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);});
+  if(!start){ try{ start = todayShamsi()||''; }catch(e){ start=''; } }   // خالی = امروز
   var m = start.match(/^(\d{3,4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
   if(!m){ cb('<span style="color:#8a6a2a">تاریخِ شروع وارد نشده — برای دیدنِ تاریخ روی جدول، تاریخِ شروع را پر کن.</span>','',[]); return; }
   var yy=+m[1], mm=+m[2], dd=+m[3];
@@ -8854,29 +8855,29 @@ function schedExportPDF(){
       if(!st) return '<td style="'+schTD+'">—</td>';
       var add=d.made[n]||0, z=(st.finished===0);
       return '<td style="'+schTD+'"><span style="font-weight:700;color:'+(z?'#bbb':'#111')+'">'+fa(st.finished)+'</span>'
-           + '<span style="color:#aaa;font-size:8.5px">/'+fa(st.need)+'</span>'
-           + (add?'<div style="font-size:8.5px;color:#1a7a3c">+'+fa(add)+'</div>':'')+'</td>';
+           + '<span style="color:#aaa;font-size:10.5px">/'+fa(st.need)+'</span>'
+           + (add?'<div style="font-size:10.5px;color:#1a7a3c">+'+fa(add)+'</div>':'')+'</td>';
     }).join('');
     return '<tr style="background:'+(d.day%2?'#fff':'#fafafa')+'">'
-      +'<td style="'+schTD+';background:#f4f4f6;width:64px">'
-      +  '<div style="font-weight:700;font-size:11px">'+fa(d.day)+'</div>'
-      +  (dt?'<div style="font-size:8px;color:#777">'+esc(DN[dt.dow]||'')+'</div><div style="font-size:8.5px;color:#333">'+fa(dt.k)+'</div>':'')
+      +'<td style="'+schTD+';background:#f4f4f6;width:96px">'
+      +  '<div style="font-weight:700;font-size:14px">'+fa(d.day)+'</div>'
+      +  (dt?'<div style="font-size:10.5px;color:#777">'+esc(DN[dt.dow]||'')+'</div><div style="font-size:11px;color:#222;font-weight:600">'+fa(dt.k)+'</div>':'')
       +'</td>'+cells
-      +'<td style="'+schTD+';background:#eef9f1;font-weight:700;font-size:12px;color:'+(d.sets?'#1a7a3c':'#bbb')+';width:60px">'+fa(d.sets)+'</td></tr>';
+      +'<td style="'+schTD+';background:#eef9f1;font-weight:700;font-size:16px;color:'+(d.sets?'#1a7a3c':'#bbb')+';width:82px">'+fa(d.sets)+'</td></tr>';
   }).join('');
 
   var host=document.getElementById('sched-pdf-host');
   if(host&&host.parentNode) host.parentNode.removeChild(host);
   host=document.createElement('div');
   host.id='sched-pdf-host';
-  host.style.cssText='position:fixed;left:-10000px;top:0;width:794px;background:#fff;padding:34px 30px;'
-    +'font-family:Tahoma,sans-serif;color:#111;direction:rtl;font-size:11px;line-height:1.65;z-index:-1';
+  host.style.cssText='position:fixed;left:-10000px;top:0;width:1000px;background:#fff;padding:42px 38px;'
+    +'font-family:Tahoma,sans-serif;color:#111;direction:rtl;font-size:13px;line-height:1.7;z-index:-1';
 
   host.innerHTML =
      '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #111;padding-bottom:10px;margin-bottom:16px">'
-    +  '<div><div style="font-size:21px;font-weight:700">تقویم اجرایی پروژه</div>'
-    +    '<div style="color:#555;font-size:12px;margin-top:4px">'+esc(title)+(cust?' &nbsp;·&nbsp; '+esc(cust):'')+'</div></div>'
-    +  (code?'<div style="border:1.5px solid #111;border-radius:5px;padding:6px 14px;font-weight:700;font-size:14px">'+esc(code)+'</div>':'')
+    +  '<div><div style="font-size:26px;font-weight:700">تقویم اجرایی پروژه</div>'
+    +    '<div style="color:#555;font-size:14px;margin-top:5px">'+esc(title)+(cust?' &nbsp;·&nbsp; '+esc(cust):'')+'</div></div>'
+    +  (code?'<div style="border:1.5px solid #111;border-radius:5px;padding:7px 17px;font-weight:700;font-size:17px">'+esc(code)+'</div>':'')
     +'</div>'
     +'<div style="display:flex;gap:8px;margin-bottom:16px">'
     +  schKPI('مدت اجرا', fa(sim.totalDays)+' روز کاری', '#111')
@@ -8897,29 +8898,41 @@ function schedExportPDF(){
     +  (P.safety>1?schKV('ضریب اطمینان', fa(P.safety)+'  (از '+fa(P.baseDays.toFixed(1))+' به '+fa((P.baseDays*P.safety).toFixed(1))+' روز)', true):'')
     +  schKV('تعطیلات رسمی تقویم', c.holidaysOff?'کنار گذاشته شده':'کنار گذاشته نشده', true)
     +'</div>'
+    + schH2('هدفِ روزانه — چه مقدار باید تحویل شود')
+    +'<div style="background:#f2f7fb;border:1px solid #cfdfeb;border-radius:7px;padding:12px 15px;margin-bottom:18px;font-size:13px;line-height:2">'
+    + names.map(function(n){
+        var pt=null; P.parts.forEach(function(x){ if(x.name===n) pt=x; });
+        if(!pt) return '';
+        var perDay = Math.ceil(pt.qty / Math.max(1,sim.totalDays));
+        return '<div><b>'+esc(n)+'</b>: روزانه حدود <b style="color:#1a5c8a">'+fa(perDay)+' عدد</b>'
+             + '<span style="color:#777"> (مجموع '+fa(pt.qty)+' عدد در '+fa(sim.totalDays)+' روز)</span></div>';
+      }).join('')
+    +'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cfdfeb;color:#555;font-size:12px">'
+    +'برای رسیدن به تحویلِ به‌موقع، در جدولِ پایین ستونِ هر روز را با کارِ انجام‌شده مقایسه کنید.</div>'
+    +'</div>'
     + schH2('نقاط مهم — پیشرفت محصول کامل')
     +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">'
     + (mile.length?mile.slice(0,14).map(function(d){ var dt=dates[d.day-1];
-        return '<div style="border:1px solid #cfe0d4;background:#f4fbf6;border-radius:6px;padding:6px 10px;text-align:center;min-width:92px">'
-          +'<div style="font-size:8.5px;color:#666">روز '+fa(d.day)+(dt?' · '+fa(dt.k):'')+'</div>'
-          +'<div style="font-weight:700;font-size:13px;color:#1a7a3c">'+fa(d.sets)+'</div></div>';
+        return '<div style="border:1px solid #cfe0d4;background:#f4fbf6;border-radius:6px;padding:6px 10px;text-align:center;min-width:120px">'
+          +'<div style="font-size:11px;color:#666">روز '+fa(d.day)+(dt?' · '+fa(dt.k):'')+'</div>'
+          +'<div style="font-weight:700;font-size:17px;color:#1a7a3c">'+fa(d.sets)+'</div></div>';
       }).join(''):'<div style="color:#888">—</div>')
     +'</div>'
     + schH2('برنامه روزبه‌روز')
-    +'<table style="width:100%;border-collapse:collapse;font-size:9.5px;table-layout:fixed">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">'
     +'<thead><tr style="background:#e9e9ec">'
     +'<th style="'+schTH+'">روز'+(dates.length?' / تاریخ':'')+'</th>'
     + names.map(function(n){ return '<th style="'+schTH+'">'+esc(n)+'</th>'; }).join('')
-    +'<th style="'+schTH+'">محصول کامل<div style="font-weight:400;color:#888;font-size:8.5px">از '+fa(totalSets)+'</div></th>'
+    +'<th style="'+schTH+'">محصول کامل<div style="font-weight:400;color:#888;font-size:10.5px">از '+fa(totalSets)+'</div></th>'
     +'</tr></thead><tbody>'+rows+'</tbody></table>'
-    +'<div style="margin-top:12px;padding-top:7px;border-top:1px solid #ddd;color:#888;font-size:8.5px;display:flex;justify-content:space-between">'
+    +'<div style="margin-top:12px;padding-top:7px;border-top:1px solid #ddd;color:#888;font-size:10.5px;display:flex;justify-content:space-between">'
     +'<span>iPrint3D — تقویم اجرایی پروژه</span><span>هر خانه: آمادهٔ نهایی از کل مورد نیاز · «+N» تولید همان روز</span></div>';
 
   document.body.appendChild(host);
   showToast('در حال ساخت PDF...');
 
   function go(){
-    html2canvas(host,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:794,width:794}).then(function(canvas){
+    html2canvas(host,{scale:3,backgroundColor:'#ffffff',useCORS:true,windowWidth:1000,width:1000,letterRendering:true}).then(function(canvas){
       try{
         var jsPDF=window.jspdf.jsPDF, pdf=new jsPDF('p','mm','a4');
         var pw=210, ph=297, imgH=canvas.height*pw/canvas.width;
@@ -8931,7 +8944,7 @@ function schedExportPDF(){
           cv.width=canvas.width; cv.height=sliceH;
           cv.getContext('2d').drawImage(canvas,0,pg*pageCanvasH,canvas.width,sliceH,0,0,canvas.width,sliceH);
           if(pg>0) pdf.addPage();
-          pdf.addImage(cv.toDataURL('image/jpeg',0.94),'JPEG',0,0,pw,sliceH*pw/canvas.width);
+          pdf.addImage(cv.toDataURL('image/png'),'PNG',0,0,pw,sliceH*pw/canvas.width);
         }
         var nm='تقویم-اجرایی'+(code?'-'+code:'')+'.pdf';
         pdf.save(nm);
@@ -8947,18 +8960,18 @@ function schedExportPDF(){
   if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(go,250); }); }
   else setTimeout(go,250);
 }
-var schTD='border:1px solid #d9d9d9;padding:4px 3px;text-align:center;vertical-align:middle';
-var schTH='border:1px solid #d9d9d9;padding:6px 3px;text-align:center;font-weight:700;font-size:9.5px';
+var schTD='border:1px solid #d0d0d0;padding:7px 5px;text-align:center;vertical-align:middle';
+var schTH='border:1px solid #d9d9d9;padding:9px 5px;text-align:center;font-weight:700;font-size:12px';
 function schKPI(t,v,col){
   return '<div style="flex:1;background:#f4f5f7;border-radius:7px;padding:10px 12px;text-align:center">'
-    +'<div style="font-size:9px;color:#6a6a6a">'+t+'</div>'
-    +'<div style="font-size:15px;font-weight:700;margin-top:3px;color:'+col+'">'+v+'</div></div>';
+    +'<div style="font-size:11px;color:#6a6a6a">'+t+'</div>'
+    +'<div style="font-size:19px;font-weight:700;margin-top:4px;color:'+col+'">'+v+'</div></div>';
 }
 function schH2(t){
-  return '<div style="font-size:12px;font-weight:700;margin:0 0 8px;padding-right:9px;border-right:3px solid #111">'+t+'</div>';
+  return '<div style="font-size:15px;font-weight:700;margin:0 0 10px;padding-right:11px;border-right:3px solid #111">'+t+'</div>';
 }
 function schKV(k,v,full){
-  return '<div style="width:'+(full?'100%':'50%')+';font-size:10px;padding:2px 0">'
+  return '<div style="width:'+(full?'100%':'50%')+';font-size:12.5px;padding:3px 0">'
     +'<span style="color:#666">'+k+':</span> <b>'+v+'</b></div>';
 }
 function schedSummaryText(){
@@ -9581,8 +9594,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V296 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V296";
+try{ if(window.console) console.log('%c iPrint3D FRONT V297 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V297";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
