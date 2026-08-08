@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V290</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V291</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8695,6 +8695,7 @@ function schedCompute(){
   var P = '';
   try{
     var sim = schedSimulate(parts, c);
+    window._schedLastPlanDays = sim.totalDays;
     var names = parts.map(function(x){ return x.name; });
     // نقاطِ مهم: روزی که تعدادِ محصولِ کامل تغییر می‌کند
     var mile = [], prevSets = 0;
@@ -8721,7 +8722,8 @@ function schedCompute(){
              + (add ? '<div style="color:#34d399;font-size:10px">+'+prToFa(add)+' امروز</div>' : '')+'</td>';
       }).join('');
       var pct = totalSets ? Math.round((d.sets/totalSets)*100) : 0;
-      return '<tr><td style="padding:5px 6px;text-align:center;border-top:1px solid #1a2440;color:#8a93b2;font-weight:700">'+prToFa(d.day)+'</td>'
+      return '<tr><td style="padding:5px 6px;text-align:center;border-top:1px solid #1a2440;color:#8a93b2;font-weight:700">'+prToFa(d.day)
+           +   '<div class="sched-dcell" data-d="'+d.day+'" style="font-weight:400;font-size:10px;color:#6b7280;white-space:nowrap">—</div></td>'
            + cells
            + '<td style="padding:5px 6px;text-align:center;border-top:1px solid #1a2440;color:'+(d.sets?'#34d399':'#5a6080')+';font-weight:700">'
            +   prToFa(d.sets)
@@ -8739,7 +8741,7 @@ function schedCompute(){
       +     '</div></div>'
       +   '<div style="max-height:340px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px;color:#c7cce0">'
       +     '<thead><tr style="background:#0f1428;position:sticky;top:0">'
-      +       '<th style="padding:7px 6px;font-size:11px;color:#8a93b2">روز</th>'
+      +       '<th style="padding:7px 6px;font-size:11px;color:#8a93b2">روز<div style="font-weight:400;font-size:9.5px;color:#5a6080">تاریخ</div></th>'
       +       names.map(function(n){ return '<th style="padding:7px 6px;font-size:11px;color:#8a93b2">'+escapeHtml(n)+'</th>'; }).join('')
       +       '<th style="padding:7px 6px;font-size:11px;color:#34d399">محصولِ کامل<div style="font-weight:400;font-size:9.5px;color:#5a6080">از '+prToFa(totalSets)+'</div></th>'
       +     '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
@@ -8749,9 +8751,17 @@ function schedCompute(){
   // خلاصه روی سرتیترِ کشویی نگه داشته می‌شود
   schedEnsure().result = { days: workDays, date: '', at: Date.now() };
   schedPaintBadge();
-  schedDeliveryDate(workDays, c, function(txt, dateOnly){
+  var needDays = Math.max(workDays, (window._schedLastPlanDays||0));
+  schedDeliveryDate(needDays, c, function(txt, dateOnly, dateList){
     Array.prototype.forEach.call(document.querySelectorAll('#sched-date-line'),function(el){ el.innerHTML=txt; });
     try{ var rr=schedEnsure().result; if(rr){ rr.date = dateOnly||''; schedPaintBadge(); } }catch(e){}
+    // تاریخِ واقعی روی هر ردیفِ جدول
+    if(dateList && dateList.length){
+      Array.prototype.forEach.call(document.querySelectorAll('.sched-dcell'),function(el){
+        var n = +el.getAttribute('data-d');
+        if(n>=1 && dateList[n-1]) el.textContent = prToFa(dateList[n-1]);
+      });
+    }
   });
 }
 
@@ -8760,10 +8770,10 @@ function schedCompute(){
 function schedDeliveryDate(workDays, c, cb){
   var start = String(c.startDate||'').trim().replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);});
   var m = start.match(/^(\d{3,4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
-  if(!m){ cb('<span style="color:#8a6a2a">تاریخِ شروع وارد نشده — تاریخِ تحویل محاسبه نشد.</span>',''); return; }
+  if(!m){ cb('<span style="color:#8a6a2a">تاریخِ شروع وارد نشده — برای دیدنِ تاریخ روی جدول، تاریخِ شروع را پر کن.</span>','',[]); return; }
   var yy=+m[1], mm=+m[2], dd=+m[3];
   callSheet('calendarGet', { year:yy, t:Date.now() }, function(r){
-    if(!(r && r.status==='ok')){ cb('<span style="color:#8a6a2a">تقویم در دسترس نبود — فقط روزِ کاری محاسبه شد.</span>',''); return; }
+    if(!(r && r.status==='ok')){ cb('<span style="color:#8a6a2a">تقویم در دسترس نبود — فقط روزِ کاری محاسبه شد.</span>','',[]); return; }
     var official = r.official||{}, fridays = r.fridays||{};
     var mons=[31,31,31,31,31,31,30,30,30,30,30,29];
     function p2(n){ return (n<10?'0':'')+n; }
@@ -8776,7 +8786,7 @@ function schedDeliveryDate(workDays, c, cb){
     // idx روزِ هفته نسبت به شروع: (i - anchorIdx) mod 7 == 0  یعنی جمعه
     var DOW=['sat','sun','mon','tue','wed','thu','fri'];
 
-    var counted=0, guard=0, last=null, skippedHol=0, skippedDow=0, i=0;
+    var counted=0, guard=0, last=null, skippedHol=0, skippedDow=0, i=0, dateList=[];
     while(counted<workDays && guard<3000){
       guard++;
       var k=key(cur);
@@ -8789,7 +8799,7 @@ function schedDeliveryDate(workDays, c, cb){
       var dowOk = dowKey ? !!(c.days && c.days[dowKey]) : true;
       if(isOfficial) skippedHol++;
       else if(!dowOk) skippedDow++;
-      else { counted++; last=k; }
+      else { counted++; last=k; dateList.push(k); }
       if(counted<workDays){ next(cur); i++; }
     }
     var _dateOnly = last||'';
@@ -8797,7 +8807,7 @@ function schedDeliveryDate(workDays, c, cb){
     txt += '<div style="font-size:11px;color:#8a93b2;margin-top:3px">'
         +  'در این بازه '+prToFa(skippedDow)+' روزِ غیرکاری و '+prToFa(skippedHol)+' روزِ تعطیلِ رسمی کنار گذاشته شد.</div>';
     if(anchorIdx<0) txt += '<div style="font-size:11px;color:#8a6a2a">روزِ هفته از تقویم تشخیص داده نشد؛ فقط تعطیلاتِ رسمی لحاظ شد.</div>';
-    cb(txt, _dateOnly);
+    cb(txt, _dateOnly, dateList);
   });
 }
 function schedSummaryText(){
@@ -9420,8 +9430,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V290 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V290";
+try{ if(window.console) console.log('%c iPrint3D FRONT V291 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V291";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
