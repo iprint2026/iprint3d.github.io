@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V298</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V299</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8877,113 +8877,149 @@ function schedExportPDF(){
       +'<td style="'+schTD+';background:#eef9f1;font-weight:700;font-size:16px;color:'+(d.sets?'#1a7a3c':'#bbb')+';width:82px">'+fa(d.sets)+'</td></tr>';
   }).join('');
 
+  // ── ساختِ صفحه‌به‌صفحهٔ A4 (هر صفحه جدا رندر می‌شود تا ردیفی نصف نشود) ──
+  var PW=1000, PH=Math.round(PW*297/210);          // نسبتِ دقیقِ A4
+  var ROWS_FIRST=9, ROWS_NEXT=17;                  // ردیف در صفحهٔ اول و صفحاتِ بعد
+  var allRows=sim.days.slice();
+  var chunks=[], idx=0;
+  chunks.push(allRows.slice(0, ROWS_FIRST)); idx=ROWS_FIRST;
+  while(idx<allRows.length){ chunks.push(allRows.slice(idx, idx+ROWS_NEXT)); idx+=ROWS_NEXT; }
+
+  function rowHtml(d){
+    var dt=dates[d.day-1];
+    var cells=names.map(function(n){
+      var st=null; d.state.forEach(function(x){ if(x.name===n) st=x; });
+      if(!st) return '<td style="'+schTD+'">—</td>';
+      var add=d.made[n]||0, z=(st.finished===0), full=(st.finished>=st.need);
+      return '<td style="'+schTD+(full?';background:#f3faf5':'')+'">'
+           + '<span style="font-weight:700;font-size:15px;color:'+(z?'#c4c4c4':(full?'#1a7a3c':'#111'))+'">'+fa(st.finished)+'</span>'
+           + '<span style="color:#9a9a9a;font-size:11px">‏/'+fa(st.need)+'</span>'
+           + (add?'<div style="font-size:11px;color:#1a7a3c;margin-top:2px">+'+fa(add)+'</div>':'')+'</td>';
+    }).join('');
+    return '<tr style="background:'+(d.day%2?'#ffffff':'#f8f9fa')+'">'
+      +'<td style="'+schTD+';background:#eef0f4;width:110px">'
+      +  '<div style="font-weight:700;font-size:16px;color:#111">'+fa(d.day)+'</div>'
+      +  (dt?'<div style="font-size:11px;color:#666;margin-top:1px">'+esc(DN[dt.dow]||'')+'</div>'
+           +'<div style="font-size:12px;color:#111;font-weight:600;direction:ltr">'+fa(dt.k)+'</div>':'')
+      +'</td>'+cells
+      +'<td style="'+schTD+';background:#e9f6ed;width:95px">'
+      +  '<div style="font-weight:700;font-size:19px;color:'+(d.sets?'#15682f':'#c4c4c4')+'">'+fa(d.sets)+'</div></td></tr>';
+  }
+  function tableHtml(rowsArr, cont){
+    return '<table style="width:100%;border-collapse:collapse;table-layout:fixed">'
+      +'<thead><tr style="background:#2b3245">'
+      +'<th style="'+schTH+';width:110px">روز'+(dates.length?' / تاریخ':'')+'</th>'
+      + names.map(function(n){ return '<th style="'+schTH+'">'+esc(n)+'</th>'; }).join('')
+      +'<th style="'+schTH+';width:95px">محصول کامل<div style="font-weight:400;color:#c3ccd8;font-size:11px;margin-top:1px">از '+fa(totalSets)+'</div></th>'
+      +'</tr></thead><tbody>'+rowsArr.map(rowHtml).join('')+'</tbody></table>'
+      + (cont?'<div style="text-align:center;color:#999;font-size:11px;margin-top:8px">ادامه در صفحهٔ بعد</div>':'');
+  }
+  function footHtml(pn, tot){
+    return '<div style="position:absolute;left:44px;right:44px;bottom:30px;padding-top:9px;border-top:1px solid #dcdcdc;'
+      +'color:#8a8a8a;font-size:11px;display:flex;justify-content:space-between">'
+      +'<span>iPrint3D — تقویم اجرایی'+(code?' · '+esc(code):'')+'</span>'
+      +'<span>صفحهٔ '+fa(pn)+' از '+fa(tot)+'</span></div>';
+  }
+  function headHtml(small){
+    return '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:'+(small?'1.5px':'3px')+' solid #1a1f2e;padding-bottom:'+(small?'9px':'14px')+';margin-bottom:'+(small?'16px':'22px')+'">'
+      +'<div><div style="font-size:'+(small?'19px':'30px')+';font-weight:700;color:#1a1f2e;letter-spacing:-.5px">تقویم اجرایی پروژه</div>'
+      +'<div style="color:#5a6070;font-size:'+(small?'13px':'16px')+';margin-top:'+(small?'2px':'6px')+'">'+esc(title)+(cust?' &nbsp;·&nbsp; '+esc(cust):'')+'</div></div>'
+      +(code?'<div style="border:2px solid #1a1f2e;border-radius:7px;padding:'+(small?'5px 12px':'8px 20px')+';font-weight:700;font-size:'+(small?'14px':'20px')+';color:#1a1f2e">'+esc(code)+'</div>':'')
+      +'</div>';
+  }
+
   var host=document.getElementById('sched-pdf-host');
   if(host&&host.parentNode) host.parentNode.removeChild(host);
   host=document.createElement('div');
   host.id='sched-pdf-host';
-  host.style.cssText='position:fixed;left:-10000px;top:0;width:1000px;background:#fff;padding:42px 38px;'
-    +'font-family:Tahoma,sans-serif;color:#111;direction:rtl;font-size:13px;line-height:1.7;z-index:-1';
+  host.style.cssText='position:fixed;left:-20000px;top:0;width:'+PW+'px;background:#fff;z-index:-1;'
+    +'font-family:Tahoma,sans-serif;color:#1a1f2e;direction:rtl';
 
-  host.innerHTML =
-     '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #111;padding-bottom:10px;margin-bottom:16px">'
-    +  '<div><div style="font-size:26px;font-weight:700">تقویم اجرایی پروژه</div>'
-    +    '<div style="color:#555;font-size:14px;margin-top:5px">'+esc(title)+(cust?' &nbsp;·&nbsp; '+esc(cust):'')+'</div></div>'
-    +  (code?'<div style="border:1.5px solid #111;border-radius:5px;padding:7px 17px;font-weight:700;font-size:17px">'+esc(code)+'</div>':'')
-    +'</div>'
-    +'<div style="display:flex;gap:8px;margin-bottom:16px">'
-    +  schKPI('مدت اجرا', fa(sim.totalDays)+' روز کاری', '#111')
-    +  schKPI('شروع', firstDate?fa(firstDate):'—', '#111')
-    +  schKPI('تحویل نهایی', lastDate?fa(lastDate):'—', '#1a7a3c')
-    +  schKPI('تعداد محصول', fa(totalSets)+' عدد', '#111')
-    +'</div>'
-    + (!dates.length?'<div style="background:#fff8e6;border:1px solid #e8d9a8;border-radius:6px;padding:8px 11px;font-size:10px;color:#6b5518;margin-bottom:14px">تاریخِ شروع وارد نشده است؛ ستونِ تاریخ خالی است و فقط شمارهٔ روزهای کاری نمایش داده می‌شود.</div>':'')
-    + schH2('شرایط محاسبه')
-    +'<div style="display:flex;flex-wrap:wrap;background:#fafafa;border:1px solid #e4e4e4;border-radius:6px;padding:10px 13px;margin-bottom:16px">'
-    +  schKV('ساعت کاری روزانه', fa(schedNum(c.hoursPerDay,10))+' ساعت')
-    +  schKV('تعداد اپراتور', fa(schedNum(c.operators,1))+' نفر')
-    +  schKV('مجموع زمان دستگاه', esc(schedFmtHours(P.totMach)))
-    +  schKV('مجموع نیروی انسانی', esc(schedFmtHours(P.totLabor)))
-    +  schKV('حالت کار', c.mode==='parallel'?'همزمان':'سریالی')
-    +  schKV('نوبت‌بندی قطعات', c.queue==='seq'?'پشتِ سرِ هم':'چرخشی')
-    +  schKV('روزهای کاری هفته', esc(dayNames), true)
-    +  (P.safety>1?schKV('ضریب اطمینان', fa(P.safety)+'  (از '+fa(P.baseDays.toFixed(1))+' به '+fa((P.baseDays*P.safety).toFixed(1))+' روز)', true):'')
-    +  schKV('تعطیلات رسمی تقویم', c.holidaysOff?'کنار گذاشته شده':'کنار گذاشته نشده', true)
-    +'</div>'
-    + schH2('هدفِ روزانه — چه مقدار باید تحویل شود')
-    +'<div style="background:#f2f7fb;border:1px solid #cfdfeb;border-radius:7px;padding:12px 15px;margin-bottom:18px;font-size:13px;line-height:2">'
-    + names.map(function(n){
-        var pt=null; P.parts.forEach(function(x){ if(x.name===n) pt=x; });
-        if(!pt) return '';
-        var perDay = Math.ceil(pt.qty / Math.max(1,sim.totalDays));
-        return '<div><b>'+esc(n)+'</b>: روزانه حدود <b style="color:#1a5c8a">'+fa(perDay)+' عدد</b>'
-             + '<span style="color:#777"> (مجموع '+fa(pt.qty)+' عدد در '+fa(sim.totalDays)+' روز)</span></div>';
-      }).join('')
-    +'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cfdfeb;color:#555;font-size:12px">'
-    +'برای رسیدن به تحویلِ به‌موقع، در جدولِ پایین ستونِ هر روز را با کارِ انجام‌شده مقایسه کنید.</div>'
-    +'</div>'
-    + schH2('نقاط مهم — پیشرفت محصول کامل')
-    +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">'
-    + (mile.length?mile.slice(0,14).map(function(d){ var dt=dates[d.day-1];
-        return '<div style="border:1px solid #cfe0d4;background:#f4fbf6;border-radius:6px;padding:6px 10px;text-align:center;min-width:120px">'
-          +'<div style="font-size:11px;color:#666">روز '+fa(d.day)+(dt?' · '+fa(dt.k):'')+'</div>'
-          +'<div style="font-weight:700;font-size:17px;color:#1a7a3c">'+fa(d.sets)+'</div></div>';
-      }).join(''):'<div style="color:#888">—</div>')
-    +'</div>'
-    + schH2('برنامه روزبه‌روز')
-    +'<table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">'
-    +'<thead><tr style="background:#e9e9ec">'
-    +'<th style="'+schTH+'">روز'+(dates.length?' / تاریخ':'')+'</th>'
-    + names.map(function(n){ return '<th style="'+schTH+'">'+esc(n)+'</th>'; }).join('')
-    +'<th style="'+schTH+'">محصول کامل<div style="font-weight:400;color:#888;font-size:10.5px">از '+fa(totalSets)+'</div></th>'
-    +'</tr></thead><tbody>'+rows+'</tbody></table>'
-    +'<div style="margin-top:12px;padding-top:7px;border-top:1px solid #ddd;color:#888;font-size:10.5px;display:flex;justify-content:space-between">'
-    +'<span>iPrint3D — تقویم اجرایی پروژه</span><span>هر خانه: آمادهٔ نهایی از کل مورد نیاز · «+N» تولید همان روز</span></div>';
-
+  var pagesHtml='';
+  chunks.forEach(function(ch, ci){
+    var body='';
+    if(ci===0){
+      body = headHtml(false)
+       +'<div style="display:flex;gap:11px;margin-bottom:22px">'
+       +  schKPI('مدت اجرا', fa(sim.totalDays)+' روز کاری', '#1a1f2e')
+       +  schKPI('شروع', firstDate?fa(firstDate):'—', '#1a1f2e')
+       +  schKPI('تحویل نهایی', lastDate?fa(lastDate):'—', '#15682f')
+       +  schKPI('تعداد محصول', fa(totalSets)+' عدد', '#1a1f2e')
+       +'</div>'
+       + schH2('هدفِ روزانه — چه مقدار باید تحویل شود')
+       +'<div style="background:#f0f6fc;border:1px solid #cddff0;border-radius:9px;padding:14px 18px;margin-bottom:20px">'
+       + names.map(function(n){
+           var pt=null; P.parts.forEach(function(x){ if(x.name===n) pt=x; });
+           if(!pt) return '';
+           var perDay=Math.ceil(pt.qty/Math.max(1,sim.totalDays));
+           return '<div style="font-size:15px;padding:3px 0"><b>'+esc(n)+'</b>'
+             +' <span style="color:#666">→</span> روزانه <b style="color:#15558a;font-size:17px">'+fa(perDay)+' عدد</b>'
+             +' <span style="color:#7a7a7a;font-size:13px">(مجموع '+fa(pt.qty)+' عدد در '+fa(sim.totalDays)+' روز)</span></div>';
+         }).join('')
+       +'</div>'
+       + schH2('شرایط محاسبه')
+       +'<div style="display:flex;flex-wrap:wrap;background:#f7f8fa;border:1px solid #e3e5ea;border-radius:9px;padding:13px 18px;margin-bottom:20px">'
+       +  schKV('ساعت کاری روزانه', fa(schedNum(c.hoursPerDay,10))+' ساعت')
+       +  schKV('تعداد اپراتور', fa(schedNum(c.operators,1))+' نفر')
+       +  schKV('مجموع زمان دستگاه', esc(schedFmtHours(P.totMach)))
+       +  schKV('مجموع نیروی انسانی', esc(schedFmtHours(P.totLabor)))
+       +  schKV('حالت کار', c.mode==='parallel'?'همزمان':'سریالی')
+       +  schKV('نوبت‌بندی قطعات', c.queue==='seq'?'پشتِ سرِ هم':'چرخشی')
+       +  schKV('روزهای کاری هفته', esc(dayNames), true)
+       +  (P.safety>1?schKV('ضریب اطمینان', fa(P.safety), true):'')
+       +'</div>'
+       + schH2('برنامه روزبه‌روز')
+       + tableHtml(ch, chunks.length>1);
+    } else {
+      body = headHtml(true) + schH2('برنامه روزبه‌روز (ادامه)') + tableHtml(ch, ci<chunks.length-1);
+    }
+    pagesHtml += '<div class="pdfpg" style="position:relative;width:'+PW+'px;height:'+PH+'px;background:#fff;padding:44px 44px 70px;overflow:hidden">'
+      + body + footHtml(ci+1, chunks.length) + '</div>';
+  });
+  host.innerHTML=pagesHtml;
   document.body.appendChild(host);
   showToast('در حال ساخت PDF...');
 
   function go(){
-    html2canvas(host,{scale:3,backgroundColor:'#ffffff',useCORS:true,windowWidth:1000,width:1000,letterRendering:true}).then(function(canvas){
-      try{
-        var jsPDF=window.jspdf.jsPDF, pdf=new jsPDF('p','mm','a4');
-        var pw=210, ph=297, imgH=canvas.height*pw/canvas.width;
-        var pageCanvasH=Math.floor(canvas.width*ph/pw);   // ارتفاعِ هر صفحه به پیکسل
-        var pages=Math.max(1, Math.ceil(canvas.height/pageCanvasH));
-        for(var pg=0; pg<pages; pg++){
-          var sliceH=Math.min(pageCanvasH, canvas.height-pg*pageCanvasH);
-          var cv=document.createElement('canvas');
-          cv.width=canvas.width; cv.height=sliceH;
-          cv.getContext('2d').drawImage(canvas,0,pg*pageCanvasH,canvas.width,sliceH,0,0,canvas.width,sliceH);
-          if(pg>0) pdf.addPage();
-          pdf.addImage(cv.toDataURL('image/png'),'PNG',0,0,pw,sliceH*pw/canvas.width);
-        }
-        var nm='تقویم-اجرایی'+(code?'-'+code:'')+'.pdf';
-        pdf.save(nm);
-        showToast('PDF ساخته شد');
-      }catch(e){ showToast('خطا در ساخت PDF'); if(window.console) console.log(e); }
-      if(host.parentNode) host.parentNode.removeChild(host);
-    }).catch(function(err){
-      showToast('خطا در ساخت PDF');
-      if(window.console) console.log('schedExportPDF', err);
-      if(host.parentNode) host.parentNode.removeChild(host);
-    });
+    var pgs=host.querySelectorAll('.pdfpg');
+    var jsPDF=window.jspdf.jsPDF, pdf=new jsPDF('p','mm','a4');
+    var n=0;
+    function step(){
+      if(n>=pgs.length){
+        try{ pdf.save('تقویم-اجرایی'+(code?'-'+code:'')+'.pdf'); showToast('PDF ساخته شد'); }
+        catch(e){ showToast('خطا در ذخیرهٔ PDF'); }
+        if(host.parentNode) host.parentNode.removeChild(host);
+        return;
+      }
+      html2canvas(pgs[n],{scale:2.6,backgroundColor:'#ffffff',useCORS:true,windowWidth:PW,width:PW,height:PH})
+      .then(function(cv){
+        if(n>0) pdf.addPage();
+        pdf.addImage(cv.toDataURL('image/png'),'PNG',0,0,210,297);
+        n++; setTimeout(step,40);
+      }).catch(function(err){
+        showToast('خطا در ساخت PDF'); if(window.console) console.log(err);
+        if(host.parentNode) host.parentNode.removeChild(host);
+      });
+    }
+    step();
   }
-  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(go,250); }); }
-  else setTimeout(go,250);
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(go,300); }); }
+  else setTimeout(go,300);
 }
-var schTD='border:1px solid #d0d0d0;padding:7px 5px;text-align:center;vertical-align:middle';
-var schTH='border:1px solid #d9d9d9;padding:9px 5px;text-align:center;font-weight:700;font-size:12px';
+var schTD='border:1px solid #d5d8de;padding:11px 6px;text-align:center;vertical-align:middle';
+var schTH='border:1px solid #3a4157;padding:12px 6px;text-align:center;font-weight:700;font-size:14px;color:#ffffff';
 function schKPI(t,v,col){
-  return '<div style="flex:1;background:#f4f5f7;border-radius:7px;padding:10px 12px;text-align:center">'
-    +'<div style="font-size:11px;color:#6a6a6a">'+t+'</div>'
-    +'<div style="font-size:19px;font-weight:700;margin-top:4px;color:'+col+'">'+v+'</div></div>';
+  return '<div style="flex:1;background:#f2f4f7;border:1px solid #e2e5ea;border-radius:9px;padding:14px 12px;text-align:center">'
+    +'<div style="font-size:12px;color:#71778a">'+t+'</div>'
+    +'<div style="font-size:21px;font-weight:700;margin-top:5px;color:'+col+'">'+v+'</div></div>';
 }
 function schH2(t){
-  return '<div style="font-size:15px;font-weight:700;margin:0 0 10px;padding-right:11px;border-right:3px solid #111">'+t+'</div>';
+  return '<div style="font-size:17px;font-weight:700;margin:0 0 11px;padding-right:12px;'
+    +'border-right:4px solid #1a1f2e;color:#1a1f2e;line-height:1.4">'+t+'</div>';
 }
 function schKV(k,v,full){
-  return '<div style="width:'+(full?'100%':'50%')+';font-size:12.5px;padding:3px 0">'
-    +'<span style="color:#666">'+k+':</span> <b>'+v+'</b></div>';
+  return '<div style="width:'+(full?'100%':'50%')+';font-size:14px;padding:4px 0">'
+    +'<span style="color:#6d7383">'+k+':</span> <b style="color:#1a1f2e">'+v+'</b></div>';
 }
 function schedSummaryText(){
   var r = null;
@@ -9605,8 +9641,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V298 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V298";
+try{ if(window.console) console.log('%c iPrint3D FRONT V299 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V299";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
