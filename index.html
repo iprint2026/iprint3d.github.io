@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V292</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V293</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8398,6 +8398,7 @@ function schedFormHtml(c){
     + '<div style="display:flex;gap:8px;align-items:center;margin-top:14px;padding-top:13px;border-top:1px dashed #1a2440;flex-wrap:wrap">'
     +   '<button class="btn btn-sm" onclick="schedSave(this)" style="background:#6366f1;border-color:#6366f1;color:#fff">ذخیرهٔ زمان‌بندی</button>'
     +   '<button class="btn btn-ghost btn-sm" onclick="schedCompute()">محاسبه</button>'
+    +   '<button class="btn btn-ghost btn-sm" onclick="schedExportPDF()" style="border-color:#1e4e7e;color:#7ab8ff">خروجی PDF تقویم</button>'
     +   '<span class="sched-msg" style="font-size:11.5px;color:#8a93b2"></span>'
     + '</div>'
     + '<div class="sched-out" style="margin-top:13px"></div>';
@@ -8696,6 +8697,9 @@ function schedCompute(){
   try{
     var sim = schedSimulate(parts, c);
     window._schedLastPlanDays = sim.totalDays;
+    window._schedPlan = { sim:sim, parts:parts, c:c, names:parts.map(function(x){return x.name;}),
+                          totMach:totMach, totLabor:totLabor, workDays:workDays,
+                          baseDays:baseDays, safety:safety, machDetail:machDetail, dates:null };
     var names = parts.map(function(x){ return x.name; });
     // نقاطِ مهم: روزی که تعدادِ محصولِ کامل تغییر می‌کند
     var mile = [], prevSets = 0;
@@ -8756,6 +8760,7 @@ function schedCompute(){
     Array.prototype.forEach.call(document.querySelectorAll('#sched-date-line'),function(el){ el.innerHTML=txt; });
     try{ var rr=schedEnsure().result; if(rr){ rr.date = dateOnly||''; schedPaintBadge(); } }catch(e){}
     // تاریخِ واقعی روی هر ردیفِ جدول
+    try{ if(window._schedPlan) window._schedPlan.dates = dateList; }catch(e){}
     if(dateList && dateList.length){
       Array.prototype.forEach.call(document.querySelectorAll('.sched-dcell'),function(el){
         var n = +el.getAttribute('data-d');
@@ -8813,6 +8818,111 @@ function schedDeliveryDate(workDays, c, cb){
     if(anchorIdx<0) txt += '<div style="font-size:11px;color:#8a6a2a">روزِ هفته از تقویم تشخیص داده نشد؛ فقط تعطیلاتِ رسمی لحاظ شد.</div>';
     cb(txt, _dateOnly, dateList);
   });
+}
+// ── خروجیِ PDF تقویمِ اجرایی (سندِ مستقل و قابلِ ارسال) ──
+function schedExportPDF(){
+  var P = window._schedPlan;
+  if(!P || !P.sim){ showToast('اول «محاسبه» را بزن'); return; }
+  var c = P.c, sim = P.sim, names = P.names, dates = P.dates || [];
+  var DN = { sat:'شنبه', sun:'یک‌شنبه', mon:'دوشنبه', tue:'سه‌شنبه', wed:'چهارشنبه', thu:'پنج‌شنبه', fri:'جمعه' };
+  function esc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fa(x){ try{ return prToFa(x); }catch(e){ return String(x); } }
+
+  var o = (prState && prState.order) ? prState.order : {};
+  var title = o.orderName || 'پروژه';
+  var cust  = o.org || o.customer || '';
+  var code  = (prState && prState.savedCode) || o.code || '';
+  var totalSets = schedNum(c.setCount,0) || Math.min.apply(null, P.parts.map(function(x){ return x.qty; }));
+  var firstDate = dates.length ? dates[0].k : '';
+  var lastDate  = dates.length ? dates[Math.min(sim.totalDays, dates.length)-1].k : '';
+  var dayNames  = SCHED_DAYS.filter(function(d){ return c.days && c.days[d.k]; }).map(function(d){ return d.n; }).join('، ');
+
+  // نقاطِ مهم
+  var mile=[], prev=0;
+  sim.days.forEach(function(d){ if(d.sets>prev){ mile.push(d); prev=d.sets; } });
+
+  var rows = sim.days.map(function(d){
+    var dt = dates[d.day-1];
+    var cells = names.map(function(n){
+      var st=null; d.state.forEach(function(x){ if(x.name===n) st=x; });
+      var add = d.made[n]||0;
+      return '<td>'+(st?'<b>'+fa(st.finished)+'</b><span class="mut">/'+fa(st.need)+'</span>':'—')
+           + (add?'<div class="add">+'+fa(add)+'</div>':'')+'</td>';
+    }).join('');
+    return '<tr'+(d.sets>0 && d.sets>=totalSets ? ' class="done"':'')+'>'
+      + '<td class="dcol"><b>'+fa(d.day)+'</b>'
+      +   (dt ? '<div class="mut">'+esc(DN[dt.dow]||'')+'</div><div class="dt">'+fa(dt.k)+'</div>' : '')
+      + '</td>' + cells
+      + '<td class="setcol"><b>'+fa(d.sets)+'</b></td></tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8">'
+   +'<title>تقویم اجرایی — '+esc(title)+'</title><style>'
+   +'@page{size:A4;margin:12mm}'
+   +'*{box-sizing:border-box}'
+   +'body{font-family:Tahoma,"Segoe UI",sans-serif;color:#111;margin:0;font-size:11px;line-height:1.7}'
+   +'h1{font-size:17px;margin:0 0 2px}'
+   +'.sub{color:#555;font-size:11px;margin-bottom:10px}'
+   +'.hd{border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-end}'
+   +'.badge{border:1px solid #333;border-radius:5px;padding:3px 9px;font-weight:bold;font-size:12px}'
+   +'.grid{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}'
+   +'.box{flex:1;min-width:150px;border:1px solid #bbb;border-radius:6px;padding:8px 10px}'
+   +'.box .t{font-size:10px;color:#666;margin-bottom:3px}'
+   +'.box .v{font-size:15px;font-weight:bold}'
+   +'h2{font-size:12px;margin:14px 0 6px;padding-bottom:3px;border-bottom:1px solid #ccc}'
+   +'table{width:100%;border-collapse:collapse;font-size:10px}'
+   +'th,td{border:1px solid #ccc;padding:4px 5px;text-align:center}'
+   +'thead th{background:#eee;font-size:10px}'
+   +'thead{display:table-header-group}'
+   +'tr{page-break-inside:avoid}'
+   +'.mut{color:#888;font-weight:normal}'
+   +'.dt{font-size:9px;color:#444;white-space:nowrap}'
+   +'.add{font-size:9px;color:#080}'
+   +'.dcol{background:#fafafa}'
+   +'.setcol{background:#f2fbf4;font-size:12px}'
+   +'tr.done .setcol{background:#dff5e4}'
+   +'ul{margin:4px 0;padding-right:16px}'
+   +'.foot{margin-top:14px;padding-top:6px;border-top:1px solid #ccc;color:#777;font-size:9px;display:flex;justify-content:space-between}'
+   +'@media print{.noprint{display:none}}'
+   +'.noprint{text-align:center;margin-bottom:12px}'
+   +'.noprint button{font-family:inherit;font-size:13px;padding:9px 22px;border-radius:7px;border:1px solid #333;background:#333;color:#fff;cursor:pointer}'
+   +'</style></head><body>'
+   +'<div class="noprint"><button onclick="window.print()">چاپ / ذخیره به‌صورت PDF</button></div>'
+   +'<div class="hd"><div><h1>تقویم اجرایی پروژه</h1>'
+   +   '<div class="sub">'+esc(title)+(cust?' — '+esc(cust):'')+'</div></div>'
+   +   (code?'<div class="badge">'+esc(code)+'</div>':'')+'</div>'
+   +'<div class="grid">'
+   +  '<div class="box"><div class="t">مدت اجرا</div><div class="v">'+fa(sim.totalDays)+' روز کاری</div></div>'
+   +  '<div class="box"><div class="t">شروع</div><div class="v">'+(firstDate?fa(firstDate):'—')+'</div></div>'
+   +  '<div class="box"><div class="t">تحویل نهایی</div><div class="v">'+(lastDate?fa(lastDate):'—')+'</div></div>'
+   +  '<div class="box"><div class="t">تعداد محصول</div><div class="v">'+fa(totalSets)+' عدد</div></div>'
+   +'</div>'
+   +'<h2>شرایط محاسبه</h2>'
+   +'<ul>'
+   +  '<li>ساعت کاری روزانه: '+fa(schedNum(c.hoursPerDay,10))+' ساعت · تعداد اپراتور: '+fa(schedNum(c.operators,1))+' نفر</li>'
+   +  '<li>روزهای کاری هفته: '+esc(dayNames)+'</li>'
+   +  '<li>حالت کار: '+(c.mode==='parallel'?'همزمان (کار دستی حین پرینت)':'سریالی (اپراتور منتظر اتمام پرینت)')
+   +    ' · نوبت‌بندی: '+(c.queue==='seq'?'پشتِ سرِ هم':'چرخشی')+'</li>'
+   +  '<li>مجموع زمان دستگاه: '+esc(schedFmtHours(P.totMach))+' · مجموع نیروی انسانی: '+esc(schedFmtHours(P.totLabor))+'</li>'
+   +  (P.safety>1?'<li>ضریب اطمینان: '+fa(P.safety)+' (از '+fa(P.baseDays.toFixed(1))+' روز به '+fa((P.baseDays*P.safety).toFixed(1))+' روز)</li>':'')
+   +  '<li>تعطیلات رسمی تقویم '+(c.holidaysOff?'کنار گذاشته شده':'کنار گذاشته نشده')+'</li>'
+   +'</ul>'
+   +'<h2>نقاط مهم</h2><ul>'
+   + (mile.length ? mile.slice(0,10).map(function(d){
+        var dt=dates[d.day-1];
+        return '<li>روز '+fa(d.day)+(dt?' ('+fa(dt.k)+')':'')+': <b>'+fa(d.sets)+'</b> محصول کامل آماده</li>';
+     }).join('') : '<li>—</li>')
+   +'</ul>'
+   +'<h2>برنامه روزبه‌روز</h2>'
+   +'<table><thead><tr><th>روز / تاریخ</th>'
+   + names.map(function(n){ return '<th>'+esc(n)+'</th>'; }).join('')
+   + '<th>محصول کامل<br><span class="mut">از '+fa(totalSets)+'</span></th></tr></thead><tbody>'+rows+'</tbody></table>'
+   +'<div class="foot"><span>iPrint3D — تقویم اجرایی</span><span>اعداد هر ستون: تعداد آمادهٔ نهایی از کل مورد نیاز · سبز: تولید همان روز</span></div>'
+   +'</body></html>';
+
+  var w = window.open('', '_blank');
+  if(!w){ showToast('پنجره باز نشد — pop-up را اجازه بده'); return; }
+  w.document.write(html); w.document.close();
 }
 function schedSummaryText(){
   var r = null;
@@ -9434,8 +9544,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V292 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V292";
+try{ if(window.console) console.log('%c iPrint3D FRONT V293 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V293";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
