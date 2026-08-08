@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V294</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V295</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8276,7 +8276,7 @@ var SCHED_DAYS = [ {k:'sat',n:'شنبه'}, {k:'sun',n:'یک‌شنبه'}, {k:'mo
                    {k:'tue',n:'سه‌شنبه'}, {k:'wed',n:'چهارشنبه'}, {k:'thu',n:'پنج‌شنبه'}, {k:'fri',n:'جمعه'} ];
 
 function schedDefault(){
-  return { hoursPerDay:10, operators:1, mode:'serial', startDate:'', machines:{}, machinePar:{}, safety:1, queue:'rotate', setCount:0, showPlan:true,
+  return { hoursPerDay:10, operators:1, mode:'parallel', startDate:'', machines:{}, machinePar:{}, safety:1, queue:'rotate', setCount:0, showPlan:true,
            days:{sat:true,sun:true,mon:true,tue:true,wed:true,thu:false,fri:false}, holidaysOff:true, result:null };
 }
 function schedGet(){
@@ -8549,6 +8549,7 @@ function schedSimulate(parts, c){
     // ── نیروی انسانی ──
     // همزمان: نیرو مستقل از دستگاه · سریالی: نیرو از باقی‌ماندهٔ روز بعد از کارِ دستگاه
     var laborBudget = isSerial ? Math.max(0, (ops*hpd) - wall) : (ops*hpd);
+    var laborBudgetStart = laborBudget;
     var doneToday = {};
     st.forEach(function(x){ if(x.laborH <= 0 && x.finished < x.printed){ doneToday[x.p.name]=(doneToday[x.p.name]||0)+(x.printed-x.finished); x.finished = x.printed; } });
     var lspin = 0;
@@ -8584,7 +8585,7 @@ function schedSimulate(parts, c){
     st.forEach(function(x){ ratio = Math.min(ratio, x.need>0 ? (x.finished/x.need) : 1); });
     var sets = Math.floor(ratio * setCount);
 
-    days.push({ day:day, made:doneToday, printed:madeToday, sets:sets,
+    days.push({ day:day, made:doneToday, printed:madeToday, sets:sets, laborCap:laborBudgetStart,
                 state: st.map(function(x){ return { name:x.p.name, finished:x.finished, need:x.need }; }) });
   }
   return { days:days, totalDays:day, st:st };
@@ -8706,7 +8707,16 @@ function schedCompute(){
     sim.days.forEach(function(d){ if(d.sets > prevSets){ mile.push(d); prevSets = d.sets; } });
     var firstSet = mile.length ? mile[0] : null;
 
-    P = '<div style="font-weight:700;font-size:12.5px;color:#8a93b8;margin:14px 0 8px">برنامهٔ تولید</div>'
+    var starved = sim.days.filter(function(d){ return (d.laborCap||0) < 0.2; }).length;
+    var warnHtml = '';
+    if(c.mode!=='parallel' && starved >= 2){
+      warnHtml = '<div style="background:#2a1f10;border:1px solid #6b5518;border-radius:10px;padding:11px 13px;font-size:12px;color:#f0c674;line-height:1.9;margin:14px 0 8px">'
+        + '<b>چرا ردیف‌های اول خالی‌اند؟</b><br>'
+        + 'حالت روی «سریالی» است، یعنی اپراتور تا پایانِ پرینت بی‌کار می‌ماند. چون دستگاه‌ها تمامِ ' + prToFa(schedNum(c.hoursPerDay,10)) + ' ساعتِ روز را پرینت می‌کنند، '
+        + '<b>' + prToFa(starved) + ' روز</b> هیچ وقتی برای کارِ دستی نمی‌ماند و قطعه‌ای «آماده» نمی‌شود.<br>'
+        + '<span style="color:#c9a75a">اگر در کارگاه اپراتور حین پرینت روی قطعاتِ قبلی کار می‌کند، حالت را روی <b>«همزمان»</b> بگذار — نتیجه واقع‌بینانه‌تر می‌شود.</span></div>';
+    }
+    P = warnHtml + '<div style="font-weight:700;font-size:12.5px;color:#8a93b8;margin:14px 0 8px">برنامهٔ تولید</div>'
       + '<div style="border:1px solid #232742;border-radius:10px;overflow:hidden;margin-bottom:9px">'
       +   '<div style="background:#141833;padding:7px 10px;font-weight:700;font-size:12.5px;color:#ffd479">نقاطِ مهم</div>'
       +   '<div style="padding:8px 11px;font-size:12px;color:#c7cce0;line-height:2">'
@@ -8947,9 +8957,22 @@ function schedExportPDF(){
    +'<span>هر خانه: تعداد آمادهٔ نهایی از کل مورد نیاز · «+N» تولید همان روز</span></div>'
    +'</div></body></html>';
 
-  var w = window.open('', '_blank');
-  if(!w){ showToast('پنجره باز نشد — pop-up را اجازه بده'); return; }
-  w.document.write(html); w.document.close();
+  var w = null;
+  try{ w = window.open('', '_blank'); }catch(e){ w = null; }
+  if(w && w.document){
+    w.document.open(); w.document.write(html); w.document.close();
+    return;
+  }
+  // پنجره بسته شد (pop-up blocker) → چاپ از داخلِ همین صفحه با iframe
+  showToast('پنجره باز نشد — از همین صفحه چاپ می‌شود');
+  var old = document.getElementById('sched-print-frame'); if(old && old.parentNode) old.parentNode.removeChild(old);
+  var f = document.createElement('iframe');
+  f.id = 'sched-print-frame';
+  f.style.cssText = 'position:fixed;left:-9999px;top:0;width:210mm;height:297mm;border:0';
+  document.body.appendChild(f);
+  var d = f.contentWindow.document;
+  d.open(); d.write(html.replace('<div class="noprint">','<div class="noprint" style="display:none">')); d.close();
+  setTimeout(function(){ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ showToast('چاپ ممکن نشد'); } }, 600);
 }
 function schedSummaryText(){
   var r = null;
@@ -9571,8 +9594,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V294 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V294";
+try{ if(window.console) console.log('%c iPrint3D FRONT V295 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V295";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
