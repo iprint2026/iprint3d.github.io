@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V287</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V289</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -8276,7 +8276,7 @@ var SCHED_DAYS = [ {k:'sat',n:'شنبه'}, {k:'sun',n:'یک‌شنبه'}, {k:'mo
                    {k:'tue',n:'سه‌شنبه'}, {k:'wed',n:'چهارشنبه'}, {k:'thu',n:'پنج‌شنبه'}, {k:'fri',n:'جمعه'} ];
 
 function schedDefault(){
-  return { hoursPerDay:10, operators:1, mode:'serial', startDate:'', machines:{}, machinePar:{}, safety:1,
+  return { hoursPerDay:10, operators:1, mode:'serial', startDate:'', machines:{}, machinePar:{}, safety:1, queue:'rotate', setCount:0, showPlan:true,
            days:{sat:true,sun:true,mon:true,tue:true,wed:true,thu:false,fri:false}, holidaysOff:true, result:null };
 }
 function schedGet(){
@@ -8378,6 +8378,20 @@ function schedFormHtml(c){
     +   '<label style="font-size:11px;color:#5a6080">ضریب اطمینان <span style="color:#4a5070">(۱ = بدون احتیاط · ۱٫۲ = ۲۰٪ وقتِ بیشتر)</span></label>'
     +   '<input class="inp" type="number" min="1" max="5" step="0.05" value="'+(+c.safety||1)+'" oninput="schedSet(\'safety\',this.value)">'
     + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:13px">'
+    +   '<div><label style="font-size:11px;color:#5a6080">تعدادِ محصولِ نهایی <span style="color:#4a5070">(۰ = خودکار)</span></label>'
+    +     '<input class="inp" type="number" min="0" step="1" value="'+(+c.setCount||0)+'" oninput="schedSet(\'setCount\',this.value)"></div>'
+    +   '<div><label style="font-size:11px;color:#5a6080">نوبت‌بندیِ قطعاتِ یک دستگاه</label>'
+    +     '<select class="inp" onchange="schedSet(\'queue\',this.value); schedRender();">'
+    +       '<option value="rotate"'+(c.queue!=='seq'?' selected':'')+'>چرخشی — نوبتی بین قطعات</option>'
+    +       '<option value="seq"'+(c.queue==='seq'?' selected':'')+'>پشتِ سرِ هم — هر قطعه تا آخر</option>'
+    +     '</select></div>'
+    + '</div>'
+    + '<div style="margin-top:8px;padding:9px 11px;background:#0b1020;border:1px solid #1a2440;border-radius:9px;font-size:11px;color:#8a93b2;line-height:1.9">'
+    +   (c.queue==='seq'
+       ? '<b style="color:#fbbf24">پشتِ سرِ هم:</b> دستگاه اول یک قطعه را تا آخر می‌سازد، بعد می‌رود سراغِ بعدی. سینی کمتر عوض می‌شود، ولی چون محصول به همهٔ قطعات نیاز دارد، <b>محصولِ کامل خیلی دیر</b> به دست می‌آید — عملاً نزدیکِ پایانِ کار.'
+       : '<b style="color:#7ab8ff">چرخشی:</b> دستگاه نوبتی بین قطعات می‌چرخد تا همه با هم جلو بروند. زمانِ کلِ کار تقریباً همان است، ولی <b>محصولِ کامل خیلی زودتر</b> شروع می‌شود و می‌توانی تحویلِ مرحله‌ای بدهی.')
+    + '</div>'
     + '<label style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;color:#c7cce0;cursor:pointer">'
     +   '<input type="checkbox" '+(c.holidaysOff?'checked':'')+' onchange="schedSet(\'holidaysOff\',this.checked)" style="margin:0">'
     +   'تعطیلاتِ رسمیِ تقویم کنار گذاشته شوند</label>'
@@ -8392,6 +8406,13 @@ function schedFormHtml(c){
 // در پروفایلِ سفارش، زمان‌بندیِ همان سفارش از سرور خوانده می‌شود
 function schedLoadFor(id){
   var slot=document.getElementById('om-sched-slot'); if(slot) slot.innerHTML='';
+  // ظرف با تأخیر ساخته می‌شود (بعد از بارگذاریِ خلاصه) — چند بار تلاش می‌کنیم
+  (function retry(n){ if(n<=0) return;
+    setTimeout(function(){ if(OM_CURRENT_ID!==id) return;
+      if(document.getElementById('om-sched-slot')) { try{ schedRender(); }catch(e){} }
+      retry(n-1);
+    }, 700);
+  })(6);
   callSheet('getEstimateForEdit', { id:id, t:Date.now() }, function(r){
     if(OM_CURRENT_ID !== id) return;                 // کاربر مودال را عوض کرده
     try{
@@ -8466,6 +8487,91 @@ function schedParts(){
   return parts;
 }
 
+// ══════════ شبیه‌سازِ برنامهٔ تولید روزبه‌روز (V288) ══════════
+// روز به روز جلو می‌رود: هر روز ظرفیتِ دستگاه‌ها و نیرو را خرج می‌کند،
+// و می‌گوید چند عدد از هر قطعه ساخته شد و چند «محصولِ کامل» آماده است.
+// محصولِ کامل = کمترینِ نسبتِ پیشرفتِ قطعات (چون همه لازم‌اند).
+function schedSimulate(parts, c){
+  var hpd = Math.max(0.5, schedNum(c.hoursPerDay,10));
+  var ops = Math.max(1, schedNum(c.operators,1));
+  var rotate = (c.queue !== 'seq');
+  var isSerial = (c.mode !== 'parallel');
+
+  // وضعیتِ هر قطعه
+  var st = parts.map(function(p){
+    var isDlp = p.plateTime>0;
+    return { p:p, isDlp:isDlp,
+             batch: isDlp ? Math.max(1,p.perPlate) : 1,                 // چند عدد در هر نوبت
+             unitH: isDlp ? p.plateTime : (p.fdmHours||0),              // ساعتِ هر نوبت
+             printed:0, finished:0, need:p.qty,
+             laborH: (p.laborMin||0)/60 };
+  });
+
+  // گروه‌بندیِ قطعات بر اساسِ دستگاه
+  var groups = {};
+  st.forEach(function(x){ var k=x.p.machineId||'—'; (groups[k]=groups[k]||[]).push(x); });
+
+  var days = [], day = 0, guard = 0;
+  var allDone = function(){ return st.every(function(x){ return x.finished >= x.need; }); };
+
+  while(!allDone() && guard < 500){
+    guard++; day++;
+    var madeToday = {}, wall = 0, parWall = 0;
+
+    // ── تولیدِ دستگاه‌ها ──
+    for(var mid in groups){
+      var cnt = Math.max(1, schedNum((c.machines||{})[mid],1));
+      var budget = cnt * hpd;
+      var list = groups[mid].filter(function(x){ return x.printed < x.need; });
+      var gi = 0, spent = 0, spin = 0;
+      while(list.length && budget > 0.001 && spin < 500){
+        spin++;
+        // انتخابِ قطعه: چرخشی یا پشتِ سرِ هم
+        var x = rotate ? list[gi % list.length] : list[0];
+        if(x.printed >= x.need){ list = list.filter(function(y){ return y.printed<y.need; }); gi=0; continue; }
+        if(x.unitH <= 0){ x.printed = x.need; list = list.filter(function(y){ return y.printed<y.need; }); continue; }
+        // FDM: قطعه‌ای؛ DLP: سینی‌ای
+        var take = x.isDlp ? Math.min(x.batch, x.need - x.printed) : Math.min(Math.floor(budget/x.unitH) || 0, x.need - x.printed);
+        var cost = x.isDlp ? x.unitH : (take * x.unitH);
+        if(x.isDlp && cost > budget + 0.001){ break; }          // سینیِ ناتمام شروع نمی‌شود
+        if(!x.isDlp && take <= 0){ break; }
+        x.printed += take; budget -= cost; spent += cost;
+        madeToday[x.p.name] = (madeToday[x.p.name]||0) + take;
+        gi++;
+        list = list.filter(function(y){ return y.printed<y.need; });
+      }
+      var used = (cnt*hpd) - budget;
+      if(schedMachPar(c, mid)) parWall = Math.max(parWall, used/cnt); else wall += used/cnt;
+    }
+    wall += parWall;
+
+    // ── نیروی انسانی ──
+    // همزمان: نیرو مستقل از دستگاه · سریالی: نیرو از باقی‌ماندهٔ روز بعد از کارِ دستگاه
+    var laborBudget = isSerial ? Math.max(0, (ops*hpd) - wall) : (ops*hpd);
+    var lspin = 0;
+    while(laborBudget > 0.0001 && lspin < 2000){
+      lspin++;
+      var pend = st.filter(function(x){ return x.finished < x.printed; });
+      if(!pend.length) break;
+      var y = rotate ? pend[lspin % pend.length] : pend[0];
+      if(y.laborH <= 0){ y.finished = y.printed; continue; }
+      var can = Math.min(Math.floor(laborBudget / y.laborH), y.printed - y.finished);
+      if(can <= 0) break;
+      y.finished += can; laborBudget -= can * y.laborH;
+    }
+
+    // ── محصولِ کامل ──
+    var setCount = schedNum(c.setCount,0);
+    if(!setCount){ setCount = Math.min.apply(null, st.map(function(x){ return x.need; })); }
+    var ratio = 1;
+    st.forEach(function(x){ ratio = Math.min(ratio, x.need>0 ? (x.finished/x.need) : 1); });
+    var sets = Math.floor(ratio * setCount);
+
+    days.push({ day:day, made:madeToday, sets:sets,
+                state: st.map(function(x){ return { name:x.p.name, finished:x.finished, need:x.need }; }) });
+  }
+  return { days:days, totalDays:day, st:st };
+}
 function schedCompute(){
   var c = schedGet();
   var parts = schedParts();
@@ -8569,7 +8675,50 @@ function schedCompute(){
     +   '<div id="sched-date-line" style="color:#8a93b2">در حالِ محاسبهٔ تاریخِ تحویل...</div>'
     + '</div></div>';
 
-  paint('<div style="font-weight:700;font-size:12.5px;color:#8a93b8;margin-bottom:8px">تفکیکِ قطعات</div>'+H+S+R);
+  // ── برنامهٔ تولید روزبه‌روز ──
+  var P = '';
+  try{
+    var sim = schedSimulate(parts, c);
+    var names = parts.map(function(x){ return x.name; });
+    // نقاطِ مهم: روزی که تعدادِ محصولِ کامل تغییر می‌کند
+    var mile = [], prevSets = 0;
+    sim.days.forEach(function(d){ if(d.sets > prevSets){ mile.push(d); prevSets = d.sets; } });
+    var firstSet = mile.length ? mile[0] : null;
+
+    P = '<div style="font-weight:700;font-size:12.5px;color:#8a93b8;margin:14px 0 8px">برنامهٔ تولید</div>'
+      + '<div style="border:1px solid #232742;border-radius:10px;overflow:hidden;margin-bottom:9px">'
+      +   '<div style="background:#141833;padding:7px 10px;font-weight:700;font-size:12.5px;color:#ffd479">نقاطِ مهم</div>'
+      +   '<div style="padding:8px 11px;font-size:12px;color:#c7cce0;line-height:2">'
+      +     (firstSet ? 'اولین محصولِ کامل: <b style="color:#34d399">روز '+prToFa(firstSet.day)+'</b> ('+prToFa(firstSet.sets)+' عدد)<br>' : 'در این بازه محصولِ کاملی آماده نمی‌شود.<br>')
+      +     'اتمامِ کلِ تولید: <b style="color:#ffd479">روز '+prToFa(sim.totalDays)+'</b><br>'
+      +     (mile.length>1 ? mile.slice(0,8).map(function(d){ return '· روز '+prToFa(d.day)+': <b>'+prToFa(d.sets)+'</b> محصولِ کامل'; }).join('<br>') : '')
+      +   '</div></div>';
+
+    // جدولِ روزبه‌روز
+    var rows = sim.days.map(function(d){
+      var cells = names.map(function(n){
+        var s2 = null; d.state.forEach(function(x){ if(x.name===n) s2=x; });
+        var mk = d.made[n] ? ('+'+prToFa(d.made[n])) : '';
+        return '<td style="padding:4px 6px;text-align:center;border-top:1px solid #1a2440">'
+             + (s2 ? '<b>'+prToFa(s2.finished)+'</b>' : '—')
+             + (mk ? ' <span style="color:#34d399;font-size:10px">'+mk+'</span>' : '')+'</td>';
+      }).join('');
+      return '<tr><td style="padding:4px 6px;text-align:center;border-top:1px solid #1a2440;color:#8a93b2">'+prToFa(d.day)+'</td>'
+           + cells
+           + '<td style="padding:4px 6px;text-align:center;border-top:1px solid #1a2440;color:'+(d.sets?'#34d399':'#5a6080')+';font-weight:700">'+prToFa(d.sets)+'</td></tr>';
+    }).join('');
+
+    P += '<div style="border:1px solid #232742;border-radius:10px;overflow:hidden">'
+      +   '<div style="background:#141833;padding:7px 10px;font-weight:700;font-size:12.5px;color:#7ab8ff">جدولِ روزبه‌روز <span style="font-weight:400;font-size:10.5px;color:#8a93b2">(عدد = مجموعِ آمادهٔ آن قطعه · سبز = تولیدِ همان روز)</span></div>'
+      +   '<div style="max-height:340px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px;color:#c7cce0">'
+      +     '<thead><tr style="background:#0f1428;position:sticky;top:0">'
+      +       '<th style="padding:6px;font-size:11px;color:#8a93b2">روز</th>'
+      +       names.map(function(n){ return '<th style="padding:6px;font-size:11px;color:#8a93b2">'+escapeHtml(n)+'</th>'; }).join('')
+      +       '<th style="padding:6px;font-size:11px;color:#34d399">محصولِ کامل</th>'
+      +     '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  }catch(e){ P = '<div style="color:#8a6a2a;font-size:11.5px;margin-top:10px">برنامهٔ روزبه‌روز ساخته نشد: '+e+'</div>'; }
+
+  paint('<div style="font-weight:700;font-size:12.5px;color:#8a93b8;margin-bottom:8px">تفکیکِ قطعات</div>'+H+S+R+P);
   // خلاصه روی سرتیترِ کشویی نگه داشته می‌شود
   schedEnsure().result = { days: workDays, date: '', at: Date.now() };
   schedPaintBadge();
@@ -8639,7 +8788,7 @@ function schedPaintBadge(){
 function schedEnsure(){ if(!prState.order) prState.order={}; if(!prState.order.schedule) prState.order.schedule = schedDefault(); return prState.order.schedule; }
 function schedSet(k,v){
   var s = schedEnsure();
-  if(k==='hoursPerDay'||k==='operators'||k==='safety') v = (String(v).trim()==='') ? '' : +v;
+  if(k==='hoursPerDay'||k==='operators'||k==='safety'||k==='setCount') v = (String(v).trim()==='') ? '' : +v;
   s[k]=v;
   Array.prototype.forEach.call(document.querySelectorAll('.sched-badge'),function(b){ b.style.color='#fbbf24'; b.textContent='· ذخیره نشده'; });
 }
@@ -9244,8 +9393,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V287 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V287";
+try{ if(window.console) console.log('%c iPrint3D FRONT V289 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V289";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -11339,7 +11488,6 @@ function archiveProfile(id){
   else if(done) lc = '<button class="btn btn-ghost btn-sm" onclick="omSetStatus(\''+id+'\',\'در جریان ساخت\')">↩ بازگشت به ساخت</button>';
   document.getElementById('om-body').innerHTML =
     '<div id="om-image" style="margin-bottom:16px"></div>'
-    +'<div id="om-sched-slot" style="margin-bottom:16px"></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">'
       +'<button class="btn btn-sm" style="background:#10233f;border-color:#1e4e7e;color:#7ab8ff" onclick="pricingEditOrder(\''+id+'\')">✏️ ویرایش سفارش</button>'
       +'<button class="btn btn-sm" style="background:#3a2a0c;border-color:#8a6d1e;color:#fbbf24" onclick="omUpgradeCalc(\''+id+'\')" title="بازمحاسبه با سازوکار جدید">🔄 آپدیت محاسبات</button>'
@@ -11459,7 +11607,9 @@ function archiveProfile(id){
         rzHtml+='<div style="display:flex;justify-content:space-between;padding:5px 0"><span style="color:#9aa3c2">👷 نیروی انسانی (با فینیشینگ)</span><span style="color:#34d399;font-weight:700">'+uNum(rz.laborHours)+' ساعت</span></div>';
         rzHtml+='<div style="font-size:10px;color:#5a8090;margin-top:5px">جمعِ کلِ سفارش (با ضربِ تعداد در هر بخش). برای تخمینِ زمانِ تحویل.</div>';
         rzHtml+='</div></div>';
+        rzHtml+='<div id="om-sched-slot" style="margin-top:12px"></div>';   // زمان‌بندی درست زیرِ زمان و منابع
         sumEl.innerHTML += rzHtml;
+        try{ schedRender(); }catch(e){}
       }
     }
     if(sumEl && res.materialsUsed && res.materialsUsed.length){
