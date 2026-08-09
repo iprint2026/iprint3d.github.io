@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V303</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V304</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1285,6 +1285,7 @@ function doPost(e){
         <tr class="sumrow"><td class="label" colspan="5">جمع کل:</td><td id="inv-grand">۰</td></tr>
         <tr class="erow"><td colspan="6"></td></tr>
         <tr class="payrow"><td class="label" colspan="5">مبلغ قابل پرداخت: <span id="inv-words">—</span></td><td id="inv-grand2">۰</td></tr>
+        <tr class="sumrow" id="iv-delivery-row" style="display:none"><td class="label" colspan="5">موعد تحویل:</td><td id="iv-delivery" class="ed" contenteditable="true" style="white-space:nowrap"></td></tr>
       </table>
 
       <div class="notes" id="iv-notes-wrap">
@@ -8386,7 +8387,7 @@ var SCHED_DAYS = [ {k:'sat',n:'شنبه'}, {k:'sun',n:'یک‌شنبه'}, {k:'mo
                    {k:'tue',n:'سه‌شنبه'}, {k:'wed',n:'چهارشنبه'}, {k:'thu',n:'پنج‌شنبه'}, {k:'fri',n:'جمعه'} ];
 
 function schedDefault(){
-  return { hoursPerDay:10, operators:1, mode:'parallel', startDate:'', machines:{}, machinePar:{}, safety:1, queue:'rotate', setCount:0, showPlan:true,
+  return { hoursPerDay:10, operators:1, mode:'parallel', startDate:'', machines:{}, machinePar:{}, safety:1, queue:'rotate', setCount:0, showPlan:true, invNotice:false, invText:'',
            days:{sat:true,sun:true,mon:true,tue:true,wed:true,thu:false,fri:false}, holidaysOff:true, result:null };
 }
 function schedGet(){
@@ -8505,6 +8506,22 @@ function schedFormHtml(c){
     + '<label style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;color:#c7cce0;cursor:pointer">'
     +   '<input type="checkbox" '+(c.holidaysOff?'checked':'')+' onchange="schedSet(\'holidaysOff\',this.checked)" style="margin:0">'
     +   'تعطیلاتِ رسمیِ تقویم کنار گذاشته شوند</label>'
+    + '<div style="margin-top:13px;padding:11px 13px;background:#0b1020;border:1px solid #1a2440;border-radius:10px">'
+    +   '<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:#c7cce0;cursor:pointer">'
+    +     '<input type="checkbox" '+(c.invNotice?'checked':'')+' onchange="schedSetInvNotice(this.checked)" style="margin:0">'
+    +     '<b>موعد تحویل در فاکتور اعلام شود</b></label>'
+    +   (c.invNotice
+      ? '<div style="margin-top:9px">'
+        + '<label style="font-size:11px;color:#5a6080">متنی که در فاکتور می‌آید <span style="color:#4a5070">(قابل ویرایش)</span></label>'
+        + '<input class="inp" id="sched-invtext" value="'+escapeHtml(c.invText||'')+'" placeholder="مثلاً ۶ تا ۸ روز کاری" oninput="schedSet(\'invText\',this.value)" style="width:100%">'
+        + '<div style="display:flex;gap:7px;margin-top:7px;flex-wrap:wrap">'
+        +   '<button type="button" class="btn btn-ghost btn-sm" onclick="schedFillInvText(0)" style="font-size:11px">از محاسبه پر کن (بازه)</button>'
+        +   '<button type="button" class="btn btn-ghost btn-sm" onclick="schedFillInvText(1)" style="font-size:11px">عددِ دقیق</button>'
+        + '</div>'
+        + '<div style="font-size:11px;color:#8a93b2;margin-top:7px;line-height:1.9">این متن در فاکتور زیرِ «مبلغ قابل پرداخت» می‌آید و همان‌جا هم قابلِ ویرایش است. اگر تیک برداشته شود، ردیف اصلاً در فاکتور وجود نخواهد داشت.</div>'
+        + '</div>'
+      : '')
+    + '</div>'
     + '<div style="display:flex;gap:8px;align-items:center;margin-top:14px;padding-top:13px;border-top:1px dashed #1a2440;flex-wrap:wrap">'
     +   '<button class="btn btn-sm" onclick="schedSave(this)" style="background:#6366f1;border-color:#6366f1;color:#fff">ذخیرهٔ زمان‌بندی</button>'
     +   '<button class="btn btn-ghost btn-sm" onclick="schedCompute()">محاسبه</button>'
@@ -9151,6 +9168,28 @@ function schedSet(k,v){
   s[k]=v;
   Array.prototype.forEach.call(document.querySelectorAll('.sched-badge'),function(b){ b.style.color='#fbbf24'; b.textContent='· ذخیره نشده'; });
 }
+function schedSetInvNotice(on){
+  var st=schedEnsure(); st.invNotice=!!on;
+  if(on && !String(st.invText||'').trim()) schedFillInvText(0, true);
+  Array.prototype.forEach.call(document.querySelectorAll('.sched-badge'),function(b){ b.style.color='#fbbf24'; b.textContent='· ذخیره نشده'; });
+  schedRender();
+}
+// پرکردنِ متن از نتیجهٔ محاسبه — بازه (پیش‌فرض) یا عددِ دقیق
+function schedFillInvText(exact, silent){
+  var st=schedEnsure();
+  var d = null;
+  try{ d = (st.result && st.result.days) ? st.result.days : null; }catch(e){}
+  if(!d){ if(!silent) showToast('اول «محاسبه» را بزن'); return; }
+  var txt;
+  if(exact){ txt = prToFa(d)+' روز کاری'; }
+  else {
+    var hi = Math.ceil(d * 1.2);            // بازهٔ محافظه‌کارانه: ۲۰٪ بالاتر
+    if(hi <= d) hi = d + 1;
+    txt = prToFa(d)+' تا '+prToFa(hi)+' روز کاری';
+  }
+  st.invText = txt;
+  if(!silent){ showToast('متن از محاسبه پر شد'); schedRender(); }
+}
 function schedSetDay(k,on){ var s=schedEnsure(); if(!s.days) s.days=schedDefault().days; s.days[k]=!!on; schedRender(); }
 function schedMachPar(c,id){
   // پیش‌فرض: دستگاه‌ها فیزیکاً مستقل‌اند و همزمان کار می‌کنند
@@ -9752,8 +9791,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V303 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V303";
+try{ if(window.console) console.log('%c iPrint3D FRONT V304 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V304";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -10652,6 +10691,7 @@ function ivOpenInvoice(opts){
   setTimeout(function(){ try{ ivFitPage(); }catch(e){} }, 60);
   { var _n=document.getElementById('iv-bname'); if(_n) _n.textContent = opts.customer || '—'; }
   var tel=document.getElementById('iv-btel'); if(tel) tel.textContent = opts.tel || '—';
+  ivSetDelivery(opts.delivery || '');
   // فیلدهای تکمیلیِ خریدار (کد اقتصادی/شناسه ثبت/فکس/نشانی/کد پستی) — فقط اگر برآورد مقدار دارد نشانده می‌شوند
   // تا مقدارِ ذخیره‌شدهٔ فاکتورهای قبلی بی‌دلیل پاک نشود؛ ivLoadSavedData بعداً نسخهٔ ذخیره‌شده را رویش می‌نشاند.
   (function(){ var _bmap={'iv-beco':opts.econ,'iv-breg':opts.regid,'iv-bfax':opts.fax,'iv-baddr':opts.address,'iv-bpost':opts.post};
@@ -10681,7 +10721,7 @@ function ivShowInvoice(){
   try{ if(typeof prSyncOrderInputs==='function') prSyncOrderInputs(); }catch(e){}   // مقادیرِ تازهٔ فرم (تلفن، سازمان...) قبل از ساختِ فاکتور همگام شوند
   var r=prLastResult, o=(prState&&prState.order)||{};
   var built = prBuildInvoiceItems(r, o);
-  ivOpenInvoice({ code:o.orderName, qty:(r.multi? (r.qty||1) : o.qty), unit:built.fallbackUnit, items:built.items, customer:o.customer, tel:o.tel, econ:o.econ, regid:o.regid, fax:o.fax, address:o.address, post:o.post, estimateId:'', folderId:'', orderCode:(prState&&prState.savedCode)||'' });
+  ivOpenInvoice({ code:o.orderName, qty:(r.multi? (r.qty||1) : o.qty), unit:built.fallbackUnit, items:built.items, customer:o.customer, tel:o.tel, econ:o.econ, regid:o.regid, fax:o.fax, address:o.address, post:o.post, delivery:(function(){ var _s=o.schedule||null; return (_s&&_s.invNotice)?String(_s.invText||''):''; })(), estimateId:'', folderId:'', orderCode:(prState&&prState.savedCode)||'' });
 }
 function prToggleSetMode(){
   var w=document.getElementById('pr-wrap-setcount');
@@ -11439,7 +11479,7 @@ function archiveOpenInvoice(id){
   callSheet('getEstimate', { id:id, t:Date.now() }, function(res){
     if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در بارگذاری سفارش'); return; }
     ivOpenInvoice({ code:res.orderName, qty:res.qty, unit:res.perUnit, items:res.items, customer:res.customer,
-      tel:res.tel, econ:res.econ, regid:res.regid, fax:res.fax, address:res.address, post:res.post,
+      tel:res.tel, econ:res.econ, regid:res.regid, fax:res.fax, address:res.address, post:res.post, delivery:res.delivery,
       dateStr:res.dateStr, estimateId:id, folderId:res.folderId, orderCode:res.code });
     // اگر قبلاً محتوای فاکتور ذخیره شده، رویِ نسخه‌ی ساخته‌شده از برآورد بنشان (آدرس/توضیحات/اعداد ویرایش‌شده)
     ivLoadSavedData(id, function(loaded){
@@ -11537,6 +11577,16 @@ function ivFitPage(){
 }
 try{ window.addEventListener('resize', function(){ try{ ivFitPage(); }catch(e){} }); }catch(e){}
 function ivBuyerFieldIds(){ return ['iv-bname','iv-beco','iv-breg','iv-btel','iv-bfax','iv-baddr','iv-bpost']; }
+// موعد تحویل در فاکتور — اگر متن خالی باشد ردیف اصلاً وجود ندارد و چیدمان دست‌نخورده می‌ماند.
+// فاکتورهای قدیمی که این فیلد را ندارند دقیقاً مثل قبل رفتار می‌کنند.
+function ivSetDelivery(txt){
+  var row = document.getElementById('iv-delivery-row');
+  var cell = document.getElementById('iv-delivery');
+  if(!row || !cell) return;
+  var t = String(txt==null?'':txt).trim();
+  if(t){ cell.textContent = t; row.style.display = ''; }
+  else { cell.textContent = ''; row.style.display = 'none'; }
+}
 function ivCollectData(){
   var buyer = {};
   ivBuyerFieldIds().forEach(function(id){ var el=document.getElementById(id); if(el) buyer[id]=el.textContent||''; });
@@ -11553,6 +11603,7 @@ function ivCollectData(){
     items: ivItems.map(function(it){ return { code:String(it.code||''), desc:String(it.desc||''), qty:(+it.qty||0), unit:(+it.unit||0), total:(it.total!=null&&it.total!=='')?(+it.total||0):null }; }),
     buyer: buyer,
     notes: (typeof ivNotes!=='undefined') ? ivNotes.slice() : [],
+    delivery: (function(){ var e=document.getElementById('iv-delivery'); return e ? String(e.textContent||'').trim() : ''; })(),
     pageSize: (typeof ivPageSize!=='undefined') ? ivPageSize : 'a4',
     savedAt: Date.now()
   };
@@ -11568,7 +11619,9 @@ function ivApplyData(inv){
       ivItems = inv.items.map(function(it){ return { code:String(it.code||''), desc:String(it.desc||''), qty:Math.max(1,+it.qty||1), unit:Math.round(+it.unit||0), total:(it.total!=null?Math.round(+it.total):undefined) }; });
       ivRender();
     }
-    if(inv.buyerLayout && inv.buyerLayout.length){ ivBuyerLayout = ivNormalizeBuyerLayout(inv.buyerLayout); ivRenderBuyer(); }
+    // فقط وقتی کلید در دادهٔ ذخیره‌شده هست دست می‌زنیم؛ فاکتورهای قدیمی بی‌اثر می‌مانند
+  if(inv.hasOwnProperty('delivery')) ivSetDelivery(inv.delivery);
+  if(inv.buyerLayout && inv.buyerLayout.length){ ivBuyerLayout = ivNormalizeBuyerLayout(inv.buyerLayout); ivRenderBuyer(); }
     if(inv.buyer){ ivBuyerFieldIds().forEach(function(id){ var sv=inv.buyer[id]; if(sv==null) return; var svs=String(sv).trim(); if(svs==='' || svs==='—'){ return; } var el=document.getElementById(id); if(el) el.textContent = sv; }); }
     if(inv.notes && typeof ivNotes!=='undefined'){ ivNotes = inv.notes.slice(); if(typeof ivRenderNotes==='function') ivRenderNotes(); }
     if(inv.pageSize && typeof ivSetSize==='function'){ ivSetSize(inv.pageSize); }
