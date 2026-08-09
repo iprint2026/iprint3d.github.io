@@ -818,7 +818,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V299</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V302</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -2429,12 +2429,24 @@ function renderBatchSection(itemId){
         + '</div>'
         + '<div style="display:flex;gap:4px;flex-shrink:0">'
         +   (b.batchCode?'<button class="btn btn-ghost btn-sm" onclick="downloadBatchQR(\''+b.id+'\')" style="padding:4px 8px" title="دانلود برچسب QR بچ">🏷️</button>':'')
-        +   (canEdit?'<button class="btn btn-ghost btn-sm" onclick="openEditBatch(\''+b.id+'\')" style="padding:4px 8px">✏️</button><button class="btn btn-ghost btn-sm" onclick="delBatch(\''+b.id+'\',\''+itemId+'\')" style="padding:4px 8px;color:#f87171">🗑️</button>':'')
+        +   (canEdit?'<button class="btn btn-ghost btn-sm" onclick="openSplitBatch(\''+b.id+'\')" style="padding:4px 8px;color:#7ab8ff" title="تفکیکِ بچ — جدا کردنِ بخشی از این بچ">✂️</button><button class="btn btn-ghost btn-sm" onclick="openEditBatch(\''+b.id+'\')" style="padding:4px 8px">✏️</button><button class="btn btn-ghost btn-sm" onclick="delBatch(\''+b.id+'\',\''+itemId+'\')" style="padding:4px 8px;color:#f87171">🗑️</button>':'')
         + '</div>'
         + '</div>';
     });
     total = Math.round(total*1000)/1000;
-    html += '<div style="text-align:left;font-size:13px;color:#4ade80;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid #1a1d2e">جمع بچ‌ها: '+total+(unit?(' '+unit):' عدد')+'</div>';
+    // اگر موجودیِ ثبت‌شدهٔ کالا با جمعِ بچ‌ها نخواند، هشدار + دکمهٔ همگام‌سازی
+    var _it = items.find(function(i){ return i.id===itemId; });
+    var _cur = _it ? (parseFloat(_it.qty)||0) : 0;
+    var _mismatch = Math.abs(_cur - total) > 0.001;
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid #1a1d2e">'
+         + '<div style="font-size:13px;color:#4ade80;font-weight:700">جمع بچ‌ها: '+total+(unit?(' '+unit):' عدد')+'</div>'
+         + (_mismatch
+             ? '<button class="btn btn-sm" onclick="fixItemQty(\''+itemId+'\')" style="background:#3a2a10;border:1px solid #6b5518;color:#f0c674;padding:5px 11px;font-size:11.5px">همگام‌سازی موجودی (ثبت‌شده: '+_cur+')</button>'
+             : '')
+         + '</div>'
+         + (_mismatch
+             ? '<div style="font-size:11.5px;color:#c9a75a;margin-top:5px;line-height:1.8">موجودیِ ثبت‌شدهٔ کالا ('+_cur+') با جمعِ بچ‌ها ('+total+') یکی نیست. دکمهٔ بالا آن را روی جمعِ بچ‌ها تنظیم می‌کند.</div>'
+             : '');
   }
   html += '</div>';
   host.innerHTML = html;
@@ -2768,18 +2780,37 @@ function afterBatchChange(itemId, res){
   }
 }
 // موجودی کل کالا رو با جمع بچ‌ها هماهنگ کن (در شیت)
-function syncItemQtyFromBatches(itemId){
+function syncItemQtyFromBatches(itemId, cb){
   var total = totalFromBatches(itemId);
-  if(total===null) return; // بچ نداره
+  if(total===null){ if(cb) cb(false); return; } // بچ نداره
   total = Math.round(total*1000)/1000;
   items = items.map(function(i){ return i.id===itemId ? Object.assign({},i,{qty:total}) : i; });
   saveItems();
-  var updated = items.find(function(i){ return i.id===itemId; });
-  if(updated){
-    callSheet('delete',{id:itemId},function(){
-      callSheet('add',updated,function(){ renderDashboard(); renderItems(); });
-    });
-  }
+  var u = items.find(function(i){ return i.id===itemId; });
+  if(!u){ if(cb) cb(false); return; }
+  // V301 — با updateItem به‌روزرسانی می‌شود (قبلاً delete سپس add بود؛
+  // اگر بینِ آن دو تایم‌اوت می‌خورد، کالا بدونِ موجودی یا اصلاً حذف می‌شد).
+  callSheet('updateItem', {
+    id:u.id, code:u.code||'', name:u.name||'', desc:u.desc||'', cat:u.cat||'',
+    qty:String(total), unit:u.unit||'', shelf:u.shelf||'', row:u.row||'',
+    minQty:String(u.minQty||0), status:u.status||'نو',
+    image:(u.image||''), barcode:(u.barcode||''), subcats:(u.subcats||'')
+  }, function(res){
+    if(!(res && res.status==='ok')){
+      showToast('⚠️ موجودی روی سرور به‌روز نشد — دوباره تلاش کن');
+    }
+    renderDashboard(); renderItems();
+    if(cb) cb(!!(res && res.status==='ok'));
+  });
+}
+// همگام‌سازیِ دستی برای کالاهایی که موجودی‌شان با بچ‌ها نمی‌خواند
+function fixItemQty(itemId){
+  var total = totalFromBatches(itemId);
+  if(total===null){ showToast('این کالا بچ ندارد'); return; }
+  showToast('⏳ در حال همگام‌سازی...');
+  syncItemQtyFromBatches(itemId, function(ok){
+    if(ok){ showToast('✅ موجودی روی '+total+' تنظیم شد'); renderBatchSection(itemId); }
+  });
 }
 
 function saveEdit(id){
@@ -3019,6 +3050,73 @@ function loadBatches(cb){
   });
 }
 // بچ‌های یک کالا
+// ══════════ تفکیکِ بچ (V302) ══════════
+// بخشی از یک بچ به بچِ جدید منتقل می‌شود. موجودیِ کل تغییر نمی‌کند.
+function openSplitBatch(batchId){
+  var b = BATCHES.find(function(x){ return String(x.id)===String(batchId); });
+  if(!b){ showToast('بچ پیدا نشد'); return; }
+  var it = items.find(function(i){ return String(i.id)===String(b.itemId); });
+  var unit = (it && it.unit) ? it.unit : 'عدد';
+  var cur = parseFloat(b.qty)||0;
+  if(cur <= 0){ showToast('این بچ موجودی ندارد'); return; }
+
+  var old=document.getElementById('split-ov'); if(old&&old.parentNode) old.parentNode.removeChild(old);
+  var ov=document.createElement('div'); ov.id='split-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(4,6,12,.82);display:flex;align-items:center;justify-content:center;padding:20px 12px;overflow:auto';
+  ov.innerHTML='<div style="background:#0e1220;border:1px solid #23304f;border-radius:16px;max-width:470px;width:100%;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55)">'
+   +'<div style="padding:14px 16px;background:#0c1120;border-bottom:1px solid #1a2440;font-weight:800;color:#dfe3f5;font-size:15px">تفکیکِ بچ</div>'
+   +'<div style="padding:16px">'
+   +  '<div style="font-size:12.5px;color:#c7cce0;line-height:2;margin-bottom:12px">'
+   +    'از <b style="color:#7ab8ff">'+escapeHtml(b.batchCode||'')+'</b>'+(b.batchName?' — '+escapeHtml(b.batchName):'')+'<br>'
+   +    'موجودیِ فعلی: <b>'+prToFa(cur)+' '+escapeHtml(unit)+'</b></div>'
+   +  '<label style="font-size:11px;color:#5a6080">مقدارِ جدا شده ('+escapeHtml(unit)+')</label>'
+   +  '<input class="inp" id="split-amount" type="number" min="0" step="any" max="'+cur+'" placeholder="مثلاً ۱" oninput="splitPreview('+cur+',\''+escapeHtml(unit)+'\')" style="width:100%">'
+   +  '<label style="font-size:11px;color:#5a6080;display:block;margin-top:11px">نامِ بچِ جدید <span style="color:#4a5070">(اختیاری)</span></label>'
+   +  '<input class="inp" id="split-name" placeholder="مثلاً برای پروژهٔ سلکتور" autocomplete="off" style="width:100%">'
+   +  '<label style="font-size:11px;color:#5a6080;display:block;margin-top:11px">توضیح <span style="color:#4a5070">(اختیاری)</span></label>'
+   +  '<input class="inp" id="split-note" placeholder="—" autocomplete="off" style="width:100%">'
+   +  '<div id="split-preview" style="margin-top:13px;padding:11px 13px;background:#0b1020;border:1px solid #1a2440;border-radius:10px;font-size:12px;color:#8a93b2;line-height:2">مقدار را وارد کن تا پیش‌نمایش را ببینی.</div>'
+   +  '<div style="font-size:11px;color:#8a93b2;margin-top:9px;line-height:1.9">این عملیات <b style="color:#c9a75a">مصرف نیست</b> — چیزی از موجودیِ کالا کسر نمی‌شود. فقط بچ به دو بچ تقسیم می‌شود و تاریخِ ورود و انقضا به بچِ جدید ارث می‌رسد.</div>'
+   +'</div>'
+   +'<div style="display:flex;gap:9px;padding:12px 16px;background:#0c1120;border-top:1px solid #1a2440">'
+   +  '<button id="split-ok" class="btn btn-sm" style="background:#2563eb;border-color:#2563eb;color:#fff;padding:9px 18px">تفکیک کن</button>'
+   +  '<button class="btn btn-ghost btn-sm" onclick="closeSplit()" style="padding:9px 18px">انصراف</button>'
+   +'</div></div>';
+  document.body.appendChild(ov);
+  ov.onclick=function(e){ if(e.target===ov) closeSplit(); };
+  document.getElementById('split-ok').onclick=function(){ doSplitBatch(batchId, cur, unit); };
+  setTimeout(function(){ var el=document.getElementById('split-amount'); if(el) el.focus(); },60);
+}
+function closeSplit(){ var o=document.getElementById('split-ov'); if(o&&o.parentNode) o.parentNode.removeChild(o); }
+function splitPreview(cur, unit){
+  var el=document.getElementById('split-preview'); if(!el) return;
+  var v=parseFloat((document.getElementById('split-amount')||{}).value)||0;
+  if(!(v>0)){ el.innerHTML='مقدار را وارد کن تا پیش‌نمایش را ببینی.'; el.style.color='#8a93b2'; return; }
+  if(v>cur){ el.innerHTML='<span style="color:#f87171">مقدار از موجودیِ بچ ('+prToFa(cur)+' '+unit+') بیشتر است.</span>'; return; }
+  var rem=Math.round((cur-v)*1000)/1000;
+  el.style.color='#c7cce0';
+  el.innerHTML='بچِ فعلی: <b>'+prToFa(cur)+'</b> → <b style="color:#fbbf24">'+prToFa(rem)+' '+unit+'</b><br>'
+    +'بچِ جدید: <b style="color:#34d399">'+prToFa(Math.round(v*1000)/1000)+' '+unit+'</b><br>'
+    +'<span style="color:#8a93b2">جمعِ کل بدونِ تغییر: <b>'+prToFa(cur)+' '+unit+'</b></span>';
+}
+function doSplitBatch(batchId, cur, unit){
+  var v=parseFloat((document.getElementById('split-amount')||{}).value)||0;
+  if(!(v>0)){ showToast('مقدار را وارد کن'); return; }
+  if(v>cur){ showToast('مقدار از موجودیِ بچ بیشتر است'); return; }
+  var nm=(document.getElementById('split-name')||{}).value||'';
+  var nt=(document.getElementById('split-note')||{}).value||'';
+  var btn=document.getElementById('split-ok'); if(btn){ btn.disabled=true; btn.innerHTML='در حال تفکیک...'; }
+  callSheet('splitBatch', { batchId:batchId, amount:String(v), newName:nm, note:nt }, function(res){
+    if(btn){ btn.disabled=false; btn.innerHTML='تفکیک کن'; }
+    if(res && res.status==='ok'){
+      closeSplit();
+      showToast('✅ بچِ '+res.newCode+' با '+res.amount+' '+unit+' ساخته شد');
+      loadBatches(function(){ renderBatchSection(res.itemId); renderItems(); renderDashboard(); });
+    } else {
+      showToast((res&&res.message)?res.message:'خطا در تفکیک');
+    }
+  });
+}
 function batchesOf(itemId){
   return BATCHES.filter(function(b){ return String(b.itemId)===String(itemId); });
 }
@@ -8922,7 +9020,7 @@ function schedExportPDF(){
   }
   function headHtml(small){
     return '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:'+(small?'1.5px':'3px')+' solid #1a1f2e;padding-bottom:'+(small?'9px':'14px')+';margin-bottom:'+(small?'16px':'22px')+'">'
-      +'<div><div style="font-size:'+(small?'19px':'30px')+';font-weight:700;color:#1a1f2e;letter-spacing:-.5px">تقویم اجرایی پروژه</div>'
+      +'<div><div style="font-size:'+(small?'19px':'30px')+';font-weight:700;color:#1a1f2e">تقویم اجرایی پروژه</div>'
       +'<div style="color:#5a6070;font-size:'+(small?'13px':'16px')+';margin-top:'+(small?'2px':'6px')+'">'+esc(title)+(cust?' &nbsp;·&nbsp; '+esc(cust):'')+'</div></div>'
       +(code?'<div style="border:2px solid #1a1f2e;border-radius:7px;padding:'+(small?'5px 12px':'8px 20px')+';font-weight:700;font-size:'+(small?'14px':'20px')+';color:#1a1f2e">'+esc(code)+'</div>':'')
       +'</div>';
@@ -8933,7 +9031,8 @@ function schedExportPDF(){
   host=document.createElement('div');
   host.id='sched-pdf-host';
   host.style.cssText='position:fixed;left:-20000px;top:0;width:'+PW+'px;background:#fff;z-index:-1;'
-    +'font-family:Tahoma,sans-serif;color:#1a1f2e;direction:rtl';
+    +'font-family:Tahoma,Arial,sans-serif;color:#1a1f2e;direction:rtl;unicode-bidi:embed;'
+    +'letter-spacing:normal;word-spacing:normal;text-rendering:auto;font-kerning:none';
 
   var pagesHtml='';
   chunks.forEach(function(ch, ci){
@@ -8991,7 +9090,7 @@ function schedExportPDF(){
         if(host.parentNode) host.parentNode.removeChild(host);
         return;
       }
-      html2canvas(pgs[n],{scale:2.6,backgroundColor:'#ffffff',useCORS:true,windowWidth:PW,width:PW,height:PH})
+      html2canvas(pgs[n],{scale:2.6,backgroundColor:'#ffffff',useCORS:true,windowWidth:PW,width:PW,height:PH,letterRendering:false,logging:false})
       .then(function(cv){
         if(n>0) pdf.addPage();
         pdf.addImage(cv.toDataURL('image/png'),'PNG',0,0,210,297);
@@ -9641,8 +9740,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V299 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V299";
+try{ if(window.console) console.log('%c iPrint3D FRONT V302 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V302";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
