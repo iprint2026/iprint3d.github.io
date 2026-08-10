@@ -825,7 +825,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V307</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V308</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9379,6 +9379,22 @@ function prRemoveSection(sid){
   }
   prRenderLines(); prRenderModelingArea(); prRenderPrePro(); prScheduleCompute();
 }
+// بازگشتِ قیمتِ یک بخش به محاسبهٔ خودکار (ضریب سود) — فقط همان بخش
+function prRevertSecManual(secId, autoV){
+  try{
+    var sc = prSecFind(secId);
+    var nm = (sc && sc.name) ? sc.name : 'این قطعه';
+    uiConfirm({
+      title:'بازگشت به قیمتِ خودکار', danger:false, okText:'بله، برگردان',
+      html:'قیمتِ دستیِ «<b style="color:#dfe3f5">'+escapeHtml(nm)+'</b>» برداشته می‌شود و دوباره از <b>ضریب سود</b> محاسبه خواهد شد.<br><br>'
+         +'<span style="color:#8a93b2;font-size:12px">قیمتِ خودکار: <b style="color:#34d399">'+prSep(autoV)+'</b> تومان برای هر عدد<br>'
+         +'بقیهٔ قطعات دست‌نخورده می‌مانند.</span>'
+    }, function(){
+      prSetSecManual(secId, '', autoV);      // مقدارِ خالی = خاموش‌کردنِ حالتِ دستی
+      showToast('«'+nm+'» به قیمتِ خودکار برگشت');
+    });
+  }catch(e){ if(window.console) console.log('prRevertSecManual', e); }
+}
 function prSetSecManual(sid, val, autoVal){
   var s = prSecFind(sid); if(!s) return;
   var clean = String(val).replace(/[^\d]/g,'');
@@ -9902,8 +9918,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V307 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V307";
+try{ if(window.console) console.log('%c iPrint3D FRONT V308 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V308";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -10162,9 +10178,14 @@ function prRenderTape(r){
       var autoV = Math.round(s.autoPerUnit||s.perUnit||0);
       var shownV = Math.round(s.manual ? s.perUnit : autoV);
       h2 += '<div style="margin-top:8px;background:#0c2018;border:1px solid #1e5e3e;border-radius:9px;padding:7px 9px">'
-        +'<label style="font-size:10.5px;color:#5fe39a;font-weight:700;display:block;margin-bottom:3px">💰 قیمت اعلامی این قطعه (هر عدد)'+(s.manual?' — دستی':'')+'</label>'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">'
+        +  '<label style="font-size:10.5px;color:#5fe39a;font-weight:700">💰 قیمت اعلامی این قطعه (هر عدد)'+(s.manual?' — دستی':'')+'</label>'
+        +  (s.manual
+            ? '<button type="button" onclick="prRevertSecManual(\''+s.id+'\','+autoV+')" title="بازگشت به قیمتِ خودکار (بر اساسِ ضریب سود): '+prSep(autoV)+'" style="flex:none;background:#0b3d2e;border:1px solid #2fa974;color:#8affd0;border-radius:7px;padding:3px 8px;font-size:10.5px;cursor:pointer;font-family:inherit;white-space:nowrap">↺ خودکار</button>'
+            : '')
+        +'</div>'
         +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shownV)+'" onchange="prSetSecManual(\''+s.id+'\', this.value, '+autoV+')" style="width:100%;box-sizing:border-box;background:#eafff5;border:1px solid #2fa974;border-radius:7px;color:#0b3d2e;padding:8px 9px;font-size:14px;text-align:center;font-weight:800">'
-        +(s.manual?'<div style="font-size:10px;color:#5fe39a;margin-top:4px;text-align:center">✔ قیمت دستی فعال است (برای بازگشت به خودکار، عدد را پاک کن)</div>':'')
+        +(s.manual?'<div style="font-size:10px;color:#8a9a94;margin-top:4px;text-align:center">✔ قیمت دستی فعال است · خودکار: <b style="color:#5fe39a">'+prSep(autoV)+'</b> (با ↺ برگرد)</div>':'')
         +'</div>';
       h2 += '</div></div>';
     });
