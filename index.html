@@ -826,7 +826,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V310</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V311</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -10177,8 +10177,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V310 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V310";
+try{ if(window.console) console.log('%c iPrint3D FRONT V311 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V311";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12016,7 +12016,13 @@ function ivApplyData(inv){
       ivRender();
     }
     // فقط وقتی کلید در دادهٔ ذخیره‌شده هست دست می‌زنیم؛ فاکتورهای قدیمی بی‌اثر می‌مانند
-  if(inv.hasOwnProperty('delivery')) ivSetDelivery(inv.delivery);
+  // V311 — مقدارِ خالیِ ذخیره‌شده نباید متنِ تازهٔ برآورد را پاک کند.
+  // (فاکتوری که قبلاً بدونِ موعد تحویل ذخیره شده، delivery:'' دارد و آن را حذف می‌کرد.)
+  // فقط اگر متنِ ذخیره‌شده واقعاً محتوا دارد، روی مقدارِ فعلی می‌نشیند —
+  // همان قاعده‌ای که برای فیلدهای خریدار هم داریم.
+  if(inv.hasOwnProperty('delivery') && String(inv.delivery||'').trim()!==''){
+    ivSetDelivery(inv.delivery);
+  }
   if(inv.buyerLayout && inv.buyerLayout.length){ ivBuyerLayout = ivNormalizeBuyerLayout(inv.buyerLayout); ivRenderBuyer(); }
     if(inv.buyer){ ivBuyerFieldIds().forEach(function(id){ var sv=inv.buyer[id]; if(sv==null) return; var svs=String(sv).trim(); if(svs==='' || svs==='—'){ return; } var el=document.getElementById(id); if(el) el.textContent = sv; }); }
     if(inv.notes && typeof ivNotes!=='undefined'){ ivNotes = inv.notes.slice(); if(typeof ivRenderNotes==='function') ivRenderNotes(); }
