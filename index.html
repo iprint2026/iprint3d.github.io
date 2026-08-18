@@ -327,6 +327,7 @@ tr:hover td{background:#0e1018}
     <div class="nav" onclick="gotoView('pricing',this)"><span class="nav-icon">🧮</span><span>برآورد قیمت</span></div>
     <div class="nav" onclick="gotoView('archive',this)"><span class="nav-icon">📁</span><span>آرشیو و گزارش‌ها</span></div>
     <div class="nav" onclick="gotoView('custbank',this)"><span class="nav-icon">🏢</span><span>بانک مشتری</span></div>
+    <div class="nav" onclick="gotoView('workshop',this)"><span class="nav-icon">🗓️</span><span>تقویم کارگاه</span></div>
 
     <div class="nav" onclick="gotoView('users',this)"><span class="nav-icon">👥</span><span>کاربران</span><span id="usersBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
     <div class="nav" id="notifNav" onclick="gotoView('notif',this)"><span class="nav-icon">📋</span><span>درخواست‌ها</span><span id="notifBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
@@ -825,7 +826,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V308</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V310</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1161,6 +1162,25 @@ function doPost(e){
   }
 </style>
 
+<div id="view-workshop" class="hidden">
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:800;font-size:15px;color:#dfe3f5">تقویم کارگاه</div>
+        <div style="font-size:11.5px;color:#8a93b2;margin-top:3px">سفارش‌هایی که «در جریان ساخت» هستند و زمان‌بندی‌شان ذخیره شده است</div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <select id="ws-days" class="inp" onchange="wsRender()" style="max-width:150px">
+          <option value="14">۱۴ روزِ آینده</option>
+          <option value="30" selected>۳۰ روزِ آینده</option>
+          <option value="60">۶۰ روزِ آینده</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="wsInit(true)">🔄 بروزرسانی</button>
+      </div>
+    </div>
+  </div>
+  <div id="ws-body"></div>
+</div>
 <div id="view-custbank" class="hidden">
   <div class="page-title">🏢 بانک مشتری</div>
   <div class="card" style="margin-bottom:14px">
@@ -2008,6 +2028,7 @@ function gotoView(v,el){
   else if(v==='pricing'){ if(!canDo('users')){alert('دسترسی ندارید');return;} pricingInit(); }
   else if(v==='archive'){ if(!canDo('users')){alert('دسترسی ندارید');return;} archiveInit(); }
   else if(v==='custbank'){ if(!canDo('users')){alert('دسترسی ندارید');return;} custBankInit(); }
+  else if(v==='workshop'){ wsInit(); }
   else if(v==='usage'){ loadUsageReport(); loadProjects(); }
   else if(v==='users'){
     if(!canDo('users')){alert('دسترسی ندارید');return;}
@@ -9332,6 +9353,233 @@ document.addEventListener('click', function(e){
   if(e.target && e.target.closest && (e.target.closest('.cbsug') || e.target.id==='pr-o-customer' || e.target.id==='pr-o-org' || e.target.id==='pr-o-tel')) return;
   cbSugClose();
 });
+// ══════════════ تقویمِ کارگاه (V310) — فقط‌خواندنی ══════════════
+// سفارش‌های «در جریان ساخت» که زمان‌بندیِ ذخیره‌شده دارند را می‌گیرد و
+// نشان می‌دهد هر روز کدام دستگاه درگیرِ کدام سفارش است، و سفارشِ بعدی
+// روی هر دستگاه از چه تاریخی می‌تواند شروع شود.
+var WS_ORDERS = null, WS_HOL = null, WS_LOADING = false;
+
+function wsInit(force){
+  var body = document.getElementById('ws-body');
+  if(!body) return;
+  if(WS_ORDERS && !force){ wsRender(); return; }
+  if(WS_LOADING) return;
+  WS_LOADING = true;
+  body.innerHTML = '<div class="card" style="text-align:center;color:#8a93b2;font-size:13px;padding:26px">در حال بارگذاری...</div>';
+  callSheet('workshopQueue', { t:Date.now() }, function(res){
+    WS_LOADING = false;
+    if(!(res && res.status==='ok')){
+      body.innerHTML = '<div class="card" style="color:#f0a6a8;font-size:13px">خطا در بارگذاری'+((res&&res.message)?(': '+escapeHtml(res.message)):'')+'</div>';
+      return;
+    }
+    WS_ORDERS = res.orders || [];
+    // تقویمِ تعطیلاتِ سالِ جاری
+    var y = (function(){ try{ return +String(todayShamsi()).split('/')[0]; }catch(e){ return 0; } })();
+    callSheet('calendarGet', { year:y, t:Date.now() }, function(r2){
+      WS_HOL = (r2 && r2.status==='ok') ? r2 : { official:{}, fridays:{} };
+      wsRender();
+    });
+  });
+}
+
+// ساعتِ دستگاهِ هر سفارش، به تفکیکِ دستگاه
+function wsMachineHours(o){
+  var res = {};
+  var lines = [];
+  try{
+    if(o.order && o.order.sections && o.order.sections.length){
+      o.order.sections.forEach(function(sec){
+        (sec.lines||[]).forEach(function(l){ lines.push({ l:l, qty:Math.max(1,+sec.qty||1) }); });
+      });
+    } else {
+      (o.lines||[]).forEach(function(l){ lines.push({ l:l, qty:Math.max(1,+((o.order&&o.order.qty)||1)) }); });
+    }
+  }catch(e){}
+  lines.forEach(function(w){
+    var l = w.l; if(!l || !l.machineId) return;
+    var h = 0;
+    if(l.kind==='machine_dlp'){
+      var per = Math.max(1, +l.perPlate||1);
+      h = Math.ceil(w.qty/per) * (+l.plateTime||0);
+    } else if(l.kind==='machine_fdm'){
+      h = (+l.hours||0) * w.qty;
+    } else return;
+    if(h>0) res[l.machineId] = (res[l.machineId]||0) + h;
+  });
+  return res;
+}
+
+function wsMachineName(id){
+  try{
+    var m = (prState.machines||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+    if(m && m.name) return m.name;
+  }catch(e){}
+  return String(id||'دستگاه');
+}
+
+// روزهای کاریِ متوالی از یک تاریخ، با احتسابِ روزهای هفتهٔ پروژه و تعطیلات
+var WS_MONS=[31,31,31,31,31,31,30,30,30,30,30,29];
+var WS_DOW=['sat','sun','mon','tue','wed','thu','fri'];
+function wsP2(n){ n=+n; return (n<10?'0':'')+n; }
+function wsKey(o){ return o.y+'/'+wsP2(o.m)+'/'+wsP2(o.d); }
+function wsNext(o){ o.d++; var lim=WS_MONS[o.m-1]||30; if(o.d>lim){ o.d=1; o.m++; if(o.m>12){ o.m=1; o.y++; } } }
+function wsParse(str){
+  var t=String(str||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);});
+  var m=t.match(/(\d{3,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
+  return m ? { y:+m[1], m:+m[2], d:+m[3] } : null;
+}
+// لنگرِ جمعه از تقویم، برای تشخیصِ روزِ هفته
+function wsDowOf(key, anchorKey, anchorIdx, idx){
+  if(anchorIdx<0) return null;
+  var diff = ((idx-anchorIdx)%7+7)%7;      // 0 = جمعه
+  return WS_DOW[(6+diff)%7];
+}
+
+// اشغالِ دستگاه‌ها: برای هر سفارش، روزهای کاری‌اش را از تاریخِ شروع پر می‌کند
+function wsBuild(){
+  var official = (WS_HOL&&WS_HOL.official)||{}, fridays=(WS_HOL&&WS_HOL.fridays)||{};
+  var occ = {};        // machineId → { dayKey: [ {order, hours} ] }
+  var infos = [];
+  (WS_ORDERS||[]).forEach(function(o){
+    var sc = o.schedule||{};
+    var mh = wsMachineHours(o);
+    var hpd = Math.max(0.5, +sc.hoursPerDay||10);
+    var start = wsParse(o.startDate) || wsParse(sc.startDate) || wsParse(todayShamsi());
+    if(!start) return;
+    var info = { o:o, machines:[], start:wsKey(start), end:'' };
+    for(var mid in mh){
+      var cnt = Math.max(1, +((sc.machines||{})[mid])||1);
+      var need = mh[mid] / (cnt*hpd);                       // روزِ کاریِ لازم روی این دستگاه
+      var safety = Math.max(1, +sc.safety||1);
+      var days = Math.max(1, Math.ceil(need*safety));
+      // پرکردنِ روزهای کاری
+      var cur = { y:start.y, m:start.m, d:start.d }, i=0, placed=0, guard=0;
+      // لنگرِ جمعه
+      var scan={y:cur.y,m:cur.m,d:cur.d}, aIdx=-1, st=0;
+      while(st<400){ if(fridays[wsKey(scan)]){ aIdx=st; break; } wsNext(scan); st++; }
+      var lastKey='';
+      while(placed<days && guard<900){
+        guard++;
+        var k=wsKey(cur);
+        var dow=wsDowOf(k,null,aIdx,i);
+        var offDay = (sc.holidaysOff!==false) && official.hasOwnProperty(k);
+        var dowOk = dow ? (sc.days ? !!sc.days[dow] : true) : true;
+        if(!offDay && dowOk){
+          occ[mid] = occ[mid] || {};
+          occ[mid][k] = occ[mid][k] || [];
+          occ[mid][k].push({ code:o.code, name:o.projectName, customer:o.customer, id:o.id, hours:hpd });
+          placed++; lastKey=k;
+        }
+        if(placed<days){ wsNext(cur); i++; }
+      }
+      info.machines.push({ id:mid, name:wsMachineName(mid), days:days, hours:mh[mid], end:lastKey });
+      if(lastKey > info.end) info.end = lastKey;
+    }
+    if(info.machines.length) infos.push(info);
+  });
+  return { occ:occ, infos:infos };
+}
+
+function wsRender(){
+  var body=document.getElementById('ws-body'); if(!body) return;
+  if(!WS_ORDERS){ return; }
+  if(!WS_ORDERS.length){
+    body.innerHTML = '<div class="card" style="font-size:13px;color:#c7cce0;line-height:2">'
+      +'<b style="color:#fbbf24">هیچ سفارشی در تقویم نیست.</b><br>'
+      +'برای اینکه سفارشی اینجا بیاید باید دو شرط داشته باشد:<br>'
+      +'۱) وضعیتش <b>«در جریان ساخت»</b> باشد (از پروفایلِ سفارش، دکمهٔ «شروع ساخت»)<br>'
+      +'۲) در بخشِ <b>زمان‌بندی تولید</b> تنظیمات را زده و <b>ذخیرهٔ زمان‌بندی</b> کرده باشی'
+      +'</div>';
+    return;
+  }
+  var B = wsBuild();
+  var occ = B.occ, infos = B.infos;
+  var official = (WS_HOL&&WS_HOL.official)||{}, fridays=(WS_HOL&&WS_HOL.fridays)||{};
+  var nDays = +((document.getElementById('ws-days')||{}).value) || 30;
+
+  // فهرستِ دستگاه‌های درگیر
+  var mids = Object.keys(occ);
+  if(!mids.length){
+    body.innerHTML = '<div class="card" style="font-size:13px;color:#f0c674">سفارش‌های در جریان پیدا شدند ولی ردیفِ دستگاهی در آن‌ها نبود.</div>';
+    return;
+  }
+
+  // ── کارتِ صف هر دستگاه ──
+  var today = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
+  var Q = mids.map(function(mid){
+    var lastEnd = '';
+    var list = infos.filter(function(f){ return f.machines.some(function(m){ return m.id===mid; }); })
+                    .map(function(f){ var m=f.machines.filter(function(x){return x.id===mid;})[0];
+                                      return { code:f.o.code, name:f.o.projectName, start:f.start, end:m.end, days:m.days }; })
+                    .sort(function(a,b){ return a.start<b.start?-1:1; });
+    list.forEach(function(x){ if(x.end>lastEnd) lastEnd=x.end; });
+    // اولین روزِ آزاد = روزِ بعد از آخرین اشغال
+    var free = '';
+    if(lastEnd){
+      var p=wsParse(lastEnd); if(p){ wsNext(p); free=wsKey(p); }
+    }
+    return { mid:mid, name:wsMachineName(mid), list:list, lastEnd:lastEnd, free:free };
+  });
+
+  var H = '<div class="card" style="margin-bottom:14px">'
+    + '<div style="font-weight:700;font-size:13.5px;color:#ffd479;margin-bottom:10px">وضعیتِ صفِ دستگاه‌ها</div>'
+    + Q.map(function(q){
+        return '<div style="border:1px solid #232742;border-radius:10px;padding:11px 13px;margin-bottom:8px">'
+          +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+          +  '<div style="font-weight:700;font-size:13px;color:#7ab8ff">'+escapeHtml(q.name)+'</div>'
+          +  '<div style="font-size:12px;color:'+(q.list.length?'#fbbf24':'#34d399')+'">'
+          +    (q.list.length ? ('درگیرِ '+prToFa(q.list.length)+' سفارش') : 'آزاد')+'</div>'
+          +'</div>'
+          + (q.list.length
+            ? '<div style="margin-top:8px;font-size:12px;color:#c7cce0;line-height:2">'
+              + q.list.map(function(x,i){
+                  return '<div>نوبت '+prToFa(i+1)+': <b style="color:#dfe3f5">'+escapeHtml(x.code||'—')+'</b> '
+                       + escapeHtml(x.name||'') + ' <span style="color:#8a93b2">· '+prToFa(x.start)+' تا '+prToFa(x.end)+' ('+prToFa(x.days)+' روز)</span></div>';
+                }).join('')
+              + '<div style="margin-top:7px;padding-top:7px;border-top:1px dashed #1a2440;color:#34d399">'
+              +   'سفارشِ بعدی می‌تواند از <b>'+prToFa(q.free||'—')+'</b> شروع شود · نوبت <b>'+prToFa(q.list.length+1)+'</b></div>'
+              +'</div>'
+            : '<div style="margin-top:6px;font-size:12px;color:#34d399">این دستگاه خالی است — سفارشِ بعدی می‌تواند امروز شروع شود.</div>')
+          +'</div>';
+      }).join('')
+    + '</div>';
+
+  // ── تقویمِ روزبه‌روز ──
+  var cur = { y:today.y, m:today.m, d:today.d };
+  var scan={y:cur.y,m:cur.m,d:cur.d}, aIdx=-1, st2=0;
+  while(st2<400){ if(fridays[wsKey(scan)]){ aIdx=st2; break; } wsNext(scan); st2++; }
+  var DN={sat:'شنبه',sun:'یک‌شنبه',mon:'دوشنبه',tue:'سه‌شنبه',wed:'چهارشنبه',thu:'پنج‌شنبه',fri:'جمعه'};
+  var rows='';
+  for(var i=0;i<nDays;i++){
+    var k=wsKey(cur);
+    var dow=wsDowOf(k,null,aIdx,i);
+    var isOff = official.hasOwnProperty(k);
+    var cells = mids.map(function(mid){
+      var arr=(occ[mid]||{})[k]||[];
+      if(!arr.length) return '<td style="padding:7px 6px;text-align:center;border-top:1px solid #1a2440;color:#3f4560;font-size:11px">آزاد</td>';
+      return '<td style="padding:7px 6px;text-align:center;border-top:1px solid #1a2440;background:#121a33">'
+        + arr.map(function(a){ return '<div style="font-size:11.5px;color:#dfe3f5;font-weight:600">'+escapeHtml(a.code||'')+'</div>'
+            +'<div style="font-size:10px;color:#8a93b2">'+escapeHtml(a.name||'')+'</div>'; }).join('<div style="height:4px"></div>')
+        +'</td>';
+    }).join('');
+    rows += '<tr'+(i===0?' style="background:#0f1a2e"':'')+'>'
+      + '<td style="padding:7px 8px;border-top:1px solid #1a2440;white-space:nowrap">'
+      +   '<div style="font-size:12px;color:'+(i===0?'#7ab8ff':'#c7cce0')+';font-weight:'+(i===0?'700':'400')+'">'+prToFa(k)+(i===0?' (امروز)':'')+'</div>'
+      +   '<div style="font-size:10px;color:'+(isOff?'#f0a6a8':'#6b7280')+'">'+(dow?DN[dow]:'')+(isOff?' · تعطیل رسمی':'')+'</div>'
+      + '</td>' + cells + '</tr>';
+    wsNext(cur);
+  }
+
+  body.innerHTML = H
+    + '<div class="card" style="padding:0;overflow:hidden">'
+    +   '<div style="padding:11px 13px;background:#0c1120;border-bottom:1px solid #1a2440;font-weight:700;font-size:13.5px;color:#7ab8ff">تقویمِ روزبه‌روزِ دستگاه‌ها</div>'
+    +   '<div style="max-height:520px;overflow:auto"><table style="width:100%;border-collapse:collapse">'
+    +     '<thead><tr style="background:#0f1428;position:sticky;top:0">'
+    +       '<th style="padding:9px 8px;font-size:11.5px;color:#8a93b2;text-align:right">روز</th>'
+    +       mids.map(function(m){ return '<th style="padding:9px 6px;font-size:11.5px;color:#8a93b2">'+escapeHtml(wsMachineName(m))+'</th>'; }).join('')
+    +     '</tr></thead><tbody>'+rows+'</tbody></table></div>'
+    + '</div>';
+}
 function prSyncOrderInputs(){
   var o = prState.order, g=function(id){var e=document.getElementById(id);return e?e.value:null;};
   var c=g('pr-o-customer'); if(c!=null) o.customer=c;
@@ -9378,6 +9626,17 @@ function prRemoveSection(sid){
     prRenderOrder();
   }
   prRenderLines(); prRenderModelingArea(); prRenderPrePro(); prScheduleCompute();
+}
+// بازگشتِ قیمتِ کلِ پروژه به محاسبهٔ خودکار (سفارش‌های تک‌بخشی)
+function prRevertOrderManual(autoTotal, extras, qty){
+  uiConfirm({
+    title:'بازگشت به قیمتِ خودکار', danger:false, okText:'بله، برگردان',
+    html:'قیمتِ دستیِ کلِ پروژه برداشته می‌شود و دوباره از <b>ضریب سود</b> محاسبه خواهد شد.<br><br>'
+       +'<span style="color:#8a93b2;font-size:12px">قیمتِ خودکار: <b style="color:#34d399">'+prSep(autoTotal)+'</b> تومان</span>'
+  }, function(){
+    prSetOrderManualTotal('', autoTotal, extras, qty);   // خالی = خاموش‌کردنِ حالتِ دستی
+    showToast('به قیمتِ خودکار برگشت');
+  });
 }
 // بازگشتِ قیمتِ یک بخش به محاسبهٔ خودکار (ضریب سود) — فقط همان بخش
 function prRevertSecManual(secId, autoV){
@@ -9918,8 +10177,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V308 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V308";
+try{ if(window.console) console.log('%c iPrint3D FRONT V310 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V310";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -10247,10 +10506,15 @@ function prRenderTape(r){
   var autoTotal = Math.round(oAuto * r.qty + extras);                  // قیمتِ خودکارِ کلِ پروژه
   var shownTotal = Math.round(r.orderTotal);                           // قیمتِ نهاییِ فعلیِ کل
   h += '<div style="margin-top:8px;background:#0c2018;border:1px solid #1e5e3e;border-radius:12px;padding:11px">'
-    +'<div style="color:#5fe39a;font-weight:800;font-size:12px;margin-bottom:6px">💰 قیمت اعلامیِ کلِ پروژه (قابل ویرایش)'+(r.manual?' — دستی':'')+'</div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:6px">'
+    +  '<div style="color:#5fe39a;font-weight:800;font-size:12px">💰 قیمت اعلامیِ کلِ پروژه (قابل ویرایش)'+(r.manual?' — دستی':'')+'</div>'
+    +  (r.manual
+        ? '<button type="button" onclick="prRevertOrderManual('+autoTotal+','+extras+','+r.qty+')" title="بازگشت به قیمتِ خودکار (بر اساسِ ضریب سود): '+prSep(autoTotal)+'" style="flex:none;background:#0b3d2e;border:1px solid #2fa974;color:#8affd0;border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">↺ خودکار</button>'
+        : '')
+    +'</div>'
     +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shownTotal)+'" onchange="prSetOrderManualTotal(this.value,'+autoTotal+','+extras+','+r.qty+')" style="width:100%;box-sizing:border-box;background:#eafff5;border:1px solid #2fa974;border-radius:8px;color:#0b3d2e;padding:9px;font-size:15px;text-align:center;font-weight:800">'
     +'<div style="font-size:10px;color:#5a8f76;margin-top:4px">قیمتِ خودکارِ کل (تمام‌شده + سود + پژوهشگاه + بسته‌بندی/ارسال): '+prFmt(autoTotal)+'. با ویرایش، فقط سود تغییر می‌کند. برای بازگشت به خودکار، خالی کن.</div>'
-    +(r.manual?'<div style="font-size:10px;color:#5fe39a;margin-top:3px;text-align:center">✔ قیمت دستی فعال است</div>':'')
+    +(r.manual?'<div style="font-size:10px;color:#8a9a94;margin-top:3px;text-align:center">✔ قیمت دستی فعال است · خودکار: <b style="color:#5fe39a">'+prSep(autoTotal)+'</b> (با ↺ برگرد)</div>':'')
     +'</div>';
   h += prModelingBox(r);
   h += prMaterialsBox(r);
