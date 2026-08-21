@@ -826,7 +826,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V314</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V315</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -10345,8 +10345,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V314 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V314";
+try{ if(window.console) console.log('%c iPrint3D FRONT V315 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V315";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12318,15 +12318,80 @@ function xlsxDeliver(res, fallbackName){
   }
   return false;
 }
+// ════════════════════════════════════════════════════════════
+//  نوارِ پیشرفتِ ساختِ اکسل — دقیق، با polling از سرور
+//  سرور در کشِ موقت «done از total» را می‌نویسد؛ اینجا هر ۱.۵ ثانیه می‌خوانیم.
+// ════════════════════════════════════════════════════════════
+function xlsxProgShow(title){
+  var ov = document.getElementById('xlsx-prog-ov');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'xlsx-prog-ov';
+    ov.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);'
+      +'background:#1e2235;color:#e2e4f0;padding:14px 18px;border-radius:12px;'
+      +'border:1px solid #2a2f45;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10000;'
+      +'width:min(360px,92vw);font-size:13px;direction:rtl';
+    ov.innerHTML =
+       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +  '<span id="xlsx-prog-title" style="font-weight:700"></span>'
+      +  '<span id="xlsx-prog-pct" style="color:#4da3ff;font-weight:700">۰٪</span>'
+      +'</div>'
+      +'<div style="height:9px;background:#12151f;border-radius:6px;overflow:hidden">'
+      +  '<div id="xlsx-prog-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#3f7fd0,#4da3ff);'
+      +    'border-radius:6px;transition:width .4s ease"></div>'
+      +'</div>'
+      +'<div id="xlsx-prog-sub" style="margin-top:7px;color:#9aa;font-size:11px">در حال آماده‌سازی...</div>';
+    document.body.appendChild(ov);
+  }
+  document.getElementById('xlsx-prog-title').textContent = title||'در حال ساخت گزارش';
+  xlsxProgSet(0, 'شروع');
+  ov.style.display = 'block';
+}
+function xlsxProgSet(pct, subText){
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+  var fill=document.getElementById('xlsx-prog-fill'), pc=document.getElementById('xlsx-prog-pct'), sub=document.getElementById('xlsx-prog-sub');
+  if(fill) fill.style.width = pct+'%';
+  if(pc) pc.textContent = (typeof prToFa==='function'? prToFa(pct): pct)+'٪';
+  if(sub && subText!=null) sub.textContent = subText;
+}
+function xlsxProgHide(){
+  var ov=document.getElementById('xlsx-prog-ov');
+  if(ov) ov.style.display='none';
+}
+// polling: هر ۱.۵ ثانیه از سرور می‌پرسد. برمی‌گرداند شناسهٔ interval را تا بعداً متوقف شود.
+function xlsxProgPoll(kind, key){
+  var lastPct = 0;
+  var iv = setInterval(function(){
+    callSheet('xlsxProgress', { kind:kind, key:key, t:Date.now() }, function(res){
+      if(res && res.status==='ok' && res.progress){
+        var p = res.progress;
+        var total = +p.total||1, done = +p.done||0;
+        var pct = Math.round(done/total*100);
+        // نوار فقط جلو می‌رود (هرگز عقب نمی‌پرد)؛ سقفِ ۹۷٪ تا لحظهٔ تحویلِ واقعی
+        if(pct > lastPct){ lastPct = Math.min(97, pct); }
+        var phase = p.phase || '';
+        var label = phase ? (phase+' — '+ (typeof prToFa==='function'?prToFa(done):done)+' از '+(typeof prToFa==='function'?prToFa(total):total)) : '';
+        xlsxProgSet(lastPct, label);
+      }
+    }, 8000);
+  }, 1500);
+  return iv;
+}
 function archiveDownload(mk, btn){
-  var old=btn.innerHTML; btn.disabled=true; btn.innerHTML='در حال ساخت... (تا ۲ دقیقه)';
+  var old=btn.innerHTML; btn.disabled=true; btn.innerHTML='در حال ساخت...';
+  xlsxProgShow('ساختِ گزارشِ ماه');
+  var pollIv = xlsxProgPoll('month', mk);
+  function done(){ try{ clearInterval(pollIv); }catch(e){} btn.disabled=false; btn.innerHTML=old; }
   callSheet('exportMonthlyXlsx', { monthKey:mk }, function(res){
-    btn.disabled=false; btn.innerHTML=old;
     if(res && res.status==='ok'){
+      xlsxProgSet(100, 'آماده شد ✓');
+      setTimeout(xlsxProgHide, 700);
+      done();
       if(xlsxDeliver(res, 'گزارش ماه.xlsx')) return;
       showToast(res.saveError ? ('فایل ساخته شد ولی ذخیره نشد: '+res.saveError) : 'فایل ساخته شد ولی لینکی برنگشت');
       return;
     }
+    xlsxProgHide(); done();
     if(res && res.error==='timeout'){
       showToast('ساختِ گزارش طول کشید — چند لحظه صبر کن و دوباره بزن؛ اگر باز نشد، بازهٔ کوچک‌تری انتخاب کن');
       return;
@@ -12955,10 +13020,13 @@ function rangeBuild(from, to, label){
   var oldBtn = btn ? btn.innerHTML : '';
   if(st){ st.style.color='#e0b050'; st.textContent='⏳ در حال ساخت گزارش ('+label+')... چند لحظه صبر کن'; }
   if(btn){ btn.disabled=true; btn.style.opacity='0.75'; btn.innerHTML='⏳ در حال ساخت گزارش... صبر کن'; }
-  if(typeof showToast==='function') showToast('⏳ گزارش در حال ساخت است...');
+  xlsxProgShow('ساختِ گزارشِ بازه');
+  var pollIv = xlsxProgPoll('range', from+'_'+to);
+  function stopPoll(){ try{ clearInterval(pollIv); }catch(e){} }
   callSheet('exportRangeXlsx', { from:from, to:to, t:Date.now() }, function(res){
     if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.innerHTML=oldBtn; }
-    if(!(res && res.status==='ok')){ if(st){ st.style.color='#f87171'; st.textContent='❌ '+((res&&res.message)?res.message:'خطا در ساخت گزارش'); } if(typeof showToast==='function') showToast('❌ خطا در ساخت گزارش'); return; }
+    if(!(res && res.status==='ok')){ stopPoll(); xlsxProgHide(); if(st){ st.style.color='#f87171'; st.textContent='❌ '+((res&&res.message)?res.message:'خطا در ساخت گزارش'); } if(typeof showToast==='function') showToast('❌ خطا در ساخت گزارش'); return; }
+    xlsxProgSet(100, 'آماده شد ✓'); setTimeout(xlsxProgHide, 700); stopPoll();
     if(xlsxDeliver(res, 'گزارش.xlsx')){
       if(st){ st.style.color='#34d399'; st.textContent='✅ گزارش ساخته و دانلود شد'; }
       return;
