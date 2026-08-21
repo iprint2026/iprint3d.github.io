@@ -826,7 +826,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V313</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V314</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -10345,8 +10345,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V313 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V313";
+try{ if(window.console) console.log('%c iPrint3D FRONT V314 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V314";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12295,22 +12295,44 @@ function archiveBackup(btn){
     else { showToast((res&&res.message)?res.message:'خطا در بکاپ'); }
   }, 90000);
 }
+// V314 — گزارشِ اکسل: فایل در Drive ساخته می‌شود و لینکش برمی‌گردد.
+// قبلاً کلِ فایل به‌صورت base64 در پاسخ می‌آمد که برای ماه‌های شلوغ
+// حجیم می‌شد و در تایم‌اوتِ ۲ دقیقه‌ای شکست می‌خورد.
+function xlsxDeliver(res, fallbackName){
+  if(res && res.url){                       // مسیرِ اصلی: دانلود از Drive
+    try{ window.open(res.url, '_blank'); }catch(e){}
+    showToast('✅ گزارش ساخته شد'+(res.sizeKB?(' ('+prToFa(res.sizeKB)+' کیلوبایت)'):'')+' — دانلود شروع شد');
+    return true;
+  }
+  if(res && res.base64){                    // مسیرِ جایگزین برای فایل‌های کوچک
+    try{
+      var bin=atob(res.base64), len=bin.length, bytes=new Uint8Array(len);
+      for(var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
+      var blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=res.filename||fallbackName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
+      showToast('✅ گزارش ساخته شد');
+      return true;
+    }catch(e){}
+  }
+  return false;
+}
 function archiveDownload(mk, btn){
-  var old=btn.innerHTML; btn.disabled=true; btn.innerHTML='در حال ساخت...';
+  var old=btn.innerHTML; btn.disabled=true; btn.innerHTML='در حال ساخت... (تا ۲ دقیقه)';
   callSheet('exportMonthlyXlsx', { monthKey:mk }, function(res){
     btn.disabled=false; btn.innerHTML=old;
-    if(res && res.status==='ok' && res.base64){
-      try{
-        var bin=atob(res.base64), len=bin.length, bytes=new Uint8Array(len);
-        for(var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
-        var blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-        var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=res.filename||'گزارش ماه.xlsx';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
-        showToast('✅ فایل گزارش ماه ساخته شد');
-      }catch(e){ showToast('خطا در دانلود فایل'); }
-    } else { showToast((res&&res.message)?res.message:'خطا در ساخت گزارش'); }
-  }, 120000);
+    if(res && res.status==='ok'){
+      if(xlsxDeliver(res, 'گزارش ماه.xlsx')) return;
+      showToast(res.saveError ? ('فایل ساخته شد ولی ذخیره نشد: '+res.saveError) : 'فایل ساخته شد ولی لینکی برنگشت');
+      return;
+    }
+    if(res && res.error==='timeout'){
+      showToast('ساختِ گزارش طول کشید — چند لحظه صبر کن و دوباره بزن؛ اگر باز نشد، بازهٔ کوچک‌تری انتخاب کن');
+      return;
+    }
+    showToast((res&&res.message)?res.message:'خطا در ساخت گزارش');
+  }, 300000);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -12937,18 +12959,13 @@ function rangeBuild(from, to, label){
   callSheet('exportRangeXlsx', { from:from, to:to, t:Date.now() }, function(res){
     if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.innerHTML=oldBtn; }
     if(!(res && res.status==='ok')){ if(st){ st.style.color='#f87171'; st.textContent='❌ '+((res&&res.message)?res.message:'خطا در ساخت گزارش'); } if(typeof showToast==='function') showToast('❌ خطا در ساخت گزارش'); return; }
-    try{
-      var bin=atob(res.base64), bytes=new Uint8Array(bin.length);
-      for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-      var blob=new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-      var url=URL.createObjectURL(blob);
-      var a=document.createElement('a'); a.href=url; a.download=res.filename||'گزارش.xlsx';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    if(xlsxDeliver(res, 'گزارش.xlsx')){
       if(st){ st.style.color='#34d399'; st.textContent='✅ گزارش ساخته و دانلود شد'; }
-      if(typeof showToast==='function') showToast('✅ گزارش دانلود شد');
-    }catch(e){ if(st){ st.style.color='#f87171'; st.textContent='❌ خطا در ساخت فایل'; } if(typeof showToast==='function') showToast('❌ خطا در ساخت فایل'); }
-  }, 120000);
+      return;
+    }
+    if(st){ st.style.color='#f87171'; st.textContent='❌ '+(res.saveError||'فایل ساخته شد ولی لینکی برنگشت'); }
+    if(typeof showToast==='function') showToast('❌ خطا در تحویل فایل');
+  }, 300000);
 }
 function omSetStatus(id, value){
   callSheet('setEstimateStatus', { id:id, value:value }, function(res){
