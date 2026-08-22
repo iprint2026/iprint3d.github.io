@@ -826,7 +826,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V315</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V316</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1170,11 +1170,7 @@ function doPost(e){
         <div style="font-size:11.5px;color:#8a93b2;margin-top:3px">سفارش‌هایی که «در جریان ساخت» هستند و زمان‌بندی‌شان ذخیره شده است</div>
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
-        <select id="ws-days" class="inp" onchange="wsRender()" style="max-width:150px">
-          <option value="14">۱۴ روزِ آینده</option>
-          <option value="30" selected>۳۰ روزِ آینده</option>
-          <option value="60">۶۰ روزِ آینده</option>
-        </select>
+        <button class="btn btn-ghost btn-sm" onclick="WS_VIEW_M=0; wsRender()">📅 ماهِ جاری</button>
         <button class="btn btn-ghost btn-sm" onclick="wsInit(true)">🔄 بروزرسانی</button>
       </div>
     </div>
@@ -9365,6 +9361,8 @@ document.addEventListener('click', function(e){
 // نشان می‌دهد هر روز کدام دستگاه درگیرِ کدام سفارش است، و سفارشِ بعدی
 // روی هر دستگاه از چه تاریخی می‌تواند شروع شود.
 var WS_ORDERS = null, WS_HOL = null, WS_LOADING = false;
+var WS_VIEW_M = 0, WS_VIEW_Y = 0;   // ماه/سالِ نمایشِ تقویم (۰ = هنوز ست نشده → به ماهِ امروز می‌رود)
+var WS_SEL_MID = '';                 // دستگاهِ انتخاب‌شده در گریدِ ماهانه
 
 // ══════════════ ساعتِ کاریِ کارگاه (V312) ══════════════
 // دو لایه: پیش‌فرضِ هفتگی + استثنای روزانه. استثنا بر پیش‌فرض مقدم است.
@@ -9634,6 +9632,39 @@ function wsBuild(){
   return { occ:occ, infos:infos };
 }
 
+var WS_MONNAMES=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+function wsMonName(m){ return WS_MONNAMES[(m-1)%12]||''; }
+// روزِ هفتهٔ اولِ ماه را می‌یابد (۰=شنبه ... ۶=جمعه) تا خانه‌های خالیِ ابتدای گرید را بسازد
+function wsFirstDow(y, m){
+  var fridays=(WS_HOL&&WS_HOL.fridays)||{};
+  // لنگرِ جمعه نزدیکِ روزِ اولِ ماه پیدا کن، بعد اختلاف را بشمار
+  var first={y:y,m:m,d:1};
+  var scan={y:y,m:m,d:1}, aIdx=-1, st=0;
+  while(st<400){ if(fridays[wsKey(scan)]){ aIdx=st; break; } wsNext(scan); st++; }
+  if(aIdx<0) return 0; // اگر تعطیلات لود نشده، پیش‌فرض شنبه
+  var dow = wsDowOf(wsKey(first), null, aIdx, 0); // 'sat'..'fri'
+  var idx = WS_DOW.indexOf(dow);
+  return idx<0 ? 0 : idx;
+}
+function wsGotoMonth(delta){
+  WS_VIEW_M += delta;
+  while(WS_VIEW_M>12){ WS_VIEW_M-=12; WS_VIEW_Y++; }
+  while(WS_VIEW_M<1){ WS_VIEW_M+=12; WS_VIEW_Y--; }
+  wsRender();
+}
+function wsPickMachine(mid){ WS_SEL_MID = mid; wsRender(); }
+// کلیک روی سفارش در تقویم → باز کردن پروفایلِ همان سفارش (مثل دیپ‌لینکِ #order)
+function wsOpen(id){
+  if(!id){ return; }
+  if(typeof canDo==='function' && !canDo('users')){ showToast('برای دیدن این سفارش دسترسی لازم را ندارید.'); return; }
+  gotoView('archive');
+  archiveInit(function(){
+    var found=null;
+    for(var i=0;i<arData.length;i++){ if(String(arData[i].id)===String(id) || String(arData[i].code)===String(id)){ found=arData[i]; break; } }
+    if(found && typeof archiveProfile==='function'){ archiveProfile(found.id); }
+    else { showToast('سفارش پیدا نشد.'); }
+  });
+}
 function wsRender(){
   var body=document.getElementById('ws-body'); if(!body) return;
   if(!WS_ORDERS){ return; }
@@ -9698,55 +9729,94 @@ function wsRender(){
       }).join('')
     + '</div>';
 
-  // ── تقویمِ روزبه‌روز ──
-  var cur = { y:today.y, m:today.m, d:today.d };
-  var scan={y:cur.y,m:cur.m,d:cur.d}, aIdx=-1, st2=0;
-  while(st2<400){ if(fridays[wsKey(scan)]){ aIdx=st2; break; } wsNext(scan); st2++; }
-  var DN={sat:'شنبه',sun:'یک‌شنبه',mon:'دوشنبه',tue:'سه‌شنبه',wed:'چهارشنبه',thu:'پنج‌شنبه',fri:'جمعه'};
-  var rows='';
-  for(var i=0;i<nDays;i++){
+  // ── انتخابِ دستگاه و ماهِ نمایش ──
+  if(!WS_SEL_MID || mids.indexOf(WS_SEL_MID)<0){ WS_SEL_MID = mids[0]; }
+  if(!WS_VIEW_M){ WS_VIEW_M = today.m; WS_VIEW_Y = today.y; }
+  var selMid = WS_SEL_MID;
+  var vy = WS_VIEW_Y, vm = WS_VIEW_M;
+  var monDays = WS_MONS[vm-1] || 30;
+  var firstDow = wsFirstDow(vy, vm);       // ۰=شنبه ... ۶=جمعه
+  var DN2=['شنبه','یک‌شنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنج‌شنبه','جمعه'];
+
+  // سلکتورِ دستگاه (دکمه‌ای) + ناوبریِ ماه
+  var machTabs = mids.map(function(mid){
+    var on = (mid===selMid);
+    return '<button onclick="wsPickMachine(\''+mid+'\')" style="cursor:pointer;border:1px solid '
+      +(on?'#2a3a66':'#232742')+';background:'+(on?'#1a2748':'transparent')+';color:'+(on?'#9ec5ff':'#8a93b2')
+      +';border-radius:8px;padding:5px 11px;font-size:12px;font-weight:'+(on?'700':'400')+'">'
+      +escapeHtml(wsMachineName(mid))+'</button>';
+  }).join('');
+
+  var nav = '<div class="card" style="margin-bottom:12px">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap">'
+    +   '<div style="display:flex;gap:6px;flex-wrap:wrap">'+machTabs+'</div>'
+    +   '<div style="display:flex;align-items:center;gap:8px">'
+    +     '<button class="btn btn-ghost btn-sm" onclick="wsGotoMonth(-1)">‹ ماه قبل</button>'
+    +     '<div style="font-weight:800;font-size:14px;color:#dfe3f5;min-width:120px;text-align:center">'
+    +        wsMonName(vm)+' '+prToFa(vy)+'</div>'
+    +     '<button class="btn btn-ghost btn-sm" onclick="wsGotoMonth(1)">ماه بعد ›</button>'
+    +   '</div>'
+    + '</div></div>';
+
+  // ── گریدِ تقویمِ ماهانه (۷ ستون: شنبه تا جمعه) ──
+  var head = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px">'
+    + DN2.map(function(d,ix){ return '<div style="text-align:center;font-size:11.5px;font-weight:700;color:'
+        +(ix===6?'#f0a6a8':'#8a93b2')+';padding:4px 0">'+d+'</div>'; }).join('')
+    + '</div>';
+
+  var cellsHtml = '';
+  for(var e=0;e<firstDow;e++){ cellsHtml += '<div style="min-height:96px"></div>'; }
+
+  for(var d=1; d<=monDays; d++){
+    var cur={y:vy,m:vm,d:d};
     var k=wsKey(cur);
-    var dow=wsDowOf(k,null,aIdx,i);
-    var isOff = official.hasOwnProperty(k);
-    var cells = mids.map(function(mid){
-      var slot=(occ[mid]||{})[k] || null;
-      var jobs = slot ? slot.jobs : [];
-      var cap  = slot ? (+slot.cap||0)  : ((typeof whHoursOf==='function') ? whHoursOf(k, dow) : 0);
-      var used = slot ? (+slot.used||0) : 0;
-      if(!jobs.length){
-        return '<td style="padding:6px;text-align:center;border-top:1px solid #1a2440;color:'+(cap>0?'#4a5070':'#33384d')+';font-size:11px">'
-          + (cap>0 ? ('آزاد<div style="font-size:10px;color:#33384d">'+prToFa(cap)+' ساعت</div>') : 'تعطیل') + '</td>';
-      }
-      var pct = cap>0 ? Math.min(100, Math.round(used/cap*100)) : 100;
-      var barCol = pct>=100 ? '#f0a6a8' : (pct>=70 ? '#f0c674' : '#34d399');
-      return '<td style="padding:6px;text-align:center;border-top:1px solid #1a2440;background:#131a2e">'
-        + jobs.map(function(a){
-            return '<div onclick="wsOpen(\''+a.id+'\')" title="'+escapeHtml(a.name||'')+'" style="cursor:pointer;background:#1a2748;border:1px solid #2a3a66;border-radius:6px;padding:3px 6px;margin-bottom:3px">'
-              + '<div style="font-size:11.5px;color:#9ec5ff;font-weight:700">'+escapeHtml(a.code||'')+'</div>'
-              + '<div style="font-size:10px;color:#8a93b2">'+prToFa(Math.round((+a.hours||0)*10)/10)+' ساعت</div></div>';
-          }).join('')
-        + '<div style="height:3px;background:#1a2440;border-radius:2px;margin-top:3px"><div style="height:3px;width:'+pct+'%;background:'+barCol+';border-radius:2px"></div></div>'
-        + '<div style="font-size:9.5px;color:#8a93b2;margin-top:2px">'+prToFa(Math.round(used*10)/10)+' از '+prToFa(cap)
-        + (cap-used > 0.05 ? ' · <span style="color:#34d399">'+prToFa(Math.round((cap-used)*10)/10)+' آزاد</span>' : '')
-        + '</div></td>';
-    }).join('');
-    rows += '<tr'+(i===0?' style="background:#0f1a2e"':'')+'>'
-      + '<td style="padding:7px 8px;border-top:1px solid #1a2440;white-space:nowrap">'
-      +   '<div style="font-size:12px;color:'+(i===0?'#7ab8ff':'#c7cce0')+';font-weight:'+(i===0?'700':'400')+'">'+prToFa(k)+(i===0?' (امروز)':'')+'</div>'
-      +   '<div style="font-size:10px;color:'+(isOff?'#f0a6a8':'#6b7280')+'">'+(dow?DN[dow]:'')+(isOff?' · تعطیل رسمی':'')+'</div>'
-      + '</td>' + cells + '</tr>';
-    wsNext(cur);
+    var dowIdx=(firstDow+d-1)%7;
+    var dow=WS_DOW[dowIdx];
+    var isToday=(vy===today.y && vm===today.m && d===today.d);
+    var isFri=(dowIdx===6);
+    var isOff=official.hasOwnProperty(k);
+    var slot=(occ[selMid]||{})[k]||null;
+    var jobs=slot?slot.jobs:[];
+    var cap=slot?(+slot.cap||0):((typeof whHoursOf==='function')?whHoursOf(k,dow):0);
+    var used=slot?(+slot.used||0):0;
+    var pct=cap>0?Math.min(100,Math.round(used/cap*100)):0;
+    var barCol=pct>=100?'#f0a6a8':(pct>=70?'#f0c674':'#34d399');
+
+    var bg = isToday ? '#12213b' : (jobs.length ? '#0f1729' : '#0b0f1c');
+    var border = isToday ? '#3a5a9a' : ((isOff||isFri) ? '#3a2436' : '#1a2038');
+
+    var inner = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      + '<span style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(isToday?'#7ab8ff':((isFri||isOff)?'#f0a6a8':'#c7cce0'))+'">'+prToFa(d)+'</span>'
+      + (cap>0 ? '<span style="font-size:9px;color:#556">'+(pct>0?prToFa(pct)+'٪':'')+'</span>' : '<span style="font-size:9px;color:#556">تعطیل</span>')
+      + '</div>';
+
+    if(jobs.length){
+      inner += jobs.map(function(a){
+        return '<div onclick="wsOpen(\''+a.id+'\')" title="'+escapeHtml((a.name||'')+' · '+prToFa(Math.round((+a.hours||0)*10)/10)+' ساعت')+'" '
+          +'style="cursor:pointer;background:#1a2748;border:1px solid #2a3a66;border-radius:5px;padding:2px 5px;margin-bottom:3px;overflow:hidden">'
+          +'<div style="font-size:10.5px;color:#9ec5ff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(a.code||'')+'</div>'
+          +'<div style="font-size:9px;color:#8a93b2">'+prToFa(Math.round((+a.hours||0)*10)/10)+' ساعت</div>'
+          +'</div>';
+      }).join('');
+      inner += '<div style="height:3px;background:#1a2440;border-radius:2px;margin-top:2px"><div style="height:3px;width:'+pct+'%;background:'+barCol+';border-radius:2px"></div></div>';
+    } else if(cap>0){
+      inner += '<div style="font-size:10px;color:#39415e;margin-top:14px;text-align:center">آزاد<br><span style="font-size:9px;color:#2f374f">'+prToFa(cap)+' ساعت</span></div>';
+    }
+
+    cellsHtml += '<div style="min-height:96px;background:'+bg+';border:1px solid '+border+';border-radius:9px;padding:6px 7px;overflow:hidden">'+inner+'</div>';
   }
 
-  body.innerHTML = H
-    + '<div class="card" style="padding:0;overflow:hidden">'
-    +   '<div style="padding:11px 13px;background:#0c1120;border-bottom:1px solid #1a2440;font-weight:700;font-size:13.5px;color:#7ab8ff">تقویمِ روزبه‌روزِ دستگاه‌ها</div>'
-    +   '<div style="max-height:520px;overflow:auto"><table style="width:100%;border-collapse:collapse">'
-    +     '<thead><tr style="background:#0f1428;position:sticky;top:0">'
-    +       '<th style="padding:9px 8px;font-size:11.5px;color:#8a93b2;text-align:right">روز</th>'
-    +       mids.map(function(m){ return '<th style="padding:9px 6px;font-size:11.5px;color:#8a93b2">'+escapeHtml(wsMachineName(m))+'</th>'; }).join('')
-    +     '</tr></thead><tbody>'+rows+'</tbody></table></div>'
+  var grid = '<div class="card" style="padding:14px">'
+    + head
+    + '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cellsHtml+'</div>'
+    + '<div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#8a93b2">'
+    +   '<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#34d399;vertical-align:middle"></span> کمتر از ۷۰٪</span>'
+    +   '<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f0c674;vertical-align:middle"></span> ۷۰٪ تا پُر</span>'
+    +   '<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f0a6a8;vertical-align:middle"></span> پُر / تعطیل</span>'
+    + '</div>'
     + '</div>';
+
+  body.innerHTML = H + nav + grid;
 }
 function prSyncOrderInputs(){
   var o = prState.order, g=function(id){var e=document.getElementById(id);return e?e.value:null;};
@@ -10345,8 +10415,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V315 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V315";
+try{ if(window.console) console.log('%c iPrint3D FRONT V316 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V316";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
