@@ -826,7 +826,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V316</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V317</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9361,6 +9361,8 @@ document.addEventListener('click', function(e){
 // نشان می‌دهد هر روز کدام دستگاه درگیرِ کدام سفارش است، و سفارشِ بعدی
 // روی هر دستگاه از چه تاریخی می‌تواند شروع شود.
 var WS_ORDERS = null, WS_HOL = null, WS_LOADING = false;
+var WS_LABDEV = [];                  // دستگاه‌های آزمایشگاه (مرحلهٔ ۲ رزرو)
+var WS_RESV = [];                    // رزروهای بارگذاری‌شده (مرحلهٔ ۲/۳)
 var WS_VIEW_M = 0, WS_VIEW_Y = 0;   // ماه/سالِ نمایشِ تقویم (۰ = هنوز ست نشده → به ماهِ امروز می‌رود)
 var WS_SEL_MID = '';                 // دستگاهِ انتخاب‌شده در گریدِ ماهانه
 
@@ -9502,7 +9504,14 @@ function wsInit(force){
     var y = (function(){ try{ return +String(todayShamsi()).split('/')[0]; }catch(e){ return 0; } })();
     callSheet('calendarGet', { year:y, t:Date.now() }, function(r2){
       WS_HOL = (r2 && r2.status==='ok') ? r2 : { official:{}, fridays:{} };
-      wsRender();
+      // دستگاه‌های آزمایشگاه + رزروها (مرحلهٔ ۲) — مستقل از سفارش‌ها
+      callSheet('labDevList', { t:Date.now() }, function(r3){
+        WS_LABDEV = (r3 && r3.status==='ok' && r3.devices) ? r3.devices : [];
+        callSheet('resvList', { t:Date.now() }, function(r4){
+          WS_RESV = (r4 && r4.status==='ok' && r4.reservations) ? r4.reservations : [];
+          wsRender();
+        });
+      });
     });
   });
 }
@@ -9539,7 +9548,20 @@ function wsMachineName(id){
     var m = (prState.machines||[]).filter(function(x){ return String(x.id)===String(id); })[0];
     if(m && m.name) return m.name;
   }catch(e){}
+  try{
+    var d = (WS_LABDEV||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+    if(d && d.name) return d.name;
+  }catch(e){}
   return String(id||'دستگاه');
+}
+// آیا این دستگاه، دستگاهِ آزمایشگاه است؟ (برای برچسب و نوعِ رزرو)
+function wsIsLab(id){ return (WS_LABDEV||[]).some(function(x){ return String(x.id)===String(id); }); }
+// فهرستِ همهٔ دستگاه‌ها برای سلکتور: پرینترهای برآورد + آزمایشگاه
+function wsAllDevices(){
+  var out = [];
+  try{ (prState.machines||[]).forEach(function(m){ out.push({ id:String(m.id), name:m.name||String(m.id), type:'print' }); }); }catch(e){}
+  (WS_LABDEV||[]).forEach(function(d){ if(d.active!==false) out.push({ id:String(d.id), name:d.name, type:'lab' }); });
+  return out;
 }
 
 // روزهای کاریِ متوالی از یک تاریخ، با احتسابِ روزهای هفتهٔ پروژه و تعطیلات
@@ -9653,6 +9675,49 @@ function wsGotoMonth(delta){
   wsRender();
 }
 function wsPickMachine(mid){ WS_SEL_MID = mid; wsRender(); }
+
+// ── مدیریتِ دستگاه‌های آزمایشگاه (مرحلهٔ ۲) ──
+function wsLabManageBtn(){
+  return '<button onclick="wsLabManage()" style="cursor:pointer;border:1px dashed #3a5a3a;background:transparent;color:#7bbf85;border-radius:8px;padding:5px 11px;font-size:12px">🔬 + دستگاهِ آزمایشگاه</button>';
+}
+function wsLabManage(){
+  var rows = (WS_LABDEV||[]).map(function(d){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #232742;border-radius:8px;margin-bottom:6px">'
+      + '<div><div style="color:#dfe3f5;font-weight:600;font-size:13px">'+escapeHtml(d.name)+'</div>'
+      + (d.note?'<div style="color:#8a93b2;font-size:11px">'+escapeHtml(d.note)+'</div>':'')+'</div>'
+      + '<button onclick="wsLabDelete(\''+d.id+'\',\''+escapeHtml(String(d.name)).replace(/"/g,'').replace(/\x27/g,'')+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:4px 9px;font-size:11px">حذف</button>'
+      + '</div>';
+  }).join('') || '<div style="color:#8a93b2;font-size:12px;text-align:center;padding:10px">هنوز دستگاهی ثبت نشده</div>';
+
+  var html = ''
+    + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:12px">این‌ها جدا از پرینترهای برآورد هستند و فقط در تقویم برای رزرو استفاده می‌شوند.</div>'
+    + rows
+    + '<div style="border-top:1px solid #232742;margin:12px 0 0;padding-top:12px">'
+    +   '<div style="color:#c7cce0;font-size:12px;margin-bottom:6px">افزودن دستگاهِ جدید</div>'
+    +   '<input id="ws-lab-name" placeholder="نامِ دستگاه (مثلاً تنسایل)" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    +   '<input id="ws-lab-note" placeholder="توضیح (اختیاری)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    + '</div>';
+  uiConfirm({ title:'دستگاه‌های آزمایشگاه', html:html, okText:'افزودن دستگاه', cancelText:'بستن', danger:false }, function(){
+    wsLabAdd();
+  });
+}
+function wsLabAdd(){
+  var name = (document.getElementById('ws-lab-name')||{}).value || '';
+  var note = (document.getElementById('ws-lab-note')||{}).value || '';
+  if(!name.trim()){ showToast('نامِ دستگاه را وارد کن'); return; }
+  callSheet('labDevAdd', { name:name, note:note, t:Date.now() }, function(res){
+    if(res && res.status==='ok'){ showToast('دستگاه اضافه شد ✓'); wsInit(true); }
+    else { showToast((res&&res.message)?res.message:'خطا در افزودن'); }
+  });
+}
+function wsLabDelete(id, name){
+  uiConfirm({ title:'حذفِ دستگاه', html:'دستگاهِ «'+escapeHtml(name)+'» حذف شود؟ رزروهای ثبت‌شده روی آن باقی می‌مانند.', okText:'حذف', danger:true }, function(){
+    callSheet('labDevDelete', { id:id, t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('حذف شد'); wsInit(true); }
+      else { showToast((res&&res.message)?res.message:'خطا در حذف'); }
+    });
+  });
+}
 // کلیک روی سفارش در تقویم → باز کردن پروفایلِ همان سفارش (مثل دیپ‌لینکِ #order)
 function wsOpen(id){
   if(!id){ return; }
@@ -9682,10 +9747,15 @@ function wsRender(){
   var official = (WS_HOL&&WS_HOL.official)||{}, fridays=(WS_HOL&&WS_HOL.fridays)||{};
   var nDays = +((document.getElementById('ws-days')||{}).value) || 30;
 
-  // فهرستِ دستگاه‌های درگیر
+  // فهرستِ دستگاه‌ها: پرینترهای دارای سفارش (occ) + همهٔ دستگاه‌های آزمایشگاه
   var mids = Object.keys(occ);
+  (WS_LABDEV||[]).forEach(function(dv){ if(dv.active!==false && mids.indexOf(String(dv.id))<0) mids.push(String(dv.id)); });
   if(!mids.length){
-    body.innerHTML = '<div class="card" style="font-size:13px;color:#f0c674">سفارش‌های در جریان پیدا شدند ولی ردیفِ دستگاهی در آن‌ها نبود.</div>';
+    body.innerHTML = '<div class="card" style="font-size:13px;color:#c7cce0;line-height:1.9">'
+      + 'هنوز دستگاهی برای نمایش نیست.<br>'
+      + 'یا سفارشی «در جریان ساخت» با زمان‌بندی ثبت کن، یا از دکمهٔ زیر یک دستگاهِ آزمایشگاه اضافه کن.'
+      + '<div style="margin-top:10px">'+wsLabManageBtn()+'</div>'
+      + '</div>';
     return;
   }
 
@@ -9738,18 +9808,20 @@ function wsRender(){
   var firstDow = wsFirstDow(vy, vm);       // ۰=شنبه ... ۶=جمعه
   var DN2=['شنبه','یک‌شنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنج‌شنبه','جمعه'];
 
-  // سلکتورِ دستگاه (دکمه‌ای) + ناوبریِ ماه
+  // سلکتورِ دستگاه (دکمه‌ای، با آیکونِ نوع) + ناوبریِ ماه
   var machTabs = mids.map(function(mid){
     var on = (mid===selMid);
+    var lab = wsIsLab(mid);
+    var icon = lab ? '🔬 ' : '🖨️ ';
     return '<button onclick="wsPickMachine(\''+mid+'\')" style="cursor:pointer;border:1px solid '
-      +(on?'#2a3a66':'#232742')+';background:'+(on?'#1a2748':'transparent')+';color:'+(on?'#9ec5ff':'#8a93b2')
+      +(on?(lab?'#3a5a3a':'#2a3a66'):'#232742')+';background:'+(on?(lab?'#16281a':'#1a2748'):'transparent')+';color:'+(on?(lab?'#9ee0a8':'#9ec5ff'):'#8a93b2')
       +';border-radius:8px;padding:5px 11px;font-size:12px;font-weight:'+(on?'700':'400')+'">'
-      +escapeHtml(wsMachineName(mid))+'</button>';
+      +icon+escapeHtml(wsMachineName(mid))+'</button>';
   }).join('');
 
   var nav = '<div class="card" style="margin-bottom:12px">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap">'
-    +   '<div style="display:flex;gap:6px;flex-wrap:wrap">'+machTabs+'</div>'
+    +   '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+machTabs+' '+wsLabManageBtn()+'</div>'
     +   '<div style="display:flex;align-items:center;gap:8px">'
     +     '<button class="btn btn-ghost btn-sm" onclick="wsGotoMonth(-1)">‹ ماه قبل</button>'
     +     '<div style="font-weight:800;font-size:14px;color:#dfe3f5;min-width:120px;text-align:center">'
@@ -10415,8 +10487,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V316 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V316";
+try{ if(window.console) console.log('%c iPrint3D FRONT V317 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V317";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
