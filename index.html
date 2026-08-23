@@ -328,6 +328,7 @@ tr:hover td{background:#0e1018}
     <div class="nav" onclick="gotoView('archive',this)"><span class="nav-icon">📁</span><span>آرشیو و گزارش‌ها</span></div>
     <div class="nav" onclick="gotoView('custbank',this)"><span class="nav-icon">🏢</span><span>بانک مشتری</span></div>
     <div class="nav" onclick="gotoView('workshop',this)"><span class="nav-icon">🗓️</span><span>تقویم کارگاه</span></div>
+    <div class="nav" onclick="gotoView('students',this)"><span class="nav-icon">👥</span><span>دانشجوها</span></div>
 
     <div class="nav" onclick="gotoView('users',this)"><span class="nav-icon">👥</span><span>کاربران</span><span id="usersBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
     <div class="nav" id="notifNav" onclick="gotoView('notif',this)"><span class="nav-icon">📋</span><span>درخواست‌ها</span><span id="notifBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
@@ -826,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V318</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V322</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1183,6 +1184,28 @@ function doPost(e){
     <div id="wh-body" style="display:none;padding:14px;border-top:1px solid #1a2440"></div>
   </div>
   <div id="ws-body"></div>
+</div>
+<div id="view-students" class="hidden">
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:800;font-size:15px;color:#dfe3f5">👥 دانشجوها</div>
+        <div style="font-size:11.5px;color:#8a93b2;margin-top:3px">ثبت‌نام و تأییدِ دانشجویانی که به تقویمِ دستگاه‌ها دسترسی می‌گیرند</div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="stuAddManual()">➕ افزودن دستی</button>
+        <button class="btn btn-ghost btn-sm" onclick="stuInit(true)">🔄 بروزرسانی</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;background:#0c1120;border:1px solid #1a2440;border-radius:9px;overflow:hidden;width:fit-content">
+      <button id="stu-tab-pending" onclick="stuTab('pending')" style="background:#1e2235;color:#e2e4f0;border:none;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">⏳ در انتظار تأیید</button>
+      <button id="stu-tab-approved" onclick="stuTab('approved')" style="background:transparent;color:#5a6080;border:none;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">✅ تأییدشده</button>
+      <button id="stu-tab-all" onclick="stuTab('all')" style="background:transparent;color:#5a6080;border:none;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">همه</button>
+    </div>
+  </div>
+  <div id="stu-body"></div>
 </div>
 <div id="view-custbank" class="hidden">
   <div class="page-title">🏢 بانک مشتری</div>
@@ -1973,6 +1996,7 @@ function applyRoleUI(){
     if(txt.includes('برآورد قیمت'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('آرشیو و گزارش'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('بانک مشتری'))n.style.display=isAdmin?'flex':'none';
+    if(txt.includes('دانشجوها'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('جستجوی AI'))n.style.display='flex';
   });
   // دکمه خروجی Excel فقط برای ادمین
@@ -2032,6 +2056,7 @@ function gotoView(v,el){
   else if(v==='archive'){ if(!canDo('users')){alert('دسترسی ندارید');return;} archiveInit(); }
   else if(v==='custbank'){ if(!canDo('users')){alert('دسترسی ندارید');return;} custBankInit(); }
   else if(v==='workshop'){ wsInit(); if(!WH_LOADED) whLoad(); }
+  else if(v==='students'){ stuInit(); }
   else if(v==='usage'){ loadUsageReport(); loadProjects(); }
   else if(v==='users'){
     if(!canDo('users')){alert('دسترسی ندارید');return;}
@@ -8469,6 +8494,9 @@ function schedRenderInto(slotId){
   if(!oid){ slot.innerHTML=''; return; }   // فقط برای سفارشِ ذخیره‌شده معنا دارد
   var c = schedGet();
   var isSet = !!(prState.order && prState.order.schedule);
+  var calBtn = (isSet && slotId==='om-sched-slot')
+    ? '<div style="padding:10px 13px;border-top:1px solid #1a2440;background:#0c1120"><button onclick="wsAddOrderToCalendar()" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:600">📅 افزودن این سفارش به تقویم</button><div style="color:#5a6080;font-size:10.5px;margin-top:5px">تایمِ دستگاه‌های این سفارش را به‌صورت رزرو روی تاریخِ شروع ثبت می‌کند</div></div>'
+    : '';
   slot.innerHTML =
      '<div class="card" style="padding:0;overflow:hidden;margin:0">'
     +  '<div onclick="schedToggle()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 13px;cursor:pointer;background:#0c1120">'
@@ -8476,7 +8504,43 @@ function schedRenderInto(slotId){
     +    '<span style="color:#8a93b8;font-size:13px">'+(schedOpen?'▲':'▼')+'</span>'
     +  '</div>'
     +  (schedOpen ? '<div style="padding:13px;border-top:1px solid #1a2440">'+schedFormHtml(c)+'</div>' : '')
+    +  calBtn
     +'</div>';
+}
+// افزودنِ تایمِ دستگاه‌های سفارش به تقویم به‌صورت رزرو (مرحلهٔ ۴)
+function wsAddOrderToCalendar(){
+  var oid = schedTargetId();
+  if(!oid){ showToast('اول سفارش را ذخیره کن'); return; }
+  // ساعتِ هر دستگاه در این سفارش
+  var o = { order: prState.order, lines: prState.lines };
+  var mh = (typeof wsMachineHours==='function') ? wsMachineHours(o) : {};
+  var mids = Object.keys(mh).filter(function(k){ return (+mh[k]||0) > 0; });
+  if(!mids.length){ showToast('این سفارش ساعتِ دستگاهی ندارد'); return; }
+  var startDate = '';
+  try{ startDate = (prState.order.startDate) || (prState.order.schedule && prState.order.schedule.startDate) || todayShamsi(); }catch(e){ startDate = todayShamsi(); }
+  var code = '';
+  try{ code = prState.order.code || prState.savedCode || ''; }catch(e){}
+  var custname = '';
+  try{ custname = prState.order.customer || ''; }catch(e){}
+
+  var rows = mids.map(function(mid){
+    return '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;color:#c7cce0"><span>'+escapeHtml((typeof wsMachineName==='function'?wsMachineName(mid):mid))+'</span><span style="color:#9ee0a8">'+prToFa(Math.round((+mh[mid]||0)*10)/10)+' ساعت</span></div>';
+  }).join('');
+  var html = '<div style="color:#8a93b2;font-size:12px;margin-bottom:8px">این دستگاه‌ها با تایمشان به‌صورت رزرو روی تاریخِ <b>'+escapeHtml(prToFa(startDate))+'</b> ثبت می‌شوند:</div>'
+    + rows
+    + '<div style="color:#8a6a2a;font-size:11px;margin-top:8px">بعداً می‌توانی از تقویم روزِ هر رزرو را جابه‌جا یا حذف کنی.</div>';
+
+  uiConfirm({ title:'افزودن به تقویم', html:html, okText:'ثبت رزروها', cancelText:'انصراف', danger:false }, function(){
+    var done=0, fail=0, n=mids.length;
+    mids.forEach(function(mid){
+      callSheet('resvAdd', { date:startDate, deviceType:'print', deviceId:mid, fromTime:'', toTime:'',
+                             hours:String(Math.round((+mh[mid]||0)*100)/100),
+                             personName:custname, orderCode:code, note:'از زمان‌بندیِ سفارش', status:'confirmed', t:Date.now() }, function(res){
+        if(res && res.status==='ok') done++; else fail++;
+        if(done+fail===n){ showToast(fail? ('ثبت شد ('+prToFa(done)+' از '+prToFa(n)+')') : 'همه رزروها ثبت شد ✓'); }
+      });
+    });
+  });
 }
 function schedFormHtml(c){
   var mach = schedUsedMachines();
@@ -9494,7 +9558,9 @@ function wsInit(force){
   if(WS_LOADING) return;
   WS_LOADING = true;
   body.innerHTML = '<div class="card" style="text-align:center;color:#8a93b2;font-size:13px;padding:26px">در حال بارگذاری...</div>';
-  callSheet('workshopQueue', { t:Date.now() }, function(res){
+  var y = (function(){ try{ return +String(todayShamsi()).split('/')[0]; }catch(e){ return 0; } })();
+  // یک درخواستِ ترکیبی به‌جای ۴ درخواستِ زنجیره‌ای (سرعت: از ~۳۰ ثانیه به ~۷ ثانیه)
+  callSheet('wsBundle', { year:y, t:Date.now() }, function(res){
     WS_LOADING = false;
     if(!(res && res.status==='ok')){
       body.innerHTML = '<div class="card" style="color:#f0a6a8;font-size:13px">خطا در بارگذاری'+((res&&res.message)?(': '+escapeHtml(res.message)):'')+'</div>';
@@ -9502,19 +9568,10 @@ function wsInit(force){
     }
     WS_ORDERS = res.orders || [];
     WS_MNAMES = res.machineNames || {};
-    // تقویمِ تعطیلاتِ سالِ جاری
-    var y = (function(){ try{ return +String(todayShamsi()).split('/')[0]; }catch(e){ return 0; } })();
-    callSheet('calendarGet', { year:y, t:Date.now() }, function(r2){
-      WS_HOL = (r2 && r2.status==='ok') ? r2 : { official:{}, fridays:{} };
-      // دستگاه‌های آزمایشگاه + رزروها (مرحلهٔ ۲) — مستقل از سفارش‌ها
-      callSheet('labDevList', { t:Date.now() }, function(r3){
-        WS_LABDEV = (r3 && r3.status==='ok' && r3.devices) ? r3.devices : [];
-        callSheet('resvList', { t:Date.now() }, function(r4){
-          WS_RESV = (r4 && r4.status==='ok' && r4.reservations) ? r4.reservations : [];
-          wsRender();
-        });
-      });
-    });
+    WS_HOL = { official: res.official||{}, fridays: res.fridays||{}, years: res.years||[] };
+    WS_LABDEV = res.devices || [];
+    WS_RESV = res.reservations || [];
+    wsRender();
   });
 }
 
@@ -9607,7 +9664,13 @@ function wsBuild(){
 
   function capOf(mid, key, dow, cnt){
     var h = (typeof whHoursOf==='function') ? whHoursOf(key, dow) : 10;
-    return Math.max(0, (+h||0) * cnt);
+    var base = Math.max(0, (+h||0) * cnt);
+    // رزروها اولویت دارند و از ظرفیتِ همان روز/دستگاه کم می‌شوند (رزرو مقدس است، سفارش دورش می‌چرخد)
+    var rHrs = 0;
+    (WS_RESV||[]).forEach(function(r){
+      if(String(r.deviceId)===String(mid) && String(r.date)===String(key)) rHrs += (+r.hours||0);
+    });
+    return Math.max(0, base - rHrs);
   }
 
   orders.forEach(function(o){
@@ -9698,16 +9761,17 @@ function wsLabManage(){
     + rows
     + '<div style="border-top:1px solid #232742;margin:12px 0 0;padding-top:12px">'
     +   '<div style="color:#c7cce0;font-size:12px;margin-bottom:6px">افزودن دستگاهِ جدید</div>'
-    +   '<input id="ws-lab-name" placeholder="نامِ دستگاه (مثلاً تنسایل)" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
-    +   '<input id="ws-lab-note" placeholder="توضیح (اختیاری)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    +   '<input id="ws-lab-name" oninput="window._wsLabName=this.value" placeholder="نامِ دستگاه (مثلاً تنسایل)" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    +   '<input id="ws-lab-note" oninput="window._wsLabNote=this.value" placeholder="توضیح (اختیاری)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
     + '</div>';
+  window._wsLabName=''; window._wsLabNote='';
   uiConfirm({ title:'دستگاه‌های آزمایشگاه', html:html, okText:'افزودن دستگاه', cancelText:'بستن', danger:false }, function(){
     wsLabAdd();
   });
 }
 function wsLabAdd(){
-  var name = (document.getElementById('ws-lab-name')||{}).value || '';
-  var note = (document.getElementById('ws-lab-note')||{}).value || '';
+  var name = window._wsLabName || '';
+  var note = window._wsLabNote || '';
   if(!name.trim()){ showToast('نامِ دستگاه را وارد کن'); return; }
   callSheet('labDevAdd', { name:name, note:note, t:Date.now() }, function(res){
     if(res && res.status==='ok'){ showToast('دستگاه اضافه شد ✓'); wsInit(true); }
@@ -9735,7 +9799,7 @@ function wsResvForm(deviceId, dayKey){
   var devName = wsMachineName(deviceId);
   var existing = wsResvOn(deviceId, dayKey);
   var list = existing.map(function(r){
-    var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : 'بدونِ ساعتِ مشخص';
+    var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : (r.hours ? (prToFa(r.hours)+' ساعت') : 'بدونِ ساعتِ مشخص');
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid #232742;border-radius:7px;margin-bottom:5px">'
       + '<div><div style="color:#dfe3f5;font-size:12px;font-weight:600">'+escapeHtml(r.personName||r.orderCode||'رزرو')+'</div>'
       + '<div style="color:#8a93b2;font-size:10.5px">'+escapeHtml(tm)+(r.note?(' · '+escapeHtml(r.note)):'')+'</div></div>'
@@ -9748,23 +9812,33 @@ function wsResvForm(deviceId, dayKey){
     + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:12px">روزِ '+escapeHtml(prToFa(dayKey))+'</div>'
     + (existing.length ? ('<div style="color:#c7cce0;font-size:11.5px;margin-bottom:6px">رزروهای این روز:</div>'+list+'<div style="border-top:1px solid #232742;margin:10px 0"></div>') : '')
     + '<div style="color:#c7cce0;font-size:12px;margin-bottom:6px">رزروِ جدید</div>'
-    + '<input id="ws-rv-person" placeholder="'+(lab?'نامِ فرد (مثلاً دانشجو رحیمی)':'نامِ فرد یا مشتری')+'" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
-    + '<div style="display:flex;gap:6px;margin-bottom:6px">'
-    +   '<input id="ws-rv-from" placeholder="از ساعت (۱۳:۰۰)" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px;text-align:center">'
-    +   '<input id="ws-rv-to" placeholder="تا ساعت (۱۵:۰۰)" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px;text-align:center">'
+    + '<input id="ws-rv-person" oninput="window._wsRvPerson=this.value" placeholder="'+(lab?'نامِ فرد (مثلاً دانشجو رحیمی)':'نامِ فرد یا مشتری')+'" style="width:100%;box-sizing:border-box;margin-bottom:8px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#c7cce0;margin-bottom:8px;cursor:pointer">'
+    +   '<input type="checkbox" id="ws-rv-precise" onchange="window._wsRvPrecise=this.checked; document.getElementById(\'ws-rv-precise-box\').style.display=this.checked?\'flex\':\'none\'; document.getElementById(\'ws-rv-fluid-box\').style.display=this.checked?\'none\':\'block\'"> ساعتِ دقیق مشخص است (وگرنه فقط تعدادِ ساعت)'
+    + '</label>'
+    + '<div id="ws-rv-fluid-box" style="margin-bottom:6px">'
+    +   '<input id="ws-rv-hours" oninput="window._wsRvHours=this.value" type="number" step="0.5" min="0" placeholder="چند ساعت؟ (مثلاً ۲)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
     + '</div>'
-    + '<input id="ws-rv-order" placeholder="کدِ سفارش (اختیاری، مثلاً IP-0072)" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
-    + '<input id="ws-rv-note" placeholder="توضیح (اختیاری، مثلاً پرینت فیل شد)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">';
+    + '<div id="ws-rv-precise-box" style="display:none;gap:6px;margin-bottom:6px">'
+    +   '<input id="ws-rv-from" oninput="window._wsRvFrom=this.value" placeholder="از ساعت (۱۳:۰۰)" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px;text-align:center">'
+    +   '<input id="ws-rv-to" oninput="window._wsRvTo=this.value" placeholder="تا ساعت (۱۵:۰۰)" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px;text-align:center">'
+    + '</div>'
+    + '<input id="ws-rv-order" oninput="window._wsRvOrder=this.value" placeholder="کدِ سفارش (اختیاری، مثلاً IP-0072)" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    + '<input id="ws-rv-note" oninput="window._wsRvNote=this.value" placeholder="توضیح (اختیاری، مثلاً پرینت فیل شد)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">';
 
+  window._wsRvPerson=''; window._wsRvFrom=''; window._wsRvTo=''; window._wsRvHours=''; window._wsRvOrder=''; window._wsRvNote=''; window._wsRvPrecise=false;
   uiConfirm({ title:'رزروِ دستگاه', html:html, okText:'ثبتِ رزرو', cancelText:'بستن', danger:false }, function(){
     wsResvAdd(deviceId, lab?'lab':'print', dayKey);
   });
 }
 function wsResvAdd(deviceId, deviceType, dayKey){
-  var g=function(id){ var e=document.getElementById(id); return e?e.value:''; };
-  var person = g('ws-rv-person'), from=g('ws-rv-from'), to=g('ws-rv-to'), ord=g('ws-rv-order'), note=g('ws-rv-note');
+  var person = window._wsRvPerson||'', ord=window._wsRvOrder||'', note=window._wsRvNote||'';
+  var precise = !!window._wsRvPrecise;
+  var from = precise ? (window._wsRvFrom||'') : '';
+  var to   = precise ? (window._wsRvTo||'')   : '';
+  var hours = precise ? '' : (window._wsRvHours||'');
   if(!person.trim() && !ord.trim() && !note.trim()){ showToast('حداقل نامِ فرد یا کدِ سفارش یا توضیح را وارد کن'); return; }
-  callSheet('resvAdd', { date:dayKey, deviceType:deviceType, deviceId:deviceId, fromTime:from, toTime:to,
+  callSheet('resvAdd', { date:dayKey, deviceType:deviceType, deviceId:deviceId, fromTime:from, toTime:to, hours:hours,
                          personName:person, orderCode:ord, note:note, status:'confirmed', t:Date.now() }, function(res){
     if(res && res.status==='ok'){ showToast('رزرو ثبت شد ✓'); wsInit(true); }
     else { showToast((res&&res.message)?res.message:'خطا در ثبتِ رزرو'); }
@@ -9774,6 +9848,139 @@ function wsResvDelete(id){
   callSheet('resvDelete', { id:id, t:Date.now() }, function(res){
     if(res && res.status==='ok'){ showToast('رزرو حذف شد'); wsInit(true); }
     else { showToast((res&&res.message)?res.message:'خطا در حذف'); }
+  });
+}
+
+// ═══════════ پنلِ دانشجوها (مرحلهٔ ۵-الف) ═══════════
+var STU_LIST = [], STU_TAB = 'pending', STU_LOADING = false;
+function stuInit(force){
+  var body = document.getElementById('stu-body'); if(!body) return;
+  if(STU_LIST.length && !force){ stuRender(); return; }
+  if(STU_LOADING) return;
+  STU_LOADING = true;
+  body.innerHTML = '<div class="card" style="text-align:center;color:#8a93b2;font-size:13px;padding:26px">در حال بارگذاری...</div>';
+  // دستگاه‌ها را هم می‌گیریم (برای انتخابِ دستگاه‌های مجاز) — از bundle استفاده می‌کنیم اگر قبلاً لود شده
+  callSheet('stuList', { t:Date.now() }, function(res){
+    STU_LOADING = false;
+    if(!(res && res.status==='ok')){
+      body.innerHTML = '<div class="card" style="color:#f0a6a8;font-size:13px">خطا در بارگذاری'+((res&&res.message)?(': '+escapeHtml(res.message)):'')+'</div>';
+      return;
+    }
+    STU_LIST = res.students || [];
+    // اگر دستگاه‌ها هنوز لود نشده، بگیر
+    if(!WS_LABDEV || !WS_LABDEV.length){
+      callSheet('labDevList', { t:Date.now() }, function(r2){
+        WS_LABDEV = (r2 && r2.status==='ok' && r2.devices) ? r2.devices : [];
+        stuRender();
+      });
+    } else stuRender();
+  });
+}
+function stuTab(t){
+  STU_TAB = t;
+  ['pending','approved','all'].forEach(function(x){
+    var b = document.getElementById('stu-tab-'+x);
+    if(b){ b.style.background = (x===t)?'#1e2235':'transparent'; b.style.color = (x===t)?'#e2e4f0':'#5a6080'; }
+  });
+  stuRender();
+}
+function stuDeviceName(id){
+  var d = (WS_LABDEV||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+  if(d) return d.name;
+  return (typeof wsMachineName==='function') ? wsMachineName(id) : String(id);
+}
+function stuRender(){
+  var body = document.getElementById('stu-body'); if(!body) return;
+  var list = (STU_LIST||[]).filter(function(s){
+    if(STU_TAB==='all') return true;
+    return (s.status||'pending')===STU_TAB;
+  });
+  if(!list.length){
+    body.innerHTML = '<div class="card" style="text-align:center;color:#8a93b2;font-size:13px;padding:24px">'
+      + (STU_TAB==='pending'?'دانشجویی در انتظار تأیید نیست':(STU_TAB==='approved'?'هنوز دانشجوی تأییدشده‌ای نیست':'هنوز دانشجویی ثبت نشده'))
+      + '</div>';
+    return;
+  }
+  body.innerHTML = list.map(function(s){
+    var devs = (s.devices||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+    var devNames = devs.length ? devs.map(stuDeviceName).map(escapeHtml).join('، ') : '<span style="color:#5a6080">هیچ دستگاهی مجاز نشده</span>';
+    var stColor = s.status==='approved'?'#9ee0a8':(s.status==='rejected'?'#f0a6a8':'#f0c674');
+    var stText = s.status==='approved'?'تأییدشده':(s.status==='rejected'?'ردشده':'در انتظار');
+    var actions = '';
+    if(s.status!=='approved') actions += '<button onclick="stuApprove(\''+s.id+'\')" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600">✓ تأیید و تعیین دستگاه</button> ';
+    if(s.status==='approved') actions += '<button onclick="stuApprove(\''+s.id+'\')" style="cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:7px;padding:5px 12px;font-size:12px">تغییر دستگاه‌ها</button> ';
+    if(s.status!=='rejected') actions += '<button onclick="stuReject(\''+s.id+'\')" style="cursor:pointer;border:1px solid #5a4a2a;background:transparent;color:#f0c674;border-radius:7px;padding:5px 12px;font-size:12px">رد</button> ';
+    actions += '<button onclick="stuDeleteAsk(\''+s.id+'\',\''+escapeHtml(String(s.lastName)).replace(/"/g,'').replace(/\x27/g,'')+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:7px;padding:5px 12px;font-size:12px">حذف</button>';
+    return '<div class="card" style="margin-bottom:10px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+      +   '<div>'
+      +     '<div style="font-weight:700;font-size:14px;color:#dfe3f5">'+escapeHtml(s.lastName)+' <span style="font-size:11px;color:'+stColor+';font-weight:400">· '+stText+'</span></div>'
+      +     '<div style="font-size:12px;color:#8a93b2;margin-top:3px">📞 '+escapeHtml(prToFa(s.phone))+'</div>'
+      +     '<div style="font-size:11.5px;color:#8a93b2;margin-top:2px">دستگاه‌های مجاز: '+devNames+'</div>'
+      +     (s.requestNote?'<div style="font-size:11.5px;color:#8a6a2a;margin-top:2px">درخواست: '+escapeHtml(s.requestNote)+'</div>':'')
+      +   '</div>'
+      +   '<div style="display:flex;gap:5px;flex-wrap:wrap">'+actions+'</div>'
+      + '</div></div>';
+  }).join('');
+}
+// تأیید + انتخابِ دستگاه‌های مجاز
+function stuApprove(id){
+  var s = (STU_LIST||[]).filter(function(x){return x.id===id;})[0]; if(!s) return;
+  var current = (s.devices||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  var all = (typeof wsAllDevices==='function') ? wsAllDevices() : (WS_LABDEV||[]).map(function(d){return {id:d.id,name:d.name,type:'lab'};});
+  if(!all.length){ showToast('اول یک دستگاه در تقویم اضافه کن'); return; }
+  window._stuDevs = current.slice();
+  var rows = all.map(function(d){
+    var on = current.indexOf(String(d.id))>=0;
+    var icon = d.type==='lab'?'🔬':'🖨️';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #232742;border-radius:8px;margin-bottom:6px;cursor:pointer">'
+      + '<input type="checkbox" '+(on?'checked':'')+' onchange="stuToggleDev(\''+String(d.id).replace(/\x27/g,'')+'\',this.checked)">'
+      + '<span style="color:#dfe3f5;font-size:13px">'+icon+' '+escapeHtml(d.name)+'</span></label>';
+  }).join('');
+  var html = '<div style="color:#8a93b2;font-size:12px;margin-bottom:10px">دانشجو «'+escapeHtml(s.lastName)+'» به کدام دستگاه‌ها دسترسی داشته باشد؟</div>' + rows;
+  uiConfirm({ title:'تأیید و تعیین دستگاه', html:html, okText:'تأیید دسترسی', cancelText:'انصراف', danger:false }, function(){
+    callSheet('stuUpdate', { id:id, status:'approved', devices:(window._stuDevs||[]).join(','), t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('تأیید شد ✓'); stuInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا');
+    });
+  });
+}
+function stuToggleDev(id, on){
+  window._stuDevs = window._stuDevs || [];
+  var i = window._stuDevs.indexOf(id);
+  if(on && i<0) window._stuDevs.push(id);
+  if(!on && i>=0) window._stuDevs.splice(i,1);
+}
+function stuReject(id){
+  uiConfirm({ title:'ردِ دانشجو', html:'دسترسیِ این دانشجو رد شود؟ می‌توانی بعداً دوباره تأییدش کنی.', okText:'رد', danger:true }, function(){
+    callSheet('stuUpdate', { id:id, status:'rejected', t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('رد شد'); stuInit(true); }
+      else showToast('خطا');
+    });
+  });
+}
+function stuDeleteAsk(id, name){
+  uiConfirm({ title:'حذفِ دانشجو', html:'دانشجو «'+escapeHtml(name)+'» کاملاً حذف شود؟ این کار برگشت‌پذیر نیست.', okText:'حذف', danger:true }, function(){
+    callSheet('stuDelete', { id:id, t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('حذف شد'); stuInit(true); }
+      else showToast('خطا');
+    });
+  });
+}
+// افزودن دستیِ دانشجو توسط ادمین
+function stuAddManual(){
+  window._stuLast=''; window._stuPhone=''; window._stuNid='';
+  var html = '<input id="stu-last" oninput="window._stuLast=this.value" placeholder="نام‌خانوادگی" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    + '<input id="stu-phone" oninput="window._stuPhone=this.value" placeholder="شماره تماس (یوزرنیم)" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    + '<input id="stu-nid" oninput="window._stuNid=this.value" placeholder="کد ملی (رمز)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    + '<div style="color:#8a6a2a;font-size:11px;margin-top:8px">بعد از افزودن، باید تأییدش کنی و دستگاه مجاز را تعیین کنی.</div>';
+  uiConfirm({ title:'افزودن دستی دانشجو', html:html, okText:'افزودن', cancelText:'انصراف', danger:false }, function(){
+    var last=window._stuLast||'', phone=window._stuPhone||'', nid=window._stuNid||'';
+    if(!last.trim()||!phone.trim()||!nid.trim()){ showToast('همهٔ فیلدها لازم است'); return; }
+    callSheet('stuAdd', { lastName:last, phone:phone, nationalId:nid, status:'pending', t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('دانشجو اضافه شد ✓'); stuInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا در افزودن');
+    });
   });
 }
 // کلیک روی سفارش در تقویم → باز کردن پروفایلِ همان سفارش (مثل دیپ‌لینکِ #order)
@@ -9908,7 +10115,8 @@ function wsRender(){
     var slot=(occ[selMid]||{})[k]||null;
     var jobs=slot?slot.jobs:[];
     var resvs=wsResvOn(selMid, k);         // رزروهای دستیِ این روز/دستگاه
-    var cap=slot?(+slot.cap||0):((typeof whHoursOf==='function')?whHoursOf(k,dow):0);
+    var resvHrs=0; resvs.forEach(function(r){ resvHrs += (+r.hours||0); });
+    var cap=slot?(+slot.cap||0):Math.max(0, (((typeof whHoursOf==='function')?whHoursOf(k,dow):0) - resvHrs));
     var used=slot?(+slot.used||0):0;
     var pct=cap>0?Math.min(100,Math.round(used/cap*100)):0;
     var barCol=pct>=100?'#f0a6a8':(pct>=70?'#f0c674':'#34d399');
@@ -9940,7 +10148,7 @@ function wsRender(){
     // رزروهای دستی (سبز، با اسمِ فرد و ساعت)
     if(resvs.length){
       inner += resvs.map(function(r){
-        var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : '';
+        var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : (r.hours ? (prToFa(r.hours)+'س') : '');
         var who = r.personName || r.orderCode || 'رزرو';
         return '<div onclick="event.stopPropagation(); wsResvForm(\''+selMid+'\',\''+k+'\')" title="'+escapeHtml(who+(r.note?(' · '+r.note):''))+'" '
           +'style="cursor:pointer;background:#16281a;border:1px solid #2f5236;border-radius:5px;padding:3px 5px;margin-bottom:3px;overflow:hidden">'
@@ -10566,8 +10774,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V318 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V318";
+try{ if(window.console) console.log('%c iPrint3D FRONT V322 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V322";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
