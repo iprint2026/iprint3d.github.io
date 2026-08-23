@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V323</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V325</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1172,6 +1172,7 @@ function doPost(e){
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="WS_VIEW_M=0; wsRender()">📅 ماهِ جاری</button>
+        <button class="btn btn-ghost btn-sm" onclick="wsCheckBackend()">🔍 تستِ بک‌اند</button>
         <button class="btn btn-ghost btn-sm" onclick="wsInit(true)">🔄 بروزرسانی</button>
       </div>
     </div>
@@ -9743,6 +9744,22 @@ function wsGotoMonth(delta){
 }
 function wsPickMachine(mid){ WS_SEL_MID = mid; wsRender(); }
 
+// تستِ نسخهٔ بک‌اند + تستِ ثبت و خواندنِ رزرو (برای عیب‌یابی)
+function wsCheckBackend(){
+  callSheet('version', { t:Date.now() }, function(res){
+    var v = (res && res.version) ? res.version : 'نامشخص';
+    var feat = (res && res.feature) ? res.feature : '';
+    var ok = (v==='V262' || v==='V261' || v==='V260');
+    var msg = 'نسخهٔ بک‌اند: ' + v + (feat?(' ('+feat+')'):'') + '\n\n';
+    if(!res){ msg += '⛔ هیچ پاسخی از سرور نیامد — یعنی درخواست‌ها به بک‌اند نمی‌رسند.'; }
+    else if(res.authFail){ msg += '⛔ نشست نامعتبر — باید دوباره لاگین کنی.'; }
+    else if(!ok){ msg += '⚠️ بک‌اندِ فعلی قدیمی است! باید فایلِ V262 را با «New version» دیپلوی کنی.\nاکشن‌های رزرو (resvAdd) و ستون hours در این نسخه نیستند — برای همین رزرو ثبت نمی‌شود.'; }
+    else { msg += '✓ بک‌اند به‌روز است. حالا رزرو باید کار کند — اگر نکرد، هنگام ثبت پیامِ خطا را بفرست.'; }
+    alert(msg);
+    if(window.console) console.log('نسخهٔ بک‌اند:', res);
+  });
+}
+
 // ── مدیریتِ دستگاه‌های آزمایشگاه (مرحلهٔ ۲) ──
 function wsLabManageBtn(){
   return '<button onclick="wsLabManage()" style="cursor:pointer;border:1px dashed #3a5a3a;background:transparent;color:#7bbf85;border-radius:8px;padding:5px 11px;font-size:12px">🔬 + دستگاهِ آزمایشگاه</button>';
@@ -9842,9 +9859,9 @@ function wsResvAdd(deviceId, deviceType, dayKey){
                          personName:person, orderCode:ord, note:note, status:'confirmed', t:Date.now() }, function(res){
     if(res && res.status==='ok'){ showToast('رزرو ثبت شد ✓'); wsInit(true); }
     else {
-      var msg = (res&&res.message) ? res.message : (res&&res.error) ? res.error : 'پاسخِ نامشخص از سرور';
-      showToast('خطا در ثبتِ رزرو: '+msg);
-      if(window.console) console.log('resvAdd پاسخ:', res);
+      var msg = (res&&res.message) ? res.message : (res&&res.error) ? res.error : (res&&res.authFail) ? 'نشست نامعتبر (باید دوباره لاگین کنی)' : 'پاسخِ نامشخص از سرور';
+      alert('خطا در ثبت رزرو:\n\n' + msg + '\n\n(deviceId=' + deviceId + '، deviceType=' + deviceType + '، date=' + dayKey + ')');
+      if(window.console) console.log('resvAdd پاسخ کامل:', res);
     }
   });
 }
@@ -10778,8 +10795,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V323 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V323";
+try{ if(window.console) console.log('%c iPrint3D FRONT V325 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V325";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
