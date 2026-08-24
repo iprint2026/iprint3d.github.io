@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V330</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V331</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9428,6 +9428,7 @@ document.addEventListener('click', function(e){
 var WS_ORDERS = null, WS_HOL = null, WS_LOADING = false;
 var WS_LABDEV = [];                  // دستگاه‌های آزمایشگاه (مرحلهٔ ۲ رزرو)
 var WS_RESV = [];                    // رزروهای بارگذاری‌شده (مرحلهٔ ۲/۳)
+var WS_MACH = [];                    // همهٔ دستگاه‌های برآورد (از تنظیماتِ قیمت)
 var WS_MNAMES = {};                  // نقشهٔ اسمِ پرینترها از بک‌اند (مستقل از config)
 var WS_VIEW_M = 0, WS_VIEW_Y = 0;   // ماه/سالِ نمایشِ تقویم (۰ = هنوز ست نشده → به ماهِ امروز می‌رود)
 var WS_SEL_MID = '';                 // دستگاهِ انتخاب‌شده در گریدِ ماهانه
@@ -9571,6 +9572,7 @@ function wsInit(force){
     WS_MNAMES = res.machineNames || {};
     WS_HOL = { official: res.official||{}, fridays: res.fridays||{}, years: res.years||[] };
     WS_LABDEV = res.devices || [];
+    WS_MACH = res.machines || [];
     WS_RESV = res.reservations || [];
     wsRender();
   });
@@ -9606,6 +9608,8 @@ function wsMachineHours(o){
 function wsMachineName(id){
   var k = String(id||'');
   if(WS_MNAMES && WS_MNAMES[k]) return WS_MNAMES[k];   // اسم از بک‌اند (مستقل از config)
+  var wm = (WS_MACH||[]).filter(function(x){ return String(x.id)===k; })[0];
+  if(wm && wm.name) return wm.name;                    // دستگاه‌های برآورد از wsBundle
   try{
     var m = (prState.machines||[]).filter(function(x){ return String(x.id)===k; })[0];
     if(m && m.name) return m.name;
@@ -9618,11 +9622,28 @@ function wsMachineName(id){
 }
 // آیا این دستگاه، دستگاهِ آزمایشگاه است؟ (برای برچسب و نوعِ رزرو)
 function wsIsLab(id){ return (WS_LABDEV||[]).some(function(x){ return String(x.id)===String(id); }); }
+// نوعِ دستگاهِ برآورد (DLP یا FDM) برای نمایشِ آیکونِ درست
+function wsMachKind(id){
+  var m = (WS_MACH||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+  return m ? String(m.kind||'').toUpperCase() : '';
+}
 // فهرستِ همهٔ دستگاه‌ها برای سلکتور: پرینترهای برآورد + آزمایشگاه
 function wsAllDevices(){
-  var out = [];
-  try{ (prState.machines||[]).forEach(function(m){ out.push({ id:String(m.id), name:m.name||String(m.id), type:'print' }); }); }catch(e){}
-  (WS_LABDEV||[]).forEach(function(d){ if(d.active!==false) out.push({ id:String(d.id), name:d.name, type:'lab' }); });
+  var out = [], seen = {};
+  // دستگاه‌های برآورد از wsBundle (کامل‌ترین منبع)
+  (WS_MACH||[]).forEach(function(m){
+    var id = String(m.id); if(seen[id]) return; seen[id]=1;
+    out.push({ id:id, name:m.name||id, type:'print', kind:String(m.kind||'').toUpperCase() });
+  });
+  // پشتیبان: اگر wsBundle هنوز لود نشده، از تنظیماتِ محلی
+  try{ (prState.machines||[]).forEach(function(m){
+    var id = String(m.id); if(seen[id]) return; seen[id]=1;
+    out.push({ id:id, name:m.name||id, type:'print', kind:String(m.type||'').toUpperCase() });
+  }); }catch(e){}
+  (WS_LABDEV||[]).forEach(function(d){
+    var id = String(d.id); if(d.active===false || seen[id]) return; seen[id]=1;
+    out.push({ id:id, name:d.name, type:'lab' });
+  });
   return out;
 }
 
@@ -9968,7 +9989,7 @@ function stuApprove(id){
   window._stuDevs = current.slice();
   var rows = all.map(function(d){
     var on = current.indexOf(String(d.id))>=0;
-    var icon = d.type==='lab'?'🔬':'🖨️';
+    var icon = d.type==='lab' ? '🔬' : (d.kind==='DLP' ? '🧪' : '🖨️');
     return '<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #232742;border-radius:8px;margin-bottom:6px;cursor:pointer">'
       + '<input type="checkbox" class="stu-dev-cb" data-devid="'+String(d.id).replace(/"/g,'')+'" '+(on?'checked':'')+'>'
       + '<span style="color:#dfe3f5;font-size:13px">'+icon+' '+escapeHtml(d.name)+'</span></label>';
@@ -10109,6 +10130,8 @@ function wsRender(){
 
   // فهرستِ دستگاه‌ها: پرینترهای دارای سفارش (occ) + همهٔ دستگاه‌های آزمایشگاه
   var mids = Object.keys(occ);
+  // همهٔ دستگاه‌های برآورد همیشه در تقویم باشند (حتی بدونِ سفارشِ فعال)
+  (WS_MACH||[]).forEach(function(m){ if(mids.indexOf(String(m.id))<0) mids.push(String(m.id)); });
   (WS_LABDEV||[]).forEach(function(dv){ if(dv.active!==false && mids.indexOf(String(dv.id))<0) mids.push(String(dv.id)); });
   if(!mids.length){
     body.innerHTML = '<div class="card" style="font-size:13px;color:#c7cce0;line-height:1.9">'
@@ -10178,7 +10201,7 @@ function wsRender(){
   var machTabs = mids.map(function(mid){
     var on = (mid===selMid);
     var lab = wsIsLab(mid);
-    var icon = lab ? '🔬 ' : '🖨️ ';
+    var icon = lab ? '🔬 ' : (wsMachKind(mid)==='DLP' ? '🧪 ' : '🖨️ ');
     return '<button onclick="wsPickMachine(\''+mid+'\')" style="cursor:pointer;border:1px solid '
       +(on?(lab?'#3a5a3a':'#2a3a66'):'#232742')+';background:'+(on?(lab?'#16281a':'#1a2748'):'transparent')+';color:'+(on?(lab?'#9ee0a8':'#9ec5ff'):'#8a93b2')
       +';border-radius:8px;padding:5px 11px;font-size:12px;font-weight:'+(on?'700':'400')+'">'
@@ -10877,8 +10900,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V330 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V330";
+try{ if(window.console) console.log('%c iPrint3D FRONT V331 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V331";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
