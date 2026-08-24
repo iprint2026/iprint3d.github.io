@@ -359,7 +359,10 @@ function submitResv(){
   if(ex && (!fr.trim()||!to.trim())){ msg('mdlMsg','ساعتِ شروع و پایان را وارد کنید'); return; }
   msg('mdlMsg','در حال ثبت...','ok');
   call('pubReserve',{deviceId:SEL,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,t:Date.now()},function(r){
-    if(r&&r.status==='ok'){ closeMdl(); loadCal(); }
+    if(r&&r.status==='ok'){
+      closeMdl(); loadCal();
+      alert('✓ درخواستِ رزروِ شما ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه قطعی می‌شود. وضعیتش را در «رزروهای من» ببینید.');
+    }
     else msg('mdlMsg',(r&&r.message)?r.message:'ثبت نشد');
   });
 }
