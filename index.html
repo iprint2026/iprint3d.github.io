@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V334</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V335</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9796,8 +9796,9 @@ function wsUsageReport(){
     + '<div style="display:flex;gap:7px;margin-bottom:10px">'
     +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">دستگاه</div>'
     +     '<select id="u-dev" onchange="window._uDev=this.value" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;font-family:inherit">'+devOpts+'</select></div>'
-    +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">نامِ فرد (اختیاری)</div>'
-    +     '<input id="u-per" oninput="window._uPer=this.value" placeholder="مثلاً حسینی" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px"></div>'
+    +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">فرد</div>'
+    +     '<select id="u-per" onchange="window._uPer=this.value" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;font-family:inherit">'
+    +       '<option value="">همهٔ افراد</option><option value="" disabled>در حال بارگذاری نام‌ها...</option></select></div>'
     + '</div>'
     + '<div style="display:flex;gap:7px">'
     +   '<button onclick="wsUsageShow()" style="flex:1;cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:8px;padding:9px;font-size:12.5px;font-weight:600;font-family:inherit">👁 نمایشِ خلاصه</button>'
@@ -9805,6 +9806,33 @@ function wsUsageReport(){
     + '</div>'
     + '<div id="u-out" style="margin-top:12px"></div>';
   uiConfirm({ title:'گزارشِ استفاده از دستگاه‌ها', html:html, okText:'بستن', cancelText:'', danger:false }, function(){});
+  wsUsageLoadPeople();
+}
+// فهرستِ نام‌های واقعی را در لیستِ کشویی بریز (جلوگیری از اشتباهِ تایپی و تطابقِ ناخواسته)
+function wsUsageLoadPeople(){
+  callSheet('usagePeople', { t:Date.now() }, function(r){
+    var sel = document.getElementById('u-per'); if(!sel) return;
+    if(!(r && r.status==='ok')){ sel.innerHTML = '<option value="">همهٔ افراد</option>'; return; }
+    var ppl = r.people || [];
+    var opts = '<option value="">همهٔ افراد</option>';
+    var withData = ppl.filter(function(x){ return x.count > 0; });
+    var noData   = ppl.filter(function(x){ return !x.count; });
+    if(withData.length){
+      opts += '<optgroup label="دارای سابقهٔ کار">';
+      withData.forEach(function(x){
+        opts += '<option value="='+escapeHtml(x.name)+'">'+escapeHtml(x.name)
+              + ' — '+prToFa(x.hours)+' ساعت'+(x.student?' (دانشجو)':'')+'</option>';
+      });
+      opts += '</optgroup>';
+    }
+    if(noData.length){
+      opts += '<optgroup label="بدونِ سابقهٔ کار">';
+      noData.forEach(function(x){ opts += '<option value="='+escapeHtml(x.name)+'">'+escapeHtml(x.name)+'</option>'; });
+      opts += '</optgroup>';
+    }
+    sel.innerHTML = opts;
+    if(window._uPer) sel.value = window._uPer;
+  });
 }
 function wsUsageShow(){
   var box = document.getElementById('u-out'); if(!box) return;
@@ -9840,8 +9868,9 @@ function wsUsageShow(){
 }
 // کلیک روی نامِ فرد در خلاصه → فیلتر روی همان فرد
 function wsUsagePick(name){
-  window._uPer = name;
-  var inp = document.getElementById('u-per'); if(inp) inp.value = name;
+  window._uPer = '=' + name;                 // تطابقِ دقیق
+  var sel = document.getElementById('u-per');
+  if(sel){ sel.value = window._uPer; if(sel.value !== window._uPer){ wsUsageLoadPeople(); } }
   wsUsageShow();
 }
 function wsUsageXlsx(){
@@ -11166,8 +11195,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V334 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V334";
+try{ if(window.console) console.log('%c iPrint3D FRONT V335 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V335";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
