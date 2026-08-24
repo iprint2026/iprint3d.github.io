@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V325</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V328</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9845,6 +9845,7 @@ function wsResvForm(deviceId, dayKey){
 
   window._wsRvPerson=''; window._wsRvFrom=''; window._wsRvTo=''; window._wsRvHours=''; window._wsRvOrder=''; window._wsRvNote=''; window._wsRvPrecise=false;
   uiConfirm({ title:'رزروِ دستگاه', html:html, okText:'ثبتِ رزرو', cancelText:'بستن', danger:false }, function(){
+    if(window.console) console.log('%c[رزرو] دکمهٔ «ثبت رزرو» زده شد','color:#f59e0b');
     wsResvAdd(deviceId, lab?'lab':'print', dayKey);
   });
 }
@@ -9854,14 +9855,23 @@ function wsResvAdd(deviceId, deviceType, dayKey){
   var from = precise ? (window._wsRvFrom||'') : '';
   var to   = precise ? (window._wsRvTo||'')   : '';
   var hours = precise ? '' : (window._wsRvHours||'');
-  if(!person.trim() && !ord.trim() && !note.trim()){ showToast('حداقل نامِ فرد یا کدِ سفارش یا توضیح را وارد کن'); return; }
+  if(window.console) console.log('%c[رزرو] شروع','color:#3b82f6', {deviceId:deviceId, deviceType:deviceType, dayKey:dayKey, person:person, hours:hours, from:from, to:to});
+  if(!person.trim() && !ord.trim() && !note.trim()){
+    if(window.console) console.log('%c[رزرو] رد شد: همه فیلدها خالی','color:#ef4444');
+    alert('حداقل نامِ فرد یا کدِ سفارش یا توضیح را وارد کن\n\n(اگر پرش کردی ولی این پیام آمد، یعنی مقدارِ فیلد خوانده نشد)');
+    return;
+  }
+  if(window.console) console.log('%c[رزرو] در حال ارسال به سرور...','color:#3b82f6');
   callSheet('resvAdd', { date:dayKey, deviceType:deviceType, deviceId:deviceId, fromTime:from, toTime:to, hours:hours,
                          personName:person, orderCode:ord, note:note, status:'confirmed', t:Date.now() }, function(res){
-    if(res && res.status==='ok'){ showToast('رزرو ثبت شد ✓'); wsInit(true); }
-    else {
+    if(window.console) console.log('%c[رزرو] پاسخ سرور:','color:#22c55e', res);
+    if(res && res.status==='ok'){
+      if(window.console) console.log('%c[رزرو] ✓ ذخیره شد، id='+res.id+' — رفرش تقویم','color:#22c55e');
+      showToast('رزرو ثبت شد ✓');
+      wsInit(true);
+    } else {
       var msg = (res&&res.message) ? res.message : (res&&res.error) ? res.error : (res&&res.authFail) ? 'نشست نامعتبر (باید دوباره لاگین کنی)' : 'پاسخِ نامشخص از سرور';
       alert('خطا در ثبت رزرو:\n\n' + msg + '\n\n(deviceId=' + deviceId + '، deviceType=' + deviceType + '، date=' + dayKey + ')');
-      if(window.console) console.log('resvAdd پاسخ کامل:', res);
     }
   });
 }
@@ -10090,6 +10100,12 @@ function wsRender(){
   if(!WS_VIEW_M){ WS_VIEW_M = today.m; WS_VIEW_Y = today.y; }
   var selMid = WS_SEL_MID;
   var vy = WS_VIEW_Y, vm = WS_VIEW_M;
+  if(window.console){
+    console.log('%c[تقویم] selMid='+selMid+'، ماه='+vy+'/'+vm+'، تعداد رزرو در WS_RESV='+((WS_RESV||[]).length),'color:#a855f7');
+    (WS_RESV||[]).forEach(function(r){
+      console.log('  رزرو: deviceId="'+r.deviceId+'" date="'+r.date+'" hours='+r.hours+' | تطابق با selMid؟ '+(String(r.deviceId)===String(selMid)));
+    });
+  }
   var monDays = WS_MONS[vm-1] || 30;
   var firstDow = wsFirstDow(vy, vm);       // ۰=شنبه ... ۶=جمعه
   var DN2=['شنبه','یک‌شنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنج‌شنبه','جمعه'];
@@ -10795,8 +10811,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V325 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V325";
+try{ if(window.console) console.log('%c iPrint3D FRONT V328 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V328";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
