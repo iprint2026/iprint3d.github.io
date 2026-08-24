@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>رزرو دستگاه — iPrint3D</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100vh}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:#0d1220;border:1px solid #1a2038;border-radius:12px;padding:16px;margin-bottom:14px}
+.btn{cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:8px;
+     padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit}
+.btn:hover{background:#22315c}
+.btn-primary{background:#4f46e5;border-color:#4f46e5;color:#fff}
+.btn-primary:hover{background:#5b52ea}
+.btn-ghost{background:transparent;color:#8a93b2;border-color:#232742}
+.btn-sm{padding:6px 12px;font-size:12px}
+.inp{width:100%;background:#12151f;border:1px solid #232742;border-radius:8px;color:#e2e4f0;
+     padding:10px;font-size:13px;font-family:inherit;margin-bottom:9px}
+.inp:focus{outline:none;border-color:#4f46e5}
+.hidden{display:none!important}
+.lbl{font-size:12px;color:#8a93b2;margin-bottom:4px;display:block}
+.ttl{font-weight:800;font-size:16px;color:#dfe3f5}
+.sub{font-size:12px;color:#8a93b2;margin-top:3px}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700}
+.tag-pending{background:#2a2416;color:#f0c674;border:1px solid #5a4a2a}
+.tag-ok{background:#16281a;color:#9ee0a8;border:1px solid #2f5236}
+.grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cell{min-height:88px;border-radius:9px;padding:6px;cursor:pointer;border:1px solid #1a2038;background:#0b0f1c;overflow:hidden}
+.cell:hover{border-color:#3a4a80}
+.cell-off{background:#0a0c14;cursor:default;border-color:#241a2e}
+.cell-today{background:#12213b;border-color:#3a5a9a}
+.chip{border-radius:5px;padding:3px 5px;margin-bottom:3px;font-size:10px;font-weight:700}
+.chip-busy{background:#241a2e;border:1px solid #4a3050;color:#c9a0d8}
+.chip-mine{background:#16281a;border:1px solid #2f5236;color:#9ee0a8}
+.chip-wait{background:#2a2416;border:1px solid #5a4a2a;color:#f0c674}
+.err{background:#2a1618;border:1px solid #5a2a2a;color:#f0a6a8;border-radius:8px;padding:10px;font-size:12.5px;margin-bottom:10px}
+.ok{background:#16281a;border:1px solid #2f5236;color:#9ee0a8;border-radius:8px;padding:10px;font-size:12.5px;margin-bottom:10px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{cursor:pointer;border-radius:8px;padding:6px 13px;font-size:12.5px;font-weight:600;
+     border:1px solid #232742;background:transparent;color:#8a93b2;font-family:inherit}
+.tab-on{background:#1a2748;border-color:#2a3a66;color:#9ec5ff}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mut{color:#5a6080;font-size:11.5px}
+@media(max-width:640px){.grid7{gap:3px}.cell{min-height:64px;padding:4px}.wrap{padding:10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ═══ ورود / ثبت‌نام ═══ -->
+  <div id="v-auth">
+    <div class="card" style="text-align:center;padding:22px">
+      <div class="ttl">🔬 سامانهٔ رزرو دستگاه</div>
+      <div class="sub">آزمایشگاه iPrint3D</div>
+    </div>
+    <div class="card">
+      <div class="tabs" style="margin-bottom:14px">
+        <button class="tab tab-on" id="tb-login" onclick="authTab('login')">ورود</button>
+        <button class="tab" id="tb-reg" onclick="authTab('reg')">ثبت‌نام</button>
+      </div>
+      <div id="authMsg"></div>
+
+      <div id="pane-login">
+        <label class="lbl">شمارهٔ تماس</label>
+        <input class="inp" id="lg-phone" placeholder="۰۹۱۲۳۴۵۶۷۸۹" inputmode="numeric">
+        <label class="lbl">کد ملی (رمز شما)</label>
+        <input class="inp" id="lg-nid" type="password" placeholder="کد ملی" inputmode="numeric">
+        <button class="btn btn-primary" style="width:100%" onclick="doLogin()">ورود</button>
+      </div>
+
+      <div id="pane-reg" class="hidden">
+        <label class="lbl">نام و نام‌خانوادگی</label>
+        <input class="inp" id="rg-name" placeholder="مثلاً رضا کریمی">
+        <label class="lbl">شمارهٔ تماس (این می‌شود نام کاربری شما)</label>
+        <input class="inp" id="rg-phone" placeholder="۰۹۱۲۳۴۵۶۷۸۹" inputmode="numeric">
+        <label class="lbl">کد ملی (این می‌شود رمز شما)</label>
+        <input class="inp" id="rg-nid" placeholder="کد ملی" inputmode="numeric">
+        <label class="lbl">کدام دستگاه را لازم دارید؟ (اختیاری)</label>
+        <input class="inp" id="rg-note" placeholder="مثلاً دستگاه تنسایل برای پروژهٔ پایان‌نامه">
+        <button class="btn btn-primary" style="width:100%" onclick="doRegister()">ارسال درخواست</button>
+        <div class="mut" style="margin-top:9px;line-height:1.7">
+          پس از ثبت‌نام، مسئولِ آزمایشگاه درخواست شما را بررسی و دستگاه‌های مجاز را تعیین می‌کند.
+          بعد از تأیید، با همین شماره و کد ملی وارد شوید.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ محیط دانشجو ═══ -->
+  <div id="v-app" class="hidden">
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="ttl" id="stName">—</div>
+          <div class="sub">سامانهٔ رزرو دستگاه</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="doLogout()">خروج</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab tab-on" id="nv-cal" onclick="goTab('cal')">🗓️ تقویم رزرو</button>
+        <button class="tab" id="nv-mine" onclick="goTab('mine')">📋 رزروهای من</button>
+      </div>
+    </div>
+
+    <div id="pane-cal">
+      <div class="card">
+        <div class="row" style="margin-bottom:10px">
+          <div class="tabs" id="devTabs"></div>
+        </div>
+        <div class="row">
+          <button class="btn btn-ghost btn-sm" onclick="moveMonth(-1)">‹ ماه قبل</button>
+          <div style="font-weight:800;font-size:14px" id="monLbl">—</div>
+          <button class="btn btn-ghost btn-sm" onclick="moveMonth(1)">ماه بعد ›</button>
+        </div>
+      </div>
+      <div id="calBody"></div>
+      <div class="card">
+        <div class="row">
+          <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px">
+            <span><span class="chip chip-busy" style="display:inline-block;padding:1px 8px">&nbsp;</span> رزروشده</span>
+            <span><span class="chip chip-mine" style="display:inline-block;padding:1px 8px">&nbsp;</span> رزرو شما</span>
+            <span><span class="chip chip-wait" style="display:inline-block;padding:1px 8px">&nbsp;</span> در انتظار تأیید</span>
+          </div>
+        </div>
+        <div class="mut" style="margin-top:9px">💡 رزروِ شما پس از تأییدِ مسئولِ آزمایشگاه قطعی می‌شود.</div>
+      </div>
+    </div>
+
+    <div id="pane-mine" class="hidden"><div id="mineBody"></div></div>
+  </div>
+
+  <!-- مودال رزرو -->
+  <div id="mdl" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99;
+       display:flex;align-items:center;justify-content:center;padding:16px">
+    <div class="card" style="max-width:420px;width:100%;margin:0">
+      <div class="ttl" style="margin-bottom:4px">رزروِ دستگاه</div>
+      <div class="sub" id="mdlSub" style="margin-bottom:14px">—</div>
+      <div id="mdlMsg"></div>
+      <label class="lbl">چند ساعت لازم دارید؟</label>
+      <input class="inp" id="mv-hours" type="number" step="0.5" min="0.5" placeholder="مثلاً ۲">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:#c7cce0;margin-bottom:9px;cursor:pointer">
+        <input type="checkbox" id="mv-exact" onchange="toggleExact()"> ساعتِ دقیق را می‌دانم
+      </label>
+      <div id="exactBox" class="hidden" style="display:flex;gap:7px">
+        <input class="inp" id="mv-from" placeholder="از ۱۳:۰۰">
+        <input class="inp" id="mv-to" placeholder="تا ۱۵:۰۰">
+      </div>
+      <label class="lbl">توضیح (اختیاری)</label>
+      <input class="inp" id="mv-note" placeholder="مثلاً تست کششی نمونهٔ پلیمری">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+        <button class="btn btn-ghost" onclick="closeMdl()">بستن</button>
+        <button class="btn btn-primary" onclick="submitResv()">ثبتِ درخواست</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API='https://script.google.com/macros/s/AKfycbwwgezq5CC9_KiM3ObLeCWgnjzG6uFBNJ4zPglZC4fXHCDlGvEJXC6ab_ZSRUH3wtEJqw/exec';
+var TOK='', ME='', DEVS=[], SEL='', VY=0, VM=0, RESV=[], MDL_DATE='';
+
+/* ── ارتباط با سرور (JSONP، مثل سیستم اصلی) ── */
+function call(action, params, cb){
+  var name='scb_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  var q=new URLSearchParams({action:action, callback:name});
+  Object.keys(params||{}).forEach(function(k){ q.append(k, params[k]); });
+  if(TOK) q.append('stuToken', TOK);
+  window[name]=function(d){ delete window[name]; var s=document.getElementById(name); if(s)s.remove(); cb(d); };
+  var sc=document.createElement('script'); sc.id=name; sc.src=API+'?'+q.toString();
+  sc.onerror=function(){ delete window[name]; this.remove(); cb({status:'error',message:'ارتباط با سرور برقرار نشد'}); };
+  setTimeout(function(){ if(window[name]){ delete window[name]; var s=document.getElementById(name); if(s)s.remove();
+    cb({status:'error',message:'پاسخی از سرور نیامد (اینترنت را بررسی کنید)'}); } }, 20000);
+  document.head.appendChild(sc);
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function fa(s){ return String(s==null?'':s).replace(/[0-9]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
+function la(s){ return String(s==null?'':s).replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }); }
+function msg(el,t,kind){ var e=document.getElementById(el); if(!e){return;}
+  e.innerHTML = t ? ('<div class="'+(kind||'err')+'">'+esc(t)+'</div>') : ''; }
+
+/* ── تاریخ شمسی ── */
+var MONS=[31,31,31,31,31,31,30,30,30,30,30,29];
+var MNAM=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+var DNAM=['شنبه','یک‌شنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنج‌شنبه','جمعه'];
+function g2j(gy,gm,gd){
+  var g_d_m=[0,31,59,90,120,151,181,212,243,273,304,334];
+  var jy=(gy<=1600)?0:979; gy-=(gy<=1600)?621:1600;
+  var gy2=(gm>2)?(gy+1):gy;
+  var days=(365*gy)+(Math.floor((gy2+3)/4))-(Math.floor((gy2+99)/100))+(Math.floor((gy2+399)/400))-80+gd+g_d_m[gm-1];
+  jy+=33*Math.floor(days/12053); days%=12053; jy+=4*Math.floor(days/1461); days%=1461;
+  if(days>365){ jy+=Math.floor((days-1)/365); days=(days-1)%365; }
+  var jm=(days<186)?1+Math.floor(days/31):7+Math.floor((days-186)/30);
+  var jd=1+((days<186)?(days%31):((days-186)%30));
+  return {y:jy,m:jm,d:jd};
+}
+function todayJ(){ var n=new Date(); return g2j(n.getFullYear(),n.getMonth()+1,n.getDate()); }
+function p2(n){ n=+n; return (n<10?'0':'')+n; }
+function key(y,m,d){ return y+'/'+p2(m)+'/'+p2(d); }
+/* روزِ هفتهٔ اولِ ماه شمسی (۰=شنبه) */
+function firstDow(jy,jm){
+  var acc=0; for(var i=0;i<jm-1;i++) acc+=MONS[i];
+  var base=new Date(2026,2,21);                       /* ۱ فروردین ۱۴۰۵ */
+  var yd=jy-1405, dd=Math.round(base.getTime()/864e5)+acc+yd*365;
+  return ((dd+5)%7+7)%7;
+}
+
+/* ── ورود و ثبت‌نام ── */
+function authTab(t){
+  document.getElementById('tb-login').className='tab'+(t==='login'?' tab-on':'');
+  document.getElementById('tb-reg').className='tab'+(t==='reg'?' tab-on':'');
+  document.getElementById('pane-login').className=(t==='login'?'':'hidden');
+  document.getElementById('pane-reg').className=(t==='reg'?'':'hidden');
+  msg('authMsg','');
+}
+function doLogin(){
+  var ph=la(document.getElementById('lg-phone').value||'');
+  var nid=la(document.getElementById('lg-nid').value||'');
+  if(!ph.trim()||!nid.trim()){ msg('authMsg','شمارهٔ تماس و کد ملی را وارد کنید'); return; }
+  msg('authMsg','در حال ورود...','ok');
+  call('pubLogin',{phone:ph,nationalId:nid,t:Date.now()},function(r){
+    if(r&&r.status==='ok'){
+      TOK=r.token; ME=r.lastName;
+      try{ sessionStorage.setItem('iprint_stu',TOK); sessionStorage.setItem('iprint_stu_n',ME); }catch(e){}
+      startApp();
+    } else msg('authMsg',(r&&r.message)?r.message:'ورود ناموفق بود');
+  });
+}
+function doRegister(){
+  var nm=document.getElementById('rg-name').value||'';
+  var ph=la(document.getElementById('rg-phone').value||'');
+  var nid=la(document.getElementById('rg-nid').value||'');
+  var nt=document.getElementById('rg-note').value||'';
+  if(!nm.trim()||!ph.trim()||!nid.trim()){ msg('authMsg','نام، شمارهٔ تماس و کد ملی لازم است'); return; }
+  msg('authMsg','در حال ارسال...','ok');
+  call('pubRegister',{lastName:nm,phone:ph,nationalId:nid,requestNote:nt,t:Date.now()},function(r){
+    if(r&&r.status==='ok'){
+      msg('authMsg','✓ درخواست شما ثبت شد. پس از تأییدِ مسئولِ آزمایشگاه می‌توانید وارد شوید.','ok');
+      ['rg-name','rg-phone','rg-nid','rg-note'].forEach(function(i){ document.getElementById(i).value=''; });
+    } else msg('authMsg',(r&&r.message)?r.message:'ثبت‌نام ناموفق بود');
+  });
+}
+function doLogout(){
+  TOK=''; ME=''; DEVS=[]; SEL='';
+  try{ sessionStorage.removeItem('iprint_stu'); sessionStorage.removeItem('iprint_stu_n'); }catch(e){}
+  document.getElementById('v-app').className='hidden';
+  document.getElementById('v-auth').className='';
+  msg('authMsg','');
+}
+function startApp(){
+  document.getElementById('v-auth').className='hidden';
+  document.getElementById('v-app').className='';
+  document.getElementById('stName').textContent=ME||'دانشجو';
+  var t=todayJ(); VY=t.y; VM=t.m;
+  document.getElementById('calBody').innerHTML='<div class="card mut" style="text-align:center;padding:24px">در حال بارگذاری...</div>';
+  call('pubDevices',{t:Date.now()},function(r){
+    if(!(r&&r.status==='ok')){
+      if(r&&/نشست/.test(r.message||'')){ doLogout(); return; }
+      document.getElementById('calBody').innerHTML='<div class="card err">'+esc((r&&r.message)||'خطا در دریافت دستگاه‌ها')+'</div>';
+      return;
+    }
+    if(r.lastName){ ME=r.lastName; document.getElementById('stName').textContent=ME; }
+    DEVS=r.devices||[];
+    if(!DEVS.length){
+      document.getElementById('devTabs').innerHTML='';
+      document.getElementById('calBody').innerHTML='<div class="card" style="text-align:center;padding:24px">'
+        +'<div style="color:#f0c674;font-size:13px">هنوز دستگاهی برای شما مجاز نشده است</div>'
+        +'<div class="mut" style="margin-top:6px">با مسئولِ آزمایشگاه تماس بگیرید تا دسترسیِ دستگاه را فعال کند.</div></div>';
+      return;
+    }
+    SEL=DEVS[0].id; renderDevTabs(); loadCal();
+  });
+}
+function renderDevTabs(){
+  document.getElementById('devTabs').innerHTML = DEVS.map(function(d){
+    return '<button class="tab'+(d.id===SEL?' tab-on':'')+'" onclick="pickDev(\'' + d.id + '\')">🔬 '+esc(d.name)+'</button>';
+  }).join('');
+}
+function pickDev(id){ SEL=id; renderDevTabs(); loadCal(); }
+function moveMonth(dir){
+  VM+=dir; if(VM>12){VM=1;VY++;} if(VM<1){VM=12;VY--;} loadCal();
+}
+
+/* ── تقویم ── */
+function loadCal(){
+  document.getElementById('monLbl').textContent=MNAM[VM-1]+' '+fa(VY);
+  document.getElementById('calBody').innerHTML='<div class="card mut" style="text-align:center;padding:24px">در حال بارگذاری تقویم...</div>';
+  call('pubCalendar',{deviceId:SEL,from:key(VY,VM,1),to:key(VY,VM,MONS[VM-1]),t:Date.now()},function(r){
+    if(!(r&&r.status==='ok')){
+      if(r&&/نشست/.test(r.message||'')){ doLogout(); return; }
+      document.getElementById('calBody').innerHTML='<div class="card err">'+esc((r&&r.message)||'خطا در دریافت تقویم')+'</div>';
+      return;
+    }
+    RESV=r.reservations||[]; drawCal();
+  });
+}
+function onDay(k){ return RESV.filter(function(r){ return String(r.date)===String(k); }); }
+function drawCal(){
+  var t=todayJ(), fd=firstDow(VY,VM), lim=MONS[VM-1];
+  var head='<div class="grid7" style="margin-bottom:6px">'+DNAM.map(function(d,i){
+    return '<div style="text-align:center;font-size:11.5px;font-weight:700;color:'+(i===6?'#f0a6a8':'#8a93b2')+';padding:4px 0">'+d+'</div>';
+  }).join('')+'</div>';
+  var cells='';
+  for(var i=0;i<fd;i++) cells+='<div></div>';
+  for(var d=1; d<=lim; d++){
+    var k=key(VY,VM,d), dow=(fd+d-1)%7, isFri=(dow===6);
+    var isToday=(VY===t.y&&VM===t.m&&d===t.d);
+    var list=onDay(k);
+    var cls='cell'+(isFri?' cell-off':'')+(isToday?' cell-today':'');
+    var inner='<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(isToday?'#7ab8ff':(isFri?'#f0a6a8':'#c7cce0'))+'">'+fa(d)+'</span>'
+      +(isFri?'<span class="mut" style="font-size:9px">تعطیل</span>':'')+'</div>';
+    list.forEach(function(r){
+      var tm=(r.fromTime||r.toTime)?((r.fromTime||'?')+'–'+(r.toTime||'?')):(r.hours?(fa(r.hours)+' ساعت'):'');
+      var c = r.mine ? (r.status==='pending'?'chip-wait':'chip-mine') : 'chip-busy';
+      var lb = r.mine ? (r.status==='pending'?'در انتظار':'رزرو شما') : 'رزرو شده';
+      inner+='<div class="chip '+c+'">'+lb+(tm?('<div style="font-weight:400;font-size:9px;opacity:.85">'+esc(fa(tm))+'</div>'):'')+'</div>';
+    });
+    if(!isFri && !list.length) inner+='<div style="text-align:center;color:#2f374f;font-size:10px;margin-top:12px">آزاد<br><span style="font-size:14px">＋</span></div>';
+    cells += isFri
+      ? '<div class="'+cls+'">'+inner+'</div>'
+      : '<div class="'+cls+'" onclick="openMdl(\'' + k + '\')">'+inner+'</div>';
+  }
+  document.getElementById('calBody').innerHTML='<div class="card">'+head+'<div class="grid7">'+cells+'</div></div>';
+}
+
+/* ── مودال رزرو ── */
+function openMdl(k){
+  MDL_DATE=k;
+  var dv=DEVS.filter(function(x){return x.id===SEL;})[0];
+  document.getElementById('mdlSub').textContent=(dv?dv.name:'دستگاه')+' · روزِ '+fa(k);
+  ['mv-hours','mv-from','mv-to','mv-note'].forEach(function(i){ document.getElementById(i).value=''; });
+  document.getElementById('mv-exact').checked=false;
+  document.getElementById('exactBox').className='hidden';
+  msg('mdlMsg','');
+  document.getElementById('mdl').className='';
+}
+function closeMdl(){ document.getElementById('mdl').className='hidden'; }
+function toggleExact(){
+  var on=document.getElementById('mv-exact').checked;
+  document.getElementById('exactBox').className=on?'':'hidden';
+  document.getElementById('exactBox').style.display=on?'flex':'none';
+}
+function submitResv(){
+  var ex=document.getElementById('mv-exact').checked;
+  var hrs=ex?'':la(document.getElementById('mv-hours').value||'');
+  var fr=ex?la(document.getElementById('mv-from').value||''):'';
+  var to=ex?la(document.getElementById('mv-to').value||''):'';
+  var nt=document.getElementById('mv-note').value||'';
+  if(!ex && !(parseFloat(hrs)>0)){ msg('mdlMsg','تعدادِ ساعت را وارد کنید'); return; }
+  if(ex && (!fr.trim()||!to.trim())){ msg('mdlMsg','ساعتِ شروع و پایان را وارد کنید'); return; }
+  msg('mdlMsg','در حال ثبت...','ok');
+  call('pubReserve',{deviceId:SEL,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,t:Date.now()},function(r){
+    if(r&&r.status==='ok'){ closeMdl(); loadCal(); }
+    else msg('mdlMsg',(r&&r.message)?r.message:'ثبت نشد');
+  });
+}
+
+/* ── رزروهای من ── */
+function goTab(t){
+  document.getElementById('nv-cal').className='tab'+(t==='cal'?' tab-on':'');
+  document.getElementById('nv-mine').className='tab'+(t==='mine'?' tab-on':'');
+  document.getElementById('pane-cal').className=(t==='cal'?'':'hidden');
+  document.getElementById('pane-mine').className=(t==='mine'?'':'hidden');
+  if(t==='mine') loadMine();
+}
+function loadMine(){
+  document.getElementById('mineBody').innerHTML='<div class="card mut" style="text-align:center;padding:24px">در حال بارگذاری...</div>';
+  call('pubMyReservations',{t:Date.now()},function(r){
+    if(!(r&&r.status==='ok')){
+      if(r&&/نشست/.test(r.message||'')){ doLogout(); return; }
+      document.getElementById('mineBody').innerHTML='<div class="card err">'+esc((r&&r.message)||'خطا')+'</div>'; return;
+    }
+    var L=r.reservations||[];
+    if(!L.length){
+      document.getElementById('mineBody').innerHTML='<div class="card" style="text-align:center;padding:26px">'
+        +'<div style="font-size:13px;color:#8a93b2">هنوز رزروی ندارید</div>'
+        +'<div class="mut" style="margin-top:5px">از تبِ «تقویم رزرو» روی یک روز بزنید.</div></div>';
+      return;
+    }
+    L.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+    document.getElementById('mineBody').innerHTML=L.map(function(x){
+      var tm=(x.fromTime||x.toTime)?((x.fromTime||'?')+'–'+(x.toTime||'?')):(x.hours?(fa(x.hours)+' ساعت'):'');
+      var pend=(x.status==='pending');
+      return '<div class="card"><div class="row">'
+        +'<div><div style="font-weight:700;font-size:13.5px">'+esc(x.deviceName)+' '
+        +'<span class="tag '+(pend?'tag-pending':'tag-ok')+'">'+(pend?'در انتظار تأیید':'تأییدشده')+'</span></div>'
+        +'<div class="sub">📅 '+esc(fa(x.date))+(tm?(' · '+esc(fa(tm))):'')+'</div>'
+        +(x.note?('<div class="mut" style="margin-top:3px">'+esc(x.note)+'</div>'):'')+'</div>'
+        +(pend?('<button class="btn btn-ghost btn-sm" onclick="cancelResv(\'' + x.id + '\')">لغو</button>'):'')
+        +'</div></div>';
+    }).join('');
+  });
+}
+function cancelResv(id){
+  if(!confirm('این درخواستِ رزرو لغو شود؟')) return;
+  call('pubCancel',{id:id,t:Date.now()},function(r){
+    if(r&&r.status==='ok') loadMine();
+    else alert((r&&r.message)?r.message:'لغو نشد');
+  });
+}
+
+/* ── شروع ── */
+(function(){
+  try{
+    var t=sessionStorage.getItem('iprint_stu');
+    if(t){ TOK=t; ME=sessionStorage.getItem('iprint_stu_n')||''; startApp(); }
+  }catch(e){}
+  ['lg-nid','lg-phone'].forEach(function(i){
+    var e=document.getElementById(i);
+    if(e) e.addEventListener('keydown',function(ev){ if(ev.key==='Enter') doLogin(); });
+  });
+  console.log('iPrint3D STUDENT V1');
+})();
+</script>
+</body>
+</html>
