@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V328</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V329</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9964,23 +9964,33 @@ function stuApprove(id){
   var rows = all.map(function(d){
     var on = current.indexOf(String(d.id))>=0;
     var icon = d.type==='lab'?'🔬':'🖨️';
-    return '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #232742;border-radius:8px;margin-bottom:6px;cursor:pointer">'
-      + '<input type="checkbox" '+(on?'checked':'')+' onchange="stuToggleDev(\''+String(d.id).replace(/\x27/g,'')+'\',this.checked)">'
+    return '<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #232742;border-radius:8px;margin-bottom:6px;cursor:pointer">'
+      + '<input type="checkbox" class="stu-dev-cb" data-devid="'+String(d.id).replace(/"/g,'')+'" '+(on?'checked':'')+'>'
       + '<span style="color:#dfe3f5;font-size:13px">'+icon+' '+escapeHtml(d.name)+'</span></label>';
   }).join('');
-  var html = '<div style="color:#8a93b2;font-size:12px;margin-bottom:10px">دانشجو «'+escapeHtml(s.lastName)+'» به کدام دستگاه‌ها دسترسی داشته باشد؟</div>' + rows;
+  var html = '<div style="color:#8a93b2;font-size:12px;margin-bottom:10px">دانشجو «'+escapeHtml(s.lastName)+'» به کدام دستگاه‌ها دسترسی داشته باشد؟ (می‌توانی چند دستگاه را تیک بزنی)</div>' + rows;
   uiConfirm({ title:'تأیید و تعیین دستگاه', html:html, okText:'تأیید دسترسی', cancelText:'انصراف', danger:false }, function(){
-    callSheet('stuUpdate', { id:id, status:'approved', devices:(window._stuDevs||[]).join(','), t:Date.now() }, function(res){
-      if(res && res.status==='ok'){ showToast('تأیید شد ✓'); stuInit(true); }
+    // مقادیر را قبل از بسته‌شدنِ مودال از DOM بخوان (چون uiConfirm اول close می‌کند)
+    var picked = window._stuDevPicked || [];
+    callSheet('stuUpdate', { id:id, status:'approved', devices:picked.join(','), t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast(picked.length?'تأیید شد ✓':'تأیید شد (بدونِ دستگاه — بعداً می‌توانی اضافه کنی)'); stuInit(true); }
       else showToast((res&&res.message)?res.message:'خطا');
     });
   });
-}
-function stuToggleDev(id, on){
-  window._stuDevs = window._stuDevs || [];
-  var i = window._stuDevs.indexOf(id);
-  if(on && i<0) window._stuDevs.push(id);
-  if(!on && i>=0) window._stuDevs.splice(i,1);
+  // چک‌باکس‌ها را به یک متغیرِ سراسری وصل کن که همان لحظه به‌روز می‌شود (مقاوم به بسته‌شدنِ مودال)
+  window._stuDevPicked = current.slice();
+  setTimeout(function(){
+    document.querySelectorAll('.stu-dev-cb').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var id2 = this.getAttribute('data-devid');
+        var arr = window._stuDevPicked || [];
+        var i = arr.indexOf(id2);
+        if(this.checked && i<0) arr.push(id2);
+        if(!this.checked && i>=0) arr.splice(i,1);
+        window._stuDevPicked = arr;
+      });
+    });
+  }, 30);
 }
 function stuReject(id){
   uiConfirm({ title:'ردِ دانشجو', html:'دسترسیِ این دانشجو رد شود؟ می‌توانی بعداً دوباره تأییدش کنی.', okText:'رد', danger:true }, function(){
@@ -10811,8 +10821,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V328 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V328";
+try{ if(window.console) console.log('%c iPrint3D FRONT V329 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V329";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
