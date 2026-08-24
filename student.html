@@ -6,44 +6,47 @@
 <title>رزرو دستگاه — iPrint3D</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100vh}
-.wrap{max-width:1100px;margin:0 auto;padding:16px}
-.card{background:#0d1220;border:1px solid #1a2038;border-radius:12px;padding:16px;margin-bottom:14px}
-.btn{cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:8px;
-     padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit}
+body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100vh;line-height:1.6}
+.wrap{max-width:1000px;margin:0 auto;padding:18px}
+.card{background:#0d1220;border:1px solid #1a2038;border-radius:14px;padding:18px;margin-bottom:14px}
+.btn{cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:9px;
+     padding:10px 18px;font-size:13px;font-weight:600;font-family:inherit;transition:background .15s}
 .btn:hover{background:#22315c}
 .btn-primary{background:#4f46e5;border-color:#4f46e5;color:#fff}
 .btn-primary:hover{background:#5b52ea}
 .btn-ghost{background:transparent;color:#8a93b2;border-color:#232742}
-.btn-sm{padding:6px 12px;font-size:12px}
-.inp{width:100%;background:#12151f;border:1px solid #232742;border-radius:8px;color:#e2e4f0;
-     padding:10px;font-size:13px;font-family:inherit;margin-bottom:9px}
+.btn-sm{padding:7px 13px;font-size:12px}
+.inp{width:100%;background:#12151f;border:1px solid #232742;border-radius:9px;color:#e2e4f0;
+     padding:11px 12px;font-size:13px;font-family:inherit;margin-bottom:11px}
 .inp:focus{outline:none;border-color:#4f46e5}
 .hidden{display:none!important}
-.lbl{font-size:12px;color:#8a93b2;margin-bottom:4px;display:block}
-.ttl{font-weight:800;font-size:16px;color:#dfe3f5}
-.sub{font-size:12px;color:#8a93b2;margin-top:3px}
-.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700}
+.lbl{font-size:12px;color:#8a93b2;margin-bottom:5px;display:block}
+.ttl{font-weight:800;font-size:17px;color:#dfe3f5}
+.sub{font-size:12px;color:#8a93b2;margin-top:4px}
+.tag{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:700;margin-right:4px}
 .tag-pending{background:#2a2416;color:#f0c674;border:1px solid #5a4a2a}
 .tag-ok{background:#16281a;color:#9ee0a8;border:1px solid #2f5236}
-.grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-.cell{min-height:88px;border-radius:9px;padding:6px;cursor:pointer;border:1px solid #1a2038;background:#0b0f1c;overflow:hidden}
-.cell:hover{border-color:#3a4a80}
+.grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+.cell{min-height:92px;border-radius:10px;padding:7px;cursor:pointer;border:1px solid #1a2038;background:#0b0f1c;overflow:hidden;transition:border-color .15s}
+.cell:hover{border-color:#4a5aa0}
 .cell-off{background:#0a0c14;cursor:default;border-color:#241a2e}
 .cell-today{background:#12213b;border-color:#3a5a9a}
-.chip{border-radius:5px;padding:3px 5px;margin-bottom:3px;font-size:10px;font-weight:700}
+.chip{border-radius:6px;padding:4px 6px;margin-bottom:3px;font-size:10px;font-weight:700;text-align:center}
 .chip-busy{background:#241a2e;border:1px solid #4a3050;color:#c9a0d8}
 .chip-mine{background:#16281a;border:1px solid #2f5236;color:#9ee0a8}
 .chip-wait{background:#2a2416;border:1px solid #5a4a2a;color:#f0c674}
-.err{background:#2a1618;border:1px solid #5a2a2a;color:#f0a6a8;border-radius:8px;padding:10px;font-size:12.5px;margin-bottom:10px}
-.ok{background:#16281a;border:1px solid #2f5236;color:#9ee0a8;border-radius:8px;padding:10px;font-size:12.5px;margin-bottom:10px}
-.tabs{display:flex;gap:6px;flex-wrap:wrap}
-.tab{cursor:pointer;border-radius:8px;padding:6px 13px;font-size:12.5px;font-weight:600;
-     border:1px solid #232742;background:transparent;color:#8a93b2;font-family:inherit}
+.err{background:#2a1618;border:1px solid #5a2a2a;color:#f0a6a8;border-radius:9px;padding:11px;font-size:12.5px;margin-bottom:11px}
+.ok{background:#16281a;border:1px solid #2f5236;color:#9ee0a8;border-radius:9px;padding:11px;font-size:12.5px;margin-bottom:11px}
+.tabs{display:flex;gap:7px;flex-wrap:wrap}
+.tab{cursor:pointer;border-radius:9px;padding:8px 15px;font-size:12.5px;font-weight:600;
+     border:1px solid #232742;background:transparent;color:#8a93b2;font-family:inherit;transition:all .15s}
 .tab-on{background:#1a2748;border-color:#2a3a66;color:#9ec5ff}
-.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .mut{color:#5a6080;font-size:11.5px}
-@media(max-width:640px){.grid7{gap:3px}.cell{min-height:64px;padding:4px}.wrap{padding:10px}}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;align-items:center}
+.legend span{display:flex;align-items:center;gap:6px}
+.dot{display:inline-block;width:14px;height:14px;border-radius:4px}
+@media(max-width:640px){.grid7{gap:4px}.cell{min-height:66px;padding:4px;border-radius:8px}.wrap{padding:11px}.ttl{font-size:15px}}
 </style>
 </head>
 <body>
@@ -120,14 +123,12 @@ body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',san
       </div>
       <div id="calBody"></div>
       <div class="card">
-        <div class="row">
-          <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px">
-            <span><span class="chip chip-busy" style="display:inline-block;padding:1px 8px">&nbsp;</span> رزروشده</span>
-            <span><span class="chip chip-mine" style="display:inline-block;padding:1px 8px">&nbsp;</span> رزرو شما</span>
-            <span><span class="chip chip-wait" style="display:inline-block;padding:1px 8px">&nbsp;</span> در انتظار تأیید</span>
-          </div>
+        <div class="legend">
+          <span><span class="dot chip-busy"></span> رزروشده</span>
+          <span><span class="dot chip-mine"></span> رزرو شما</span>
+          <span><span class="dot chip-wait"></span> در انتظار تأیید</span>
         </div>
-        <div class="mut" style="margin-top:9px">💡 رزروِ شما پس از تأییدِ مسئولِ آزمایشگاه قطعی می‌شود.</div>
+        <div class="mut" style="margin-top:10px">💡 رزروِ شما پس از تأییدِ مسئولِ آزمایشگاه قطعی می‌شود.</div>
       </div>
     </div>
 
@@ -267,6 +268,7 @@ function startApp(){
     }
     if(r.lastName){ ME=r.lastName; document.getElementById('stName').textContent=ME; }
     DEVS=r.devices||[];
+    if(window.console && r._dbg) console.log('دستگاه‌های من:', r._dbg.myDevices, '| همه دستگاه‌ها:', r._dbg.allDeviceIds);
     if(!DEVS.length){
       document.getElementById('devTabs').innerHTML='';
       document.getElementById('calBody').innerHTML='<div class="card" style="text-align:center;padding:24px">'
