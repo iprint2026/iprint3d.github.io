@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V329</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V330</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9666,10 +9666,10 @@ function wsBuild(){
   function capOf(mid, key, dow, cnt){
     var h = (typeof whHoursOf==='function') ? whHoursOf(key, dow) : 10;
     var base = Math.max(0, (+h||0) * cnt);
-    // رزروها اولویت دارند و از ظرفیتِ همان روز/دستگاه کم می‌شوند (رزرو مقدس است، سفارش دورش می‌چرخد)
+    // فقط رزروهای «تأییدشده» ظرفیت را می‌خورند — درخواست‌های در انتظار هنوز قطعی نیستند
     var rHrs = 0;
     (WS_RESV||[]).forEach(function(r){
-      if(String(r.deviceId)===String(mid) && String(r.date)===String(key)) rHrs += (+r.hours||0);
+      if(String(r.deviceId)===String(mid) && String(r.date)===String(key) && r.status!=='pending') rHrs += (+r.hours||0);
     });
     return Math.max(0, base - rHrs);
   }
@@ -9933,14 +9933,18 @@ function stuRender(){
     return;
   }
   body.innerHTML = list.map(function(s){
-    var devs = (s.devices||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
-    var devNames = devs.length ? devs.map(stuDeviceName).map(escapeHtml).join('، ') : '<span style="color:#5a6080">هیچ دستگاهی مجاز نشده</span>';
+    var devs = (s.devices||'').split(',').map(function(x){return x.trim();}).filter(Boolean)
+                 .map(function(x){ var i=x.indexOf('|'); return i<0?{id:x,nm:''}:{id:x.slice(0,i),nm:x.slice(i+1)}; });
+    var devNames = devs.length
+      ? devs.map(function(d){ return escapeHtml(d.nm || stuDeviceName(d.id)); }).join('، ')
+      : '<span style="color:#5a6080">هیچ دستگاهی مجاز نشده</span>';
     var stColor = s.status==='approved'?'#9ee0a8':(s.status==='rejected'?'#f0a6a8':'#f0c674');
     var stText = s.status==='approved'?'تأییدشده':(s.status==='rejected'?'ردشده':'در انتظار');
     var actions = '';
     if(s.status!=='approved') actions += '<button onclick="stuApprove(\''+s.id+'\')" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600">✓ تأیید و تعیین دستگاه</button> ';
     if(s.status==='approved') actions += '<button onclick="stuApprove(\''+s.id+'\')" style="cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:7px;padding:5px 12px;font-size:12px">تغییر دستگاه‌ها</button> ';
     if(s.status!=='rejected') actions += '<button onclick="stuReject(\''+s.id+'\')" style="cursor:pointer;border:1px solid #5a4a2a;background:transparent;color:#f0c674;border-radius:7px;padding:5px 12px;font-size:12px">رد</button> ';
+    actions += '<button onclick="stuResetPass(\''+s.id+'\',\''+escapeHtml(String(s.lastName)).replace(/"/g,'').replace(/\x27/g,'')+'\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:7px;padding:5px 12px;font-size:12px">🔑 تغییر رمز</button> ';
     actions += '<button onclick="stuDeleteAsk(\''+s.id+'\',\''+escapeHtml(String(s.lastName)).replace(/"/g,'').replace(/\x27/g,'')+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:7px;padding:5px 12px;font-size:12px">حذف</button>';
     return '<div class="card" style="margin-bottom:10px">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'
@@ -9957,7 +9961,8 @@ function stuRender(){
 // تأیید + انتخابِ دستگاه‌های مجاز
 function stuApprove(id){
   var s = (STU_LIST||[]).filter(function(x){return x.id===id;})[0]; if(!s) return;
-  var current = (s.devices||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  var current = (s.devices||'').split(',').map(function(x){return x.trim();}).filter(Boolean)
+                  .map(function(x){ var i=x.indexOf('|'); return i<0?x:x.slice(0,i); });
   var all = (typeof wsAllDevices==='function') ? wsAllDevices() : (WS_LABDEV||[]).map(function(d){return {id:d.id,name:d.name,type:'lab'};});
   if(!all.length){ showToast('اول یک دستگاه در تقویم اضافه کن'); return; }
   window._stuDevs = current.slice();
@@ -9970,10 +9975,14 @@ function stuApprove(id){
   }).join('');
   var html = '<div style="color:#8a93b2;font-size:12px;margin-bottom:10px">دانشجو «'+escapeHtml(s.lastName)+'» به کدام دستگاه‌ها دسترسی داشته باشد؟ (می‌توانی چند دستگاه را تیک بزنی)</div>' + rows;
   uiConfirm({ title:'تأیید و تعیین دستگاه', html:html, okText:'تأیید دسترسی', cancelText:'انصراف', danger:false }, function(){
-    // مقادیر را قبل از بسته‌شدنِ مودال از DOM بخوان (چون uiConfirm اول close می‌کند)
     var picked = window._stuDevPicked || [];
-    callSheet('stuUpdate', { id:id, status:'approved', devices:picked.join(','), t:Date.now() }, function(res){
-      if(res && res.status==='ok'){ showToast(picked.length?'تأیید شد ✓':'تأیید شد (بدونِ دستگاه — بعداً می‌توانی اضافه کنی)'); stuInit(true); }
+    // شناسه را همراهِ نام ذخیره کن تا صفحهٔ دانشجو نامِ پرینترها را هم بشناسد
+    var payload = picked.map(function(pid){
+      var d = all.filter(function(x){ return String(x.id)===String(pid); })[0];
+      return pid + '|' + ((d&&d.name)?String(d.name).replace(/[,|]/g,' '):pid);
+    }).join(',');
+    callSheet('stuUpdate', { id:id, status:'approved', devices:payload, t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast(picked.length?('دسترسی به '+prToFa(picked.length)+' دستگاه داده شد ✓'):'تأیید شد (بدونِ دستگاه)'); stuInit(true); }
       else showToast((res&&res.message)?res.message:'خطا');
     });
   });
@@ -9992,6 +10001,51 @@ function stuApprove(id){
     });
   }, 30);
 }
+// تأیید یا ردِ درخواستِ رزروِ دانشجو
+function wsResvDecide(id, who){
+  uiConfirm({ title:'درخواستِ رزرو', html:'<div style="color:#c7cce0;font-size:13px;margin-bottom:6px">درخواستِ «'+escapeHtml(who)+'»</div>'
+      +'<div style="color:#8a93b2;font-size:12px">با تأیید، این زمان قطعی می‌شود و از ظرفیتِ دستگاه کم می‌شود.</div>',
+      okText:'✓ تأیید رزرو', cancelText:'بستن', danger:false }, function(){
+    callSheet('resvUpdate', { id:id, status:'confirmed', t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('رزرو تأیید شد ✓'); wsInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا');
+    });
+  });
+  // دکمهٔ «رد» را کنارِ مودال اضافه کن
+  setTimeout(function(){
+    var box = document.querySelector('.ui-modal-actions') || document.querySelector('[class*="modal"] [class*="action"]');
+    if(!box){ return; }
+    var b = document.createElement('button');
+    b.textContent = 'رد درخواست';
+    b.style.cssText = 'cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:8px;padding:8px 14px;font-size:12.5px;font-family:inherit;margin-left:6px';
+    b.onclick = function(){
+      callSheet('resvDelete', { id:id, t:Date.now() }, function(res){
+        if(res && res.status==='ok'){ showToast('درخواست رد شد'); wsInit(true); }
+        else showToast('خطا');
+      });
+      var c = document.querySelector('.ui-modal-close, [data-modal-close]'); if(c) c.click();
+      document.querySelectorAll('[class*="modal"]').forEach(function(m){ m.style.display='none'; });
+    };
+    box.insertBefore(b, box.firstChild);
+  }, 40);
+}
+
+// تغییرِ رمزِ دانشجو توسط ادمین (رمز = کدِ ملی)
+function stuResetPass(id, name){
+  window._stuNewPass = '';
+  var html = '<div style="color:#8a93b2;font-size:12px;margin-bottom:9px">رمزِ جدیدِ «'+escapeHtml(name)+'» را وارد کن (معمولاً کدِ ملیِ اوست):</div>'
+    + '<input id="stu-newpass" oninput="window._stuNewPass=this.value" placeholder="کد ملی / رمز جدید" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px">'
+    + '<div style="color:#8a6a2a;font-size:11px;margin-top:8px">رمز به‌صورت هش‌شده ذخیره می‌شود و در هیچ‌جا قابلِ خواندن نیست.</div>';
+  uiConfirm({ title:'تغییر رمزِ دانشجو', html:html, okText:'ثبتِ رمزِ جدید', cancelText:'انصراف', danger:false }, function(){
+    var np = (window._stuNewPass||'').trim();
+    if(!np){ showToast('رمز نمی‌تواند خالی باشد'); return; }
+    callSheet('stuUpdate', { id:id, nationalId:np, t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('رمز عوض شد ✓'); }
+      else showToast((res&&res.message)?res.message:'خطا');
+    });
+  });
+}
+
 function stuReject(id){
   uiConfirm({ title:'ردِ دانشجو', html:'دسترسیِ این دانشجو رد شود؟ می‌توانی بعداً دوباره تأییدش کنی.', okText:'رد', danger:true }, function(){
     callSheet('stuUpdate', { id:id, status:'rejected', t:Date.now() }, function(res){
@@ -10162,7 +10216,7 @@ function wsRender(){
     var slot=(occ[selMid]||{})[k]||null;
     var jobs=slot?slot.jobs:[];
     var resvs=wsResvOn(selMid, k);         // رزروهای دستیِ این روز/دستگاه
-    var resvHrs=0; resvs.forEach(function(r){ resvHrs += (+r.hours||0); });
+    var resvHrs=0; resvs.forEach(function(r){ if(r.status!=='pending') resvHrs += (+r.hours||0); });
     var cap=slot?(+slot.cap||0):Math.max(0, (((typeof whHoursOf==='function')?whHoursOf(k,dow):0) - resvHrs));
     var used=slot?(+slot.used||0):0;
     var pct=cap>0?Math.min(100,Math.round(used/cap*100)):0;
@@ -10197,10 +10251,12 @@ function wsRender(){
       inner += resvs.map(function(r){
         var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : (r.hours ? (prToFa(r.hours)+'س') : '');
         var who = r.personName || r.orderCode || 'رزرو';
-        return '<div onclick="event.stopPropagation(); wsResvForm(\''+selMid+'\',\''+k+'\')" title="'+escapeHtml(who+(r.note?(' · '+r.note):''))+'" '
-          +'style="cursor:pointer;background:#16281a;border:1px solid #2f5236;border-radius:5px;padding:3px 5px;margin-bottom:3px;overflow:hidden">'
-          +'<div style="font-size:10px;color:#9ee0a8;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(who)+'</div>'
-          +(tm?'<div style="font-size:9px;color:#7bbf85">'+escapeHtml(prToFa(tm))+'</div>':'')
+        var pend = (r.status==='pending');
+        var bg = pend ? '#2a2416' : '#16281a', bd = pend ? '#5a4a2a' : '#2f5236', fg = pend ? '#f0c674' : '#9ee0a8';
+        return '<div onclick="event.stopPropagation(); '+(pend?('wsResvDecide(\''+r.id+'\',\''+escapeHtml(who).replace(/\x27/g,'')+'\')'):('wsResvForm(\''+selMid+'\',\''+k+'\')'))+'" title="'+escapeHtml(who+(pend?' · درخواستِ دانشجو — کلیک برای تأیید':'')+(r.note?(' · '+r.note):''))+'" '
+          +'style="cursor:pointer;background:'+bg+';border:1px solid '+bd+';border-radius:5px;padding:3px 5px;margin-bottom:3px;overflow:hidden">'
+          +'<div style="font-size:10px;color:'+fg+';font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(pend?'⏳ ':'')+escapeHtml(who)+'</div>'
+          +(tm?'<div style="font-size:9px;color:'+(pend?'#bf9f5b':'#7bbf85')+'">'+escapeHtml(prToFa(tm))+'</div>':'')
           +'</div>';
       }).join('');
     }
@@ -10821,8 +10877,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V329 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V329";
+try{ if(window.console) console.log('%c iPrint3D FRONT V330 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V330";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
