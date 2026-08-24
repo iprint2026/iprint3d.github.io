@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V331</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V332</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9786,21 +9786,39 @@ function wsLabManageBtn(){
   return '<button onclick="wsLabManage()" style="cursor:pointer;border:1px dashed #3a5a3a;background:transparent;color:#7bbf85;border-radius:8px;padding:5px 11px;font-size:12px">🔬 + دستگاهِ آزمایشگاه</button>';
 }
 function wsLabManage(){
-  var rows = (WS_LABDEV||[]).map(function(d){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #232742;border-radius:8px;margin-bottom:6px">'
-      + '<div><div style="color:#dfe3f5;font-weight:600;font-size:13px">'+escapeHtml(d.name)+'</div>'
-      + (d.note?'<div style="color:#8a93b2;font-size:11px">'+escapeHtml(d.note)+'</div>':'')+'</div>'
-      + '<button onclick="wsLabDelete(\''+d.id+'\',\''+escapeHtml(String(d.name)).replace(/"/g,'').replace(/\x27/g,'')+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:4px 9px;font-size:11px">حذف</button>'
-      + '</div>';
-  }).join('') || '<div style="color:#8a93b2;font-size:12px;text-align:center;padding:10px">هنوز دستگاهی ثبت نشده</div>';
+  var act = (WS_LABDEV||[]).filter(function(d){ return d.active!==false; });
+  var arc = (WS_LABDEV||[]).filter(function(d){ return d.active===false; });
+
+  function rowOf(d, archived){
+    var nm = escapeHtml(String(d.name)).replace(/"/g,'').replace(/\x27/g,'');
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border:1px solid '+(archived?'#2a2416':'#232742')+';border-radius:8px;margin-bottom:6px;background:'+(archived?'#14110a':'transparent')+'">'
+      + '<div style="min-width:0"><div style="color:'+(archived?'#a8975f':'#dfe3f5')+';font-weight:600;font-size:13px">'+(archived?'🗄️ ':'🔬 ')+escapeHtml(d.name)+'</div>'
+      + (d.note?'<div style="color:#8a93b2;font-size:11px;margin-top:2px">'+escapeHtml(d.note)+'</div>':'')
+      + (archived?'<div style="color:#8a6a2a;font-size:10.5px;margin-top:2px">بایگانی‌شده — سابقه‌اش محفوظ است</div>':'')
+      + '</div>'
+      + '<div style="display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0">'
+      +   '<button onclick="wsLabHistory(\'' + d.id + '\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:4px 9px;font-size:11px">📊 سابقه</button>'
+      +   (archived
+            ? '<button onclick="wsLabRestore(\'' + d.id + '\',\'' + nm + '\')" style="cursor:pointer;border:1px solid #2f5236;background:transparent;color:#9ee0a8;border-radius:6px;padding:4px 9px;font-size:11px">بازگردانی</button>'
+            : '<button onclick="wsLabEdit(\'' + d.id + '\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:4px 9px;font-size:11px">✏️ ویرایش</button>'
+              + '<button onclick="wsLabArchive(\'' + d.id + '\',\'' + nm + '\')" style="cursor:pointer;border:1px solid #5a4a2a;background:transparent;color:#f0c674;border-radius:6px;padding:4px 9px;font-size:11px">🗄️ بایگانی</button>')
+      +   '<button onclick="wsLabPurge(\'' + d.id + '\',\'' + nm + '\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:4px 9px;font-size:11px">حذفِ کامل</button>'
+      + '</div></div>';
+  }
+
+  var rows = act.map(function(d){ return rowOf(d,false); }).join('')
+    || '<div style="color:#8a93b2;font-size:12px;text-align:center;padding:10px">هنوز دستگاهی ثبت نشده</div>';
+  var arcRows = arc.length
+    ? '<div style="color:#8a6a2a;font-size:11.5px;margin:14px 0 7px">بایگانی‌شده‌ها</div>' + arc.map(function(d){ return rowOf(d,true); }).join('')
+    : '';
 
   var html = ''
-    + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:12px">این‌ها جدا از پرینترهای برآورد هستند و فقط در تقویم برای رزرو استفاده می‌شوند.</div>'
-    + rows
-    + '<div style="border-top:1px solid #232742;margin:12px 0 0;padding-top:12px">'
-    +   '<div style="color:#c7cce0;font-size:12px;margin-bottom:6px">افزودن دستگاهِ جدید</div>'
-    +   '<input id="ws-lab-name" oninput="window._wsLabName=this.value" placeholder="نامِ دستگاه (مثلاً تنسایل)" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
-    +   '<input id="ws-lab-note" oninput="window._wsLabNote=this.value" placeholder="توضیح (اختیاری)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:12px;line-height:1.7">این‌ها جدا از پرینترهای برآورد هستند و فقط در تقویم برای رزرو استفاده می‌شوند.<br><b style="color:#f0c674">بایگانی</b> = دستگاه از تقویم پنهان می‌شود ولی سابقهٔ کارش محفوظ می‌ماند.</div>'
+    + rows + arcRows
+    + '<div style="border-top:1px solid #232742;margin:14px 0 0;padding-top:13px">'
+    +   '<div style="color:#c7cce0;font-size:12px;margin-bottom:7px">افزودن دستگاهِ جدید</div>'
+    +   '<input id="ws-lab-name" oninput="window._wsLabName=this.value" placeholder="نامِ دستگاه (مثلاً همزن برقی)" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px">'
+    +   '<input id="ws-lab-note" oninput="window._wsLabNote=this.value" placeholder="توضیح (اختیاری)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px">'
     + '</div>';
   window._wsLabName=''; window._wsLabNote='';
   uiConfirm({ title:'دستگاه‌های آزمایشگاه', html:html, okText:'افزودن دستگاه', cancelText:'بستن', danger:false }, function(){
@@ -9816,12 +9834,101 @@ function wsLabAdd(){
     else { showToast((res&&res.message)?res.message:'خطا در افزودن'); }
   });
 }
-function wsLabDelete(id, name){
-  uiConfirm({ title:'حذفِ دستگاه', html:'دستگاهِ «'+escapeHtml(name)+'» حذف شود؟ رزروهای ثبت‌شده روی آن باقی می‌مانند.', okText:'حذف', danger:true }, function(){
-    callSheet('labDevDelete', { id:id, t:Date.now() }, function(res){
-      if(res && res.status==='ok'){ showToast('حذف شد'); wsInit(true); }
-      else { showToast((res&&res.message)?res.message:'خطا در حذف'); }
+// ویرایشِ نام و توضیحِ دستگاه
+function wsLabEdit(id){
+  var d = (WS_LABDEV||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+  if(!d){ showToast('دستگاه پیدا نشد'); return; }
+  window._wsLabEName = d.name || ''; window._wsLabENote = d.note || '';
+  var html = '<input id="ws-lab-ename" oninput="window._wsLabEName=this.value" value="'+escapeHtml(d.name||'')+'" placeholder="نامِ دستگاه" style="width:100%;box-sizing:border-box;margin-bottom:7px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px">'
+    + '<input id="ws-lab-enote" oninput="window._wsLabENote=this.value" value="'+escapeHtml(d.note||'')+'" placeholder="توضیح (اختیاری)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px">';
+  uiConfirm({ title:'ویرایشِ دستگاه', html:html, okText:'ذخیره', cancelText:'انصراف', danger:false }, function(){
+    var nm = (window._wsLabEName||'').trim();
+    if(!nm){ showToast('نام نمی‌تواند خالی باشد'); return; }
+    callSheet('labDevUpdate', { id:id, name:nm, note:(window._wsLabENote||''), t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('ذخیره شد ✓'); wsInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا');
     });
+  });
+}
+// بایگانی (حذفِ نرم) — سابقه محفوظ می‌ماند
+function wsLabArchive(id, name){
+  uiConfirm({ title:'بایگانیِ دستگاه',
+    html:'<div style="color:#c7cce0;font-size:13px;margin-bottom:8px">دستگاهِ «'+escapeHtml(name)+'» بایگانی شود؟</div>'
+        +'<div style="color:#9ee0a8;font-size:12px;line-height:1.8">✓ از تقویم و فهرستِ رزرو پنهان می‌شود<br>✓ <b>سابقهٔ کارش کامل باقی می‌ماند</b> (چه کسی، چه تاریخی، چند ساعت)<br>✓ هر وقت خواستی می‌توانی بازگردانی‌اش کنی</div>',
+    okText:'بایگانی کن', cancelText:'انصراف', danger:false }, function(){
+    callSheet('labDevArchive', { id:id, t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('بایگانی شد — سابقه محفوظ است'); wsInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا');
+    });
+  });
+}
+function wsLabRestore(id, name){
+  callSheet('labDevRestore', { id:id, t:Date.now() }, function(res){
+    if(res && res.status==='ok'){ showToast('بازگردانی شد ✓'); wsInit(true); }
+    else showToast((res&&res.message)?res.message:'خطا');
+  });
+}
+// حذفِ کامل — با اخطارِ شدید و تأییدِ تایپی
+function wsLabPurge(id, name){
+  callSheet('labDevHistory', { id:id, t:Date.now() }, function(h){
+    var n  = (h && h.reservationCount) ? h.reservationCount : 0;
+    var hr = (h && h.totalHours) ? h.totalHours : 0;
+    var span = (h && h.firstDate) ? (prToFa(h.firstDate)+' تا '+prToFa(h.lastDate)) : '—';
+    window._purgeText = '';
+    var html = '<div style="background:#2a1618;border:1px solid #5a2a2a;border-radius:9px;padding:12px;margin-bottom:12px">'
+      + '<div style="color:#f0a6a8;font-weight:800;font-size:14px;margin-bottom:7px">⚠️ اخطار — این کار برگشت‌ناپذیر است</div>'
+      + '<div style="color:#e0b0b2;font-size:12.5px;line-height:1.9">'
+      +   'با این حذف، دستگاهِ «<b>'+escapeHtml(name)+'</b>» و <b>تمامِ سابقهٔ کارش</b> برای همیشه از کلِ سیستم پاک می‌شود:'
+      +   '<br>• <b>'+prToFa(n)+'</b> رزروِ ثبت‌شده'
+      +   '<br>• مجموعاً <b>'+prToFa(hr)+'</b> ساعت خدمات'
+      +   '<br>• بازهٔ '+escapeHtml(span)
+      +   '<br><br>دیگر هرگز نمی‌توانی استخراج کنی که این دستگاه به چه کسانی، چه تاریخی و چقدر خدمات داده است.'
+      + '</div></div>'
+      + '<div style="color:#c7cce0;font-size:12.5px;margin-bottom:7px">اگر فقط می‌خواهی دستگاه از تقویم پنهان شود، <b>بایگانی</b> را انتخاب کن — آن گزینه سابقه را نگه می‌دارد.</div>'
+      + '<div style="color:#8a93b2;font-size:12px;margin-bottom:6px">برای تأیید، عبارت <b style="color:#f0a6a8">حذف کامل</b> را تایپ کن:</div>'
+      + '<input id="ws-purge-cf" oninput="window._purgeText=this.value" placeholder="حذف کامل" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #5a2a2a;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px;text-align:center">';
+    uiConfirm({ title:'حذفِ کاملِ دستگاه و سابقه', html:html, okText:'حذفِ کامل و همیشگی', cancelText:'انصراف', danger:true }, function(){
+      if((window._purgeText||'').trim() !== 'حذف کامل'){
+        alert('عبارتِ تأیید درست تایپ نشد — حذف انجام نشد.\n\nبرای حذفِ کامل باید دقیقاً «حذف کامل» را بنویسی.');
+        return;
+      }
+      callSheet('labDevPurge', { id:id, confirm:'PURGE', t:Date.now() }, function(res){
+        if(res && res.status==='ok'){
+          showToast('دستگاه و '+prToFa(res.removedReservations||0)+' رزرو حذف شد');
+          wsInit(true);
+        } else showToast((res&&res.message)?res.message:'خطا در حذف');
+      });
+    });
+  });
+}
+// گزارشِ سابقهٔ کارِ دستگاه
+function wsLabHistory(id){
+  callSheet('labDevHistory', { id:id, t:Date.now() }, function(h){
+    if(!(h && h.status==='ok')){ showToast((h&&h.message)?h.message:'خطا در دریافتِ سابقه'); return; }
+    var head = '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px">'
+      + '<div style="flex:1;min-width:90px;background:#0c1120;border:1px solid #1a2440;border-radius:9px;padding:10px;text-align:center">'
+      +   '<div style="color:#9ec5ff;font-size:17px;font-weight:800">'+prToFa(h.totalHours||0)+'</div><div style="color:#8a93b2;font-size:11px">ساعتِ خدمات</div></div>'
+      + '<div style="flex:1;min-width:90px;background:#0c1120;border:1px solid #1a2440;border-radius:9px;padding:10px;text-align:center">'
+      +   '<div style="color:#9ee0a8;font-size:17px;font-weight:800">'+prToFa(h.reservationCount||0)+'</div><div style="color:#8a93b2;font-size:11px">رزرو</div></div>'
+      + '<div style="flex:1;min-width:90px;background:#0c1120;border:1px solid #1a2440;border-radius:9px;padding:10px;text-align:center">'
+      +   '<div style="color:#f0c674;font-size:17px;font-weight:800">'+prToFa((h.people||[]).length)+'</div><div style="color:#8a93b2;font-size:11px">نفر</div></div>'
+      + '</div>';
+    var span = h.firstDate ? ('<div style="color:#8a93b2;font-size:12px;margin-bottom:12px">بازهٔ فعالیت: <b style="color:#c7cce0">'+escapeHtml(prToFa(h.firstDate))+'</b> تا <b style="color:#c7cce0">'+escapeHtml(prToFa(h.lastDate))+'</b></div>') : '';
+    var people = (h.people||[]).length
+      ? (h.people||[]).map(function(p){
+          var ds = (p.dates||[]).map(function(x){ return prToFa(x); }).join('، ');
+          return '<div style="border:1px solid #232742;border-radius:8px;padding:9px 11px;margin-bottom:6px">'
+            + '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+            +   '<span style="color:#dfe3f5;font-weight:700;font-size:13px">'+escapeHtml(p.name)+'</span>'
+            +   '<span style="color:#9ee0a8;font-size:12px">'+prToFa(Math.round(p.hours*100)/100)+' ساعت · '+prToFa(p.count)+' نوبت</span>'
+            + '</div>'
+            + '<div style="color:#8a93b2;font-size:10.5px;margin-top:4px;line-height:1.7">'+escapeHtml(ds)+'</div>'
+            + '</div>';
+        }).join('')
+      : '<div style="color:#8a93b2;font-size:12.5px;text-align:center;padding:16px">هنوز رزروی روی این دستگاه ثبت نشده</div>';
+    uiConfirm({ title:'سابقهٔ کارِ «'+(h.name||'دستگاه')+'»',
+      html: head + span + '<div style="color:#c7cce0;font-size:12px;margin-bottom:7px">استفاده‌کنندگان</div>' + people,
+      okText:'بستن', cancelText:'', danger:false }, function(){});
   });
 }
 
@@ -10900,8 +11007,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V331 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V331";
+try{ if(window.console) console.log('%c iPrint3D FRONT V332 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V332";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
