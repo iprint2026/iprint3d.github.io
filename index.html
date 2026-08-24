@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V332</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V333</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1172,7 +1172,7 @@ function doPost(e){
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="WS_VIEW_M=0; wsRender()">📅 ماهِ جاری</button>
-        <button class="btn btn-ghost btn-sm" onclick="wsCheckBackend()">🔍 تستِ بک‌اند</button>
+        <button class="btn btn-ghost btn-sm" onclick="wsUsageReport()">📊 گزارش استفاده</button>
         <button class="btn btn-ghost btn-sm" onclick="wsInit(true)">🔄 بروزرسانی</button>
       </div>
     </div>
@@ -9429,6 +9429,8 @@ var WS_ORDERS = null, WS_HOL = null, WS_LOADING = false;
 var WS_LABDEV = [];                  // دستگاه‌های آزمایشگاه (مرحلهٔ ۲ رزرو)
 var WS_RESV = [];                    // رزروهای بارگذاری‌شده (مرحلهٔ ۲/۳)
 var WS_MACH = [];                    // همهٔ دستگاه‌های برآورد (از تنظیماتِ قیمت)
+var WS_QOPEN = {};                   // کدام کارتِ صف باز است (نمای نردبانی)
+var WS_QALL = false;                 // همه باز/بسته
 var WS_MNAMES = {};                  // نقشهٔ اسمِ پرینترها از بک‌اند (مستقل از config)
 var WS_VIEW_M = 0, WS_VIEW_Y = 0;   // ماه/سالِ نمایشِ تقویم (۰ = هنوز ست نشده → به ماهِ امروز می‌رود)
 var WS_SEL_MID = '';                 // دستگاهِ انتخاب‌شده در گریدِ ماهانه
@@ -9764,6 +9766,95 @@ function wsGotoMonth(delta){
   wsRender();
 }
 function wsPickMachine(mid){ WS_SEL_MID = mid; wsRender(); }
+// باز/بستهٔ کارتِ صفِ یک دستگاه (نمای نردبانی)
+function wsQToggle(mid){ WS_QOPEN[mid] = !WS_QOPEN[mid]; wsRender(); }
+function wsQToggleAll(){
+  WS_QALL = !WS_QALL;
+  WS_QOPEN = {};
+  if(WS_QALL){ (WS_MACH||[]).forEach(function(m){ WS_QOPEN[String(m.id)]=true; });
+               (WS_LABDEV||[]).forEach(function(d){ WS_QOPEN[String(d.id)]=true; }); }
+  wsRender();
+}
+
+// ── گزارشِ استفاده از دستگاه‌ها (با فیلترِ بازه و خروجیِ اکسل) ──
+function wsUsageReport(){
+  var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
+  window._uFrom = t.y+'/'+wsP2(t.m)+'/01';
+  window._uTo   = t.y+'/'+wsP2(t.m)+'/'+wsP2(WS_MONS[t.m-1]||30);
+  window._uDev  = '';
+  var devOpts = '<option value="">همهٔ دستگاه‌ها</option>'
+    + (typeof wsAllDevices==='function' ? wsAllDevices() : []).map(function(d){
+        return '<option value="'+escapeHtml(String(d.id))+'">'+escapeHtml(d.name)+'</option>'; }).join('');
+  var html = ''
+    + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:10px">بازهٔ زمانی را انتخاب کن. خروجیِ اکسل شاملِ سه بخش است: خلاصهٔ دستگاه‌ها، خلاصهٔ افراد، و ریزِ همهٔ رزروها.</div>'
+    + '<div style="display:flex;gap:7px;margin-bottom:8px">'
+    +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">از تاریخ</div>'
+    +     '<input id="u-from" oninput="window._uFrom=this.value" value="'+window._uFrom+'" placeholder="۱۴۰۵/۰۶/۰۱" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;text-align:center"></div>'
+    +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">تا تاریخ</div>'
+    +     '<input id="u-to" oninput="window._uTo=this.value" value="'+window._uTo+'" placeholder="۱۴۰۵/۰۶/۳۱" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;text-align:center"></div>'
+    + '</div>'
+    + '<div style="color:#8a93b2;font-size:11px;margin-bottom:3px">دستگاه</div>'
+    + '<select id="u-dev" onchange="window._uDev=this.value" style="width:100%;box-sizing:border-box;margin-bottom:10px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;font-family:inherit">'+devOpts+'</select>'
+    + '<div style="display:flex;gap:7px">'
+    +   '<button onclick="wsUsageShow()" style="flex:1;cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:8px;padding:9px;font-size:12.5px;font-weight:600;font-family:inherit">👁 نمایشِ خلاصه</button>'
+    +   '<button onclick="wsUsageXlsx()" style="flex:1;cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:8px;padding:9px;font-size:12.5px;font-weight:600;font-family:inherit">📥 خروجیِ اکسل</button>'
+    + '</div>'
+    + '<div id="u-out" style="margin-top:12px"></div>';
+  uiConfirm({ title:'گزارشِ استفاده از دستگاه‌ها', html:html, okText:'بستن', cancelText:'', danger:false }, function(){});
+}
+function wsUsageShow(){
+  var box = document.getElementById('u-out'); if(!box) return;
+  box.innerHTML = '<div style="color:#8a93b2;font-size:12px;text-align:center;padding:10px">در حال محاسبه...</div>';
+  callSheet('usageSummary', { from:(window._uFrom||''), to:(window._uTo||''), deviceId:(window._uDev||''), t:Date.now() }, function(r){
+    if(!(r && r.status==='ok')){ box.innerHTML = '<div style="color:#f0a6a8;font-size:12px">'+escapeHtml((r&&r.message)||'خطا')+'</div>'; return; }
+    if(!r.count){ box.innerHTML = '<div style="color:#8a93b2;font-size:12.5px;text-align:center;padding:14px">در این بازه رزروی ثبت نشده</div>'; return; }
+    var head = '<div style="display:flex;gap:8px;margin-bottom:10px">'
+      + '<div style="flex:1;background:#0c1120;border:1px solid #1a2440;border-radius:8px;padding:9px;text-align:center">'
+      +   '<div style="color:#9ec5ff;font-size:16px;font-weight:800">'+prToFa(r.total)+'</div><div style="color:#8a93b2;font-size:10.5px">ساعت</div></div>'
+      + '<div style="flex:1;background:#0c1120;border:1px solid #1a2440;border-radius:8px;padding:9px;text-align:center">'
+      +   '<div style="color:#9ee0a8;font-size:16px;font-weight:800">'+prToFa(r.count)+'</div><div style="color:#8a93b2;font-size:10.5px">رزرو</div></div>'
+      + '<div style="flex:1;background:#0c1120;border:1px solid #1a2440;border-radius:8px;padding:9px;text-align:center">'
+      +   '<div style="color:#f0c674;font-size:16px;font-weight:800">'+prToFa((r.byPerson||[]).length)+'</div><div style="color:#8a93b2;font-size:10.5px">نفر</div></div>'
+      + '</div>';
+    var dev = '<div style="color:#c7cce0;font-size:11.5px;margin:10px 0 5px">به تفکیکِ دستگاه</div>'
+      + (r.byDevice||[]).map(function(d){
+          return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 9px;border:1px solid #232742;border-radius:7px;margin-bottom:4px">'
+            + '<span style="color:#dfe3f5;font-size:12px">'+escapeHtml(d.name)+'</span>'
+            + '<span style="color:#9ee0a8;font-size:11.5px">'+prToFa(d.hours)+' ساعت · '+prToFa(d.count)+' نوبت · '+prToFa(d.people)+' نفر</span></div>';
+        }).join('');
+    var per = '<div style="color:#c7cce0;font-size:11.5px;margin:12px 0 5px">به تفکیکِ فرد</div>'
+      + (r.byPerson||[]).map(function(p){
+          var dv = (p.devices||[]).map(function(x){ return escapeHtml(x.name)+' ('+prToFa(x.hours)+')'; }).join('، ');
+          return '<div style="padding:6px 9px;border:1px solid #232742;border-radius:7px;margin-bottom:4px">'
+            + '<div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#dfe3f5;font-size:12px;font-weight:600">'+escapeHtml(p.name)+'</span>'
+            + '<span style="color:#9ee0a8;font-size:11.5px">'+prToFa(p.hours)+' ساعت · '+prToFa(p.count)+' نوبت</span></div>'
+            + '<div style="color:#8a93b2;font-size:10.5px;margin-top:3px">'+dv+'</div></div>';
+        }).join('');
+    box.innerHTML = head + dev + per;
+  });
+}
+function wsUsageXlsx(){
+  var box = document.getElementById('u-out'); if(box) box.innerHTML = '<div style="color:#8a93b2;font-size:12px;text-align:center;padding:10px">در حال ساختِ فایلِ اکسل... (چند لحظه)</div>';
+  callSheet('usageXlsx', { from:(window._uFrom||''), to:(window._uTo||''), deviceId:(window._uDev||''), t:Date.now() }, function(r){
+    if(!(r && r.status==='ok')){ if(box) box.innerHTML = '<div style="color:#f0a6a8;font-size:12px">'+escapeHtml((r&&r.message)||'خطا در ساختِ فایل')+'</div>'; return; }
+    var f = r.file || {};
+    if(f.url){
+      if(box) box.innerHTML = '<div style="background:#16281a;border:1px solid #2f5236;border-radius:8px;padding:11px;text-align:center">'
+        + '<div style="color:#9ee0a8;font-size:12.5px;margin-bottom:7px">✓ فایل آماده شد ('+prToFa(r.count)+' رزرو · '+prToFa(r.total)+' ساعت)</div>'
+        + '<a href="'+f.url+'" target="_blank" style="display:inline-block;background:#1e7d52;color:#fff;text-decoration:none;border-radius:7px;padding:8px 18px;font-size:12.5px;font-weight:700">📥 دانلودِ اکسل</a></div>';
+      try{ window.open(f.url, '_blank'); }catch(e){}
+    } else if(f.b64){
+      try{
+        var bin = atob(f.b64), arr = new Uint8Array(bin.length);
+        for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+        var blob = new Blob([arr], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = f.filename||'usage.xlsx';
+        document.body.appendChild(a); a.click(); a.remove();
+        if(box) box.innerHTML = '<div style="color:#9ee0a8;font-size:12.5px;text-align:center;padding:10px">✓ فایل دانلود شد</div>';
+      }catch(e){ if(box) box.innerHTML = '<div style="color:#f0a6a8;font-size:12px">خطا در دانلود</div>'; }
+    }
+  }, 180000);
+}
 
 // تستِ نسخهٔ بک‌اند + تستِ ثبت و خواندنِ رزرو (برای عیب‌یابی)
 function wsCheckBackend(){
@@ -9945,11 +10036,17 @@ function wsResvForm(deviceId, dayKey){
   var existing = wsResvOn(deviceId, dayKey);
   var list = existing.map(function(r){
     var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : (r.hours ? (prToFa(r.hours)+' ساعت') : 'بدونِ ساعتِ مشخص');
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid #232742;border-radius:7px;margin-bottom:5px">'
-      + '<div><div style="color:#dfe3f5;font-size:12px;font-weight:600">'+escapeHtml(r.personName||r.orderCode||'رزرو')+'</div>'
+    var pend = (r.status==='pending');
+    var nm = escapeHtml(String(r.personName||r.orderCode||'رزرو')).replace(/"/g,'').replace(/\x27/g,'');
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;border:1px solid '+(pend?'#5a4a2a':'#232742')+';border-radius:7px;margin-bottom:5px;background:'+(pend?'#1a1710':'transparent')+'">'
+      + '<div style="min-width:0"><div style="color:#dfe3f5;font-size:12px;font-weight:600">'+(pend?'⏳ ':'')+escapeHtml(r.personName||r.orderCode||'رزرو')
+      +   (pend?'<span style="color:#f0c674;font-size:10px;font-weight:400"> · در انتظار تأیید</span>':'')+'</div>'
       + '<div style="color:#8a93b2;font-size:10.5px">'+escapeHtml(tm)+(r.note?(' · '+escapeHtml(r.note)):'')+'</div></div>'
-      + '<button onclick="wsResvDelete(\''+r.id+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:3px 8px;font-size:10.5px">حذف</button>'
-      + '</div>';
+      + '<div style="display:flex;gap:4px;flex-shrink:0">'
+      +   (pend?'<button onclick="wsResvSetStatus(\''+r.id+'\',\'confirmed\')" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:6px;padding:3px 9px;font-size:10.5px">✓ تأیید</button>':'')
+      +   '<button onclick="wsResvEditHours(\''+r.id+'\',\''+nm+'\',\''+(r.hours||'')+'\',\''+(r.fromTime||'')+'\',\''+(r.toTime||'')+'\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:3px 9px;font-size:10.5px">⏱ ساعت</button>'
+      +   '<button onclick="wsResvDelete(\''+r.id+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:3px 8px;font-size:10.5px">حذف</button>'
+      + '</div></div>';
   }).join('');
 
   var html = ''
@@ -10003,6 +10100,35 @@ function wsResvAdd(deviceId, deviceType, dayKey){
     }
   });
 }
+// ویرایشِ ساعتِ واقعیِ کارِ انجام‌شده (دانشجو ۲ ساعت زده بود ولی ۴ ساعت طول کشید)
+function wsResvEditHours(id, who, curHours, curFrom, curTo){
+  window._edH = String(curHours||''); window._edF = String(curFrom||''); window._edT = String(curTo||'');
+  var html = '<div style="color:#c7cce0;font-size:12.5px;margin-bottom:3px">«'+escapeHtml(who)+'»</div>'
+    + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:11px">ساعتِ <b>واقعیِ</b> کارِ انجام‌شده را وارد کن. این عدد در آمارِ دستگاه و دانشجو استفاده می‌شود.</div>'
+    + '<label class="lbl" style="color:#8a93b2;font-size:11.5px;display:block;margin-bottom:4px">تعدادِ ساعت</label>'
+    + '<input id="ws-ed-h" oninput="window._edH=this.value" type="number" step="0.5" min="0" value="'+escapeHtml(String(curHours||''))+'" placeholder="مثلاً ۴" style="width:100%;box-sizing:border-box;margin-bottom:9px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px">'
+    + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:4px">یا بازهٔ دقیق (اختیاری — اگر پر شود، ساعت از تفاوتش حساب می‌شود)</div>'
+    + '<div style="display:flex;gap:7px">'
+    +   '<input id="ws-ed-f" oninput="window._edF=this.value" value="'+escapeHtml(String(curFrom||''))+'" placeholder="از ۱۳:۰۰" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px;text-align:center">'
+    +   '<input id="ws-ed-t" oninput="window._edT=this.value" value="'+escapeHtml(String(curTo||''))+'" placeholder="تا ۱۷:۰۰" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px;text-align:center">'
+    + '</div>';
+  uiConfirm({ title:'ویرایشِ ساعتِ واقعی', html:html, okText:'ذخیرهٔ ساعت', cancelText:'انصراف', danger:false }, function(){
+    var h = (window._edH||'').trim(), f = (window._edF||'').trim(), t = (window._edT||'').trim();
+    if(!h && !(f&&t)){ showToast('یا تعدادِ ساعت یا بازهٔ دقیق را وارد کن'); return; }
+    callSheet('resvUpdate', { id:id, hours:h, fromTime:f, toTime:t, t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('ساعت به‌روز شد ✓'); wsInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا');
+    });
+  });
+}
+// تأییدِ سریعِ رزرو از داخلِ فرم
+function wsResvSetStatus(id, st){
+  callSheet('resvUpdate', { id:id, status:st, t:Date.now() }, function(res){
+    if(res && res.status==='ok'){ showToast(st==='confirmed'?'تأیید شد ✓':'به‌روز شد'); wsInit(true); }
+    else showToast((res&&res.message)?res.message:'خطا');
+  });
+}
+
 function wsResvDelete(id){
   callSheet('resvDelete', { id:id, t:Date.now() }, function(res){
     if(res && res.status==='ok'){ showToast('رزرو حذف شد'); wsInit(true); }
@@ -10266,17 +10392,24 @@ function wsRender(){
     return { mid:mid, name:wsMachineName(mid), list:list, lastEnd:lastEnd, free:free };
   });
 
-  var H = '<div class="card" style="margin-bottom:14px">'
-    + '<div style="font-weight:700;font-size:13.5px;color:#ffd479;margin-bottom:10px">وضعیتِ صفِ دستگاه‌ها</div>'
-    + Q.map(function(q){
-        return '<div style="border:1px solid #232742;border-radius:10px;padding:11px 13px;margin-bottom:8px">'
-          +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
-          +  '<div style="font-weight:700;font-size:13px;color:#7ab8ff">'+escapeHtml(q.name)+'</div>'
-          +  '<div style="font-size:12px;color:'+(q.list.length?'#fbbf24':'#34d399')+'">'
-          +    (q.list.length ? ('درگیرِ '+prToFa(q.list.length)+' سفارش') : 'آزاد')+'</div>'
-          +'</div>'
+  var busy = Q.filter(function(q){ return q.list.length; });
+  var idle = Q.filter(function(q){ return !q.list.length; });
+
+  function qRow(q){
+    var open = !!WS_QOPEN[q.mid];
+    return '<div style="border:1px solid '+(open?'#2a3a66':'#1c2138')+';border-radius:10px;margin-bottom:6px;overflow:hidden">'
+      + '<div onclick="wsQToggle(\'' + q.mid + '\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:'+(open?'#0f1526':'transparent')+'">'
+      +   '<div style="display:flex;align-items:center;gap:7px;min-width:0">'
+      +     '<span style="color:#8a93b8;font-size:11px">'+(open?'▾':'▸')+'</span>'
+      +     '<span style="font-weight:700;font-size:12.5px;color:#7ab8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(q.name)+'</span>'
+      +   '</div>'
+      +   '<div style="font-size:11.5px;color:'+(q.list.length?'#fbbf24':'#34d399')+';flex-shrink:0">'
+      +     (q.list.length ? ('درگیرِ '+prToFa(q.list.length)+' سفارش · تا '+prToFa(q.lastEnd)) : 'آزاد')+'</div>'
+      + '</div>'
+      + (open
+        ? '<div style="padding:0 12px 11px">'
           + (q.list.length
-            ? '<div style="margin-top:8px;font-size:12px;color:#c7cce0;line-height:2">'
+            ? '<div style="font-size:12px;color:#c7cce0;line-height:2">'
               + q.list.map(function(x,i){
                   return '<div>نوبت '+prToFa(i+1)+': <b style="color:#dfe3f5">'+escapeHtml(x.code||'—')+'</b> '
                        + escapeHtml(x.name||'') + ' <span style="color:#8a93b2">· '+prToFa(x.start)+' تا '+prToFa(x.end)+' ('+prToFa(x.days)+' روز)</span></div>';
@@ -10284,9 +10417,24 @@ function wsRender(){
               + '<div style="margin-top:7px;padding-top:7px;border-top:1px dashed #1a2440;color:#34d399">'
               +   'سفارشِ بعدی می‌تواند از <b>'+prToFa(q.free||'—')+'</b> شروع شود · نوبت <b>'+prToFa(q.list.length+1)+'</b></div>'
               +'</div>'
-            : '<div style="margin-top:6px;font-size:12px;color:#34d399">این دستگاه خالی است — سفارشِ بعدی می‌تواند امروز شروع شود.</div>')
-          +'</div>';
-      }).join('')
+            : '<div style="font-size:12px;color:#34d399">این دستگاه خالی است — سفارشِ بعدی می‌تواند امروز شروع شود.</div>')
+          + '</div>'
+        : '')
+      +'</div>';
+  }
+
+  var H = '<div class="card" style="margin-bottom:14px">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+    +   '<div style="font-weight:700;font-size:13.5px;color:#ffd479">وضعیتِ صفِ دستگاه‌ها</div>'
+    +   '<div style="font-size:11.5px;color:#8a93b2">'
+    +     '<b style="color:#fbbf24">'+prToFa(busy.length)+'</b> درگیر · <b style="color:#34d399">'+prToFa(idle.length)+'</b> آزاد'
+    +     ' <button onclick="wsQToggleAll()" style="cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:6px;padding:3px 9px;font-size:11px;margin-right:7px;font-family:inherit">'+(WS_QALL?'بستنِ همه':'بازکردنِ همه')+'</button>'
+    +   '</div>'
+    + '</div>'
+    + busy.map(qRow).join('')
+    + (idle.length
+        ? '<div style="color:#5a6080;font-size:11px;margin:9px 0 6px">دستگاه‌های آزاد</div>' + idle.map(qRow).join('')
+        : '')
     + '</div>';
 
   // ── انتخابِ دستگاه و ماهِ نمایش ──
@@ -11007,8 +11155,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V332 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V332";
+try{ if(window.console) console.log('%c iPrint3D FRONT V333 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V333";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
