@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V333</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V334</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9781,7 +9781,7 @@ function wsUsageReport(){
   var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
   window._uFrom = t.y+'/'+wsP2(t.m)+'/01';
   window._uTo   = t.y+'/'+wsP2(t.m)+'/'+wsP2(WS_MONS[t.m-1]||30);
-  window._uDev  = '';
+  window._uDev  = ''; window._uPer = '';
   var devOpts = '<option value="">همهٔ دستگاه‌ها</option>'
     + (typeof wsAllDevices==='function' ? wsAllDevices() : []).map(function(d){
         return '<option value="'+escapeHtml(String(d.id))+'">'+escapeHtml(d.name)+'</option>'; }).join('');
@@ -9793,8 +9793,12 @@ function wsUsageReport(){
     +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">تا تاریخ</div>'
     +     '<input id="u-to" oninput="window._uTo=this.value" value="'+window._uTo+'" placeholder="۱۴۰۵/۰۶/۳۱" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;text-align:center"></div>'
     + '</div>'
-    + '<div style="color:#8a93b2;font-size:11px;margin-bottom:3px">دستگاه</div>'
-    + '<select id="u-dev" onchange="window._uDev=this.value" style="width:100%;box-sizing:border-box;margin-bottom:10px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;font-family:inherit">'+devOpts+'</select>'
+    + '<div style="display:flex;gap:7px;margin-bottom:10px">'
+    +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">دستگاه</div>'
+    +     '<select id="u-dev" onchange="window._uDev=this.value" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;font-family:inherit">'+devOpts+'</select></div>'
+    +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">نامِ فرد (اختیاری)</div>'
+    +     '<input id="u-per" oninput="window._uPer=this.value" placeholder="مثلاً حسینی" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px"></div>'
+    + '</div>'
     + '<div style="display:flex;gap:7px">'
     +   '<button onclick="wsUsageShow()" style="flex:1;cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:8px;padding:9px;font-size:12.5px;font-weight:600;font-family:inherit">👁 نمایشِ خلاصه</button>'
     +   '<button onclick="wsUsageXlsx()" style="flex:1;cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:8px;padding:9px;font-size:12.5px;font-weight:600;font-family:inherit">📥 خروجیِ اکسل</button>'
@@ -9805,7 +9809,7 @@ function wsUsageReport(){
 function wsUsageShow(){
   var box = document.getElementById('u-out'); if(!box) return;
   box.innerHTML = '<div style="color:#8a93b2;font-size:12px;text-align:center;padding:10px">در حال محاسبه...</div>';
-  callSheet('usageSummary', { from:(window._uFrom||''), to:(window._uTo||''), deviceId:(window._uDev||''), t:Date.now() }, function(r){
+  callSheet('usageSummary', { from:(window._uFrom||''), to:(window._uTo||''), deviceId:(window._uDev||''), person:(window._uPer||''), t:Date.now() }, function(r){
     if(!(r && r.status==='ok')){ box.innerHTML = '<div style="color:#f0a6a8;font-size:12px">'+escapeHtml((r&&r.message)||'خطا')+'</div>'; return; }
     if(!r.count){ box.innerHTML = '<div style="color:#8a93b2;font-size:12.5px;text-align:center;padding:14px">در این بازه رزروی ثبت نشده</div>'; return; }
     var head = '<div style="display:flex;gap:8px;margin-bottom:10px">'
@@ -9825,7 +9829,8 @@ function wsUsageShow(){
     var per = '<div style="color:#c7cce0;font-size:11.5px;margin:12px 0 5px">به تفکیکِ فرد</div>'
       + (r.byPerson||[]).map(function(p){
           var dv = (p.devices||[]).map(function(x){ return escapeHtml(x.name)+' ('+prToFa(x.hours)+')'; }).join('، ');
-          return '<div style="padding:6px 9px;border:1px solid #232742;border-radius:7px;margin-bottom:4px">'
+          var pn = escapeHtml(String(p.name)).replace(/"/g,'').replace(/\x27/g,'');
+          return '<div onclick="wsUsagePick(\''+pn+'\')" title="کلیک: فقط همین فرد" style="cursor:pointer;padding:6px 9px;border:1px solid #232742;border-radius:7px;margin-bottom:4px">'
             + '<div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#dfe3f5;font-size:12px;font-weight:600">'+escapeHtml(p.name)+'</span>'
             + '<span style="color:#9ee0a8;font-size:11.5px">'+prToFa(p.hours)+' ساعت · '+prToFa(p.count)+' نوبت</span></div>'
             + '<div style="color:#8a93b2;font-size:10.5px;margin-top:3px">'+dv+'</div></div>';
@@ -9833,9 +9838,15 @@ function wsUsageShow(){
     box.innerHTML = head + dev + per;
   });
 }
+// کلیک روی نامِ فرد در خلاصه → فیلتر روی همان فرد
+function wsUsagePick(name){
+  window._uPer = name;
+  var inp = document.getElementById('u-per'); if(inp) inp.value = name;
+  wsUsageShow();
+}
 function wsUsageXlsx(){
   var box = document.getElementById('u-out'); if(box) box.innerHTML = '<div style="color:#8a93b2;font-size:12px;text-align:center;padding:10px">در حال ساختِ فایلِ اکسل... (چند لحظه)</div>';
-  callSheet('usageXlsx', { from:(window._uFrom||''), to:(window._uTo||''), deviceId:(window._uDev||''), t:Date.now() }, function(r){
+  callSheet('usageXlsx', { from:(window._uFrom||''), to:(window._uTo||''), deviceId:(window._uDev||''), person:(window._uPer||''), t:Date.now() }, function(r){
     if(!(r && r.status==='ok')){ if(box) box.innerHTML = '<div style="color:#f0a6a8;font-size:12px">'+escapeHtml((r&&r.message)||'خطا در ساختِ فایل')+'</div>'; return; }
     var f = r.file || {};
     if(f.url){
@@ -11155,8 +11166,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V333 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V333";
+try{ if(window.console) console.log('%c iPrint3D FRONT V334 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V334";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
