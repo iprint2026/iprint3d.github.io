@@ -132,7 +132,10 @@ body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',san
       </div>
     </div>
 
-    <div id="pane-mine" class="hidden"><div id="mineBody"></div></div>
+    <div id="pane-mine" class="hidden">
+      <div id="usageBox"></div>
+      <div id="mineBody"></div>
+    </div>
   </div>
 
   <!-- مودال رزرو -->
@@ -377,6 +380,7 @@ function goTab(t){
 }
 function loadMine(){
   document.getElementById('mineBody').innerHTML='<div class="card mut" style="text-align:center;padding:24px">در حال بارگذاری...</div>';
+  loadUsage();
   call('pubMyReservations',{t:Date.now()},function(r){
     if(!(r&&r.status==='ok')){
       if(r&&/نشست/.test(r.message||'')){ doLogout(); return; }
@@ -401,6 +405,35 @@ function loadMine(){
         +(pend?('<button class="btn btn-ghost btn-sm" onclick="cancelResv(\'' + x.id + '\')">لغو</button>'):'')
         +'</div></div>';
     }).join('');
+  });
+}
+// آمارِ استفادهٔ خودم (این ماه)
+function loadUsage(){
+  var box=document.getElementById('usageBox'); if(!box) return;
+  var t=todayJ();
+  var from=key(t.y,t.m,1), to=key(t.y,t.m,MONS[t.m-1]);
+  call('pubMyUsage',{from:from,to:to,t:Date.now()},function(r){
+    if(!(r&&r.status==='ok')){ box.innerHTML=''; return; }
+    if(!r.sessionCount){
+      box.innerHTML='<div class="card"><div class="ttl" style="font-size:14px">📊 استفادهٔ شما در '+MNAM[t.m-1]+'</div>'
+        +'<div class="mut" style="margin-top:6px">این ماه هنوز کارِ تأییدشده‌ای ثبت نشده.</div></div>';
+      return;
+    }
+    var cards='<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:11px">'
+      +'<div style="flex:1;min-width:88px;background:#0b0f1c;border:1px solid #1a2038;border-radius:10px;padding:11px;text-align:center">'
+      +  '<div style="color:#9ec5ff;font-size:19px;font-weight:800">'+fa(r.totalHours)+'</div><div class="mut">ساعت</div></div>'
+      +'<div style="flex:1;min-width:88px;background:#0b0f1c;border:1px solid #1a2038;border-radius:10px;padding:11px;text-align:center">'
+      +  '<div style="color:#9ee0a8;font-size:19px;font-weight:800">'+fa(r.sessionCount)+'</div><div class="mut">نوبت کاری</div></div>'
+      +'<div style="flex:1;min-width:88px;background:#0b0f1c;border:1px solid #1a2038;border-radius:10px;padding:11px;text-align:center">'
+      +  '<div style="color:#f0c674;font-size:19px;font-weight:800">'+fa(r.deviceCount)+'</div><div class="mut">دستگاه</div></div>'
+      +'</div>';
+    var rows=(r.devices||[]).map(function(d){
+      return '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #1a2038;border-radius:8px;margin-bottom:5px">'
+        +'<span style="color:#dfe3f5;font-size:12.5px">'+esc(d.name)+'</span>'
+        +'<span style="color:#9ee0a8;font-size:12px">'+fa(d.hours)+' ساعت · '+fa(d.count)+' نوبت</span></div>';
+    }).join('');
+    box.innerHTML='<div class="card"><div class="ttl" style="font-size:14px;margin-bottom:11px">📊 استفادهٔ شما در '+MNAM[t.m-1]+' '+fa(t.y)+'</div>'
+      +cards+'<div class="mut" style="margin-bottom:6px">به تفکیکِ دستگاه</div>'+rows+'</div>';
   });
 }
 function cancelResv(id){
