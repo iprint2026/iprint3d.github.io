@@ -2,23 +2,32 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
 <title>رزرو دستگاه — iPrint3D</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',sans-serif;min-height:100vh;line-height:1.6}
-.wrap{max-width:1000px;margin:0 auto;padding:18px}
-.card{background:#0d1220;border:1px solid #1a2038;border-radius:14px;padding:18px;margin-bottom:14px}
-.btn{cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:9px;
-     padding:10px 18px;font-size:13px;font-weight:600;font-family:inherit;transition:background .15s}
+body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',sans-serif;
+     min-height:100vh;line-height:1.7;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+.brand{font-family:'Quicksand',sans-serif;font-weight:700;letter-spacing:-1px;direction:ltr;display:inline-block}
+.brand .dot{color:#e63946}
+.wrap{max-width:940px;margin:0 auto;padding:16px 14px 34px}
+.card{background:#13151f;border:1px solid #1e2235;border-radius:16px;padding:17px;margin-bottom:13px}
+.btn{cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:11px;
+     padding:12px 18px;font-size:14px;font-weight:600;font-family:inherit;transition:all .15s;min-height:44px}
 .btn:hover{background:#22315c}
-.btn-primary{background:#4f46e5;border-color:#4f46e5;color:#fff}
-.btn-primary:hover{background:#5b52ea}
+.btn-primary{background:linear-gradient(135deg,#4f8ef7,#7c5af5);border:none;color:#fff}
+.btn-primary:hover{opacity:.9}
 .btn-ghost{background:transparent;color:#8a93b2;border-color:#232742}
 .btn-sm{padding:7px 13px;font-size:12px}
-.inp{width:100%;background:#12151f;border:1px solid #232742;border-radius:9px;color:#e2e4f0;
-     padding:11px 12px;font-size:13px;font-family:inherit;margin-bottom:11px}
-.inp:focus{outline:none;border-color:#4f46e5}
+.inp{width:100%;background:#0b0d14;border:1px solid #1e2235;border-radius:11px;color:#e2e4f0;
+     padding:13px 15px;font-size:15px;font-family:inherit;margin-bottom:11px;transition:border .2s}
+.inp:focus{outline:none;border-color:#4f8ef7}
 .hidden{display:none!important}
 .lbl{font-size:12px;color:#8a93b2;margin-bottom:5px;display:block}
 .ttl{font-weight:800;font-size:17px;color:#dfe3f5}
@@ -38,15 +47,50 @@ body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',san
 .err{background:#2a1618;border:1px solid #5a2a2a;color:#f0a6a8;border-radius:9px;padding:11px;font-size:12.5px;margin-bottom:11px}
 .ok{background:#16281a;border:1px solid #2f5236;color:#9ee0a8;border-radius:9px;padding:11px;font-size:12.5px;margin-bottom:11px}
 .tabs{display:flex;gap:7px;flex-wrap:wrap}
-.tab{cursor:pointer;border-radius:9px;padding:8px 15px;font-size:12.5px;font-weight:600;
-     border:1px solid #232742;background:transparent;color:#8a93b2;font-family:inherit;transition:all .15s}
-.tab-on{background:#1a2748;border-color:#2a3a66;color:#9ec5ff}
+.tab{cursor:pointer;border-radius:11px;padding:10px 16px;font-size:13.5px;font-weight:600;
+     border:1px solid #1e2235;background:transparent;color:#8a93b2;font-family:inherit;transition:all .15s;min-height:42px}
+.tab-on{background:#1a2748;border-color:#4f8ef7;color:#9ec5ff}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .mut{color:#5a6080;font-size:11.5px}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;align-items:center}
 .legend span{display:flex;align-items:center;gap:6px}
 .dot{display:inline-block;width:14px;height:14px;border-radius:4px}
-@media(max-width:640px){.grid7{gap:4px}.cell{min-height:66px;padding:4px;border-radius:8px}.wrap{padding:11px}.ttl{font-size:15px}}
+/* ── صفحهٔ ورود ── */
+.auth-wrap{position:fixed;inset:0;background:linear-gradient(135deg,#0b0d14 0%,#131627 100%);
+           display:flex;align-items:center;justify-content:center;padding:18px;overflow-y:auto}
+.auth-card{background:#13151f;border:1px solid #1e2235;border-radius:22px;padding:34px 26px;
+           width:100%;max-width:390px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.auth-logo{font-size:44px;margin-bottom:12px;line-height:1}
+.auth-title{font-size:21px;font-weight:700;background:linear-gradient(135deg,#4f8ef7,#7c5af5);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:5px}
+.auth-sub{color:#4a5175;font-size:13px;margin-bottom:24px}
+.auth-card .lbl{text-align:right}
+.auth-note{color:#5a6080;font-size:11.5px;line-height:1.9;margin-top:14px;text-align:right;
+           background:#0b0d14;border:1px solid #1a1d2e;border-radius:11px;padding:11px 13px}
+@media(max-width:640px){
+  .auth-wrap{align-items:flex-start;padding:26px 14px}
+  .auth-card{padding:30px 20px;border-radius:20px}
+  .auth-logo{font-size:40px}
+}
+@media(max-width:640px){
+  .wrap{padding:12px 10px 30px}
+  .card{padding:14px;border-radius:14px;margin-bottom:11px}
+  .grid7{gap:4px}
+  .cell{min-height:62px;padding:4px;border-radius:9px}
+  .chip{font-size:9px;padding:3px 4px}
+  .ttl{font-size:15px}
+  .tab{padding:9px 13px;font-size:12.5px}
+  .btn{padding:11px 15px;font-size:13.5px}
+  .legend{gap:11px;font-size:11px}
+  /* مودالِ رزرو روی گوشی از پایین بالا می‌آید */
+  #mdl{align-items:flex-end;padding:0}
+  #mdl > .card{max-width:100%;border-radius:20px 20px 0 0;margin:0;padding:20px 16px 26px;
+               max-height:92vh;overflow-y:auto}
+}
+/* روی گوشی نوارِ ناوبری چسبیده به بالا بماند */
+@media(max-width:640px){
+  .stick{position:sticky;top:0;z-index:20;background:#0b0d14;padding-top:6px}
+}
 </style>
 </head>
 <body>
@@ -54,38 +98,43 @@ body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',san
 
   <!-- ═══ ورود / ثبت‌نام ═══ -->
   <div id="v-auth">
-    <div class="card" style="text-align:center;padding:22px">
-      <div class="ttl">🔬 سامانهٔ رزرو دستگاه</div>
-      <div class="sub">آزمایشگاه iPrint3D</div>
-    </div>
-    <div class="card">
-      <div class="tabs" style="margin-bottom:14px">
-        <button class="tab tab-on" id="tb-login" onclick="authTab('login')">ورود</button>
-        <button class="tab" id="tb-reg" onclick="authTab('reg')">ثبت‌نام</button>
-      </div>
-      <div id="authMsg"></div>
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <div class="auth-logo">🔬</div>
+        <div class="auth-title">سامانهٔ رزرو دستگاه</div>
+        <div class="auth-sub">آزمایشگاه <span class="brand">iPrint<span class="dot">3D</span></span></div>
 
-      <div id="pane-login">
-        <label class="lbl">شمارهٔ تماس</label>
-        <input class="inp" id="lg-phone" placeholder="۰۹۱۲۳۴۵۶۷۸۹" inputmode="numeric">
-        <label class="lbl">کد ملی (رمز شما)</label>
-        <input class="inp" id="lg-nid" type="password" placeholder="کد ملی" inputmode="numeric">
-        <button class="btn btn-primary" style="width:100%" onclick="doLogin()">ورود</button>
-      </div>
+        <div class="tabs" style="justify-content:center;margin-bottom:18px">
+          <button class="tab tab-on" id="tb-login" onclick="authTab('login')">ورود</button>
+          <button class="tab" id="tb-reg" onclick="authTab('reg')">ثبت‌نام</button>
+        </div>
+        <div id="authMsg"></div>
 
-      <div id="pane-reg" class="hidden">
-        <label class="lbl">نام و نام‌خانوادگی</label>
-        <input class="inp" id="rg-name" placeholder="مثلاً رضا کریمی">
-        <label class="lbl">شمارهٔ تماس (این می‌شود نام کاربری شما)</label>
-        <input class="inp" id="rg-phone" placeholder="۰۹۱۲۳۴۵۶۷۸۹" inputmode="numeric">
-        <label class="lbl">کد ملی (این می‌شود رمز شما)</label>
-        <input class="inp" id="rg-nid" placeholder="کد ملی" inputmode="numeric">
-        <label class="lbl">کدام دستگاه را لازم دارید؟ (اختیاری)</label>
-        <input class="inp" id="rg-note" placeholder="مثلاً دستگاه تنسایل برای پروژهٔ پایان‌نامه">
-        <button class="btn btn-primary" style="width:100%" onclick="doRegister()">ارسال درخواست</button>
-        <div class="mut" style="margin-top:9px;line-height:1.7">
-          پس از ثبت‌نام، مسئولِ آزمایشگاه درخواست شما را بررسی و دستگاه‌های مجاز را تعیین می‌کند.
-          بعد از تأیید، با همین شماره و کد ملی وارد شوید.
+        <div id="pane-login">
+          <label class="lbl">شمارهٔ تماس</label>
+          <input class="inp" id="lg-phone" placeholder="۰۹۱۲۳۴۵۶۷۸۹" inputmode="numeric" autocomplete="username">
+          <label class="lbl">کد ملی <span class="mut">(رمز شما)</span></label>
+          <input class="inp" id="lg-nid" type="password" placeholder="کد ملی" inputmode="numeric" autocomplete="current-password">
+          <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doLogin()">ورود به سامانه</button>
+          <div class="mut" style="margin-top:14px;text-align:center">
+            حساب نداری؟ از تبِ «ثبت‌نام» درخواست بده.
+          </div>
+        </div>
+
+        <div id="pane-reg" class="hidden">
+          <label class="lbl">نام و نام‌خانوادگی</label>
+          <input class="inp" id="rg-name" placeholder="مثلاً رضا کریمی">
+          <label class="lbl">شمارهٔ تماس <span class="mut">(نام کاربری شما)</span></label>
+          <input class="inp" id="rg-phone" placeholder="۰۹۱۲۳۴۵۶۷۸۹" inputmode="numeric">
+          <label class="lbl">کد ملی <span class="mut">(رمز شما)</span></label>
+          <input class="inp" id="rg-nid" placeholder="کد ملی" inputmode="numeric">
+          <label class="lbl">کدام دستگاه را لازم داری؟ <span class="mut">(اختیاری)</span></label>
+          <input class="inp" id="rg-note" placeholder="مثلاً دستگاه تنسایل برای پایان‌نامه">
+          <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doRegister()">ارسال درخواست</button>
+          <div class="auth-note">
+            پس از ثبت‌نام، مسئولِ آزمایشگاه درخواستت را بررسی و دستگاه‌های مجاز را تعیین می‌کند.
+            بعد از تأیید، با همین شماره و کد ملی وارد شو.
+          </div>
         </div>
       </div>
     </div>
@@ -103,10 +152,10 @@ body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',san
       </div>
     </div>
 
-    <div class="card">
+    <div class="card stick">
       <div class="tabs">
-        <button class="tab tab-on" id="nv-cal" onclick="goTab('cal')">🗓️ تقویم رزرو</button>
-        <button class="tab" id="nv-mine" onclick="goTab('mine')">📋 رزروهای من</button>
+        <button class="tab tab-on" id="nv-cal" onclick="goTab('cal')" style="flex:1">🗓️ تقویم رزرو</button>
+        <button class="tab" id="nv-mine" onclick="goTab('mine')" style="flex:1">📋 رزروهای من</button>
       </div>
     </div>
 
@@ -115,10 +164,10 @@ body{margin:0;background:#070a12;color:#e2e4f0;font-family:Tahoma,'Segoe UI',san
         <div class="row" style="margin-bottom:10px">
           <div class="tabs" id="devTabs"></div>
         </div>
-        <div class="row">
-          <button class="btn btn-ghost btn-sm" onclick="moveMonth(-1)">‹ ماه قبل</button>
-          <div style="font-weight:800;font-size:14px" id="monLbl">—</div>
-          <button class="btn btn-ghost btn-sm" onclick="moveMonth(1)">ماه بعد ›</button>
+        <div class="row" style="gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="moveMonth(-1)" style="min-width:82px">‹ قبل</button>
+          <div style="font-weight:800;font-size:15px;flex:1;text-align:center" id="monLbl">—</div>
+          <button class="btn btn-ghost btn-sm" onclick="moveMonth(1)" style="min-width:82px">بعد ›</button>
         </div>
       </div>
       <div id="calBody"></div>
@@ -454,7 +503,7 @@ function cancelResv(id){
     var e=document.getElementById(i);
     if(e) e.addEventListener('keydown',function(ev){ if(ev.key==='Enter') doLogin(); });
   });
-  console.log('iPrint3D STUDENT V1');
+  console.log('iPrint3D STUDENT V2');
 })();
 </script>
 </body>
