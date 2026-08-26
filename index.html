@@ -827,7 +827,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V335</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V336</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -10387,15 +10387,14 @@ function wsOpen(id){
 function wsRender(){
   var body=document.getElementById('ws-body'); if(!body) return;
   if(!WS_ORDERS){ return; }
-  if(!WS_ORDERS.length){
-    body.innerHTML = '<div class="card" style="font-size:13px;color:#c7cce0;line-height:2">'
-      +'<b style="color:#fbbf24">هیچ سفارشی در تقویم نیست.</b><br>'
-      +'برای اینکه سفارشی اینجا بیاید باید دو شرط داشته باشد:<br>'
-      +'۱) وضعیتش <b>«در جریان ساخت»</b> باشد (از پروفایلِ سفارش، دکمهٔ «شروع ساخت»)<br>'
-      +'۲) در بخشِ <b>زمان‌بندی تولید</b> تنظیمات را زده و <b>ذخیرهٔ زمان‌بندی</b> کرده باشی'
-      +'</div>';
-    return;
-  }
+  // نکته: نبودِ سفارشِ در جریان نباید تقویم را از بین ببرد —
+  // دستگاه‌های آزمایشگاه و رزروهای دانشجویی مستقل از سفارش‌اند.
+  var noOrdersNote = (!WS_ORDERS.length)
+    ? '<div class="card" style="font-size:12.5px;color:#c7cce0;line-height:1.9;margin-bottom:14px;border-color:#3a3018;background:#14110a">'
+      +'<b style="color:#fbbf24">هیچ سفارشِ در جریانِ ساختی نیست</b> — تقویم برای رزروِ دستگاه‌ها همچنان فعال است.<br>'
+      +'<span style="color:#8a93b2;font-size:11.5px">برای اینکه سفارشی در تقویم بیاید: وضعیتش «در جریان ساخت» باشد و در بخشِ «زمان‌بندی تولید» ذخیرهٔ زمان‌بندی کرده باشی.</span>'
+      +'</div>'
+    : '';
   var B = wsBuild();
   var occ = B.occ, infos = B.infos;
   var official = (WS_HOL&&WS_HOL.official)||{}, fridays=(WS_HOL&&WS_HOL.fridays)||{};
@@ -10596,7 +10595,7 @@ function wsRender(){
     + '</div>'
     + '</div>';
 
-  body.innerHTML = H + nav + grid;
+  body.innerHTML = noOrdersNote + H + nav + grid;
 }
 function prSyncOrderInputs(){
   var o = prState.order, g=function(id){var e=document.getElementById(id);return e?e.value:null;};
@@ -11195,8 +11194,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V335 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V335";
+try{ if(window.console) console.log('%c iPrint3D FRONT V336 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V336";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
