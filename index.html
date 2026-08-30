@@ -329,6 +329,7 @@ tr:hover td{background:#0e1018}
     <div class="nav" onclick="gotoView('custbank',this)"><span class="nav-icon">🏢</span><span>بانک مشتری</span></div>
     <div class="nav" onclick="gotoView('workshop',this)"><span class="nav-icon">🗓️</span><span>تقویم کارگاه</span></div>
     <div class="nav" onclick="gotoView('students',this)"><span class="nav-icon">👥</span><span>دانشجوها</span></div>
+    <div class="nav" onclick="gotoView('purchases',this)"><span class="nav-icon">🧾</span><span>دفتر خرید</span></div>
 
     <div class="nav" onclick="gotoView('users',this)"><span class="nav-icon">👥</span><span>کاربران</span><span id="usersBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
     <div class="nav" id="notifNav" onclick="gotoView('notif',this)"><span class="nav-icon">📋</span><span>درخواست‌ها</span><span id="notifBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
@@ -827,7 +828,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V336</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V338</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1207,6 +1208,20 @@ function doPost(e){
     </div>
   </div>
   <div id="stu-body"></div>
+</div>
+<div id="view-purchases" class="hidden">
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:800;font-size:15px;color:#dfe3f5">🧾 دفتر خرید</div>
+        <div style="font-size:11.5px;color:#8a93b2;margin-top:3px" id="pur-sub">خریدهای انجام‌شده برای مجموعه</div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap" id="pur-actions"></div>
+    </div>
+  </div>
+  <div id="pur-stats"></div>
+  <div class="card" style="margin-bottom:14px" id="pur-filters"></div>
+  <div id="pur-body"></div>
 </div>
 <div id="view-custbank" class="hidden">
   <div class="page-title">🏢 بانک مشتری</div>
@@ -1998,6 +2013,7 @@ function applyRoleUI(){
     if(txt.includes('آرشیو و گزارش'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('بانک مشتری'))n.style.display=isAdmin?'flex':'none';
     if(txt.includes('دانشجوها'))n.style.display=isAdmin?'flex':'none';
+    if(txt.includes('دفتر خرید'))n.style.display='flex';   // کارمند هم لازم دارد؛ کنترل داخلِ صفحه است
     if(txt.includes('جستجوی AI'))n.style.display='flex';
   });
   // دکمه خروجی Excel فقط برای ادمین
@@ -2058,6 +2074,7 @@ function gotoView(v,el){
   else if(v==='custbank'){ if(!canDo('users')){alert('دسترسی ندارید');return;} custBankInit(); }
   else if(v==='workshop'){ wsInit(); if(!WH_LOADED) whLoad(); }
   else if(v==='students'){ stuInit(); }
+  else if(v==='purchases'){ purInit(); }
   else if(v==='usage'){ loadUsageReport(); loadProjects(); }
   else if(v==='users'){
     if(!canDo('users')){alert('دسترسی ندارید');return;}
@@ -10176,6 +10193,347 @@ function wsResvDelete(id){
   });
 }
 
+// ═══════════════ دفترِ خرید ═══════════════
+var PUR_LIST = [], PUR_ISADMIN = false, PUR_LOADING = false, PUR_SUG = null;
+var PUR_F = { from:'', to:'', status:'', buyerType:'', project:'', buyerId:'' };
+
+function purMonthRange(){
+  var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
+  return { from: t.y+'/'+wsP2(t.m)+'/01', to: t.y+'/'+wsP2(t.m)+'/'+wsP2(WS_MONS[t.m-1]||30) };
+}
+function purInit(force){
+  var body = document.getElementById('pur-body'); if(!body) return;
+  if(!PUR_F.from){ var r = purMonthRange(); PUR_F.from = r.from; PUR_F.to = r.to; }
+  if(PUR_LOADING) return;
+  PUR_LOADING = true;
+  body.innerHTML = '<div class="card" style="text-align:center;color:#8a93b2;font-size:13px;padding:26px">در حال بارگذاری...</div>';
+  callSheet('purList', { from:PUR_F.from, to:PUR_F.to, status:PUR_F.status,
+                         buyerType:PUR_F.buyerType, project:PUR_F.project,
+                         buyerId:PUR_F.buyerId, t:Date.now() }, function(res){
+    PUR_LOADING = false;
+    if(!(res && res.status==='ok')){
+      body.innerHTML = '<div class="card" style="color:#f0a6a8;font-size:13px">'
+        + escapeHtml((res&&res.message)||'خطا در بارگذاری') + '</div>';
+      document.getElementById('pur-filters').innerHTML = '';
+      document.getElementById('pur-stats').innerHTML = '';
+      return;
+    }
+    PUR_LIST = res.purchases || [];
+    PUR_ISADMIN = !!res.isAdmin;
+    purRenderChrome();
+    purRender();
+    if(PUR_ISADMIN) purLoadStats();
+    if(!PUR_SUG) callSheet('purSuggest', { t:Date.now() }, function(r2){
+      if(r2 && r2.status==='ok') PUR_SUG = r2;
+    });
+  });
+}
+// دکمه‌ها و فیلترها
+function purRenderChrome(){
+  var act = document.getElementById('pur-actions');
+  if(act) act.innerHTML =
+      '<button class="btn btn-ghost btn-sm" onclick="purAddForm()">➕ ثبتِ خرید</button>'
+    + (PUR_ISADMIN ? '<button class="btn btn-ghost btn-sm" onclick="purAccessPanel()">🔐 دسترسی‌ها</button>' : '')
+    + (PUR_ISADMIN ? '<button class="btn btn-ghost btn-sm" onclick="purXlsx()">📥 خروجی اکسل</button>' : '')
+    + '<button class="btn btn-ghost btn-sm" onclick="purInit(true)">🔄 بروزرسانی</button>';
+  var sub = document.getElementById('pur-sub');
+  if(sub) sub.textContent = PUR_ISADMIN ? 'همهٔ خریدهای کارمندان و دانشجویان' : 'خریدهای ثبت‌شدهٔ شما';
+
+  var f = document.getElementById('pur-filters'); if(!f) return;
+  function opt(v,l,cur){ return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+l+'</option>'; }
+  var r = purMonthRange();
+  f.innerHTML =
+     '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
+    +  '<div style="flex:1;min-width:120px"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">از تاریخ</div>'
+    +    '<input id="pur-from" value="'+escapeHtml(PUR_F.from)+'" oninput="PUR_F.from=this.value" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;text-align:center"></div>'
+    +  '<div style="flex:1;min-width:120px"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">تا تاریخ</div>'
+    +    '<input id="pur-to" value="'+escapeHtml(PUR_F.to)+'" oninput="PUR_F.to=this.value" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;text-align:center"></div>'
+    +  '<div style="flex:1;min-width:110px"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">وضعیت</div>'
+    +    '<select onchange="PUR_F.status=this.value" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;font-family:inherit">'
+    +      opt('','همه',PUR_F.status)+opt('pending','در انتظار',PUR_F.status)+opt('approved','تأییدشده',PUR_F.status)+opt('rejected','ردشده',PUR_F.status)
+    +    '</select></div>'
+    +  (PUR_ISADMIN
+       ? '<div style="flex:1;min-width:110px"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">خریدار</div>'
+         +'<select onchange="PUR_F.buyerType=this.value" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;font-family:inherit">'
+         + opt('','همه',PUR_F.buyerType)+opt('staff','کارمند',PUR_F.buyerType)+opt('student','دانشجو',PUR_F.buyerType)
+         +'</select></div>' : '')
+    +  '<div style="flex:1;min-width:120px"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">پروژه / کد</div>'
+    +    '<input value="'+escapeHtml(PUR_F.project)+'" oninput="PUR_F.project=this.value" placeholder="مثلاً عدسی" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px"></div>'
+    +  '<button class="btn btn-ghost btn-sm" onclick="purInit(true)">اعمال</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">'
+    +   '<button class="btn btn-ghost btn-sm" onclick="purQuick(\'month\')">این ماه</button>'
+    +   '<button class="btn btn-ghost btn-sm" onclick="purQuick(\'week\')">۷ روز اخیر</button>'
+    +   '<button class="btn btn-ghost btn-sm" onclick="purQuick(\'year\')">امسال</button>'
+    +   (PUR_ISADMIN?'<button class="btn btn-ghost btn-sm" onclick="purQuick(\'owed\')" style="color:#f0c674;border-color:#5a4a2a">💰 بدهی‌های پرداخت‌نشده</button>':'')
+    + '</div>';
+}
+function purQuick(kind){
+  var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
+  if(kind==='month'){ var r=purMonthRange(); PUR_F.from=r.from; PUR_F.to=r.to; PUR_F.status=''; }
+  if(kind==='year'){ PUR_F.from=t.y+'/01/01'; PUR_F.to=t.y+'/12/29'; PUR_F.status=''; }
+  if(kind==='week'){
+    var d=t.d-6, m=t.m, y=t.y;
+    if(d<1){ m--; if(m<1){m=12;y--;} d += (WS_MONS[m-1]||30); }
+    PUR_F.from=y+'/'+wsP2(m)+'/'+wsP2(d); PUR_F.to=t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d); PUR_F.status='';
+  }
+  if(kind==='owed'){ PUR_F.from=''; PUR_F.to=''; PUR_F.status='approved'; }
+  purInit(true);
+}
+// کارت‌های آماری (ادمین)
+function purLoadStats(){
+  callSheet('purSummary', { from:PUR_F.from, to:PUR_F.to, status:PUR_F.status,
+                            buyerType:PUR_F.buyerType, project:PUR_F.project, t:Date.now() }, function(r){
+    var box = document.getElementById('pur-stats'); if(!box) return;
+    if(!(r && r.status==='ok')){ box.innerHTML=''; return; }
+    function card(v,l,c){
+      return '<div style="flex:1;min-width:120px;background:#0c1120;border:1px solid #1a2440;border-radius:10px;padding:12px;text-align:center">'
+        +'<div style="color:'+c+';font-size:17px;font-weight:800">'+v+'</div>'
+        +'<div style="color:#8a93b2;font-size:11px;margin-top:2px">'+l+'</div></div>';
+    }
+    var top = '<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:9px;flex-wrap:wrap">'
+      + card(prToFa(fmtMoney(r.total)), 'مجموعِ خرید (تومان)', '#9ec5ff')
+      + card(prToFa(r.count), 'قلم خرید', '#c9a0d8')
+      + card(prToFa(fmtMoney(r.owed)), 'بدهیِ پرداخت‌نشده', '#f0c674')
+      + card(prToFa(r.pendingCount), 'در انتظارِ تأیید', (r.pendingCount?'#f0a6a8':'#9ee0a8'))
+      + '</div>';
+    var byP = (r.byPerson||[]).length
+      ? '<div style="margin-top:13px"><div style="color:#c7cce0;font-size:12px;margin-bottom:6px">به تفکیکِ شخص</div>'
+        + (r.byPerson||[]).map(function(p){
+            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 10px;border:1px solid #232742;border-radius:7px;margin-bottom:4px">'
+              +'<span style="color:#dfe3f5;font-size:12.5px">'+(p.type==='student'?'🎓 ':'👤 ')+escapeHtml(p.name)+'</span>'
+              +'<span style="font-size:11.5px"><span style="color:#9ec5ff">'+prToFa(fmtMoney(p.amount))+'</span>'
+              + (p.owed>0?(' · <span style="color:#f0c674">بدهی '+prToFa(fmtMoney(p.owed))+'</span>'):'')+'</span></div>';
+          }).join('') + '</div>' : '';
+    var byPr = (r.byProject||[]).length
+      ? '<div style="margin-top:13px"><div style="color:#c7cce0;font-size:12px;margin-bottom:6px">به تفکیکِ پروژه</div>'
+        + (r.byProject||[]).map(function(p){
+            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 10px;border:1px solid #232742;border-radius:7px;margin-bottom:4px">'
+              +'<span style="color:#dfe3f5;font-size:12.5px">'+escapeHtml(p.name)+'</span>'
+              +'<span style="color:#9ee0a8;font-size:11.5px">'+prToFa(fmtMoney(p.amount))+' · '+prToFa(p.count)+' قلم</span></div>';
+          }).join('') + '</div>' : '';
+    box.innerHTML = top + byP + byPr + '</div>';
+  });
+}
+function fmtMoney(n){
+  n = Math.round(+n||0);
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '٬');
+}
+function purRender(){
+  var body = document.getElementById('pur-body'); if(!body) return;
+  if(!PUR_LIST.length){
+    body.innerHTML = '<div class="card" style="text-align:center;color:#8a93b2;font-size:13px;padding:24px">'
+      + 'در این بازه خریدی ثبت نشده' + '</div>';
+    return;
+  }
+  // گروه‌بندی بر اساسِ تاریخ (نمای تاریخ‌به‌تاریخ)
+  var byDate = {};
+  PUR_LIST.forEach(function(r){ (byDate[r.date] = byDate[r.date] || []).push(r); });
+  var dates = Object.keys(byDate).sort(function(a,b){ return String(b).localeCompare(String(a)); });
+
+  body.innerHTML = dates.map(function(dt){
+    var rows = byDate[dt];
+    var dayTotal = 0; rows.forEach(function(r){ dayTotal += (+r.amount||0); });
+    return '<div class="card" style="margin-bottom:10px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding-bottom:8px;margin-bottom:9px;border-bottom:1px solid #1a2440">'
+      +   '<span style="color:#7ab8ff;font-weight:700;font-size:13px">📅 '+escapeHtml(prToFa(dt))+'</span>'
+      +   '<span style="color:#8a93b2;font-size:11.5px">'+prToFa(rows.length)+' قلم · '+prToFa(fmtMoney(dayTotal))+' تومان</span>'
+      + '</div>'
+      + rows.map(purRowHtml).join('')
+      + '</div>';
+  }).join('');
+}
+function purRowHtml(r){
+  var pend = (r.status === 'pending'), rej = (r.status === 'rejected');
+  var stColor = pend ? '#f0c674' : (rej ? '#f0a6a8' : '#9ee0a8');
+  var stText  = pend ? 'در انتظار تأیید' : (rej ? 'ردشده' : 'تأییدشده');
+  var canEdit = PUR_ISADMIN || pend;
+  var acts = '';
+  if(PUR_ISADMIN && pend){
+    acts += '<button onclick="purSetStatus(\'' + r.id + '\',\'approved\')" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600">✓ تأیید</button> ';
+    acts += '<button onclick="purSetStatus(\'' + r.id + '\',\'rejected\')" style="cursor:pointer;border:1px solid #5a4a2a;background:transparent;color:#f0c674;border-radius:6px;padding:4px 10px;font-size:11px">رد</button> ';
+  }
+  if(PUR_ISADMIN && r.status === 'approved'){
+    acts += '<button onclick="purToggleRefund(\'' + r.id + '\',' + (r.refunded?'false':'true') + ')" style="cursor:pointer;border:1px solid '
+         + (r.refunded?'#2f5236':'#5a4a2a') + ';background:transparent;color:' + (r.refunded?'#9ee0a8':'#f0c674')
+         + ';border-radius:6px;padding:4px 10px;font-size:11px">' + (r.refunded?'✓ پول برگشته':'💰 ثبتِ بازپرداخت') + '</button> ';
+  }
+  if(canEdit) acts += '<button onclick="purEditForm(\'' + r.id + '\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:4px 10px;font-size:11px">✏️ ویرایش</button> ';
+  if(canEdit) acts += '<button onclick="purDeleteAsk(\'' + r.id + '\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:4px 10px;font-size:11px">حذف</button>';
+
+  var meta = [];
+  if(r.reason)    meta.push('🎯 ' + escapeHtml(r.reason));
+  if(r.project)   meta.push('📁 ' + escapeHtml(r.project));
+  if(r.orderCode) meta.push('🔖 ' + escapeHtml(r.orderCode));
+  if(r.note)      meta.push('📝 ' + escapeHtml(r.note));
+
+  return '<div style="border:1px solid ' + (pend?'#5a4a2a':'#232742') + ';border-radius:9px;padding:10px 12px;margin-bottom:7px;background:' + (pend?'#1a1710':'transparent') + '">'
+    + '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start">'
+    +   '<div style="min-width:0;flex:1">'
+    +     '<div style="font-weight:700;font-size:13.5px;color:#dfe3f5">' + escapeHtml(r.title)
+    +       ' <span style="font-size:10.5px;color:' + stColor + ';font-weight:400">· ' + stText + '</span>'
+    +       (r.refunded ? ' <span style="font-size:10.5px;color:#9ee0a8">· پول برگشته</span>' : '')
+    +     '</div>'
+    +     '<div style="font-size:11.5px;color:#8a93b2;margin-top:3px">'
+    +       (r.buyerType==='student'?'🎓 ':'👤 ') + escapeHtml(r.buyer) + '</div>'
+    +     (meta.length ? '<div style="font-size:11px;color:#8a93b2;margin-top:4px;line-height:1.8">' + meta.join(' · ') + '</div>' : '')
+    +   '</div>'
+    +   '<div style="text-align:left;flex-shrink:0">'
+    +     '<div style="color:#9ec5ff;font-weight:800;font-size:14px;white-space:nowrap">' + prToFa(fmtMoney(r.amount)) + '</div>'
+    +     (r.imageFileId ? '<a href="https://drive.google.com/file/d/'+r.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">🧾 فاکتور</a>' : '<span style="color:#5a6080;font-size:10.5px">بدون فاکتور</span>')
+    +   '</div>'
+    + '</div>'
+    + (acts ? '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px solid #1a2440">' + acts + '</div>' : '')
+    + '</div>';
+}
+function purSetStatus(id, st){
+  callSheet('purUpdate', { id:id, status:st, t:Date.now() }, function(res){
+    if(res && res.status==='ok'){ showToast(st==='approved'?'تأیید شد ✓':'رد شد'); purInit(true); }
+    else showToast((res&&res.message)?res.message:'خطا');
+  });
+}
+function purToggleRefund(id, on){
+  callSheet('purUpdate', { id:id, refunded:String(on), t:Date.now() }, function(res){
+    if(res && res.status==='ok'){ showToast(on?'بازپرداخت ثبت شد ✓':'بازپرداخت لغو شد'); purInit(true); }
+    else showToast((res&&res.message)?res.message:'خطا');
+  });
+}
+function purDeleteAsk(id){
+  var r = (PUR_LIST||[]).filter(function(x){ return x.id===id; })[0];
+  var nm = r ? r.title : 'این مورد';
+  uiConfirm({ title:'حذفِ خرید', danger:true, okText:'حذفِ کامل', cancelText:'انصراف',
+    html:'<div style="color:#c7cce0;font-size:13px;margin-bottom:7px">«'+escapeHtml(nm)+'» حذف شود؟</div>'
+        +'<div style="color:#f0a6a8;font-size:12px;line-height:1.8">این مورد و عکسِ فاکتورش <b>کاملاً از دیتابیس</b> پاک می‌شوند و برگشت‌پذیر نیست.</div>'
+  }, function(){
+    callSheet('purDelete', { id:id, t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('حذف شد'); purInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا');
+    });
+  });
+}
+// فرمِ ثبت/ویرایشِ خرید (با پیشنهادِ خودکار مثلِ دلیلِ کسر از بچ)
+function purForm(existing){
+  var e = existing || {};
+  var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
+  var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
+  window._puDate  = e.date || today;
+  window._puTitle = e.title || '';
+  window._puAmt   = e.amount ? String(e.amount) : '';
+  window._puReason= e.reason || '';
+  window._puProj  = e.project || '';
+  window._puCode  = e.orderCode || '';
+  window._puNote  = e.note || '';
+
+  function dl(id, arr){
+    return '<datalist id="'+id+'">' + (arr||[]).map(function(x){
+      return '<option value="'+escapeHtml(String(x))+'">'; }).join('') + '</datalist>';
+  }
+  var S = PUR_SUG || {};
+  var codes = (S.orderCodes||[]).map(function(c){ return c.code + (c.name?(' — '+c.name):''); });
+  var inp = 'width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px';
+  var lbl = 'color:#8a93b2;font-size:11.5px;margin-bottom:4px;display:block';
+
+  var html =
+     dl('pu-dl-title', S.titles) + dl('pu-dl-reason', S.reasons)
+   + dl('pu-dl-proj', S.projects) + dl('pu-dl-code', codes)
+   + '<label style="'+lbl+'">تاریخِ خرید</label>'
+   + '<input value="'+escapeHtml(window._puDate)+'" oninput="window._puDate=this.value" style="'+inp+';text-align:center;margin-bottom:9px">'
+   + '<label style="'+lbl+'">شرحِ کالا</label>'
+   + '<input list="pu-dl-title" value="'+escapeHtml(window._puTitle)+'" oninput="window._puTitle=this.value" placeholder="مثلاً چسب سیانوآکریلات ۲ عدد" style="'+inp+';margin-bottom:9px">'
+   + '<label style="'+lbl+'">مبلغ (تومان)</label>'
+   + '<input value="'+escapeHtml(window._puAmt)+'" oninput="window._puAmt=this.value" inputmode="numeric" placeholder="۲۰۰۰۰۰" style="'+inp+';text-align:center;margin-bottom:9px">'
+   + '<label style="'+lbl+'">برای چه کاری خریده شد؟</label>'
+   + '<input list="pu-dl-reason" value="'+escapeHtml(window._puReason)+'" oninput="window._puReason=this.value" placeholder="مثلاً چسباندنِ قطعاتِ شکسته" style="'+inp+';margin-bottom:9px">'
+   + '<label style="'+lbl+'">پروژه (متنِ آزاد)</label>'
+   + '<input list="pu-dl-proj" value="'+escapeHtml(window._puProj)+'" oninput="window._puProj=this.value" placeholder="مثلاً عدسی · یا: عمومی آزمایشگاه" style="'+inp+';margin-bottom:9px">'
+   + '<label style="'+lbl+'">کدِ سفارش (اختیاری)</label>'
+   + '<input list="pu-dl-code" value="'+escapeHtml(window._puCode)+'" oninput="window._puCode=this.value" placeholder="مثلاً IP-0072" style="'+inp+';margin-bottom:9px">'
+   + '<label style="'+lbl+'">توضیحِ بیشتر (اختیاری)</label>'
+   + '<input value="'+escapeHtml(window._puNote)+'" oninput="window._puNote=this.value" style="'+inp+'">'
+   + (e.id ? '' : '<div style="color:#8a6a2a;font-size:11px;margin-top:9px;line-height:1.8">پس از ثبت می‌توانی عکسِ فاکتور را از دکمهٔ «🧾 فاکتور» اضافه کنی.</div>');
+
+  uiConfirm({ title: e.id ? 'ویرایشِ خرید' : 'ثبتِ خریدِ جدید', html:html,
+              okText: e.id ? 'ذخیره' : 'ثبتِ خرید', cancelText:'انصراف', danger:false }, function(){
+    var title = (window._puTitle||'').trim();
+    var amt   = (window._puAmt||'').trim();
+    if(!title){ showToast('شرحِ کالا لازم است'); return; }
+    if(!amt){ showToast('مبلغ لازم است'); return; }
+    var code = (window._puCode||'').trim();
+    var m = code.match(/^\s*([A-Za-z]{1,4}-?\d{2,6})/);   // کد را از «IP-0072 — نام» جدا کن
+    if(m) code = m[1];
+    var payload = { date:(window._puDate||today), title:title, amount:amt,
+                    reason:(window._puReason||''), project:(window._puProj||''),
+                    orderCode:code, note:(window._puNote||''), t:Date.now() };
+    if(e.id){
+      payload.id = e.id;
+      callSheet('purUpdate', payload, function(res){
+        if(res && res.status==='ok'){ showToast('ذخیره شد ✓'); purInit(true); }
+        else showToast((res&&res.message)?res.message:'خطا');
+      });
+    } else {
+      callSheet('purAdd', payload, function(res){
+        if(res && res.status==='ok'){
+          showToast(PUR_ISADMIN ? 'ثبت شد ✓' : 'ثبت شد — در انتظارِ تأییدِ ادمین');
+          PUR_SUG = null; purInit(true);
+        }
+        else showToast((res&&res.message)?res.message:'خطا در ثبت');
+      });
+    }
+  });
+}
+function purAddForm(){ purForm(null); }
+function purEditForm(id){
+  var r = (PUR_LIST||[]).filter(function(x){ return x.id===id; })[0];
+  if(!r){ showToast('پیدا نشد'); return; }
+  purForm(r);
+}
+// پنلِ دسترسی: کدام کارمند اجازهٔ ثبتِ خرید دارد
+function purAccessPanel(){
+  callSheet('purUserList', { t:Date.now() }, function(res){
+    if(!(res && res.status==='ok')){ showToast((res&&res.message)||'خطا'); return; }
+    var us = (res.users||[]).filter(function(u){ return u.role !== 'admin'; });
+    var admins = (res.users||[]).filter(function(u){ return u.role === 'admin'; });
+    var rows = us.length ? us.map(function(u){
+      var nm = escapeHtml(String(u.user)).replace(/"/g,'').replace(/\x27/g,'');
+      return '<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border:1px solid #232742;border-radius:8px;margin-bottom:6px;cursor:pointer">'
+        + '<span style="color:#dfe3f5;font-size:13px">👤 '+escapeHtml(u.name)+' <span style="color:#5a6080;font-size:11px">('+escapeHtml(u.user)+')</span></span>'
+        + '<input type="checkbox" '+(u.canBuy?'checked':'')+' onchange="purSetAccess(\'' + nm + '\', this.checked)">'
+        + '</label>';
+    }).join('') : '<div style="color:#8a93b2;font-size:12.5px;text-align:center;padding:12px">کاربرِ غیرادمینی ثبت نشده</div>';
+    var html = '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:11px;line-height:1.8">'
+      + 'کارمندانی که تیک بخورند می‌توانند خریدِ خودشان را ثبت کنند (و فقط خریدهای خودشان را می‌بینند).<br>'
+      + '<span style="color:#9ee0a8">ادمین‌ها به‌طور خودکار دسترسی دارند و نیازی به تیک ندارند.</span></div>'
+      + rows
+      + (admins.length ? '<div style="color:#5a6080;font-size:11px;margin-top:10px">ادمین‌ها: '
+          + admins.map(function(a){ return escapeHtml(a.name); }).join('، ') + '</div>' : '');
+    uiConfirm({ title:'دسترسیِ ثبتِ خرید', html:html, okText:'بستن', cancelText:'', danger:false }, function(){});
+  });
+}
+function purSetAccess(user, on){
+  callSheet('purSetCanBuy', { user:user, on:String(on), t:Date.now() }, function(res){
+    if(res && res.status==='ok') showToast(on?'دسترسی داده شد ✓':'دسترسی گرفته شد');
+    else showToast((res&&res.message)?res.message:'خطا');
+  });
+}
+function purXlsx(){
+  showToast('در حال ساختِ فایل... (چند لحظه)');
+  callSheet('purXlsx', { from:PUR_F.from, to:PUR_F.to, status:PUR_F.status,
+                         buyerType:PUR_F.buyerType, project:PUR_F.project, t:Date.now() }, function(r){
+    if(!(r && r.status==='ok')){ showToast((r&&r.message)?r.message:'خطا در ساختِ فایل'); return; }
+    var f = r.file || {};
+    if(f.url){ try{ window.open(f.url, '_blank'); }catch(e){} showToast('فایل آماده شد ✓'); }
+    else if(f.b64){
+      try{
+        var bin = atob(f.b64), arr = new Uint8Array(bin.length);
+        for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+        var blob = new Blob([arr], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = f.filename||'purchases.xlsx';
+        document.body.appendChild(a); a.click(); a.remove();
+        showToast('دانلود شد ✓');
+      }catch(e){ showToast('خطا در دانلود'); }
+    }
+  }, 180000);
+}
 // ═══════════ پنلِ دانشجوها (مرحلهٔ ۵-الف) ═══════════
 var STU_LIST = [], STU_TAB = 'pending', STU_LOADING = false;
 function stuInit(force){
@@ -10192,10 +10550,14 @@ function stuInit(force){
       return;
     }
     STU_LIST = res.students || [];
-    // اگر دستگاه‌ها هنوز لود نشده، بگیر
-    if(!WS_LABDEV || !WS_LABDEV.length){
-      callSheet('labDevList', { t:Date.now() }, function(r2){
-        WS_LABDEV = (r2 && r2.status==='ok' && r2.devices) ? r2.devices : [];
+    // همهٔ دستگاه‌ها (پرینترهای برآورد + آزمایشگاه) را بگیر تا در پنجرهٔ تأیید کامل باشند.
+    // بدونِ این، اگر ادمین مستقیم وارد «دانشجوها» شود پرینترها (مثل Ultra) دیده نمی‌شوند.
+    if(!WS_MACH.length || !WS_LABDEV.length){
+      callSheet('deviceList', { t:Date.now() }, function(r2){
+        if(r2 && r2.status==='ok'){
+          if(r2.machines && r2.machines.length) WS_MACH = r2.machines;
+          if(r2.devices) WS_LABDEV = r2.devices;
+        }
         stuRender();
       });
     } else stuRender();
@@ -11194,8 +11556,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V336 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V336";
+try{ if(window.console) console.log('%c iPrint3D FRONT V338 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V338";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
