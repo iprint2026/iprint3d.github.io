@@ -828,7 +828,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V340</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V341</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -1950,8 +1950,40 @@ function renderActiveUsers(){
         <input id="pw_${u.user}" type="password" placeholder="رمز جدید..." class="inp" style="flex:1;padding:7px 10px;font-size:12px">
         <button class="btn btn-ghost btn-sm" onclick="changeUserPass('${u.user}')">🔑 تغییر رمز</button>
       </div>`}
+      ${u.role==='admin'?`
+      <div style="margin-top:8px;background:#0b0d14;border-radius:8px;padding:8px 10px;color:#5a6080;font-size:11px">
+        🧾 دسترسیِ ثبتِ خرید: <span style="color:#9ee0a8">ادمین‌ها خودکار دارند</span>
+      </div>`:`
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;background:#0b0d14;border-radius:8px;padding:9px 10px;cursor:pointer">
+        <input type="checkbox" id="cb_${u.user}" ${u.canBuy?'checked':''} onchange="setUserCanBuy('${u.user}',this.checked)">
+        <span style="font-size:12px;color:#c7cce0">🧾 اجازهٔ ثبتِ خرید در دفترِ خرید</span>
+      </label>`}
     </div>`;
   }).join('');
+}
+// تیکِ «اجازهٔ ثبتِ خرید» در پنلِ کاربران
+function setUserCanBuy(username, on){
+  callSheet('purSetCanBuy', { user:username, on:String(on), t:Date.now() }, function(res){
+    if(res && res.status==='ok'){
+      showToast(on?'دسترسیِ ثبتِ خرید داده شد ✓':'دسترسیِ ثبتِ خرید گرفته شد');
+      USERS = USERS.map(function(u){ return u.user===username?Object.assign({},u,{canBuy:!!on}):u; });
+    } else {
+      showToast((res&&res.message)?res.message:'خطا');
+      var cb = document.getElementById('cb_'+username); if(cb) cb.checked = !on;
+    }
+  });
+}
+// وضعیتِ canBuy را از سرور بگیر و در کارت‌ها نشان بده
+function loadUsersCanBuy(){
+  callSheet('purUserList', { t:Date.now() }, function(res){
+    if(!(res && res.status==='ok')) return;
+    var map = {}; (res.users||[]).forEach(function(u){ map[String(u.user).toLowerCase()] = !!u.canBuy; });
+    USERS = USERS.map(function(u){
+      var v = map[String(u.user).toLowerCase()];
+      return (v===undefined) ? u : Object.assign({}, u, { canBuy:v });
+    });
+    try{ renderActiveUsers(); }catch(e){}
+  });
 }
 function changeUserRole(username, role){
   callSheet('updateUserRole',{user:username,role:role},function(){
@@ -2080,6 +2112,7 @@ function gotoView(v,el){
     if(!canDo('users')){alert('دسترسی ندارید');return;}
     renderPending();
     renderActiveUsers();
+    try{ loadUsersCanBuy(); }catch(e){}
     // لود از Sheet هر بار
     callSheet('getUsers',{t:Date.now()},function(data){
       if(Array.isArray(data)&&data.length>0){
@@ -10233,7 +10266,6 @@ function purRenderChrome(){
   var act = document.getElementById('pur-actions');
   if(act) act.innerHTML =
       '<button class="btn btn-ghost btn-sm" onclick="purAddForm()">➕ ثبتِ خرید</button>'
-    + (PUR_ISADMIN ? '<button class="btn btn-ghost btn-sm" onclick="purAccessPanel()">🔐 دسترسی‌ها</button>' : '')
     + (PUR_ISADMIN ? '<button class="btn btn-ghost btn-sm" onclick="purXlsx()">📥 خروجی اکسل</button>' : '')
     + '<button class="btn btn-ghost btn-sm" onclick="purInit(true)">🔄 بروزرسانی</button>';
   var sub = document.getElementById('pur-sub');
@@ -10411,7 +10443,7 @@ function purDeleteAsk(id){
     });
   });
 }
-// فرمِ ثبت/ویرایشِ خرید (با پیشنهادِ خودکار مثلِ دلیلِ کسر از بچ)
+// فرمِ ثبت/ویرایشِ خرید — با پیشنهادِ سفارشیِ هم‌تم (نه datalistِ سفیدِ مرورگر)
 function purForm(existing){
   var e = existing || {};
   var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
@@ -10424,33 +10456,32 @@ function purForm(existing){
   window._puCode  = e.orderCode || '';
   window._puNote  = e.note || '';
 
-  function dl(id, arr){
-    return '<datalist id="'+id+'">' + (arr||[]).map(function(x){
-      return '<option value="'+escapeHtml(String(x))+'">'; }).join('') + '</datalist>';
-  }
-  var S = PUR_SUG || {};
-  var codes = (S.orderCodes||[]).map(function(c){ return c.code + (c.name?(' — '+c.name):''); });
   var inp = 'width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px';
   var lbl = 'color:#8a93b2;font-size:11.5px;margin-bottom:4px;display:block';
+  function field(id, val, ph, extra){
+    return '<div style="position:relative">'
+      + '<input id="'+id+'" autocomplete="off" value="'+escapeHtml(val||'')+'" placeholder="'+escapeHtml(ph)+'" style="'+inp+(extra||'')+'">'
+      + '<div id="'+id+'-sug" style="display:none;position:absolute;top:100%;right:0;left:0;z-index:60;'
+      +   'background:#161a28;border:1px solid #2a3a66;border-radius:9px;margin-top:3px;max-height:170px;overflow-y:auto;'
+      +   'box-shadow:0 8px 22px rgba(0,0,0,.5)"></div></div>';
+  }
 
   var html =
-     dl('pu-dl-title', S.titles) + dl('pu-dl-reason', S.reasons)
-   + dl('pu-dl-proj', S.projects) + dl('pu-dl-code', codes)
-   + '<label style="'+lbl+'">تاریخِ خرید</label>'
-   + '<input value="'+escapeHtml(window._puDate)+'" oninput="window._puDate=this.value" style="'+inp+';text-align:center;margin-bottom:9px">'
+     '<label style="'+lbl+'">تاریخِ خرید</label>'
+   + '<input id="pu-date" value="'+escapeHtml(window._puDate)+'" oninput="window._puDate=this.value" style="'+inp+';text-align:center;margin-bottom:9px">'
    + '<label style="'+lbl+'">شرحِ کالا</label>'
-   + '<input list="pu-dl-title" value="'+escapeHtml(window._puTitle)+'" oninput="window._puTitle=this.value" placeholder="مثلاً چسب سیانوآکریلات ۲ عدد" style="'+inp+';margin-bottom:9px">'
+   + field('pu-title', window._puTitle, 'مثلاً چسب سیانوآکریلات ۲ عدد', ';margin-bottom:9px')
    + '<label style="'+lbl+'">مبلغ (تومان)</label>'
-   + '<input value="'+escapeHtml(window._puAmt)+'" oninput="window._puAmt=this.value" inputmode="numeric" placeholder="۲۰۰۰۰۰" style="'+inp+';text-align:center;margin-bottom:9px">'
+   + '<input id="pu-amt" value="'+escapeHtml(window._puAmt?fmtMoney(window._puAmt):'')+'" inputmode="numeric" placeholder="۲۰۰٬۰۰۰" style="'+inp+';text-align:center;margin-bottom:3px;font-weight:700;font-size:15px">'
+   + '<div id="pu-amt-words" style="color:#7ab8ff;font-size:11px;text-align:center;min-height:16px;margin-bottom:8px"></div>'
    + '<label style="'+lbl+'">برای چه کاری خریده شد؟</label>'
-   + '<input list="pu-dl-reason" value="'+escapeHtml(window._puReason)+'" oninput="window._puReason=this.value" placeholder="مثلاً چسباندنِ قطعاتِ شکسته" style="'+inp+';margin-bottom:9px">'
-   + '<label style="'+lbl+'">پروژه (متنِ آزاد)</label>'
-   + '<input list="pu-dl-proj" value="'+escapeHtml(window._puProj)+'" oninput="window._puProj=this.value" placeholder="مثلاً عدسی · یا: عمومی آزمایشگاه" style="'+inp+';margin-bottom:9px">'
+   + field('pu-reason', window._puReason, 'مثلاً چسباندنِ قطعاتِ شکسته', ';margin-bottom:9px')
+   + '<label style="'+lbl+'">پروژه</label>'
+   + field('pu-proj', window._puProj, 'مثلاً عدسی · یا: عمومی آزمایشگاه', ';margin-bottom:9px')
    + '<label style="'+lbl+'">کدِ سفارش (اختیاری)</label>'
-   + '<input list="pu-dl-code" value="'+escapeHtml(window._puCode)+'" oninput="window._puCode=this.value" placeholder="مثلاً IP-0072" style="'+inp+';margin-bottom:9px">'
+   + field('pu-code', window._puCode, 'مثلاً IP-0072', ';margin-bottom:9px')
    + '<label style="'+lbl+'">توضیحِ بیشتر (اختیاری)</label>'
-   + '<input value="'+escapeHtml(window._puNote)+'" oninput="window._puNote=this.value" style="'+inp+'">'
-   + (e.id ? '' : '<div style="color:#8a6a2a;font-size:11px;margin-top:9px;line-height:1.8">پس از ثبت می‌توانی عکسِ فاکتور را از دکمهٔ «🧾 فاکتور» اضافه کنی.</div>');
+   + '<input id="pu-note" value="'+escapeHtml(window._puNote)+'" oninput="window._puNote=this.value" style="'+inp+'">';
 
   uiConfirm({ title: e.id ? 'ویرایشِ خرید' : 'ثبتِ خریدِ جدید', html:html,
               okText: e.id ? 'ذخیره' : 'ثبتِ خرید', cancelText:'انصراف', danger:false }, function(){
@@ -10459,7 +10490,7 @@ function purForm(existing){
     if(!title){ showToast('شرحِ کالا لازم است'); return; }
     if(!amt){ showToast('مبلغ لازم است'); return; }
     var code = (window._puCode||'').trim();
-    var m = code.match(/^\s*([A-Za-z]{1,4}-?\d{2,6})/);   // کد را از «IP-0072 — نام» جدا کن
+    var m = code.match(/^\s*([A-Za-z]{1,4}-?\d{2,6})/);
     if(m) code = m[1];
     var payload = { date:(window._puDate||today), title:title, amount:amt,
                     reason:(window._puReason||''), project:(window._puProj||''),
@@ -10480,6 +10511,58 @@ function purForm(existing){
       });
     }
   });
+  setTimeout(purWireForm, 40);
+}
+// سیم‌کشیِ فیلدها: جداکنندهٔ هزارگان + پیشنهادِ سفارشی
+function purWireForm(){
+  var S = PUR_SUG || {};
+  // مبلغ: هزارگان زنده + نمایشِ حروف
+  var a = document.getElementById('pu-amt');
+  if(a){
+    a.addEventListener('input', function(){
+      var raw = String(this.value).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[^0-9]/g,'');
+      window._puAmt = raw;
+      this.value = raw ? fmtMoney(raw) : '';
+      var w = document.getElementById('pu-amt-words');
+      if(w) w.textContent = raw ? (prToFa(fmtMoney(raw))+' تومان') : '';
+    });
+    var w0 = document.getElementById('pu-amt-words');
+    if(w0 && window._puAmt) w0.textContent = prToFa(fmtMoney(window._puAmt))+' تومان';
+  }
+  var codes = (S.orderCodes||[]).map(function(c){ return c.code + (c.name?(' — '+c.name):''); });
+  purSug('pu-title',  S.titles  ||[], '_puTitle');
+  purSug('pu-reason', S.reasons ||[], '_puReason');
+  purSug('pu-proj',   S.projects||[], '_puProj');
+  purSug('pu-code',   codes,           '_puCode');
+}
+// پیشنهادِ هم‌تم — فقط وقتی کاربر تایپ کرده باشد
+function purSug(id, list, varName){
+  var el = document.getElementById(id), box = document.getElementById(id+'-sug');
+  if(!el || !box) return;
+  function hide(){ box.style.display='none'; }
+  function show(){
+    var q = String(el.value||'').trim();
+    window[varName] = el.value;
+    if(q.length < 1){ hide(); return; }              // تا چیزی تایپ نشود پیشنهاد نمی‌آید
+    var hits = (list||[]).filter(function(x){ return String(x).indexOf(q) >= 0 && String(x) !== q; }).slice(0,7);
+    if(!hits.length){ hide(); return; }
+    box.innerHTML = hits.map(function(x){
+      return '<div onmousedown="purPick(\'' + id + '\',\'' + varName + '\',this)" data-v="'+escapeHtml(String(x))+'" '
+        + 'style="padding:8px 11px;cursor:pointer;font-size:12.5px;color:#c7cce0;border-bottom:1px solid #1a2038" '
+        + 'onmouseover="this.style.background=\'#1e2439\'" onmouseout="this.style.background=\'transparent\'">'
+        + escapeHtml(String(x)) + '</div>';
+    }).join('');
+    box.style.display='block';
+  }
+  el.addEventListener('input', show);
+  el.addEventListener('focus', show);
+  el.addEventListener('blur', function(){ setTimeout(hide, 120); });
+}
+function purPick(id, varName, node){
+  var el = document.getElementById(id);
+  var v = node.getAttribute('data-v') || '';
+  if(el){ el.value = v; window[varName] = v; }
+  var box = document.getElementById(id+'-sug'); if(box) box.style.display='none';
 }
 function purAddForm(){ purForm(null); }
 function purEditForm(id){
@@ -11556,8 +11639,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V340 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V340";
+try{ if(window.console) console.log('%c iPrint3D FRONT V341 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V341";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
