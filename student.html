@@ -54,6 +54,8 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
 .mut{color:#5a6080;font-size:11.5px}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;align-items:center}
 .legend span{display:flex;align-items:center;gap:6px}
+.dow-short{display:none}
+@media(max-width:640px){ .dow-full{display:none} .dow-short{display:inline} }
 .dot{display:inline-block;width:14px;height:14px;border-radius:4px}
 /* ── صفحهٔ ورود ── */
 .auth-wrap{position:fixed;inset:0;background:linear-gradient(135deg,#0b0d14 0%,#131627 100%);
@@ -73,20 +75,30 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
   .auth-logo{font-size:40px}
 }
 @media(max-width:640px){
-  .wrap{padding:12px 10px 30px}
-  .card{padding:14px;border-radius:14px;margin-bottom:11px}
-  .grid7{gap:4px}
-  .cell{min-height:62px;padding:4px;border-radius:9px}
-  .chip{font-size:9px;padding:3px 4px}
+  .wrap{padding:12px 8px 30px}
+  .card{padding:13px 11px;border-radius:14px;margin-bottom:10px}
   .ttl{font-size:15px}
-  .tab{padding:9px 13px;font-size:12.5px}
+  .tab{padding:9px 12px;font-size:12.5px}
   .btn{padding:11px 15px;font-size:13.5px}
-  .legend{gap:11px;font-size:11px}
-  /* مودالِ رزرو روی گوشی از پایین بالا می‌آید */
+  .legend{gap:10px;font-size:10.5px}
+  /* ── تقویمِ گوشی: خانه‌های مربع و فشرده ── */
+  .grid7{gap:3px}
+  .dow{font-size:9.5px;padding:2px 0}
+  .cell{min-height:0;aspect-ratio:1/1;padding:3px 2px;border-radius:8px;
+        display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+  .cell .dnum{font-size:12px;margin:1px 0 0}
+  .cell .free{display:none}                 /* «آزاد ۱۰ ساعت» روی گوشی جا نمی‌شود */
+  .cell .dot-free{display:block;width:5px;height:5px;border-radius:50%;background:#2f5236;margin-top:auto;margin-bottom:5px}
+  .cell .offlbl{display:none}
+  .chip{font-size:8.5px;padding:2px 3px;width:100%;border-radius:5px;line-height:1.35;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chip .chip-tm{display:none}
+  /* مودالِ رزرو از پایین بالا می‌آید */
   #mdl{align-items:flex-end;padding:0}
   #mdl > .card{max-width:100%;border-radius:20px 20px 0 0;margin:0;padding:20px 16px 26px;
                max-height:92vh;overflow-y:auto}
 }
+@media(min-width:641px){ .cell .dot-free{display:none} }
 /* روی گوشی نوارِ ناوبری چسبیده به بالا بماند */
 @media(max-width:640px){
   .stick{position:sticky;top:0;z-index:20;background:#0b0d14;padding-top:6px}
@@ -215,7 +227,7 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
 </div>
 
 <script>
-const API='https://script.google.com/macros/s/AKfycbwwgezq5CC9_KiM3ObLeCWgnjzG6uFBNJ4zPglZC4fXHCDlGvEJXC6ab_ZSRUH3wtEJqw/exec';
+const API='https://script.google.com/macros/s/AKfycbzfz8sasnSavjdEbpQN0xPWZb5simzglFPFeBDznMm1j13wT7JHZHt7clpjdruXekgLRw/exec';
 var TOK='', ME='', DEVS=[], SEL='', VY=0, VM=0, RESV=[], MDL_DATE='';
 
 /* ── ارتباط با سرور (JSONP، مثل سیستم اصلی) ── */
@@ -357,8 +369,10 @@ function loadCal(){
 function onDay(k){ return RESV.filter(function(r){ return String(r.date)===String(k); }); }
 function drawCal(){
   var t=todayJ(), fd=firstDow(VY,VM), lim=MONS[VM-1];
+  var short=['ش','ی','د','س','چ','پ','ج'];
   var head='<div class="grid7" style="margin-bottom:6px">'+DNAM.map(function(d,i){
-    return '<div style="text-align:center;font-size:11.5px;font-weight:700;color:'+(i===6?'#f0a6a8':'#8a93b2')+';padding:4px 0">'+d+'</div>';
+    return '<div class="dow" style="text-align:center;font-size:11.5px;font-weight:700;color:'+(i===6?'#f0a6a8':'#8a93b2')+';padding:4px 0">'
+      +'<span class="dow-full">'+d+'</span><span class="dow-short">'+short[i]+'</span></div>';
   }).join('')+'</div>';
   var cells='';
   for(var i=0;i<fd;i++) cells+='<div></div>';
@@ -367,16 +381,20 @@ function drawCal(){
     var isToday=(VY===t.y&&VM===t.m&&d===t.d);
     var list=onDay(k);
     var cls='cell'+(isFri?' cell-off':'')+(isToday?' cell-today':'');
-    var inner='<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
-      +'<span style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(isToday?'#7ab8ff':(isFri?'#f0a6a8':'#c7cce0'))+'">'+fa(d)+'</span>'
-      +(isFri?'<span class="mut" style="font-size:9px">تعطیل</span>':'')+'</div>';
+    var inner='<div style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:3px">'
+      +'<span class="dnum" style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(isToday?'#7ab8ff':(isFri?'#f0a6a8':'#c7cce0'))+'">'+fa(d)+'</span>'
+      +(isFri?'<span class="mut offlbl" style="font-size:9px">تعطیل</span>':'')+'</div>';
     list.forEach(function(r){
       var tm=(r.fromTime||r.toTime)?((r.fromTime||'?')+'–'+(r.toTime||'?')):(r.hours?(fa(r.hours)+' ساعت'):'');
       var c = r.mine ? (r.status==='pending'?'chip-wait':'chip-mine') : 'chip-busy';
       var lb = r.mine ? (r.status==='pending'?'در انتظار':'رزرو شما') : 'رزرو شده';
-      inner+='<div class="chip '+c+'">'+lb+(tm?('<div style="font-weight:400;font-size:9px;opacity:.85">'+esc(fa(tm))+'</div>'):'')+'</div>';
+      inner+='<div class="chip '+c+'" title="'+esc(lb+(tm?(' · '+tm):''))+'">'+lb
+           +(tm?('<div class="chip-tm" style="font-weight:400;font-size:9px;opacity:.85">'+esc(fa(tm))+'</div>'):'')+'</div>';
     });
-    if(!isFri && !list.length) inner+='<div style="text-align:center;color:#2f374f;font-size:10px;margin-top:12px">آزاد<br><span style="font-size:14px">＋</span></div>';
+    if(!isFri && !list.length){
+      inner+='<div class="free" style="text-align:center;color:#2f374f;font-size:10px;margin-top:10px">آزاد<br><span style="font-size:14px">＋</span></div>'
+           +'<span class="dot-free"></span>';
+    }
     cells += isFri
       ? '<div class="'+cls+'">'+inner+'</div>'
       : '<div class="'+cls+'" onclick="openMdl(\'' + k + '\')">'+inner+'</div>';
@@ -503,7 +521,7 @@ function cancelResv(id){
     var e=document.getElementById(i);
     if(e) e.addEventListener('keydown',function(ev){ if(ev.key==='Enter') doLogin(); });
   });
-  console.log('iPrint3D STUDENT V2');
+  console.log('iPrint3D STUDENT V3');
 })();
 </script>
 </body>
