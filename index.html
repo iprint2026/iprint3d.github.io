@@ -878,7 +878,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V347</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V348</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -12100,8 +12100,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V347 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V347";
+try{ if(window.console) console.log('%c iPrint3D FRONT V348 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V348";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12426,7 +12426,14 @@ function prRenderTape(r){
   // قیمت اعلامیِ کلِ پروژه (قابل ویرایش) — ویرایش فقط سود را تغییر می‌دهد
   var oAuto = Math.round(r.perPartAnnounced||0);                       // قیمتِ خودکارِ هر عدد (پیش از اضافات)
   var extras = (+r.packaging||0)+(+r.shipping||0)+(+r.modelingAnnounced||0)+(+r.extraSum||0);
-  var autoTotal = Math.round(oAuto * r.qty + extras);                  // قیمتِ خودکارِ کلِ پروژه
+  // قیمتِ خودکارِ کل را از خودِ بک‌اند بگیر. بازسازیِ محلی برای سفارش‌های چندبخشی
+  // غلط بود (چون perPartAnnounced آنجا صفر است) و قیمتِ دستی را خراب می‌کرد.
+  var autoTotal = (r.autoOrderTotal != null)
+    ? Math.round(r.autoOrderTotal)
+    : Math.round(oAuto * r.qty + extras);
+  // «اضافاتی» که هنگامِ قیمتِ دستی باید از مبلغِ کل کم شوند تا manualUnit درست شود.
+  // این عدد باید دقیقاً با فرمولِ بک‌اند بخواند: manualUnit*qty + modeling + pack + ship + extraSum
+  var manualExtras = (+r.modelingAnnounced||0)+(+r.packaging||0)+(+r.shipping||0)+(+r.extraSum||0);
   var shownTotal = Math.round(r.orderTotal);                           // قیمتِ نهاییِ فعلیِ کل
   if(window.console){
     console.log('%c[قیمت دستی] خروجیِ محاسبه','color:#22c55e', {
@@ -12440,10 +12447,10 @@ function prRenderTape(r){
     +'<div style="display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:6px">'
     +  '<div style="color:#5fe39a;font-weight:800;font-size:12px">💰 قیمت اعلامیِ کلِ پروژه (قابل ویرایش)'+(r.manual?' — دستی':'')+'</div>'
     +  (r.manual
-        ? '<button type="button" onclick="prRevertOrderManual('+autoTotal+','+extras+','+r.qty+')" title="بازگشت به قیمتِ خودکار (بر اساسِ ضریب سود): '+prSep(autoTotal)+'" style="flex:none;background:#0b3d2e;border:1px solid #2fa974;color:#8affd0;border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">↺ خودکار</button>'
+        ? '<button type="button" onclick="prRevertOrderManual('+autoTotal+','+manualExtras+','+r.qty+')" title="بازگشت به قیمتِ خودکار (بر اساسِ ضریب سود): '+prSep(autoTotal)+'" style="flex:none;background:#0b3d2e;border:1px solid #2fa974;color:#8affd0;border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">↺ خودکار</button>'
         : '')
     +'</div>'
-    +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shownTotal)+'" onchange="prSetOrderManualTotal(this.value,'+autoTotal+','+extras+','+r.qty+')" style="width:100%;box-sizing:border-box;background:#eafff5;border:1px solid #2fa974;border-radius:8px;color:#0b3d2e;padding:9px;font-size:15px;text-align:center;font-weight:800">'
+    +'<input type="text" inputmode="numeric" class="pr-money" value="'+prSep(shownTotal)+'" onchange="prSetOrderManualTotal(this.value,'+autoTotal+','+manualExtras+','+r.qty+')" style="width:100%;box-sizing:border-box;background:#eafff5;border:1px solid #2fa974;border-radius:8px;color:#0b3d2e;padding:9px;font-size:15px;text-align:center;font-weight:800">'
     +'<div style="font-size:10px;color:#5a8f76;margin-top:4px">قیمتِ خودکارِ کل (تمام‌شده + سود + پژوهشگاه + بسته‌بندی/ارسال): '+prFmt(autoTotal)+'. با ویرایش، فقط سود تغییر می‌کند. برای بازگشت به خودکار، خالی کن.</div>'
     +(r.manual?'<div style="font-size:10px;color:#8a9a94;margin-top:3px;text-align:center">✔ قیمت دستی فعال است · خودکار: <b style="color:#5fe39a">'+prSep(autoTotal)+'</b> (با ↺ برگرد)</div>':'')
     +'</div>';
