@@ -878,7 +878,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V346</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V347</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -12100,8 +12100,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V346 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V346";
+try{ if(window.console) console.log('%c iPrint3D FRONT V347 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V347";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12428,6 +12428,14 @@ function prRenderTape(r){
   var extras = (+r.packaging||0)+(+r.shipping||0)+(+r.modelingAnnounced||0)+(+r.extraSum||0);
   var autoTotal = Math.round(oAuto * r.qty + extras);                  // قیمتِ خودکارِ کلِ پروژه
   var shownTotal = Math.round(r.orderTotal);                           // قیمتِ نهاییِ فعلیِ کل
+  if(window.console){
+    console.log('%c[قیمت دستی] خروجیِ محاسبه','color:#22c55e', {
+      حالت_دستی:!!r.manual, manualUnit:(prState&&prState.order&&prState.order.manualUnit)||0,
+      perPartAnnounced:oAuto, اضافات:extras, خودکار_کل:autoTotal,
+      orderTotal_نهایی:shownTotal, تعداد:r.qty,
+      مدلسازی:(+r.modelingAnnounced||0), جانبی:(+r.extraSum||0)
+    });
+  }
   h += '<div style="margin-top:8px;background:#0c2018;border:1px solid #1e5e3e;border-radius:12px;padding:11px">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:6px">'
     +  '<div style="color:#5fe39a;font-weight:800;font-size:12px">💰 قیمت اعلامیِ کلِ پروژه (قابل ویرایش)'+(r.manual?' — دستی':'')+'</div>'
@@ -12494,6 +12502,15 @@ function prSetOrderManualTotal(val, autoTotal, extras, qty){
   var clean=String(val).replace(/[^\d]/g,'');
   var T=(clean==='')?NaN:(+clean||0);
   qty=+qty||1; extras=+extras||0;
+  if(window.console){
+    var _r0 = prLastResult||{};
+    console.log('%c[قیمت دستی] ورودی','color:#f59e0b', {
+      واردشده:T, قیمت_خودکار:autoTotal, اضافات_فرانت:extras, تعداد:qty,
+      مدلسازی:(+_r0.modelingAnnounced||0), بسته‌بندی:(+_r0.packaging||0),
+      ارسال:(+_r0.shipping||0), جانبی:(+_r0.extraSum||0),
+      محاسبه_manualUnit:((T-extras)/qty)
+    });
+  }
   if(isNaN(T) || (autoTotal!=null && Math.round(T)===Math.round(autoTotal))){
     prState.order.manualUnit=0;               // بازگشت به خودکار
   } else {
