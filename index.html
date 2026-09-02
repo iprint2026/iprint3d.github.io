@@ -244,6 +244,56 @@ tr:hover td{background:#0e1018}
   .stat-card{padding:12px}
 }
 
+/* ══════════ موبایل: بخش‌های جدید (دفتر خرید · دانشجوها · تقویم) ══════════ */
+@media (max-width:560px){
+  /* فیلترها و کارت‌های آماری: تک‌ستونه شوند تا فشرده و ناخوانا نشوند */
+  #pur-filters > div:first-child{flex-direction:column;align-items:stretch !important}
+  #pur-filters > div:first-child > div{min-width:0 !important;width:100%}
+  #pur-filters > div:first-child > button{width:100%;min-height:42px}
+  #pur-filters > div:last-child{display:grid !important;grid-template-columns:1fr 1fr;gap:6px !important}
+  #pur-filters > div:last-child button{width:100%;min-height:40px;font-size:11.5px}
+
+  /* کارت‌های آماری: دو ستونه به‌جای چهار ستونِ فشرده */
+  #pur-stats .card > div:first-child{display:grid !important;grid-template-columns:1fr 1fr;gap:7px !important}
+  #pur-stats .card > div:first-child > div{min-width:0 !important}
+
+  /* ردیف‌های خرید و فاکتور: مبلغ زیرِ عنوان بیاید نه کنارش */
+  #pur-body [style*="justify-content:space-between"]{gap:6px}
+
+  /* دکمه‌های عملیات: تمام‌عرض و قابلِ لمس */
+  #pur-body button, #stu-body button{min-height:36px;padding:6px 10px !important}
+
+  /* هدر صفحه‌ها: دکمه‌ها زیرِ عنوان و تمام‌عرض */
+  #view-purchases > .card:first-child > div,
+  #view-students  > .card:first-child > div{flex-direction:column;align-items:stretch !important;gap:10px !important}
+  #pur-actions{display:grid !important;grid-template-columns:1fr 1fr;gap:6px}
+  #pur-actions button{width:100%;min-height:40px}
+
+  /* دانشجوها: دکمه‌های هر کارت شبکه‌ای شوند */
+  #stu-body [style*="display:flex"][style*="gap:5px"]{display:grid !important;grid-template-columns:1fr 1fr;gap:6px !important}
+  #stu-body [style*="display:flex"][style*="gap:5px"] button{width:100%}
+
+  /* تقویم کارگاه: خانه‌ها مربع و فشرده */
+  #ws-body [style*="grid-template-columns:repeat(7"]{gap:3px !important}
+
+  /* مودال‌ها روی گوشی: از پایین بالا بیایند مثلِ اپ‌های موبایل */
+  .ui-modal-ov{align-items:flex-end !important;padding:0 !important}
+  .ui-modal-card{max-width:100% !important;border-radius:18px 18px 0 0 !important;
+                 max-height:94vh;display:flex;flex-direction:column}
+  .ui-modal-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px !important}
+  .ui-modal-head{padding:14px !important;position:sticky;top:0;z-index:2}
+  .ui-modal-actions{padding:11px 14px calc(11px + env(safe-area-inset-bottom)) !important;
+                    position:sticky;bottom:0;z-index:2}
+  .ui-modal-actions button{flex:1;min-height:44px;font-size:13.5px !important}
+  /* فیلدهای داخلِ مودال: ۱۶px تا iOS موقعِ تایپ زوم نکند */
+  .ui-modal-body input, .ui-modal-body select, .ui-modal-body textarea{font-size:16px !important;padding:11px !important}
+}
+@media (max-width:400px){
+  #pur-stats .card > div:first-child{grid-template-columns:1fr !important}
+  #pur-actions{grid-template-columns:1fr !important}
+  #pur-filters > div:last-child{grid-template-columns:1fr !important}
+}
+
 /* ── BRAND LOGO ── */
 .iprint-brand{font-family:'Quicksand',sans-serif;font-weight:700;letter-spacing:-1px;direction:ltr;display:inline-block}
 .iprint-brand .dot{color:#e63946}
@@ -828,7 +878,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V341</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V346</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -3557,12 +3607,13 @@ function uiConfirm(opts, onOk){
   opts = opts || {};
   var old=document.getElementById('ui-confirm-ov'); if(old&&old.parentNode) old.parentNode.removeChild(old);
   var ov=document.createElement('div'); ov.id='ui-confirm-ov';
+  ov.className='ui-modal-ov';
   ov.style.cssText='position:fixed;inset:0;z-index:9400;background:rgba(4,6,12,.82);display:flex;align-items:center;justify-content:center;padding:20px 12px;overflow:auto';
   var accent = opts.danger===false ? '#6366f1' : '#e0484d';
-  ov.innerHTML='<div style="background:#0e1220;border:1px solid #23304f;border-radius:16px;max-width:520px;width:100%;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55)">'
-    +'<div style="padding:14px 16px;background:#0c1120;border-bottom:1px solid #1a2440;font-weight:800;color:#dfe3f5;font-size:15px">'+(opts.title||'تأیید')+'</div>'
-    +'<div style="padding:16px;color:#c7cce0;font-size:13px;line-height:2">'+(opts.html||'')+'</div>'
-    +'<div style="display:flex;gap:9px;justify-content:flex-start;padding:12px 16px;background:#0c1120;border-top:1px solid #1a2440">'
+  ov.innerHTML='<div class="ui-modal-card" style="background:#0e1220;border:1px solid #23304f;border-radius:16px;max-width:520px;width:100%;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55)">'
+    +'<div class="ui-modal-head" style="padding:14px 16px;background:#0c1120;border-bottom:1px solid #1a2440;font-weight:800;color:#dfe3f5;font-size:15px">'+(opts.title||'تأیید')+'</div>'
+    +'<div class="ui-modal-body" style="padding:16px;color:#c7cce0;font-size:13px;line-height:2">'+(opts.html||'')+'</div>'
+    +'<div class="ui-modal-actions" style="display:flex;gap:9px;justify-content:flex-start;padding:12px 16px;background:#0c1120;border-top:1px solid #1a2440">'
       +'<button id="uic-ok" style="background:'+accent+';border:1px solid '+accent+';color:#fff;border-radius:9px;padding:9px 18px;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700">'+(opts.okText||'بله، ادامه')+'</button>'
       +'<button id="uic-no" style="'+(opts.cancelText===''?'display:none;':'')+'background:#1a1d2e;border:1px solid #2a2f45;color:#9aa3c2;border-radius:9px;padding:9px 18px;font-size:12.5px;cursor:pointer;font-family:inherit">'+(opts.cancelText||'انصراف')+'</button>'
     +'</div></div>';
@@ -10265,7 +10316,8 @@ function purInit(force){
 function purRenderChrome(){
   var act = document.getElementById('pur-actions');
   if(act) act.innerHTML =
-      '<button class="btn btn-ghost btn-sm" onclick="purAddForm()">➕ ثبتِ خرید</button>'
+      '<button class="btn btn-ghost btn-sm" onclick="purAddForm()">➕ خریدِ تکی</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="purInvForm()">🧾 فاکتورِ چندقلمی</button>'
     + (PUR_ISADMIN ? '<button class="btn btn-ghost btn-sm" onclick="purXlsx()">📥 خروجی اکسل</button>' : '')
     + '<button class="btn btn-ghost btn-sm" onclick="purInit(true)">🔄 بروزرسانی</button>';
   var sub = document.getElementById('pur-sub');
@@ -10366,12 +10418,24 @@ function purRender(){
   body.innerHTML = dates.map(function(dt){
     var rows = byDate[dt];
     var dayTotal = 0; rows.forEach(function(r){ dayTotal += (+r.amount||0); });
+    // اقلامِ یک فاکتور را کنارِ هم گروه کن
+    var groups = {}, order = [];
+    rows.forEach(function(r){
+      var k = r.invoiceId || r.id;
+      if(!groups[k]){ groups[k] = []; order.push(k); }
+      groups[k].push(r);
+    });
+    var inner = order.map(function(k){
+      var g = groups[k];
+      if(g.length === 1) return purRowHtml(g[0]);
+      return purInvoiceHtml(k, g);
+    }).join('');
     return '<div class="card" style="margin-bottom:10px">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding-bottom:8px;margin-bottom:9px;border-bottom:1px solid #1a2440">'
       +   '<span style="color:#7ab8ff;font-weight:700;font-size:13px">📅 '+escapeHtml(prToFa(dt))+'</span>'
       +   '<span style="color:#8a93b2;font-size:11.5px">'+prToFa(rows.length)+' قلم · '+prToFa(fmtMoney(dayTotal))+' تومان</span>'
       + '</div>'
-      + rows.map(purRowHtml).join('')
+      + inner
       + '</div>';
   }).join('');
 }
@@ -10390,9 +10454,18 @@ function purRowHtml(r){
          + (r.refunded?'#2f5236':'#5a4a2a') + ';background:transparent;color:' + (r.refunded?'#9ee0a8':'#f0c674')
          + ';border-radius:6px;padding:4px 10px;font-size:11px">' + (r.refunded?'✓ پول برگشته':'💰 ثبتِ بازپرداخت') + '</button> ';
   }
+  if(canEdit) acts += '<button onclick="purPickImage(\'' + r.id + '\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:4px 10px;font-size:11px">🧾 ' + (r.imageFileId?'تعویضِ فاکتور':'افزودنِ فاکتور') + '</button> ';
+  if(canEdit && r.imageFileId) acts += '<button onclick="purRemoveImage(\'' + r.id + '\')" style="cursor:pointer;border:1px solid #5a4a2a;background:transparent;color:#f0c674;border-radius:6px;padding:4px 10px;font-size:11px">حذفِ عکس</button> ';
   if(canEdit) acts += '<button onclick="purEditForm(\'' + r.id + '\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:4px 10px;font-size:11px">✏️ ویرایش</button> ';
   if(canEdit) acts += '<button onclick="purDeleteAsk(\'' + r.id + '\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:4px 10px;font-size:11px">حذف</button>';
 
+  var cardHtml = r.cardNumber
+    ? '<div style="display:flex;align-items:center;gap:6px;margin-top:5px">'
+      + '<span style="font-family:monospace;font-size:11.5px;color:#9ec5ff;letter-spacing:.5px;direction:ltr">💳 '+escapeHtml(purFmtCard(r.cardNumber))+'</span>'
+      + '<button onclick="purCopyCard(\'' + r.cardNumber + '\')" title="کپیِ شمارهٔ کارت" '
+      + 'style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#7ab8ff;border-radius:5px;padding:2px 8px;font-size:10px;font-family:inherit">📋 کپی</button>'
+      + '</div>'
+    : '';
   var meta = [];
   if(r.reason)    meta.push('🎯 ' + escapeHtml(r.reason));
   if(r.project)   meta.push('📁 ' + escapeHtml(r.project));
@@ -10409,6 +10482,7 @@ function purRowHtml(r){
     +     '<div style="font-size:11.5px;color:#8a93b2;margin-top:3px">'
     +       (r.buyerType==='student'?'🎓 ':'👤 ') + escapeHtml(r.buyer) + '</div>'
     +     (meta.length ? '<div style="font-size:11px;color:#8a93b2;margin-top:4px;line-height:1.8">' + meta.join(' · ') + '</div>' : '')
+    +     cardHtml
     +   '</div>'
     +   '<div style="text-align:left;flex-shrink:0">'
     +     '<div style="color:#9ec5ff;font-weight:800;font-size:14px;white-space:nowrap">' + prToFa(fmtMoney(r.amount)) + '</div>'
@@ -10455,6 +10529,7 @@ function purForm(existing){
   window._puProj  = e.project || '';
   window._puCode  = e.orderCode || '';
   window._puNote  = e.note || '';
+  window._puCard  = e.cardNumber || '';
 
   var inp = 'width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px';
   var lbl = 'color:#8a93b2;font-size:11.5px;margin-bottom:4px;display:block';
@@ -10480,6 +10555,13 @@ function purForm(existing){
    + field('pu-proj', window._puProj, 'مثلاً عدسی · یا: عمومی آزمایشگاه', ';margin-bottom:9px')
    + '<label style="'+lbl+'">کدِ سفارش (اختیاری)</label>'
    + field('pu-code', window._puCode, 'مثلاً IP-0072', ';margin-bottom:9px')
+   + '<label style="'+lbl+'">شمارهٔ کارت (برای بازپرداخت)</label>'
+   + '<div style="display:flex;gap:6px;margin-bottom:5px">'
+   +   '<input id="pu-card" value="'+escapeHtml(window._puCard?purFmtCard(window._puCard):'')+'" inputmode="numeric" placeholder="۶۲۲۱ ۰۶۱۲ ۴۱۱۳ ۵۲۱۱" style="'+inp+';flex:1;text-align:center;letter-spacing:1px;font-family:monospace;direction:ltr">'
+   +   '<button type="button" id="pu-card-btn" onclick="purPrevCards()" style="flex-shrink:0;cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:7px;padding:0 12px;font-size:11.5px;font-family:inherit;white-space:nowrap">💳 کارتِ قبلی</button>'
+   + '</div>'
+   + '<div id="pu-card-msg" style="font-size:11px;min-height:15px;margin-bottom:9px"></div>'
+   + '<div id="pu-card-list" style="display:none;margin-bottom:9px"></div>'
    + '<label style="'+lbl+'">توضیحِ بیشتر (اختیاری)</label>'
    + '<input id="pu-note" value="'+escapeHtml(window._puNote)+'" oninput="window._puNote=this.value" style="'+inp+'">';
 
@@ -10492,9 +10574,11 @@ function purForm(existing){
     var code = (window._puCode||'').trim();
     var m = code.match(/^\s*([A-Za-z]{1,4}-?\d{2,6})/);
     if(m) code = m[1];
+    var cardRaw = purNormCard(window._puCard||'');
+    if(cardRaw && cardRaw.length !== 16){ showToast('شمارهٔ کارت باید ۱۶ رقم باشد'); return; }
     var payload = { date:(window._puDate||today), title:title, amount:amt,
                     reason:(window._puReason||''), project:(window._puProj||''),
-                    orderCode:code, note:(window._puNote||''), t:Date.now() };
+                    orderCode:code, note:(window._puNote||''), cardNumber:cardRaw, t:Date.now() };
     if(e.id){
       payload.id = e.id;
       callSheet('purUpdate', payload, function(res){
@@ -10528,6 +10612,21 @@ function purWireForm(){
     });
     var w0 = document.getElementById('pu-amt-words');
     if(w0 && window._puAmt) w0.textContent = prToFa(fmtMoney(window._puAmt))+' تومان';
+  }
+  // شمارهٔ کارت: گروه‌بندیِ ۴تایی زنده + اعتبارسنجی
+  var cd = document.getElementById('pu-card');
+  if(cd){
+    cd.addEventListener('input', function(){
+      var raw = purNormCard(this.value).slice(0,16);
+      window._puCard = raw;
+      this.value = purFmtCard(raw);
+      var m = document.getElementById('pu-card-msg');
+      if(m){
+        if(!raw){ m.textContent=''; }
+        else if(raw.length === 16){ m.style.color='#9ee0a8'; m.textContent='✓ شمارهٔ کارت معتبر است'; }
+        else { m.style.color='#f0c674'; m.textContent = prToFa(raw.length)+' رقم از ۱۶ رقم'; }
+      }
+    });
   }
   var codes = (S.orderCodes||[]).map(function(c){ return c.code + (c.name?(' — '+c.name):''); });
   purSug('pu-title',  S.titles  ||[], '_puTitle');
@@ -10599,9 +10698,51 @@ function purSetAccess(user, on){
   });
 }
 function purXlsx(){
+  window._puPeriod = 'month';
+  var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
+  var html = '<div style="color:#8a93b2;font-size:12px;margin-bottom:11px;line-height:1.8">'
+    + 'خروجی شاملِ ۶ شیت است: داشبورد، بدهی‌ها، روندِ زمانی، تفکیکِ شخص، تفکیکِ پروژه، و ریزِ همهٔ خریدها.</div>'
+    + '<div style="color:#c7cce0;font-size:12.5px;margin-bottom:7px">شیتِ «روند» را چطور گروه‌بندی کنم؟</div>'
+    + '<div id="pu-per" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px">'
+    +   '<button onclick="purSetPeriod(\'week\')"  data-p="week"  class="pu-perbtn" style="flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:8px;padding:9px;font-size:12.5px;font-family:inherit">هفتگی</button>'
+    +   '<button onclick="purSetPeriod(\'month\')" data-p="month" class="pu-perbtn" style="flex:1;cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:8px;padding:9px;font-size:12.5px;font-weight:700;font-family:inherit">ماهانه</button>'
+    +   '<button onclick="purSetPeriod(\'year\')"  data-p="year"  class="pu-perbtn" style="flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:8px;padding:9px;font-size:12.5px;font-family:inherit">سالانه</button>'
+    + '</div>'
+    + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:5px">بازهٔ گزارش</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    +   '<button onclick="purXFrom(\'month\')" style="flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit">این ماه</button>'
+    +   '<button onclick="purXFrom(\'year\')"  style="flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit">امسال</button>'
+    +   '<button onclick="purXFrom(\'all\')"   style="flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit">کلِ تاریخچه</button>'
+    + '</div>'
+    + '<div id="pu-xrange" style="color:#7ab8ff;font-size:11.5px;text-align:center;margin-top:9px">'
+    +   'بازه: ' + escapeHtml(prToFa(PUR_F.from||'ابتدا')) + ' تا ' + escapeHtml(prToFa(PUR_F.to||'انتها')) + '</div>';
+  uiConfirm({ title:'خروجیِ اکسلِ دفترِ خرید', html:html, okText:'📥 ساختِ فایل', cancelText:'انصراف', danger:false }, function(){
+    purXlsxRun();
+  });
+}
+function purSetPeriod(p){
+  window._puPeriod = p;
+  document.querySelectorAll('.pu-perbtn').forEach(function(b){
+    var on = (b.getAttribute('data-p') === p);
+    b.style.background = on ? '#1a2748' : 'transparent';
+    b.style.borderColor = on ? '#2a3a66' : '#232742';
+    b.style.color = on ? '#9ec5ff' : '#8a93b2';
+    b.style.fontWeight = on ? '700' : '400';
+  });
+}
+function purXFrom(kind){
+  var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
+  if(kind==='month'){ PUR_F.from = t.y+'/'+wsP2(t.m)+'/01'; PUR_F.to = t.y+'/'+wsP2(t.m)+'/'+wsP2(WS_MONS[t.m-1]||30); }
+  if(kind==='year'){ PUR_F.from = t.y+'/01/01'; PUR_F.to = t.y+'/12/29'; }
+  if(kind==='all'){ PUR_F.from = ''; PUR_F.to = ''; }
+  var el = document.getElementById('pu-xrange');
+  if(el) el.textContent = 'بازه: ' + prToFa(PUR_F.from||'ابتدا') + ' تا ' + prToFa(PUR_F.to||'انتها');
+}
+function purXlsxRun(){
   showToast('در حال ساختِ فایل... (چند لحظه)');
   callSheet('purXlsx', { from:PUR_F.from, to:PUR_F.to, status:PUR_F.status,
-                         buyerType:PUR_F.buyerType, project:PUR_F.project, t:Date.now() }, function(r){
+                         buyerType:PUR_F.buyerType, project:PUR_F.project,
+                         period:(window._puPeriod||'month'), t:Date.now() }, function(r){
     if(!(r && r.status==='ok')){ showToast((r&&r.message)?r.message:'خطا در ساختِ فایل'); return; }
     var f = r.file || {};
     if(f.url){ try{ window.open(f.url, '_blank'); }catch(e){} showToast('فایل آماده شد ✓'); }
@@ -10616,6 +10757,326 @@ function purXlsx(){
       }catch(e){ showToast('خطا در دانلود'); }
     }
   }, 180000);
+}
+// کارتِ یک فاکتورِ چندقلمی — اقلام کنارِ هم، عملیات روی کلِ فاکتور
+function purInvoiceHtml(invId, g){
+  var total = 0, pend = 0, appr = 0, rej = 0, refunded = 0;
+  g.forEach(function(r){
+    total += (+r.amount||0);
+    if(r.status==='pending') pend++;
+    else if(r.status==='rejected') rej++;
+    else appr++;
+    if(r.refunded) refunded++;
+  });
+  var allPend = (pend === g.length), allAppr = (appr === g.length), allRef = (refunded === g.length);
+  var head = g[0];
+  var stColor = allPend ? '#f0c674' : (rej===g.length ? '#f0a6a8' : '#9ee0a8');
+  var stText  = allPend ? 'در انتظار تأیید' : (rej===g.length ? 'ردشده' : (allAppr ? 'تأییدشده' : 'وضعیتِ مختلط'));
+  var canEdit = PUR_ISADMIN || allPend;
+
+  // پروژه‌های درگیر
+  var projs = {}; g.forEach(function(r){ if(r.project) projs[r.project]=1; });
+  var projList = Object.keys(projs);
+
+  var items = g.map(function(r){
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 9px;border-bottom:1px solid #161b2c;font-size:12px">'
+      + '<div style="min-width:0"><span style="color:#dfe3f5">'+escapeHtml(r.title)+'</span>'
+      +   (r.project?('<span style="color:#8a93b2;font-size:10.5px"> · 📁 '+escapeHtml(r.project)+'</span>'):'')
+      +   (r.status==='pending'?'<span style="color:#f0c674;font-size:10px"> ⏳</span>':'')
+      + '</div>'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">'
+      +   '<span style="color:#9ec5ff;font-weight:600;white-space:nowrap">'+prToFa(fmtMoney(r.amount))+'</span>'
+      +   (PUR_ISADMIN?('<button onclick="purEditForm(\'' + r.id + '\')" title="ویرایشِ این قلم" style="cursor:pointer;border:1px solid #232742;background:transparent;color:#7ab8ff;border-radius:4px;padding:1px 6px;font-size:10px;font-family:inherit">✏️</button>'):'')
+      + '</div></div>';
+  }).join('');
+
+  var acts = '';
+  if(PUR_ISADMIN && pend > 0){
+    acts += '<button onclick="purInvAct(\'' + invId + '\',\'approve\')" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:6px;padding:4px 11px;font-size:11px;font-weight:600">✓ تأییدِ کلِ فاکتور</button> ';
+    acts += '<button onclick="purInvAct(\'' + invId + '\',\'reject\')" style="cursor:pointer;border:1px solid #5a4a2a;background:transparent;color:#f0c674;border-radius:6px;padding:4px 11px;font-size:11px">رد</button> ';
+  }
+  if(PUR_ISADMIN && allAppr){
+    acts += '<button onclick="purInvAct(\'' + invId + '\',\'' + (allRef?'unrefund':'refund') + '\')" style="cursor:pointer;border:1px solid '
+         + (allRef?'#2f5236':'#5a4a2a') + ';background:transparent;color:' + (allRef?'#9ee0a8':'#f0c674')
+         + ';border-radius:6px;padding:4px 11px;font-size:11px">' + (allRef?'✓ پول برگشته':'💰 ثبتِ بازپرداخت') + '</button> ';
+  }
+  if(canEdit) acts += '<button onclick="purPickImage(\'' + head.id + '\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:4px 11px;font-size:11px">🧾 ' + (head.imageFileId?'تعویضِ فاکتور':'افزودنِ فاکتور') + '</button> ';
+  if(canEdit) acts += '<button onclick="purInvDelAsk(\'' + invId + '\',' + g.length + ')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:4px 11px;font-size:11px">حذفِ فاکتور</button>';
+
+  var cardHtml = head.cardNumber
+    ? '<div style="display:flex;align-items:center;gap:6px;margin-top:5px">'
+      + '<span style="font-family:monospace;font-size:11.5px;color:#9ec5ff;letter-spacing:.5px;direction:ltr">💳 '+escapeHtml(purFmtCard(head.cardNumber))+'</span>'
+      + '<button onclick="purCopyCard(\'' + head.cardNumber + '\')" title="کپی" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#7ab8ff;border-radius:5px;padding:2px 8px;font-size:10px;font-family:inherit">📋 کپی</button></div>'
+    : '';
+
+  return '<div style="border:1px solid ' + (pend>0?'#5a4a2a':'#2a3a66') + ';border-radius:9px;margin-bottom:8px;overflow:hidden;background:' + (pend>0?'#1a1710':'#0e1220') + '">'
+    + '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;background:rgba(255,255,255,.02)">'
+    +   '<div style="min-width:0;flex:1">'
+    +     '<div style="font-weight:700;font-size:13px;color:#dfe3f5">🧾 فاکتور · '+prToFa(g.length)+' قلم'
+    +       ' <span style="font-size:10.5px;color:'+stColor+';font-weight:400">· '+stText+'</span>'
+    +       (allRef?' <span style="font-size:10.5px;color:#9ee0a8">· پول برگشته</span>':'')+'</div>'
+    +     '<div style="font-size:11.5px;color:#8a93b2;margin-top:3px">'+(head.buyerType==='student'?'🎓 ':'👤 ')+escapeHtml(head.buyer)+'</div>'
+    +     (head.reason?('<div style="font-size:11px;color:#8a93b2;margin-top:3px">🎯 '+escapeHtml(head.reason)+'</div>'):'')
+    +     (projList.length?('<div style="font-size:11px;color:#8a93b2;margin-top:3px">📁 '+projList.map(escapeHtml).join('، ')+'</div>'):'')
+    +     cardHtml
+    +   '</div>'
+    +   '<div style="text-align:left;flex-shrink:0">'
+    +     '<div style="color:#9ec5ff;font-weight:800;font-size:15px;white-space:nowrap">'+prToFa(fmtMoney(total))+'</div>'
+    +     (head.imageFileId ? '<a href="https://drive.google.com/file/d/'+head.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">🧾 عکسِ فاکتور</a>' : '<span style="color:#5a6080;font-size:10.5px">بدون عکس</span>')
+    +   '</div>'
+    + '</div>'
+    + '<div style="background:#0b0f1c">' + items + '</div>'
+    + (acts ? '<div style="display:flex;gap:5px;flex-wrap:wrap;padding:9px 12px;border-top:1px solid #1a2440">' + acts + '</div>' : '')
+    + '</div>';
+}
+function purInvAct(invId, act){
+  var lbl = { approve:'تأیید شد ✓', reject:'رد شد', refund:'بازپرداخت ثبت شد ✓', unrefund:'بازپرداخت لغو شد' };
+  callSheet('purInvoiceAction', { invoiceId:invId, act:act, t:Date.now() }, function(res){
+    if(res && res.status==='ok'){ showToast(lbl[act]||'انجام شد'); purInit(true); }
+    else showToast((res&&res.message)?res.message:'خطا');
+  });
+}
+function purInvDelAsk(invId, n){
+  uiConfirm({ title:'حذفِ فاکتور', danger:true, okText:'حذفِ کاملِ فاکتور', cancelText:'انصراف',
+    html:'<div style="color:#c7cce0;font-size:13px;margin-bottom:7px">کلِ این فاکتور با <b>'+prToFa(n)+' قلم</b> حذف شود؟</div>'
+        +'<div style="color:#f0a6a8;font-size:12px;line-height:1.8">همهٔ اقلام و عکسِ فاکتور <b>کاملاً از دیتابیس</b> پاک می‌شوند و برگشت‌پذیر نیست.</div>'
+  }, function(){
+    callSheet('purInvoiceAction', { invoiceId:invId, act:'delete', t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('فاکتور حذف شد'); purInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا');
+    });
+  });
+}
+
+// ═══ فرمِ فاکتورِ چندقلمی ═══
+var PUR_ITEMS = [];
+function purInvForm(){
+  var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
+  var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
+  window._piDate = today; window._piProj=''; window._piReason=''; window._piCode=''; window._piCard='';
+  PUR_ITEMS = [ {title:'',amount:'',project:''} ];
+  var inp = 'width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px';
+  var lbl = 'color:#8a93b2;font-size:11.5px;margin-bottom:4px;display:block';
+  var html =
+     '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:11px;line-height:1.8">'
+   +   'یک فاکتور با چند قلمِ کالا. اطلاعاتِ بالا برای همه مشترک است؛ اگر قلمی پروژهٔ متفاوتی دارد، فقط همان را عوض کن.</div>'
+   + '<label style="'+lbl+'">تاریخِ فاکتور</label>'
+   + '<input id="pi-date" value="'+escapeHtml(today)+'" oninput="window._piDate=this.value" style="'+inp+';text-align:center;margin-bottom:9px">'
+   + '<label style="'+lbl+'">پروژهٔ پیش‌فرضِ همهٔ اقلام</label>'
+   + '<input id="pi-proj" oninput="window._piProj=this.value" placeholder="مثلاً ماکت · یا: عمومی آزمایشگاه" style="'+inp+';margin-bottom:9px">'
+   + '<label style="'+lbl+'">برای چه کاری؟ (مشترک)</label>'
+   + '<input id="pi-reason" oninput="window._piReason=this.value" placeholder="مثلاً خریدِ ملزوماتِ ساختِ ماکت" style="'+inp+';margin-bottom:9px">'
+   + '<label style="'+lbl+'">شمارهٔ کارت</label>'
+   + '<div style="display:flex;gap:6px;margin-bottom:5px">'
+   +   '<input id="pi-card" inputmode="numeric" placeholder="۶۲۲۱ ۰۶۱۲ ۴۱۱۳ ۵۲۱۱" style="'+inp+';flex:1;text-align:center;letter-spacing:1px;font-family:monospace;direction:ltr">'
+   +   '<button type="button" onclick="purInvPrevCards()" style="flex-shrink:0;cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:7px;padding:0 12px;font-size:11.5px;font-family:inherit;white-space:nowrap">💳 قبلی</button>'
+   + '</div>'
+   + '<div id="pi-card-msg" style="font-size:11px;min-height:15px;margin-bottom:6px"></div>'
+   + '<div id="pi-card-list" style="display:none;margin-bottom:9px"></div>'
+   + '<div style="border-top:1px solid #232742;margin:12px 0 10px;padding-top:12px">'
+   +   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+   +     '<span style="color:#c7cce0;font-size:12.5px;font-weight:700">اقلامِ فاکتور</span>'
+   +     '<button type="button" onclick="purItemAdd()" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:7px;padding:5px 12px;font-size:11.5px;font-family:inherit">➕ افزودنِ قلم</button>'
+   +   '</div>'
+   +   '<div id="pi-items"></div>'
+   +   '<div id="pi-total" style="text-align:left;color:#9ec5ff;font-weight:800;font-size:14px;margin-top:8px;padding-top:8px;border-top:1px dashed #232742"></div>'
+   + '</div>';
+  uiConfirm({ title:'ثبتِ فاکتور (چند قلم)', html:html, okText:'ثبتِ فاکتور', cancelText:'انصراف', danger:false }, function(){
+    purInvSubmit();
+  });
+  setTimeout(function(){ purItemsRender(); purInvWireCard(); }, 40);
+}
+function purItemAdd(){ PUR_ITEMS.push({title:'',amount:'',project:''}); purItemsRender(); }
+function purItemDel(i){ if(PUR_ITEMS.length<=1) return; PUR_ITEMS.splice(i,1); purItemsRender(); }
+function purItemSet(i, k, v){
+  if(!PUR_ITEMS[i]) return;
+  if(k==='amount'){
+    var raw = String(v).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[^0-9]/g,'');
+    PUR_ITEMS[i].amount = raw;
+    var el = document.getElementById('pi-amt-'+i);
+    if(el) el.value = raw ? fmtMoney(raw) : '';
+  } else PUR_ITEMS[i][k] = v;
+  purItemsTotal();
+}
+function purItemsTotal(){
+  var t = 0; PUR_ITEMS.forEach(function(it){ t += (parseFloat(it.amount)||0); });
+  var el = document.getElementById('pi-total');
+  if(el) el.innerHTML = t ? ('جمعِ فاکتور: <span style="font-size:16px">'+prToFa(fmtMoney(t))+'</span> تومان') : '';
+}
+function purItemsRender(){
+  var box = document.getElementById('pi-items'); if(!box) return;
+  var si = 'width:100%;box-sizing:border-box;background:#0c1120;border:1px solid #232742;border-radius:6px;color:#e2e4f0;padding:7px 8px;font-size:12.5px';
+  box.innerHTML = PUR_ITEMS.map(function(it,i){
+    return '<div style="border:1px solid #1e2439;border-radius:8px;padding:9px;margin-bottom:7px;background:#0e1220">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +   '<span style="color:#7ab8ff;font-size:11px;font-weight:700">قلم '+prToFa(i+1)+'</span>'
+      +   (PUR_ITEMS.length>1 ? '<button type="button" onclick="purItemDel('+i+')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:5px;padding:2px 9px;font-size:10.5px;font-family:inherit">حذف</button>' : '')
+      + '</div>'
+      + '<input value="'+escapeHtml(it.title||'')+'" oninput="purItemSet('+i+',\'title\',this.value)" placeholder="نامِ کالا" style="'+si+';margin-bottom:6px">'
+      + '<div style="display:flex;gap:6px">'
+      +   '<input id="pi-amt-'+i+'" value="'+(it.amount?escapeHtml(fmtMoney(it.amount)):'')+'" oninput="purItemSet('+i+',\'amount\',this.value)" inputmode="numeric" placeholder="مبلغ" style="'+si+';flex:1;text-align:center;font-weight:700">'
+      +   '<input value="'+escapeHtml(it.project||'')+'" oninput="purItemSet('+i+',\'project\',this.value)" placeholder="پروژه (اگر فرق دارد)" style="'+si+';flex:1.3">'
+      + '</div></div>';
+  }).join('');
+  purItemsTotal();
+}
+function purInvWireCard(){
+  var cd = document.getElementById('pi-card'); if(!cd) return;
+  cd.addEventListener('input', function(){
+    var raw = purNormCard(this.value).slice(0,16);
+    window._piCard = raw;
+    this.value = purFmtCard(raw);
+    var m = document.getElementById('pi-card-msg');
+    if(m){
+      if(!raw) m.textContent='';
+      else if(raw.length===16){ m.style.color='#9ee0a8'; m.textContent='✓ شمارهٔ کارت معتبر است'; }
+      else { m.style.color='#f0c674'; m.textContent=prToFa(raw.length)+' رقم از ۱۶ رقم'; }
+    }
+  });
+}
+function purInvPrevCards(){
+  var box = document.getElementById('pi-card-list'); if(!box) return;
+  if(box.style.display==='block'){ box.style.display='none'; return; }
+  box.innerHTML = '<div style="color:#8a93b2;font-size:11.5px;padding:8px;text-align:center">در حال خواندن...</div>';
+  box.style.display='block';
+  callSheet('purMyCards', { t:Date.now() }, function(r){
+    if(!(r&&r.status==='ok')||!(r.cards||[]).length){
+      box.innerHTML='<div style="border:1px solid #232742;border-radius:8px;padding:11px;text-align:center;color:#8a93b2;font-size:11.5px">هنوز کارتی ثبت نکرده‌ای.</div>';
+      return;
+    }
+    box.innerHTML='<div style="border:1px solid #2a3a66;border-radius:9px;overflow:hidden;background:#12151f">'
+      + (r.cards||[]).map(function(c){
+          return '<div onclick="purInvUseCard(\'' + c.card + '\')" style="cursor:pointer;padding:10px 11px;border-bottom:1px solid #1a2038;display:flex;justify-content:space-between;gap:8px" '
+            + 'onmouseover="this.style.background=\'#1e2439\'" onmouseout="this.style.background=\'transparent\'">'
+            + '<span style="font-family:monospace;font-size:13px;color:#dfe3f5;letter-spacing:1px;direction:ltr">'+escapeHtml(purFmtCard(c.card))+'</span>'
+            + '<span style="color:#8a93b2;font-size:10.5px">'+prToFa(c.count)+' بار</span></div>';
+        }).join('') + '</div>';
+  });
+}
+function purInvUseCard(card){
+  window._piCard = card;
+  var el = document.getElementById('pi-card'); if(el) el.value = purFmtCard(card);
+  var m = document.getElementById('pi-card-msg');
+  if(m){ m.style.color='#9ee0a8'; m.textContent='✓ شمارهٔ کارت انتخاب شد'; }
+  var b = document.getElementById('pi-card-list'); if(b) b.style.display='none';
+}
+function purInvSubmit(){
+  var items = PUR_ITEMS.filter(function(it){ return String(it.title||'').trim() || String(it.amount||'').trim(); });
+  if(!items.length){ showToast('حداقل یک قلمِ کالا وارد کن'); return; }
+  for(var i=0;i<items.length;i++){
+    if(!String(items[i].title||'').trim()){ showToast('نامِ کالای قلمِ '+prToFa(i+1)+' خالی است'); return; }
+    if(!(parseFloat(items[i].amount)>0)){ showToast('مبلغِ قلمِ '+prToFa(i+1)+' وارد نشده'); return; }
+  }
+  var card = purNormCard(window._piCard||'');
+  if(card && card.length!==16){ showToast('شمارهٔ کارت باید ۱۶ رقم باشد'); return; }
+  showToast('در حال ثبتِ '+prToFa(items.length)+' قلم...');
+  callSheet('purAddInvoice', {
+    date:(window._piDate||''), project:(window._piProj||''), reason:(window._piReason||''),
+    cardNumber:card, items: JSON.stringify(items), t:Date.now()
+  }, function(res){
+    if(res && res.status==='ok'){
+      showToast('فاکتور با '+prToFa(res.count)+' قلم ثبت شد ✓');
+      PUR_SUG = null; purInit(true);
+    } else showToast((res&&res.message)?res.message:'خطا در ثبت');
+  });
+}
+
+// ── شمارهٔ کارت ──
+function purNormCard(v){
+  return String(v==null?'':v)
+    .replace(/[۰-۹]/g, function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+    .replace(/[٠-٩]/g, function(d){ return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+    .replace(/[^0-9]/g, '');
+}
+function purFmtCard(v){
+  var c = purNormCard(v);
+  return c ? c.replace(/(\d{4})(?=\d)/g, '$1 ') : '';
+}
+// انتخابگرِ کارت‌های قبلی — در تمِ سایت، نه پنجرهٔ مرورگر
+function purPrevCards(){
+  var box = document.getElementById('pu-card-list');
+  var btn = document.getElementById('pu-card-btn');
+  if(!box) return;
+  if(box.style.display === 'block'){ box.style.display='none'; return; }
+  box.innerHTML = '<div style="color:#8a93b2;font-size:11.5px;padding:8px;text-align:center">در حال خواندن...</div>';
+  box.style.display = 'block';
+  callSheet('purMyCards', { t:Date.now() }, function(r){
+    if(!(r && r.status==='ok') || !(r.cards||[]).length){
+      box.innerHTML = '<div style="border:1px solid #232742;border-radius:8px;padding:11px;text-align:center;color:#8a93b2;font-size:11.5px">'
+        + 'هنوز کارتی ثبت نکرده‌ای — این اولین بار است.</div>';
+      return;
+    }
+    box.innerHTML = '<div style="border:1px solid #2a3a66;border-radius:9px;overflow:hidden;background:#12151f">'
+      + '<div style="color:#8a93b2;font-size:11px;padding:8px 11px;border-bottom:1px solid #1a2038">کارت‌هایی که قبلاً استفاده کرده‌ای:</div>'
+      + (r.cards||[]).map(function(c){
+          return '<div onclick="purUseCard(\'' + c.card + '\')" '
+            + 'style="cursor:pointer;padding:10px 11px;border-bottom:1px solid #1a2038;display:flex;justify-content:space-between;align-items:center;gap:8px" '
+            + 'onmouseover="this.style.background=\'#1e2439\'" onmouseout="this.style.background=\'transparent\'">'
+            + '<span style="font-family:monospace;font-size:13px;color:#dfe3f5;letter-spacing:1px;direction:ltr">'+escapeHtml(purFmtCard(c.card))+'</span>'
+            + '<span style="color:#8a93b2;font-size:10.5px;white-space:nowrap">'+prToFa(c.count)+' بار'+(c.last?(' · '+prToFa(c.last)):'')+'</span>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+  });
+}
+function purUseCard(card){
+  window._puCard = card;
+  var el = document.getElementById('pu-card');
+  if(el) el.value = purFmtCard(card);
+  var m = document.getElementById('pu-card-msg');
+  if(m){ m.style.color='#9ee0a8'; m.textContent='✓ شمارهٔ کارت انتخاب شد'; }
+  var box = document.getElementById('pu-card-list'); if(box) box.style.display='none';
+}
+// کپیِ شمارهٔ کارت (برای ادمین موقعِ بازپرداخت)
+function purCopyCard(card){
+  var txt = purNormCard(card);
+  function done(){ showToast('شمارهٔ کارت کپی شد ✓'); }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done, function(){ purCopyFallback(txt, done); });
+    } else purCopyFallback(txt, done);
+  }catch(e){ purCopyFallback(txt, done); }
+}
+function purCopyFallback(txt, cb){
+  try{
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove(); cb();
+  }catch(e){ showToast('کپی نشد — دستی بردار: '+txt); }
+}
+
+// ── عکسِ فاکتورِ خرید ──
+function purPickImage(id){
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = function(){
+    var f = this.files && this.files[0];
+    if(!f) return;
+    showToast('در حال فشرده‌سازی و آپلود...');
+    compressImage(f, 1400, 0.72).then(function(img){
+      fetch(SHEET_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'purUploadImage', token:SESSION_TOKEN, id:id,
+                               base64:img.base64, mime:img.mime })
+      }).then(function(r){ return r.json(); }).then(function(res){
+        if(res && res.status==='ok'){ showToast('عکسِ فاکتور ذخیره شد ✓'); purInit(true); }
+        else showToast((res&&res.message)?res.message:'خطا در آپلود');
+      }).catch(function(){ showToast('خطا در ارتباط'); });
+    }).catch(function(){ showToast('خطا در خواندنِ عکس'); });
+  };
+  inp.click();
+}
+function purRemoveImage(id){
+  uiConfirm({ title:'حذفِ عکسِ فاکتور', okText:'حذف', cancelText:'انصراف', danger:true,
+    html:'<div style="color:#c7cce0;font-size:13px">عکسِ فاکتورِ این خرید حذف شود؟ خودِ خرید باقی می‌ماند.</div>'
+  }, function(){
+    fetch(SHEET_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'purDeleteImage', token:SESSION_TOKEN, id:id })
+    }).then(function(r){ return r.json(); }).then(function(res){
+      if(res && res.status==='ok'){ showToast('عکس حذف شد'); purInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا');
+    }).catch(function(){ showToast('خطا در ارتباط'); });
+  });
 }
 // ═══════════ پنلِ دانشجوها (مرحلهٔ ۵-الف) ═══════════
 var STU_LIST = [], STU_TAB = 'pending', STU_LOADING = false;
@@ -11639,8 +12100,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V341 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V341";
+try{ if(window.console) console.log('%c iPrint3D FRONT V346 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V346";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
