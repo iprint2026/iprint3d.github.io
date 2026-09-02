@@ -168,6 +168,7 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
       <div class="tabs">
         <button class="tab tab-on" id="nv-cal" onclick="goTab('cal')" style="flex:1">🗓️ تقویم رزرو</button>
         <button class="tab" id="nv-mine" onclick="goTab('mine')" style="flex:1">📋 رزروهای من</button>
+        <button class="tab" id="nv-buy" onclick="goTab('buy')" style="flex:1">🧾 خریدهای من</button>
       </div>
     </div>
 
@@ -196,6 +197,94 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
     <div id="pane-mine" class="hidden">
       <div id="usageBox"></div>
       <div id="mineBody"></div>
+    </div>
+
+    <div id="pane-buy" class="hidden">
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="ttl" style="font-size:14px">🧾 خریدهای من</div>
+            <div class="sub">هزینه‌هایی که برای آزمایشگاه کرده‌ای</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="buyForm()">➕ تکی</button>
+            <button class="btn btn-primary btn-sm" onclick="buyInvForm()">🧾 فاکتور چندقلمی</button>
+          </div>
+        </div>
+      </div>
+      <div id="buyStats"></div>
+      <div id="buyBody"></div>
+    </div>
+  </div>
+
+  <!-- مودال فاکتور چندقلمی -->
+  <div id="imdl" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99;
+       display:flex;align-items:center;justify-content:center;padding:16px">
+    <div class="card" style="max-width:440px;width:100%;margin:0;max-height:92vh;overflow-y:auto">
+      <div class="ttl" style="margin-bottom:4px">🧾 ثبتِ فاکتور</div>
+      <div class="sub" style="margin-bottom:14px">یک فاکتور با چند قلمِ کالا</div>
+      <div id="imdlMsg"></div>
+      <label class="lbl">تاریخِ فاکتور</label>
+      <input class="inp" id="iv-date" style="text-align:center">
+      <label class="lbl">پروژهٔ پیش‌فرضِ همهٔ اقلام</label>
+      <input class="inp" id="iv-proj" placeholder="مثلاً پایان‌نامه · یا: عمومی آزمایشگاه">
+      <label class="lbl">برای چه کاری؟</label>
+      <input class="inp" id="iv-reason" placeholder="مثلاً خریدِ ملزوماتِ آزمایش">
+      <label class="lbl">شمارهٔ کارت <span class="mut">(برای بازپرداخت)</span></label>
+      <div style="display:flex;gap:6px;margin-bottom:5px">
+        <input class="inp" id="iv-card" inputmode="numeric" placeholder="۶۲۲۱ ۰۶۱۲ ۴۱۱۳ ۵۲۱۱"
+               style="flex:1;margin-bottom:0;text-align:center;letter-spacing:1px;font-family:monospace;direction:ltr">
+        <button class="btn btn-sm" onclick="ivPrevCards()" style="flex-shrink:0;padding:0 13px">💳 قبلی</button>
+      </div>
+      <div id="iv-card-msg" style="font-size:11px;min-height:15px;margin-bottom:6px"></div>
+      <div id="iv-card-list" style="display:none;margin-bottom:9px"></div>
+
+      <div style="border-top:1px solid #1e2235;margin:12px 0 10px;padding-top:12px">
+        <div class="row" style="margin-bottom:9px">
+          <span style="color:#c7cce0;font-size:13px;font-weight:700">اقلامِ فاکتور</span>
+          <button class="btn btn-sm" onclick="ivItemAdd()" style="color:#9ee0a8;border-color:#2f5236">➕ افزودنِ قلم</button>
+        </div>
+        <div id="iv-items"></div>
+        <div id="iv-total" style="text-align:left;color:#9ec5ff;font-weight:800;font-size:15px;margin-top:9px;padding-top:9px;border-top:1px dashed #1e2235"></div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+        <button class="btn btn-ghost" onclick="closeImdl()">بستن</button>
+        <button class="btn btn-primary" onclick="submitInv()">ثبتِ فاکتور</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال خرید -->
+  <div id="bmdl" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99;
+       display:flex;align-items:center;justify-content:center;padding:16px">
+    <div class="card" style="max-width:420px;width:100%;margin:0;max-height:92vh;overflow-y:auto">
+      <div class="ttl" style="margin-bottom:4px">ثبتِ خرید</div>
+      <div class="sub" style="margin-bottom:14px">پس از تأییدِ مسئولِ آزمایشگاه، در حسابت ثبت می‌شود</div>
+      <div id="bmdlMsg"></div>
+      <label class="lbl">تاریخِ خرید</label>
+      <input class="inp" id="bv-date" style="text-align:center">
+      <label class="lbl">چه چیزی خریدی؟</label>
+      <input class="inp" id="bv-title" placeholder="مثلاً چای و قند برای آزمایشگاه">
+      <label class="lbl">مبلغ (تومان)</label>
+      <input class="inp" id="bv-amt" inputmode="numeric" placeholder="۲۰۰٬۰۰۰" style="text-align:center;font-weight:700;font-size:16px">
+      <div id="bv-words" style="color:#7ab8ff;font-size:11.5px;text-align:center;min-height:16px;margin-bottom:9px"></div>
+      <label class="lbl">برای چه کاری؟</label>
+      <input class="inp" id="bv-reason" placeholder="مثلاً پذیراییِ جلسهٔ دفاع">
+      <label class="lbl">پروژه (اختیاری)</label>
+      <input class="inp" id="bv-proj" placeholder="مثلاً پایان‌نامه · یا: عمومی آزمایشگاه">
+      <label class="lbl">شمارهٔ کارت <span class="mut">(برای بازپرداختِ پول)</span></label>
+      <div style="display:flex;gap:6px;margin-bottom:5px">
+        <input class="inp" id="bv-card" inputmode="numeric" placeholder="۶۲۲۱ ۰۶۱۲ ۴۱۱۳ ۵۲۱۱"
+               style="flex:1;margin-bottom:0;text-align:center;letter-spacing:1px;font-family:monospace;direction:ltr">
+        <button class="btn btn-sm" onclick="buyPrevCards()" style="flex-shrink:0;padding:0 13px">💳 قبلی</button>
+      </div>
+      <div id="bv-card-msg" style="font-size:11px;min-height:15px;margin-bottom:6px"></div>
+      <div id="bv-card-list" style="display:none;margin-bottom:9px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+        <button class="btn btn-ghost" onclick="closeBmdl()">بستن</button>
+        <button class="btn btn-primary" onclick="submitBuy()">ثبتِ درخواست</button>
+      </div>
     </div>
   </div>
 
@@ -439,11 +528,12 @@ function submitResv(){
 
 /* ── رزروهای من ── */
 function goTab(t){
-  document.getElementById('nv-cal').className='tab'+(t==='cal'?' tab-on':'');
-  document.getElementById('nv-mine').className='tab'+(t==='mine'?' tab-on':'');
-  document.getElementById('pane-cal').className=(t==='cal'?'':'hidden');
-  document.getElementById('pane-mine').className=(t==='mine'?'':'hidden');
+  ['cal','mine','buy'].forEach(function(x){
+    var n=document.getElementById('nv-'+x); if(n) n.className='tab'+(x===t?' tab-on':'');
+    var p=document.getElementById('pane-'+x); if(p) p.className=(x===t?'':'hidden');
+  });
   if(t==='mine') loadMine();
+  if(t==='buy')  loadBuy();
 }
 function loadMine(){
   document.getElementById('mineBody').innerHTML='<div class="card mut" style="text-align:center;padding:24px">در حال بارگذاری...</div>';
@@ -511,6 +601,365 @@ function cancelResv(id){
   });
 }
 
+/* ── خریدهای من ── */
+function money(n){ n=Math.round(+n||0); return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'٬'); }
+function loadBuy(){
+  var b=document.getElementById('buyBody'); if(!b) return;
+  b.innerHTML='<div class="card mut" style="text-align:center;padding:24px">در حال بارگذاری...</div>';
+  call('pubMyPurchases',{t:Date.now()},function(r){
+    if(!(r&&r.status==='ok')){
+      if(r&&/نشست/.test(r.message||'')){ doLogout(); return; }
+      b.innerHTML='<div class="card err">'+esc((r&&r.message)||'خطا')+'</div>'; return;
+    }
+    var L=r.purchases||[];
+    var sb=document.getElementById('buyStats');
+    if(sb){
+      sb.innerHTML='<div class="card"><div style="display:flex;gap:9px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:110px;background:#0b0f1c;border:1px solid #1a2038;border-radius:10px;padding:11px;text-align:center">'
+        +  '<div style="color:#9ec5ff;font-size:17px;font-weight:800">'+fa(money(r.total))+'</div><div class="mut">مجموعِ خرید</div></div>'
+        +'<div style="flex:1;min-width:110px;background:#0b0f1c;border:1px solid #1a2038;border-radius:10px;padding:11px;text-align:center">'
+        +  '<div style="color:#f0c674;font-size:17px;font-weight:800">'+fa(money(r.owed))+'</div><div class="mut">طلبِ شما</div></div>'
+        +'</div>'
+        +(r.owed>0?'<div class="mut" style="margin-top:9px">💰 این مبلغ تأیید شده ولی هنوز به شما برگردانده نشده.</div>':'')
+        +'</div>';
+    }
+    if(!L.length){
+      b.innerHTML='<div class="card" style="text-align:center;padding:26px">'
+        +'<div style="font-size:13px;color:#8a93b2">هنوز خریدی ثبت نکرده‌ای</div>'
+        +'<div class="mut" style="margin-top:5px">اگر برای آزمایشگاه هزینه‌ای کردی، از دکمهٔ «➕ ثبت خرید» واردش کن.</div></div>';
+      return;
+    }
+    // اقلامِ یک فاکتور را کنارِ هم گروه کن
+    var groups={},order=[];
+    L.forEach(function(x){
+      var k=x.invoiceId||x.id;
+      if(!groups[k]){ groups[k]=[]; order.push(k); }
+      groups[k].push(x);
+    });
+    b.innerHTML=order.map(function(k){
+      var g=groups[k];
+      return (g.length>1) ? buyInvoiceHtml(k,g) : buyRowHtml(g[0]);
+    }).join('');
+  });
+}
+function buyRowHtml(x){
+  return (function(x){
+      var pend=(x.status==='pending'), rej=(x.status==='rejected');
+      var c=pend?'tag-pending':(rej?'tag-pending':'tag-ok');
+      var lb=pend?'در انتظار تأیید':(rej?'ردشده':'تأییدشده');
+      var meta=[];
+      if(x.reason) meta.push('🎯 '+esc(x.reason));
+      if(x.project) meta.push('📁 '+esc(x.project));
+      var cardLine = x.cardNumber
+        ? '<div style="font-family:monospace;font-size:11px;color:#9ec5ff;margin-top:4px;direction:ltr">💳 '+esc(fmtCard(x.cardNumber))+'</div>' : '';
+      return '<div class="card" style="border-color:'+(pend?'#5a4a2a':'#1e2235')+'">'
+        +'<div class="row" style="align-items:flex-start">'
+        +'<div style="min-width:0;flex:1">'
+        +  '<div style="font-weight:700;font-size:13.5px">'+esc(x.title)
+        +    ' <span class="tag '+c+'">'+lb+'</span>'
+        +    (x.refunded?' <span class="tag tag-ok">پول برگشته</span>':'')+'</div>'
+        +  '<div class="sub">📅 '+esc(fa(x.date))+'</div>'
+        +  (meta.length?'<div class="mut" style="margin-top:4px">'+meta.join(' · ')+'</div>':'')
+        +  cardLine
+        +'</div>'
+        +'<div style="text-align:left;flex-shrink:0">'
+        +  '<div style="color:#9ec5ff;font-weight:800;font-size:14px;white-space:nowrap">'+fa(money(x.amount))+'</div>'
+        +  (x.imageFileId?'<a href="https://drive.google.com/file/d/'+x.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">🧾 فاکتور</a>':'')
+        +'</div></div>'
+        +(pend?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid #1a2038">'
+          +'<button class="btn btn-ghost btn-sm" onclick="buyPickImage(\'' + x.id + '\')">🧾 '+(x.imageFileId?'تعویضِ فاکتور':'افزودنِ فاکتور')+'</button>'
+          +'<button class="btn btn-ghost btn-sm" onclick="buyCancel(\'' + x.id + '\')" style="color:#f0a6a8;border-color:#5a2a2a">حذف</button>'
+          +'</div>'):'')
+        +'</div>';
+  })(x);
+}
+// کارتِ فاکتورِ چندقلمی در پنلِ دانشجو
+function buyInvoiceHtml(invId, g){
+  var total=0, pend=0, refunded=0;
+  g.forEach(function(r){
+    total+=(+r.amount||0);
+    if(r.status==='pending') pend++;
+    if(r.refunded) refunded++;
+  });
+  var allPend=(pend===g.length), allRef=(refunded===g.length);
+  var head=g[0];
+  var c=allPend?'tag-pending':'tag-ok';
+  var lb=allPend?'در انتظار تأیید':(pend>0?'وضعیتِ مختلط':'تأییدشده');
+  var projs={}; g.forEach(function(r){ if(r.project) projs[r.project]=1; });
+  var pl=Object.keys(projs);
+  var items=g.map(function(r){
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid #161b2c;font-size:12.5px">'
+      +'<div style="min-width:0"><span style="color:#dfe3f5">'+esc(r.title)+'</span>'
+      + (r.project?('<span class="mut" style="font-size:10.5px"> · 📁 '+esc(r.project)+'</span>'):'')+'</div>'
+      +'<span style="color:#9ec5ff;font-weight:600;white-space:nowrap">'+fa(money(r.amount))+'</span></div>';
+  }).join('');
+  return '<div class="card" style="padding:0;overflow:hidden;border-color:'+(allPend?'#5a4a2a':'#1e2235')+'">'
+    +'<div style="padding:13px 13px 11px">'
+    +  '<div class="row" style="align-items:flex-start">'
+    +    '<div style="min-width:0;flex:1">'
+    +      '<div style="font-weight:700;font-size:13.5px">🧾 فاکتور · '+fa(g.length)+' قلم'
+    +        ' <span class="tag '+c+'">'+lb+'</span>'
+    +        (allRef?' <span class="tag tag-ok">پول برگشته</span>':'')+'</div>'
+    +      '<div class="sub">📅 '+esc(fa(head.date))+'</div>'
+    +      (head.reason?('<div class="mut" style="margin-top:4px">🎯 '+esc(head.reason)+'</div>'):'')
+    +      (pl.length?('<div class="mut" style="margin-top:3px">📁 '+pl.map(esc).join('، ')+'</div>'):'')
+    +      (head.cardNumber?('<div style="font-family:monospace;font-size:11px;color:#9ec5ff;margin-top:4px;direction:ltr">💳 '+esc(fmtCard(head.cardNumber))+'</div>'):'')
+    +    '</div>'
+    +    '<div style="text-align:left;flex-shrink:0">'
+    +      '<div style="color:#9ec5ff;font-weight:800;font-size:15px;white-space:nowrap">'+fa(money(total))+'</div>'
+    +      (head.imageFileId?'<a href="https://drive.google.com/file/d/'+head.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">🧾 فاکتور</a>':'')
+    +    '</div>'
+    +  '</div></div>'
+    +'<div style="background:#0b0d14">'+items+'</div>'
+    +(allPend?('<div style="display:flex;gap:6px;flex-wrap:wrap;padding:11px 13px;border-top:1px solid #1a1d2e">'
+      +'<button class="btn btn-ghost btn-sm" onclick="buyPickImage(\'' + head.id + '\')">🧾 '+(head.imageFileId?'تعویضِ فاکتور':'افزودنِ فاکتور')+'</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="buyInvCancel(\'' + invId + '\',' + g.length + ')" style="color:#f0a6a8;border-color:#5a2a2a">حذفِ فاکتور</button>'
+      +'</div>'):'')
+    +'</div>';
+}
+function buyInvCancel(invId, n){
+  if(!confirm('کلِ این فاکتور با '+n+' قلم حذف شود؟')) return;
+  call('pubInvoiceCancel',{invoiceId:invId,t:Date.now()},function(r){
+    if(r&&r.status==='ok') loadBuy();
+    else alert((r&&r.message)?r.message:'حذف نشد');
+  });
+}
+function buyForm(){
+  var t=todayJ();
+  document.getElementById('bv-date').value=key(t.y,t.m,t.d);
+  ['bv-title','bv-amt','bv-reason','bv-proj'].forEach(function(i){ document.getElementById(i).value=''; });
+  document.getElementById('bv-words').textContent='';
+  msg('bmdlMsg','');
+  document.getElementById('bmdl').className='';
+  var a=document.getElementById('bv-amt');
+  a.oninput=function(){
+    var raw=la(this.value).replace(/[^0-9]/g,'');
+    this.value=raw?money(raw):'';
+    document.getElementById('bv-words').textContent=raw?(fa(money(raw))+' تومان'):'';
+  };
+  document.getElementById('bv-card').value='';
+  document.getElementById('bv-card-msg').textContent='';
+  document.getElementById('bv-card-list').style.display='none';
+  var cd=document.getElementById('bv-card');
+  cd.oninput=function(){
+    var raw=normCard(this.value).slice(0,16);
+    this.value=fmtCard(raw);
+    var m=document.getElementById('bv-card-msg');
+    if(!raw){ m.textContent=''; }
+    else if(raw.length===16){ m.style.color='#9ee0a8'; m.textContent='✓ شمارهٔ کارت معتبر است'; }
+    else { m.style.color='#f0c674'; m.textContent=fa(raw.length)+' رقم از ۱۶ رقم'; }
+  };
+}
+function closeBmdl(){ document.getElementById('bmdl').className='hidden'; }
+function submitBuy(){
+  var title=(document.getElementById('bv-title').value||'').trim();
+  var amt=la(document.getElementById('bv-amt').value||'').replace(/[^0-9]/g,'');
+  var date=(document.getElementById('bv-date').value||'').trim();
+  var reason=(document.getElementById('bv-reason').value||'').trim();
+  var proj=(document.getElementById('bv-proj').value||'').trim();
+  if(!title){ msg('bmdlMsg','بنویس چه چیزی خریدی'); return; }
+  if(!(parseFloat(amt)>0)){ msg('bmdlMsg','مبلغ را وارد کن'); return; }
+  var card=normCard(document.getElementById('bv-card').value||'');
+  if(card && card.length!==16){ msg('bmdlMsg','شمارهٔ کارت باید ۱۶ رقم باشد'); return; }
+  msg('bmdlMsg','در حال ثبت...','ok');
+  call('pubPurchaseAdd',{date:date,title:title,amount:amt,reason:reason,project:proj,cardNumber:card,t:Date.now()},function(r){
+    if(r&&r.status==='ok'){
+      closeBmdl(); loadBuy();
+      alert('✓ خریدِ شما ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.\nمی‌توانی عکسِ فاکتور را هم اضافه کنی.');
+    } else msg('bmdlMsg',(r&&r.message)?r.message:'ثبت نشد');
+  });
+}
+function buyCancel(id){
+  if(!confirm('این خرید حذف شود؟')) return;
+  call('pubPurchaseCancel',{id:id,t:Date.now()},function(r){
+    if(r&&r.status==='ok') loadBuy();
+    else alert((r&&r.message)?r.message:'حذف نشد');
+  });
+}
+function buyPickImage(id){
+  var inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*';
+  inp.onchange=function(){
+    var f=this.files&&this.files[0]; if(!f) return;
+    alert('در حال آپلود... چند لحظه صبر کن.');
+    shrink(f,1400,0.72,function(img){
+      if(!img){ alert('خطا در خواندنِ عکس'); return; }
+      fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({action:'purUploadImage',stuToken:TOK,id:id,base64:img.base64,mime:img.mime})
+      }).then(function(r){return r.json();}).then(function(res){
+        if(res&&res.status==='ok'){ alert('✓ عکسِ فاکتور ذخیره شد'); loadBuy(); }
+        else alert((res&&res.message)?res.message:'خطا در آپلود');
+      }).catch(function(){ alert('خطا در ارتباط'); });
+    });
+  };
+  inp.click();
+}
+// فشرده‌سازیِ عکس قبل از آپلود (تا حجمِ Drive بی‌دلیل بالا نرود)
+function shrink(file, maxSize, q, cb){
+  try{
+    var rd=new FileReader();
+    rd.onload=function(e){
+      var im=new Image();
+      im.onload=function(){
+        var c=document.createElement('canvas'), w=im.width, h=im.height;
+        if(w>maxSize||h>maxSize){
+          if(w>h){ h=Math.round(h*maxSize/w); w=maxSize; }
+          else   { w=Math.round(w*maxSize/h); h=maxSize; }
+        }
+        c.width=w; c.height=h;
+        c.getContext('2d').drawImage(im,0,0,w,h);
+        var du=c.toDataURL('image/jpeg',q);
+        cb({ base64:du.split(',')[1], mime:'image/jpeg' });
+      };
+      im.onerror=function(){ cb(null); };
+      im.src=e.target.result;
+    };
+    rd.onerror=function(){ cb(null); };
+    rd.readAsDataURL(file);
+  }catch(err){ cb(null); }
+}
+
+/* ── فاکتورِ چندقلمی ── */
+var IV_ITEMS = [];
+function buyInvForm(){
+  var t=todayJ();
+  document.getElementById('iv-date').value=key(t.y,t.m,t.d);
+  ['iv-proj','iv-reason','iv-card'].forEach(function(i){ document.getElementById(i).value=''; });
+  document.getElementById('iv-card-msg').textContent='';
+  document.getElementById('iv-card-list').style.display='none';
+  msg('imdlMsg','');
+  IV_ITEMS=[{title:'',amount:'',project:''}];
+  ivItemsRender();
+  document.getElementById('imdl').className='';
+  var cd=document.getElementById('iv-card');
+  cd.oninput=function(){
+    var raw=normCard(this.value).slice(0,16);
+    this.value=fmtCard(raw);
+    var m=document.getElementById('iv-card-msg');
+    if(!raw){ m.textContent=''; }
+    else if(raw.length===16){ m.style.color='#9ee0a8'; m.textContent='✓ شمارهٔ کارت معتبر است'; }
+    else { m.style.color='#f0c674'; m.textContent=fa(raw.length)+' رقم از ۱۶ رقم'; }
+  };
+}
+function closeImdl(){ document.getElementById('imdl').className='hidden'; }
+function ivItemAdd(){ IV_ITEMS.push({title:'',amount:'',project:''}); ivItemsRender(); }
+function ivItemDel(i){ if(IV_ITEMS.length<=1) return; IV_ITEMS.splice(i,1); ivItemsRender(); }
+function ivItemSet(i,k,v){
+  if(!IV_ITEMS[i]) return;
+  if(k==='amount'){
+    var raw=la(v).replace(/[^0-9]/g,'');
+    IV_ITEMS[i].amount=raw;
+    var el=document.getElementById('iv-amt-'+i);
+    if(el) el.value=raw?money(raw):'';
+  } else IV_ITEMS[i][k]=v;
+  ivTotal();
+}
+function ivTotal(){
+  var t=0; IV_ITEMS.forEach(function(x){ t+=(parseFloat(x.amount)||0); });
+  var el=document.getElementById('iv-total');
+  if(el) el.innerHTML = t ? ('جمعِ فاکتور: <span style="font-size:17px">'+fa(money(t))+'</span> تومان') : '';
+}
+function ivItemsRender(){
+  var box=document.getElementById('iv-items'); if(!box) return;
+  var si='width:100%;box-sizing:border-box;background:#0b0d14;border:1px solid #1e2235;border-radius:9px;color:#e2e4f0;padding:10px;font-size:14px;font-family:inherit';
+  box.innerHTML=IV_ITEMS.map(function(it,i){
+    return '<div style="border:1px solid #1a1d2e;border-radius:11px;padding:11px;margin-bottom:8px;background:#0f1119">'
+      +'<div class="row" style="margin-bottom:7px">'
+      +  '<span style="color:#7ab8ff;font-size:11.5px;font-weight:700">قلم '+fa(i+1)+'</span>'
+      +  (IV_ITEMS.length>1?'<button onclick="ivItemDel('+i+')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:3px 11px;font-size:11px;font-family:inherit">حذف</button>':'')
+      +'</div>'
+      +'<input value="'+esc(it.title||'')+'" oninput="ivItemSet('+i+',\'title\',this.value)" placeholder="نامِ کالا" style="'+si+';margin-bottom:7px">'
+      +'<input id="iv-amt-'+i+'" value="'+(it.amount?esc(money(it.amount)):'')+'" oninput="ivItemSet('+i+',\'amount\',this.value)" inputmode="numeric" placeholder="مبلغ (تومان)" style="'+si+';margin-bottom:7px;text-align:center;font-weight:700">'
+      +'<input value="'+esc(it.project||'')+'" oninput="ivItemSet('+i+',\'project\',this.value)" placeholder="پروژه (اگر با بالا فرق دارد)" style="'+si+'">'
+      +'</div>';
+  }).join('');
+  ivTotal();
+}
+function ivPrevCards(){
+  var box=document.getElementById('iv-card-list'); if(!box) return;
+  if(box.style.display==='block'){ box.style.display='none'; return; }
+  box.innerHTML='<div class="mut" style="padding:8px;text-align:center">در حال خواندن...</div>';
+  box.style.display='block';
+  call('pubMyCards',{t:Date.now()},function(r){
+    if(!(r&&r.status==='ok')||!(r.cards||[]).length){
+      box.innerHTML='<div style="border:1px solid #1e2235;border-radius:9px;padding:11px;text-align:center" class="mut">هنوز کارتی ثبت نکرده‌ای.</div>';
+      return;
+    }
+    box.innerHTML='<div style="border:1px solid #2a3a66;border-radius:11px;overflow:hidden;background:#0b0d14">'
+      +(r.cards||[]).map(function(c){
+         return '<div onclick="ivUseCard(\'' + c.card + '\')" style="cursor:pointer;padding:12px;border-bottom:1px solid #1a1d2e;display:flex;justify-content:space-between;gap:8px">'
+           +'<span style="font-family:monospace;font-size:14px;color:#dfe3f5;letter-spacing:1px;direction:ltr">'+esc(fmtCard(c.card))+'</span>'
+           +'<span class="mut">'+fa(c.count)+' بار</span></div>';
+       }).join('')+'</div>';
+  });
+}
+function ivUseCard(card){
+  var el=document.getElementById('iv-card'); if(el) el.value=fmtCard(card);
+  var m=document.getElementById('iv-card-msg');
+  if(m){ m.style.color='#9ee0a8'; m.textContent='✓ شمارهٔ کارت انتخاب شد'; }
+  var b=document.getElementById('iv-card-list'); if(b) b.style.display='none';
+}
+function submitInv(){
+  var items=IV_ITEMS.filter(function(x){ return String(x.title||'').trim() || String(x.amount||'').trim(); });
+  if(!items.length){ msg('imdlMsg','حداقل یک قلمِ کالا وارد کن'); return; }
+  for(var i=0;i<items.length;i++){
+    if(!String(items[i].title||'').trim()){ msg('imdlMsg','نامِ کالای قلمِ '+fa(i+1)+' خالی است'); return; }
+    if(!(parseFloat(items[i].amount)>0)){ msg('imdlMsg','مبلغِ قلمِ '+fa(i+1)+' وارد نشده'); return; }
+  }
+  var card=normCard(document.getElementById('iv-card').value||'');
+  if(card && card.length!==16){ msg('imdlMsg','شمارهٔ کارت باید ۱۶ رقم باشد'); return; }
+  msg('imdlMsg','در حال ثبتِ '+fa(items.length)+' قلم...','ok');
+  call('pubPurchaseInvoice',{
+    date:document.getElementById('iv-date').value||'',
+    project:document.getElementById('iv-proj').value||'',
+    reason:document.getElementById('iv-reason').value||'',
+    cardNumber:card, items:JSON.stringify(items), t:Date.now()
+  },function(r){
+    if(r&&r.status==='ok'){
+      closeImdl(); loadBuy();
+      alert('✓ فاکتورِ شما با '+fa(r.count)+' قلم ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.\nمی‌توانی عکسِ فاکتور را هم اضافه کنی.');
+    } else msg('imdlMsg',(r&&r.message)?r.message:'ثبت نشد');
+  });
+}
+
+/* ── شمارهٔ کارت ── */
+function normCard(v){
+  return String(v==null?'':v)
+    .replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);})
+    .replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);})
+    .replace(/[^0-9]/g,'');
+}
+function fmtCard(v){ var c=normCard(v); return c?c.replace(/(\d{4})(?=\d)/g,'$1 '):''; }
+function buyPrevCards(){
+  var box=document.getElementById('bv-card-list'); if(!box) return;
+  if(box.style.display==='block'){ box.style.display='none'; return; }
+  box.innerHTML='<div class="mut" style="padding:8px;text-align:center">در حال خواندن...</div>';
+  box.style.display='block';
+  call('pubMyCards',{t:Date.now()},function(r){
+    if(!(r&&r.status==='ok')||!(r.cards||[]).length){
+      box.innerHTML='<div style="border:1px solid #1e2235;border-radius:9px;padding:11px;text-align:center" class="mut">'
+        +'هنوز کارتی ثبت نکرده‌ای — این اولین بار است.</div>';
+      return;
+    }
+    box.innerHTML='<div style="border:1px solid #2a3a66;border-radius:11px;overflow:hidden;background:#0b0d14">'
+      +'<div class="mut" style="padding:9px 12px;border-bottom:1px solid #1a1d2e">کارت‌هایی که قبلاً استفاده کرده‌ای:</div>'
+      +(r.cards||[]).map(function(c){
+         return '<div onclick="buyUseCard(\'' + c.card + '\')" '
+           +'style="cursor:pointer;padding:12px;border-bottom:1px solid #1a1d2e;display:flex;justify-content:space-between;align-items:center;gap:8px">'
+           +'<span style="font-family:monospace;font-size:14px;color:#dfe3f5;letter-spacing:1px;direction:ltr">'+esc(fmtCard(c.card))+'</span>'
+           +'<span class="mut" style="white-space:nowrap">'+fa(c.count)+' بار</span></div>';
+       }).join('')
+      +'</div>';
+  });
+}
+function buyUseCard(card){
+  var el=document.getElementById('bv-card');
+  if(el) el.value=fmtCard(card);
+  var m=document.getElementById('bv-card-msg');
+  if(m){ m.style.color='#9ee0a8'; m.textContent='✓ شمارهٔ کارت انتخاب شد'; }
+  var b=document.getElementById('bv-card-list'); if(b) b.style.display='none';
+}
+
 /* ── شروع ── */
 (function(){
   try{
@@ -521,7 +970,7 @@ function cancelResv(id){
     var e=document.getElementById(i);
     if(e) e.addEventListener('keydown',function(ev){ if(ev.key==='Enter') doLogin(); });
   });
-  console.log('iPrint3D STUDENT V3');
+  console.log('iPrint3D STUDENT V6');
 })();
 </script>
 </body>
