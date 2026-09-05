@@ -878,7 +878,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V349</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V352</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -11140,6 +11140,12 @@ function stuRender(){
       : '<span style="color:#5a6080">هیچ دستگاهی مجاز نشده</span>';
     var stColor = s.status==='approved'?'#9ee0a8':(s.status==='rejected'?'#f0a6a8':'#f0c674');
     var stText = s.status==='approved'?'تأییدشده':(s.status==='rejected'?'ردشده':'در انتظار');
+    var safeName = escapeHtml(String(s.lastName)).replace(/"/g,'').replace(/\x27/g,'');
+    var nidHtml = s.nationalId
+      ? ('<span style="font-size:12px;color:#8a93b2;direction:ltr">🆔 '+escapeHtml(prToFa(s.nationalId))+'</span>'
+         + '<button onclick="stuCopy(\''+escapeHtml(String(s.nationalId))+'\')" title="کپیِ کدِ ملی" style="cursor:pointer;border:1px solid #232742;background:transparent;color:#7ab8ff;border-radius:5px;padding:1px 7px;font-size:10px;font-family:inherit">📋</button>')
+      : ('<span style="font-size:11.5px;color:#8a6a2a">🆔 کدِ ملی ثبت نشده</span>'
+         + '<button onclick="stuSetNid(\''+s.id+'\',\''+safeName+'\')" style="cursor:pointer;border:1px solid #5a4a2a;background:transparent;color:#f0c674;border-radius:5px;padding:1px 8px;font-size:10px;font-family:inherit">➕ ثبت</button>');
     var actions = '';
     if(s.status!=='approved') actions += '<button onclick="stuApprove(\''+s.id+'\')" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600">✓ تأیید و تعیین دستگاه</button> ';
     if(s.status==='approved') actions += '<button onclick="stuApprove(\''+s.id+'\')" style="cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:7px;padding:5px 12px;font-size:12px">تغییر دستگاه‌ها</button> ';
@@ -11150,7 +11156,11 @@ function stuRender(){
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'
       +   '<div>'
       +     '<div style="font-weight:700;font-size:14px;color:#dfe3f5">'+escapeHtml(s.lastName)+' <span style="font-size:11px;color:'+stColor+';font-weight:400">· '+stText+'</span></div>'
-      +     '<div style="font-size:12px;color:#8a93b2;margin-top:3px">📞 '+escapeHtml(prToFa(s.phone))+'</div>'
+      +     '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap">'
+    +       '<span style="font-size:12px;color:#8a93b2;direction:ltr">📞 '+escapeHtml(prToFa(s.phone))+'</span>'
+    +       '<button onclick="stuCopy(\''+escapeHtml(String(s.phone))+'\')" title="کپیِ شماره" style="cursor:pointer;border:1px solid #232742;background:transparent;color:#7ab8ff;border-radius:5px;padding:1px 7px;font-size:10px;font-family:inherit">📋</button>'
+    +     '</div>'
+    +     '<div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">' + nidHtml + '</div>'
       +     '<div style="font-size:11.5px;color:#8a93b2;margin-top:2px">دستگاه‌های مجاز: '+devNames+'</div>'
       +     (s.requestNote?'<div style="font-size:11.5px;color:#8a6a2a;margin-top:2px">درخواست: '+escapeHtml(s.requestNote)+'</div>':'')
       +   '</div>'
@@ -11230,6 +11240,59 @@ function wsResvDecide(id, who){
   }, 40);
 }
 
+// کدِ ملی: دقیقاً ۱۰ رقم با رقمِ کنترل
+function stuPadNid(v){
+  var x=String(v||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[^0-9]/g,'');
+  while(x.length>0 && x.length<10) x='0'+x;
+  return x;
+}
+function stuOkNid(v){
+  var c=stuPadNid(v);
+  if(c.length!==10) return false;
+  if(/^(\d)\1{9}$/.test(c)) return false;
+  var sum=0; for(var i=0;i<9;i++) sum+=(+c.charAt(i))*(10-i);
+  var r=sum%11, ctrl=+c.charAt(9);
+  return (r<2)?(ctrl===r):(ctrl===(11-r));
+}
+
+function stuCopy(txt){
+  var t = String(txt||'');
+  function done(){ showToast('کپی شد ✓'); }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function(){ purCopyFallback(t, done); });
+    else purCopyFallback(t, done);
+  }catch(e){ purCopyFallback(t, done); }
+}
+// ثبتِ کدِ ملی برای بانکِ اطلاعات — بدونِ تغییرِ رمزِ دانشجو
+function stuSetNid(id, name){
+  window._stuNidVal = '';
+  var html = '<div style="color:#8a93b2;font-size:12px;margin-bottom:9px">کدِ ملیِ «'+escapeHtml(name)+'» برای بانکِ اطلاعات ثبت شود:</div>'
+    + '<input id="stu-setnid" oninput="window._stuNidVal=this.value" inputmode="numeric" placeholder="مثلاً ۰۱۵۰۶۵۵۹۹۱" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:10px;font-size:15px;text-align:center;letter-spacing:1px;direction:ltr">'
+    + '<div id="stu-setnid-msg" style="font-size:11px;min-height:15px;margin-top:5px;text-align:center"></div>'
+    + '<div style="color:#8a6a2a;font-size:11px;margin-top:6px;line-height:1.8">این کار فقط سابقه را کامل می‌کند و <b>رمزِ دانشجو را عوض نمی‌کند</b>.</div>';
+  uiConfirm({ title:'ثبتِ کدِ ملی', html:html, okText:'ثبت', cancelText:'انصراف', danger:false }, function(){
+    var v = stuPadNid(window._stuNidVal||'');
+    if(v.length !== 10){ showToast('کدِ ملی باید دقیقاً ۱۰ رقم باشد'); return; }
+    if(!stuOkNid(v)){ showToast('کدِ ملیِ واردشده معتبر نیست'); return; }
+    callSheet('stuUpdate', { id:id, setNationalId:v, t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('کدِ ملی ثبت شد ✓'); stuInit(true); }
+      else showToast((res&&res.message)?res.message:'خطا');
+    });
+  });
+  setTimeout(function(){
+    var el = document.getElementById('stu-setnid'); if(!el) return;
+    el.addEventListener('input', function(){
+      var raw = String(this.value).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[^0-9]/g,'');
+      var m = document.getElementById('stu-setnid-msg'); if(!m) return;
+      if(!raw){ m.textContent=''; }
+      else if(raw.length<10){ m.style.color='#f0c674'; m.textContent=prToFa(raw.length)+' رقم از ۱۰ رقم'; }
+      else if(raw.length>10){ m.style.color='#f0a6a8'; m.textContent='بیشتر از ۱۰ رقم'; }
+      else if(stuOkNid(raw)){ m.style.color='#9ee0a8'; m.textContent='✓ معتبر'; }
+      else { m.style.color='#f0a6a8'; m.textContent='✗ معتبر نیست'; }
+    });
+  }, 40);
+}
+
 // تغییرِ رمزِ دانشجو توسط ادمین (رمز = کدِ ملی)
 function stuResetPass(id, name){
   window._stuNewPass = '';
@@ -11237,8 +11300,10 @@ function stuResetPass(id, name){
     + '<input id="stu-newpass" oninput="window._stuNewPass=this.value" placeholder="کد ملی / رمز جدید" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px">'
     + '<div style="color:#8a6a2a;font-size:11px;margin-top:8px">رمز به‌صورت هش‌شده ذخیره می‌شود و در هیچ‌جا قابلِ خواندن نیست.</div>';
   uiConfirm({ title:'تغییر رمزِ دانشجو', html:html, okText:'ثبتِ رمزِ جدید', cancelText:'انصراف', danger:false }, function(){
-    var np = (window._stuNewPass||'').trim();
+    var np = stuPadNid(window._stuNewPass||'');
     if(!np){ showToast('رمز نمی‌تواند خالی باشد'); return; }
+    if(np.length !== 10){ showToast('کدِ ملی باید دقیقاً ۱۰ رقم باشد'); return; }
+    if(!stuOkNid(np)){ showToast('کدِ ملیِ واردشده معتبر نیست'); return; }
     callSheet('stuUpdate', { id:id, nationalId:np, t:Date.now() }, function(res){
       if(res && res.status==='ok'){ showToast('رمز عوض شد ✓'); }
       else showToast((res&&res.message)?res.message:'خطا');
@@ -11270,8 +11335,10 @@ function stuAddManual(){
     + '<input id="stu-nid" oninput="window._stuNid=this.value" placeholder="کد ملی (رمز)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
     + '<div style="color:#8a6a2a;font-size:11px;margin-top:8px">بعد از افزودن، باید تأییدش کنی و دستگاه مجاز را تعیین کنی.</div>';
   uiConfirm({ title:'افزودن دستی دانشجو', html:html, okText:'افزودن', cancelText:'انصراف', danger:false }, function(){
-    var last=window._stuLast||'', phone=window._stuPhone||'', nid=window._stuNid||'';
-    if(!last.trim()||!phone.trim()||!nid.trim()){ showToast('همهٔ فیلدها لازم است'); return; }
+    var last=window._stuLast||'', phone=window._stuPhone||'', nid=stuPadNid(window._stuNid||'');
+    if(!last.trim()||!phone.trim()||!nid){ showToast('همهٔ فیلدها لازم است'); return; }
+    if(nid.length !== 10){ showToast('کدِ ملی باید دقیقاً ۱۰ رقم باشد'); return; }
+    if(!stuOkNid(nid)){ showToast('کدِ ملیِ واردشده معتبر نیست'); return; }
     callSheet('stuAdd', { lastName:last, phone:phone, nationalId:nid, status:'pending', t:Date.now() }, function(res){
       if(res && res.status==='ok'){ showToast('دانشجو اضافه شد ✓'); stuInit(true); }
       else showToast((res&&res.message)?res.message:'خطا در افزودن');
@@ -12100,8 +12167,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V349 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V349";
+try{ if(window.console) console.log('%c iPrint3D FRONT V352 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V352";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12146,13 +12213,109 @@ function prRenderEditBanner(){
   var b=document.getElementById('pr-edit-banner'); if(!b) return;
   if(prState.editId){ b.style.display='flex'; var c=document.getElementById('pr-edit-code'); if(c) c.textContent=prState.savedCode||''; }
   else b.style.display='none';
+  // بنرِ «سفارشِ مجدد»: سفارشِ تازه است ولی از روی یک سفارشِ قبلی ساخته شده
+  var rb = document.getElementById('pr-reorder-banner');
+  var src = (prState.order && prState.order.reorderFrom) || '';
+  if(!rb && src){
+    rb = document.createElement('div');
+    rb.id = 'pr-reorder-banner';
+    rb.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;'
+      + 'background:#0c2a20;border:1px solid #1e6e4e;border-radius:11px;padding:10px 13px;margin-bottom:12px';
+    if(b && b.parentNode) b.parentNode.insertBefore(rb, b.nextSibling);
+  }
+  if(rb){
+    if(src && !prState.editId){
+      rb.style.display = 'flex';
+      rb.innerHTML = '<div style="color:#6ee7b7;font-size:12.5px;line-height:1.8">'
+        + '🔁 <b>سفارشِ مجدد</b> از روی <b>'+escapeHtml(src)+'</b> — این یک سفارشِ <b>جدید</b> است با نرخ‌های امروز.'
+        + '<br><span style="color:#8a93b2;font-size:11px">سفارشِ قبلی دست‌نخورده است. تعداد و ضرایب را تغییر بده و ذخیره کن.</span></div>'
+        + '<button class="btn btn-ghost btn-sm" onclick="pricingNewOrder()">شروع از صفر</button>';
+    } else rb.style.display = 'none';
+  }
 }
 function pricingNewOrder(){
   prState.editId = null; prState.savedCode = ''; prState.cfgDirty = false;
   prState.loaded = false;
+  try{ if(prState.order) delete prState.order.reorderFrom; }catch(e){}
   prRenderEditBanner();
   pricingInit();
   showToast('سفارش جدید — نرخ‌ها به امروز برگشت');
+}
+// ── سفارشِ مجدد ──
+// محتوای سفارشِ قبلی (قطعات، دستگاه، زمانِ چاپ، مواد، مشتری، عکس‌ها) را برمی‌دارد
+// ولی **نرخ‌های امروز** را اعمال می‌کند و یک سفارشِ کاملاً جدید می‌سازد.
+// یعنی: همان کار، با قیمتِ روز — بدونِ اینکه سفارشِ قبلی دست بخورد.
+function pricingReorder(id){
+  callSheet('getEstimateForEdit', { id:id, t:Date.now() }, function(res){
+    if(!(res && res.status==='ok')){ showToast('خطا در بارگذاری سفارش'); return; }
+    var oldCode = res.code||'';
+    var o = res.order||{};
+    var qtyOld = (+o.qty||1);
+
+    prConfirm({
+      title:'🔁 سفارشِ مجدد',
+      okText:'بله، سفارشِ جدید بساز', cancelText:'انصراف',
+      message:'از روی سفارشِ <b>'+escapeHtml(oldCode)+'</b> یک سفارشِ <b>جدید</b> ساخته می‌شود:<br><br>'
+        +'<span style="color:#9ee0a8">✓ قطعات، دستگاه‌ها، زمانِ چاپ، مواد و عکس‌ها عیناً می‌آیند</span><br>'
+        +'<span style="color:#9ee0a8">✓ اطلاعاتِ مشتری هم پر می‌شود</span><br>'
+        +'<span style="color:#f0c674">↻ ولی نرخ‌ها و ضرایب <b>از امروز</b> گرفته می‌شود</span><br>'
+        +'<span style="color:#8a93b2">سفارشِ قبلی دست‌نخورده باقی می‌ماند.</span><br><br>'
+        +'<span style="font-size:11px;color:#8a93b2">بعد از ساخت می‌توانی تعداد و ضرایب را تغییر دهی و بعد ذخیره کنی.</span>',
+      onOk:function(){
+        // ۱) تنظیماتِ امروز را بگیر (نه تنظیماتِ ذخیره‌شدهٔ سفارشِ قبلی)
+        callSheet('getPricingConfig', { t:Date.now() }, function(cfg){
+          var c = (cfg && cfg.status==='ok' && cfg.config) ? cfg.config : (res.config||{});
+          prState.machines   = Array.isArray(c.machines)?c.machines:[];
+          prState.materials  = Array.isArray(c.materials)?c.materials:[];
+          prState.composites = Array.isArray(c.composites)?c.composites:[];
+          prState.rates      = c.rates||{labor:0,finishing:0,modeling:0};
+          prState.defaults   = c.defaults||{profit:0,institute:0,packaging:0,shipping:0};
+          prState.invoice    = c.invoice||{logoFileId:'',stampFileId:''};
+          // ضریبِ ریسک و کشِ نرخ‌های امروز هم به‌روز شود
+          try{ gBizRisk = (+((c.defaults||{}).riskFactor)>0) ? +c.defaults.riskFactor : 1; }catch(e){}
+          try{ gTodayConfig = JSON.parse(JSON.stringify(c)); }catch(e){ gTodayConfig = c; }
+
+          // ۲) محتوای سفارش را کپی کن، ولی چیزهای مخصوصِ سفارشِ قبلی را پاک کن
+          var n = JSON.parse(JSON.stringify(o));
+          delete n.code; delete n.id; delete n.status; delete n.schedule;
+          delete n.invoiceData; delete n.invoiceNo; delete n.createdAt; delete n.savedAt;
+          delete n.calcVersion;                    // با موتورِ امروز حساب شود
+          n.manualUnit = 0;                        // قیمتِ دستیِ قبلی برداشته شود
+          n.reorderFrom = oldCode;                 // ردِ سفارشِ مبدأ برای پیگیری
+          // ضرایبِ امروز به‌جای ضرایبِ ذخیره‌شده
+          if(prState.defaults){
+            if(prState.defaults.profit    != null) n.profit    = prState.defaults.profit;
+            if(prState.defaults.institute != null) n.institute = prState.defaults.institute;
+          }
+          (n.sections||[]).forEach(function(s){ if(s) s.manualUnit = 0; });
+
+          prState.order  = n;
+          prState.lines  = (res.lines||[]).map(function(l){
+            var x = JSON.parse(JSON.stringify(l)); x.id = prNid(); return x;
+          });
+          (function(){
+            var seen={};
+            function uniq(t){ if(!t) return; var k=String(t.id||''); if(!k||seen[k]){ t.id=prNid(); } seen[String(t.id)]=1; }
+            (prState.lines||[]).forEach(uniq);
+            ((prState.order&&prState.order.sections)||[]).forEach(function(s){ uniq(s); (s.lines||[]).forEach(uniq); });
+          })();
+
+          // ۳) سفارشِ جدید: نه ویرایش، نه کدِ قبلی
+          prState.editId    = null;
+          prState.savedCode = '';
+          prState.cfgDirty  = false;
+          prState.loaded    = true;
+          prEditSnapshot=''; prEditNeedBaseline=true;
+
+          if(typeof orderModalClose==='function') orderModalClose();
+          gotoView('pricing');
+          prRenderEditBanner();
+          prRenderSettings(); prRenderOrder(); prRenderLines(); prDoCompute();
+          showToast('سفارشِ مجدد از '+oldCode+' — نرخ‌ها به امروز به‌روز شد');
+        });
+      }
+    });
+  });
 }
 function pricingEditOrder(id){
   callSheet('getEstimateForEdit', { id:id, t:Date.now() }, function(res){
@@ -14342,6 +14505,7 @@ function archiveProfile(id){
     '<div id="om-image" style="margin-bottom:16px"></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">'
       +'<button class="btn btn-sm" style="background:#10233f;border-color:#1e4e7e;color:#7ab8ff" onclick="pricingEditOrder(\''+id+'\')">✏️ ویرایش سفارش</button>'
+      +'<button class="btn btn-sm" style="background:#0c2a20;border-color:#1e6e4e;color:#6ee7b7" onclick="pricingReorder(\''+id+'\')" title="ساختِ سفارشِ جدید از روی این سفارش، با نرخ‌های امروز">🔁 سفارشِ مجدد</button>'
       +'<button class="btn btn-sm" style="background:#3a2a0c;border-color:#8a6d1e;color:#fbbf24" onclick="omUpgradeCalc(\''+id+'\')" title="بازمحاسبه با سازوکار جدید">🔄 آپدیت محاسبات</button>'
       +'<button class="btn btn-sm" style="background:#3a1d52;border-color:#5b3fd6;color:#c4b5fd" onclick="orderModalClose();archiveOpenInvoice(\''+id+'\')">🧾 ساخت/ویرایش فاکتور</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="archiveImage(\''+id+'\')">🖼 افزودن/تغییر تصویر</button>'
