@@ -69,6 +69,9 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
 .auth-card .lbl{text-align:right}
 .auth-note{color:#5a6080;font-size:11.5px;line-height:1.9;margin-top:14px;text-align:right;
            background:#0b0d14;border:1px solid #1a1d2e;border-radius:11px;padding:11px 13px}
+.auth-tabs{display:flex;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid #1a1d2e}
+.auth-tabs .tab{flex:1;justify-content:center;text-align:center;padding:11px 8px}
+.auth-tabs .tab-on{background:#1a2748;border-color:#4f8ef7;color:#9ec5ff;font-weight:700}
 @media(max-width:640px){
   .auth-wrap{align-items:flex-start;padding:26px 14px}
   .auth-card{padding:30px 20px;border-radius:20px}
@@ -84,15 +87,19 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
   /* ── تقویمِ گوشی: خانه‌های مربع و فشرده ── */
   .grid7{gap:3px}
   .dow{font-size:9.5px;padding:2px 0}
-  .cell{min-height:0;aspect-ratio:1/1;padding:3px 2px;border-radius:8px;
-        display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
-  .cell .dnum{font-size:12px;margin:1px 0 0}
-  .cell .free{display:none}                 /* «آزاد ۱۰ ساعت» روی گوشی جا نمی‌شود */
-  .cell .dot-free{display:block;width:5px;height:5px;border-radius:50%;background:#2f5236;margin-top:auto;margin-bottom:5px}
-  .cell .offlbl{display:none}
-  .chip{font-size:8.5px;padding:2px 3px;width:100%;border-radius:5px;line-height:1.35;
-        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .chip .chip-tm{display:none}
+  /* خانه‌ها بلندتر از عرضشان تا محتوا واقعاً دیده شود (مربع خیلی تنگ بود) */
+  .cell{min-height:74px;aspect-ratio:auto;padding:4px 3px;border-radius:9px;
+        display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start}
+  .cell .dnum{font-size:12.5px;margin:0}
+  .cell-off .free{display:none !important}
+  /* «آزاد» با علامتِ + به‌جای نقطهٔ بی‌معنی */
+  .cell .free{display:block !important;text-align:center;color:#2f374f;font-size:9px;
+              margin-top:auto;margin-bottom:2px;line-height:1.3}
+  .cell .dot-free{display:none !important}
+  /* برچسبِ رزرو: کوتاه ولی خوانا، با ساعت زیرش */
+  .chip{font-size:9px;padding:3px 3px;width:100%;border-radius:6px;line-height:1.3;
+        overflow:hidden;margin-bottom:2px}
+  .chip .chip-tm{display:block;font-size:8.5px;opacity:.9}
   /* مودالِ رزرو از پایین بالا می‌آید */
   #mdl{align-items:flex-end;padding:0}
   #mdl > .card{max-width:100%;border-radius:20px 20px 0 0;margin:0;padding:20px 16px 26px;
@@ -113,13 +120,8 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
     <div class="auth-wrap">
       <div class="auth-card">
         <div class="auth-logo">🔬</div>
-        <div class="auth-title">سامانهٔ رزرو دستگاه</div>
-        <div class="auth-sub">آزمایشگاه <span class="brand">iPrint<span class="dot">3D</span></span></div>
-
-        <div class="tabs" style="justify-content:center;margin-bottom:18px">
-          <button class="tab tab-on" id="tb-login" onclick="authTab('login')">ورود</button>
-          <button class="tab" id="tb-reg" onclick="authTab('reg')">ثبت‌نام</button>
-        </div>
+        <div class="auth-title">سامانهٔ دانشجویی</div>
+        <div class="auth-sub">آزمایشگاه چاپ سه‌بعدی</div>
         <div id="authMsg"></div>
 
         <div id="pane-login">
@@ -128,9 +130,6 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
           <label class="lbl">کد ملی <span class="mut">(رمز شما)</span></label>
           <input class="inp" id="lg-nid" type="password" placeholder="کد ملی" inputmode="numeric" autocomplete="current-password">
           <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doLogin()">ورود به سامانه</button>
-          <div class="mut" style="margin-top:14px;text-align:center">
-            حساب نداری؟ از تبِ «ثبت‌نام» درخواست بده.
-          </div>
         </div>
 
         <div id="pane-reg" class="hidden">
@@ -147,6 +146,12 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
             پس از ثبت‌نام، مسئولِ آزمایشگاه درخواستت را بررسی و دستگاه‌های مجاز را تعیین می‌کند.
             بعد از تأیید، با همین شماره و کد ملی وارد شو.
           </div>
+        </div>
+
+        <!-- تب‌ها پایینِ صفحه -->
+        <div class="auth-tabs">
+          <button class="tab tab-on" id="tb-login" onclick="authTab('login')">ورود</button>
+          <button class="tab" id="tb-reg" onclick="authTab('reg')">ثبت‌نام</button>
         </div>
       </div>
     </div>
@@ -186,9 +191,9 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
       <div id="calBody"></div>
       <div class="card">
         <div class="legend">
-          <span><span class="dot chip-busy"></span> رزروشده</span>
-          <span><span class="dot chip-mine"></span> رزرو شما</span>
-          <span><span class="dot chip-wait"></span> در انتظار تأیید</span>
+          <span><span class="dot chip-busy"></span> پُر (رزروِ دیگران)</span>
+          <span><span class="dot chip-mine"></span> رزروِ تأییدشدهٔ شما</span>
+          <span><span class="dot chip-wait"></span> در انتظارِ تأیید</span>
         </div>
         <div class="mut" style="margin-top:10px">💡 رزروِ شما پس از تأییدِ مسئولِ آزمایشگاه قطعی می‌شود.</div>
       </div>
@@ -336,6 +341,25 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function fa(s){ return String(s==null?'':s).replace(/[0-9]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
 function la(s){ return String(s==null?'':s).replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }); }
+// ── کدِ ملی ──
+// دقیقاً ۱۰ رقم؛ رقمِ آخر رقمِ کنترل است، پس یک رقمِ اشتباه هم گرفته می‌شود.
+function padNid(v){ var x=la(v).replace(/[^0-9]/g,''); while(x.length>0&&x.length<10) x='0'+x; return x; }
+function okNid(v){
+  var c=padNid(v);
+  if(c.length!==10) return false;
+  if(/^(\d)\1{9}$/.test(c)) return false;
+  var sum=0; for(var i=0;i<9;i++) sum+=(+c.charAt(i))*(10-i);
+  var r=sum%11, ctrl=+c.charAt(9);
+  return (r<2)?(ctrl===r):(ctrl===(11-r));
+}
+// یکسان‌سازیِ شمارهٔ موبایل: با/بدونِ صفر، با +۹۸، با فاصله و خط‌تیره — همه یکی می‌شوند
+function normPhone(v){
+  var x=la(v).replace(/[^0-9]/g,'');
+  if(x.indexOf('0098')===0) x=x.slice(4);
+  else if(x.indexOf('98')===0 && x.length===12) x=x.slice(2);
+  if(x.length===10 && x.charAt(0)==='9') x='0'+x;
+  return x;
+}
 function msg(el,t,kind){ var e=document.getElementById(el); if(!e){return;}
   e.innerHTML = t ? ('<div class="'+(kind||'err')+'">'+esc(t)+'</div>') : ''; }
 
@@ -374,8 +398,8 @@ function authTab(t){
   msg('authMsg','');
 }
 function doLogin(){
-  var ph=la(document.getElementById('lg-phone').value||'');
-  var nid=la(document.getElementById('lg-nid').value||'');
+  var ph=normPhone(document.getElementById('lg-phone').value||'');
+  var nid=padNid(document.getElementById('lg-nid').value||'');
   if(!ph.trim()||!nid.trim()){ msg('authMsg','شمارهٔ تماس و کد ملی را وارد کنید'); return; }
   msg('authMsg','در حال ورود...','ok');
   call('pubLogin',{phone:ph,nationalId:nid,t:Date.now()},function(r){
@@ -388,10 +412,13 @@ function doLogin(){
 }
 function doRegister(){
   var nm=document.getElementById('rg-name').value||'';
-  var ph=la(document.getElementById('rg-phone').value||'');
-  var nid=la(document.getElementById('rg-nid').value||'');
+  var ph=normPhone(document.getElementById('rg-phone').value||'');
+  var nid=padNid(document.getElementById('rg-nid').value||'');
   var nt=document.getElementById('rg-note').value||'';
   if(!nm.trim()||!ph.trim()||!nid.trim()){ msg('authMsg','نام، شمارهٔ تماس و کد ملی لازم است'); return; }
+  if(ph.length!==11){ msg('authMsg','شمارهٔ تماس باید ۱۱ رقم باشد (مثلاً ۰۹۱۲۳۴۵۶۷۸۹)'); return; }
+  if(nid.length!==10){ msg('authMsg','کدِ ملی باید دقیقاً ۱۰ رقم باشد'); return; }
+  if(!okNid(nid)){ msg('authMsg','کدِ ملیِ واردشده معتبر نیست — رقم‌ها را دوباره بررسی کن'); return; }
   msg('authMsg','در حال ارسال...','ok');
   call('pubRegister',{lastName:nm,phone:ph,nationalId:nid,requestNote:nt,t:Date.now()},function(r){
     if(r&&r.status==='ok'){
@@ -472,17 +499,19 @@ function drawCal(){
     var cls='cell'+(isFri?' cell-off':'')+(isToday?' cell-today':'');
     var inner='<div style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:3px">'
       +'<span class="dnum" style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(isToday?'#7ab8ff':(isFri?'#f0a6a8':'#c7cce0'))+'">'+fa(d)+'</span>'
-      +(isFri?'<span class="mut offlbl" style="font-size:9px">تعطیل</span>':'')+'</div>';
+      +'</div>';
+    if(isFri) inner+='<div class="offlbl" style="text-align:center;color:#8a5a5a;font-size:9px;margin-top:auto;margin-bottom:4px">تعطیل</div>';
     list.forEach(function(r){
       var tm=(r.fromTime||r.toTime)?((r.fromTime||'?')+'–'+(r.toTime||'?')):(r.hours?(fa(r.hours)+' ساعت'):'');
       var c = r.mine ? (r.status==='pending'?'chip-wait':'chip-mine') : 'chip-busy';
-      var lb = r.mine ? (r.status==='pending'?'در انتظار':'رزرو شما') : 'رزرو شده';
+      var narrow = (typeof window!=='undefined' && window.innerWidth<=640);
+      var lb = r.mine ? (r.status==='pending'?(narrow?'⏳ من':'در انتظار'):(narrow?'✓ من':'رزرو شما'))
+                      : (narrow?'پُر':'رزرو شده');
       inner+='<div class="chip '+c+'" title="'+esc(lb+(tm?(' · '+tm):''))+'">'+lb
            +(tm?('<div class="chip-tm" style="font-weight:400;font-size:9px;opacity:.85">'+esc(fa(tm))+'</div>'):'')+'</div>';
     });
     if(!isFri && !list.length){
-      inner+='<div class="free" style="text-align:center;color:#2f374f;font-size:10px;margin-top:10px">آزاد<br><span style="font-size:14px">＋</span></div>'
-           +'<span class="dot-free"></span>';
+      inner+='<div class="free" style="text-align:center;color:#2f374f;font-size:10px;margin-top:10px">آزاد<br><span style="font-size:14px">＋</span></div>';
     }
     cells += isFri
       ? '<div class="'+cls+'">'+inner+'</div>'
@@ -970,7 +999,22 @@ function buyUseCard(card){
     var e=document.getElementById(i);
     if(e) e.addEventListener('keydown',function(ev){ if(ev.key==='Enter') doLogin(); });
   });
-  console.log('iPrint3D STUDENT V6');
+  // راهنمای زندهٔ کدِ ملی هنگامِ ثبت‌نام
+  (function(){
+    var n=document.getElementById('rg-nid'); if(!n) return;
+    var hint=document.createElement('div');
+    hint.style.cssText='font-size:11px;min-height:15px;margin:-6px 0 9px;text-align:right';
+    n.parentNode.insertBefore(hint, n.nextSibling);
+    n.addEventListener('input',function(){
+      var raw=la(this.value).replace(/[^0-9]/g,'');
+      if(!raw){ hint.textContent=''; return; }
+      if(raw.length<10){ hint.style.color='#f0c674'; hint.textContent=fa(raw.length)+' رقم از ۱۰ رقم'; return; }
+      if(raw.length>10){ hint.style.color='#f0a6a8'; hint.textContent='کدِ ملی بیشتر از ۱۰ رقم است'; return; }
+      if(okNid(raw)){ hint.style.color='#9ee0a8'; hint.textContent='✓ کدِ ملی معتبر است'; }
+      else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
+    });
+  })();
+  console.log('iPrint3D STUDENT V10');
 })();
 </script>
 </body>
