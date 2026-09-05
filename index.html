@@ -878,7 +878,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V352</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V354</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -10177,6 +10177,7 @@ function wsResvForm(deviceId, dayKey){
   var existing = wsResvOn(deviceId, dayKey);
   var list = existing.map(function(r){
     var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : (r.hours ? (prToFa(r.hours)+' ساعت') : 'بدونِ ساعتِ مشخص');
+    if(r.samples > 0) tm += ' · ' + prToFa(r.samples) + ' نمونه';
     var pend = (r.status==='pending');
     var nm = escapeHtml(String(r.personName||r.orderCode||'رزرو')).replace(/"/g,'').replace(/\x27/g,'');
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;border:1px solid '+(pend?'#5a4a2a':'#232742')+';border-radius:7px;margin-bottom:5px;background:'+(pend?'#1a1710':'transparent')+'">'
@@ -10196,6 +10197,7 @@ function wsResvForm(deviceId, dayKey){
     + (existing.length ? ('<div style="color:#c7cce0;font-size:11.5px;margin-bottom:6px">رزروهای این روز:</div>'+list+'<div style="border-top:1px solid #232742;margin:10px 0"></div>') : '')
     + '<div style="color:#c7cce0;font-size:12px;margin-bottom:6px">رزروِ جدید</div>'
     + '<input id="ws-rv-person" oninput="window._wsRvPerson=this.value" placeholder="'+(lab?'نامِ فرد (مثلاً دانشجو رحیمی)':'نامِ فرد یا مشتری')+'" style="width:100%;box-sizing:border-box;margin-bottom:8px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    + (lab ? '<input id="ws-rv-samples" oninput="window._wsRvSamples=this.value" type="number" min="1" step="1" placeholder="تعدادِ نمونه (مثلاً ۵)" style="width:100%;box-sizing:border-box;margin-bottom:8px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">' : '')
     + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#c7cce0;margin-bottom:8px;cursor:pointer">'
     +   '<input type="checkbox" id="ws-rv-precise" onchange="window._wsRvPrecise=this.checked; document.getElementById(\'ws-rv-precise-box\').style.display=this.checked?\'flex\':\'none\'; document.getElementById(\'ws-rv-fluid-box\').style.display=this.checked?\'none\':\'block\'"> ساعتِ دقیق مشخص است (وگرنه فقط تعدادِ ساعت)'
     + '</label>'
@@ -10209,17 +10211,45 @@ function wsResvForm(deviceId, dayKey){
     + '<input id="ws-rv-order" oninput="window._wsRvOrder=this.value" placeholder="کدِ سفارش (اختیاری، مثلاً IP-0072)" style="width:100%;box-sizing:border-box;margin-bottom:6px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
     + '<input id="ws-rv-note" oninput="window._wsRvNote=this.value" placeholder="توضیح (اختیاری، مثلاً پرینت فیل شد)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">';
 
-  window._wsRvPerson=''; window._wsRvFrom=''; window._wsRvTo=''; window._wsRvHours=''; window._wsRvOrder=''; window._wsRvNote=''; window._wsRvPrecise=false;
+  window._wsRvPerson=''; window._wsRvFrom=''; window._wsRvTo=''; window._wsRvHours=''; window._wsRvOrder=''; window._wsRvNote=''; window._wsRvPrecise=false; window._wsRvSamples='';
   uiConfirm({ title:'رزروِ دستگاه', html:html, okText:'ثبتِ رزرو', cancelText:'بستن', danger:false }, function(){
     if(window.console) console.log('%c[رزرو] دکمهٔ «ثبت رزرو» زده شد','color:#f59e0b');
     wsResvAdd(deviceId, lab?'lab':'print', dayKey);
   });
 }
+// تفسیرِ هوشمندِ ساعت (همان منطقِ صفحهٔ دانشجو)
+function wsSmartTime(raw){
+  var s=String(raw==null?'':raw)
+    .replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);})
+    .replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);}).trim();
+  if(!s) return '';
+  var pm=/(عصر|شب|بعدازظهر|بعد از ظهر|ب\.?ظ|pm)/i.test(s);
+  var am=/(صبح|بامداد|ق\.?ظ|am)/i.test(s);
+  var midnight=/(نیمه\s*شب|12\s*شب)/i.test(s);
+  var d=s.replace(/[^0-9:.]/g,'').replace(/\./g,':');
+  if(!d) return '';
+  var h,m=0;
+  if(d.indexOf(':')>=0){ var p=d.split(':'); h=parseInt(p[0],10); m=parseInt(p[1]||'0',10); }
+  else if(d.length<=2){ h=parseInt(d,10); m=0; }
+  else if(d.length===3){ h=parseInt(d.slice(0,1),10); m=parseInt(d.slice(1),10); }
+  else { h=parseInt(d.slice(0,2),10); m=parseInt(d.slice(2,4),10); }
+  if(!isFinite(h)) return '';
+  if(!isFinite(m)) m=0;
+  if(m>59) m=59;
+  if(midnight && h===12) h=0;
+  else if(pm && h<12) h+=12;
+  if(am && h===12) h=0;
+  if(!pm && !am && !midnight && h>=1 && h<=7) h+=12;
+  if(h>23) h=h%24;
+  if(h<0) h=0;
+  function p2(n){ return (n<10?'0':'')+n; }
+  return p2(h)+':'+p2(m);
+}
 function wsResvAdd(deviceId, deviceType, dayKey){
   var person = window._wsRvPerson||'', ord=window._wsRvOrder||'', note=window._wsRvNote||'';
   var precise = !!window._wsRvPrecise;
-  var from = precise ? (window._wsRvFrom||'') : '';
-  var to   = precise ? (window._wsRvTo||'')   : '';
+  var from = precise ? wsSmartTime(window._wsRvFrom||'') : '';
+  var to   = precise ? wsSmartTime(window._wsRvTo||'')   : '';
   var hours = precise ? '' : (window._wsRvHours||'');
   if(window.console) console.log('%c[رزرو] شروع','color:#3b82f6', {deviceId:deviceId, deviceType:deviceType, dayKey:dayKey, person:person, hours:hours, from:from, to:to});
   if(!person.trim() && !ord.trim() && !note.trim()){
@@ -10229,6 +10259,7 @@ function wsResvAdd(deviceId, deviceType, dayKey){
   }
   if(window.console) console.log('%c[رزرو] در حال ارسال به سرور...','color:#3b82f6');
   callSheet('resvAdd', { date:dayKey, deviceType:deviceType, deviceId:deviceId, fromTime:from, toTime:to, hours:hours,
+                         samples:(window._wsRvSamples||''),
                          personName:person, orderCode:ord, note:note, status:'confirmed', t:Date.now() }, function(res){
     if(window.console) console.log('%c[رزرو] پاسخ سرور:','color:#22c55e', res);
     if(res && res.status==='ok'){
@@ -10254,7 +10285,7 @@ function wsResvEditHours(id, who, curHours, curFrom, curTo){
     +   '<input id="ws-ed-t" oninput="window._edT=this.value" value="'+escapeHtml(String(curTo||''))+'" placeholder="تا ۱۷:۰۰" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px;text-align:center">'
     + '</div>';
   uiConfirm({ title:'ویرایشِ ساعتِ واقعی', html:html, okText:'ذخیرهٔ ساعت', cancelText:'انصراف', danger:false }, function(){
-    var h = (window._edH||'').trim(), f = (window._edF||'').trim(), t = (window._edT||'').trim();
+    var h = (window._edH||'').trim(), f = wsSmartTime(window._edF||''), t = wsSmartTime(window._edT||'');
     if(!h && !(f&&t)){ showToast('یا تعدادِ ساعت یا بازهٔ دقیق را وارد کن'); return; }
     callSheet('resvUpdate', { id:id, hours:h, fromTime:f, toTime:t, t:Date.now() }, function(res){
       if(res && res.status==='ok'){ showToast('ساعت به‌روز شد ✓'); wsInit(true); }
@@ -10486,7 +10517,7 @@ function purRowHtml(r){
     +   '</div>'
     +   '<div style="text-align:left;flex-shrink:0">'
     +     '<div style="color:#9ec5ff;font-weight:800;font-size:14px;white-space:nowrap">' + prToFa(fmtMoney(r.amount)) + '</div>'
-    +     (r.imageFileId ? '<a href="https://drive.google.com/file/d/'+r.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">🧾 فاکتور</a>' : '<span style="color:#5a6080;font-size:10.5px">بدون فاکتور</span>')
+    +     (r.imageFileId ? '<a href="https://drive.google.com/file/d/'+r.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">'+(r.fileKind==='pdf'?'📄 فاکتور PDF':'🧾 عکسِ فاکتور')+'</a>' : '<span style="color:#5a6080;font-size:10.5px">بدون فاکتور</span>')
     +   '</div>'
     + '</div>'
     + (acts ? '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px solid #1a2440">' + acts + '</div>' : '')
@@ -10822,7 +10853,7 @@ function purInvoiceHtml(invId, g){
     +   '</div>'
     +   '<div style="text-align:left;flex-shrink:0">'
     +     '<div style="color:#9ec5ff;font-weight:800;font-size:15px;white-space:nowrap">'+prToFa(fmtMoney(total))+'</div>'
-    +     (head.imageFileId ? '<a href="https://drive.google.com/file/d/'+head.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">🧾 عکسِ فاکتور</a>' : '<span style="color:#5a6080;font-size:10.5px">بدون عکس</span>')
+    +     (head.imageFileId ? '<a href="https://drive.google.com/file/d/'+head.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">'+(head.fileKind==='pdf'?'📄 فاکتور PDF':'🧾 عکسِ فاکتور')+'</a>' : '<span style="color:#5a6080;font-size:10.5px">بدون عکس</span>')
     +   '</div>'
     + '</div>'
     + '<div style="background:#0b0f1c">' + items + '</div>'
@@ -11047,22 +11078,40 @@ function purCopyFallback(txt, cb){
 }
 
 // ── عکسِ فاکتورِ خرید ──
+// آپلودِ فاکتور: عکس (دوربین/گالری) یا فایلِ PDF
 function purPickImage(id){
   var inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'image/*';
+  inp.type = 'file';
+  inp.accept = 'image/*,application/pdf,.pdf';
   inp.onchange = function(){
     var f = this.files && this.files[0];
     if(!f) return;
-    showToast('در حال فشرده‌سازی و آپلود...');
-    compressImage(f, 1400, 0.72).then(function(img){
+    var isPdf = (f.type==='application/pdf') || /\.pdf$/i.test(f.name||'');
+    if(isPdf && f.size > 8*1024*1024){ showToast('حجمِ PDF بیشتر از ۸ مگابایت است'); return; }
+    showToast('در حال آپلود...');
+    function send(b64, mime){
       fetch(SHEET_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
         body: JSON.stringify({ action:'purUploadImage', token:SESSION_TOKEN, id:id,
-                               base64:img.base64, mime:img.mime })
+                               base64:b64, mime:mime })
       }).then(function(r){ return r.json(); }).then(function(res){
-        if(res && res.status==='ok'){ showToast('عکسِ فاکتور ذخیره شد ✓'); purInit(true); }
+        if(res && res.status==='ok'){ showToast('فاکتور ذخیره شد ✓'); purInit(true); }
         else showToast((res&&res.message)?res.message:'خطا در آپلود');
       }).catch(function(){ showToast('خطا در ارتباط'); });
-    }).catch(function(){ showToast('خطا در خواندنِ عکس'); });
+    }
+    if(isPdf){
+      // PDF خام فرستاده می‌شود (فشرده‌سازیِ عکس آن را خراب می‌کند)
+      var rd = new FileReader();
+      rd.onload = function(e){
+        try{ send(String(e.target.result).split(',')[1], 'application/pdf'); }
+        catch(err){ showToast('خطا در خواندنِ فایل'); }
+      };
+      rd.onerror = function(){ showToast('خطا در خواندنِ فایل'); };
+      rd.readAsDataURL(f);
+    } else {
+      compressImage(f, 1400, 0.72).then(function(img){
+        send(img.base64, img.mime);
+      }).catch(function(){ showToast('خطا در خواندنِ عکس'); });
+    }
   };
   inp.click();
 }
@@ -12167,8 +12216,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V352 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V352";
+try{ if(window.console) console.log('%c iPrint3D FRONT V354 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V354";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
