@@ -300,14 +300,25 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
       <div class="ttl" style="margin-bottom:4px">رزروِ دستگاه</div>
       <div class="sub" id="mdlSub" style="margin-bottom:14px">—</div>
       <div id="mdlMsg"></div>
+      <label class="lbl">تعدادِ نمونه</label>
+      <input class="inp" id="mv-samples" type="number" step="1" min="1" placeholder="مثلاً ۵">
       <label class="lbl">چند ساعت لازم دارید؟</label>
       <input class="inp" id="mv-hours" type="number" step="0.5" min="0.5" placeholder="مثلاً ۲">
       <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:#c7cce0;margin-bottom:9px;cursor:pointer">
         <input type="checkbox" id="mv-exact" onchange="toggleExact()"> ساعتِ دقیق را می‌دانم
       </label>
-      <div id="exactBox" class="hidden" style="display:flex;gap:7px">
-        <input class="inp" id="mv-from" placeholder="از ۱۳:۰۰">
-        <input class="inp" id="mv-to" placeholder="تا ۱۵:۰۰">
+      <div id="exactBox" class="hidden">
+        <div style="display:flex;gap:7px">
+          <div style="flex:1">
+            <input class="inp" id="mv-from" placeholder="از — مثلاً ۹ یا ۱۴:۳۰" style="margin-bottom:3px">
+            <div id="mv-from-h" style="font-size:11px;min-height:14px;text-align:center"></div>
+          </div>
+          <div style="flex:1">
+            <input class="inp" id="mv-to" placeholder="تا — مثلاً ۱۱ یا ۱۷" style="margin-bottom:3px">
+            <div id="mv-to-h" style="font-size:11px;min-height:14px;text-align:center"></div>
+          </div>
+        </div>
+        <div class="mut" style="margin-bottom:9px">می‌توانی ساده بنویسی: «۹»، «۲:۳۰»، «۳ عصر»، «۱۴۳۰»</div>
       </div>
       <label class="lbl">توضیح (اختیاری)</label>
       <input class="inp" id="mv-note" placeholder="مثلاً تست کششی نمونهٔ پلیمری">
@@ -341,6 +352,53 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function fa(s){ return String(s==null?'':s).replace(/[0-9]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
 function la(s){ return String(s==null?'':s).replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }); }
+// ── تفسیرِ هوشمندِ ساعت ──
+// «۲۱» → ۲۱:۰۰ · «۲:۱۵» → ۱۴:۱۵ · «۹» → ۰۹:۰۰ · «۳ صبح» → ۰۳:۰۰
+// «۱۲ شب» → ۰۰:۰۰ · «۹۳۰» → ۰۹:۳۰ · «۱۴۳۰» → ۱۴:۳۰
+function smartTime(raw){
+  var s=String(raw==null?'':raw)
+    .replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);})
+    .replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);}).trim();
+  if(!s) return '';
+  var pm=/(عصر|شب|بعدازظهر|بعد از ظهر|ب\.?ظ|pm)/i.test(s);
+  var am=/(صبح|بامداد|ق\.?ظ|am)/i.test(s);
+  var midnight=/(نیمه\s*شب|12\s*شب)/i.test(s);
+  var d=s.replace(/[^0-9:.]/g,'').replace(/\./g,':');
+  if(!d) return '';
+  var h,m=0;
+  if(d.indexOf(':')>=0){ var p=d.split(':'); h=parseInt(p[0],10); m=parseInt(p[1]||'0',10); }
+  else if(d.length<=2){ h=parseInt(d,10); m=0; }
+  else if(d.length===3){ h=parseInt(d.slice(0,1),10); m=parseInt(d.slice(1),10); }
+  else { h=parseInt(d.slice(0,2),10); m=parseInt(d.slice(2,4),10); }
+  if(!isFinite(h)) return '';
+  if(!isFinite(m)) m=0;
+  if(m>59) m=59;
+  if(midnight && h===12) h=0;
+  else if(pm && h<12) h+=12;
+  if(am && h===12) h=0;
+  if(!pm && !am && !midnight && h>=1 && h<=7) h+=12;   // ۱ تا ۷ یعنی بعدازظهر
+  if(h>23) h=h%24;
+  if(h<0) h=0;
+  function p2(n){ return (n<10?'0':'')+n; }
+  return p2(h)+':'+p2(m);
+}
+function wireTime(id, hintId){
+  var el=document.getElementById(id); if(!el) return;
+  function hint(){
+    var hh=document.getElementById(hintId); if(!hh) return;
+    if(!el.value.trim()){ hh.textContent=''; return; }
+    var v=smartTime(el.value);
+    if(!v){ hh.style.color='#f0a6a8'; hh.textContent='قابلِ خواندن نیست'; return; }
+    hh.style.color='#7ab8ff'; hh.textContent='→ '+fa(v);
+  }
+  el.addEventListener('input', hint);
+  el.addEventListener('blur', function(){
+    var v=smartTime(this.value);
+    if(v) this.value=v;
+    hint();
+  });
+}
+
 // ── کدِ ملی ──
 // دقیقاً ۱۰ رقم؛ رقمِ آخر رقمِ کنترل است، پس یک رقمِ اشتباه هم گرفته می‌شود.
 function padNid(v){ var x=la(v).replace(/[^0-9]/g,''); while(x.length>0&&x.length<10) x='0'+x; return x; }
@@ -525,28 +583,32 @@ function openMdl(k){
   MDL_DATE=k;
   var dv=DEVS.filter(function(x){return x.id===SEL;})[0];
   document.getElementById('mdlSub').textContent=(dv?dv.name:'دستگاه')+' · روزِ '+fa(k);
-  ['mv-hours','mv-from','mv-to','mv-note'].forEach(function(i){ document.getElementById(i).value=''; });
+  ['mv-samples','mv-hours','mv-from','mv-to','mv-note'].forEach(function(i){ var e=document.getElementById(i); if(e) e.value=''; });
   document.getElementById('mv-exact').checked=false;
   document.getElementById('exactBox').className='hidden';
   msg('mdlMsg','');
   document.getElementById('mdl').className='';
+  wireTime('mv-from','mv-from-h');
+  wireTime('mv-to','mv-to-h');
 }
 function closeMdl(){ document.getElementById('mdl').className='hidden'; }
 function toggleExact(){
   var on=document.getElementById('mv-exact').checked;
-  document.getElementById('exactBox').className=on?'':'hidden';
-  document.getElementById('exactBox').style.display=on?'flex':'none';
+  var b=document.getElementById('exactBox');
+  b.className=on?'':'hidden';
+  b.style.display=on?'block':'none';
 }
 function submitResv(){
   var ex=document.getElementById('mv-exact').checked;
   var hrs=ex?'':la(document.getElementById('mv-hours').value||'');
-  var fr=ex?la(document.getElementById('mv-from').value||''):'';
-  var to=ex?la(document.getElementById('mv-to').value||''):'';
+  var fr=ex?smartTime(document.getElementById('mv-from').value||''):'';
+  var to=ex?smartTime(document.getElementById('mv-to').value||''):'';
   var nt=document.getElementById('mv-note').value||'';
   if(!ex && !(parseFloat(hrs)>0)){ msg('mdlMsg','تعدادِ ساعت را وارد کنید'); return; }
   if(ex && (!fr.trim()||!to.trim())){ msg('mdlMsg','ساعتِ شروع و پایان را وارد کنید'); return; }
   msg('mdlMsg','در حال ثبت...','ok');
-  call('pubReserve',{deviceId:SEL,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,t:Date.now()},function(r){
+  var smp=la(document.getElementById('mv-samples').value||'').replace(/[^0-9]/g,'');
+  call('pubReserve',{deviceId:SEL,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,samples:smp,t:Date.now()},function(r){
     if(r&&r.status==='ok'){
       closeMdl(); loadCal();
       alert('✓ درخواستِ رزروِ شما ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه قطعی می‌شود. وضعیتش را در «رزروهای من» ببینید.');
@@ -693,7 +755,7 @@ function buyRowHtml(x){
         +'</div>'
         +'<div style="text-align:left;flex-shrink:0">'
         +  '<div style="color:#9ec5ff;font-weight:800;font-size:14px;white-space:nowrap">'+fa(money(x.amount))+'</div>'
-        +  (x.imageFileId?'<a href="https://drive.google.com/file/d/'+x.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">🧾 فاکتور</a>':'')
+        +  (x.imageFileId?'<a href="https://drive.google.com/file/d/'+x.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">'+(x.fileKind==='pdf'?'📄 PDF':'🧾 فاکتور')+'</a>':'')
         +'</div></div>'
         +(pend?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid #1a2038">'
           +'<button class="btn btn-ghost btn-sm" onclick="buyPickImage(\'' + x.id + '\')">🧾 '+(x.imageFileId?'تعویضِ فاکتور':'افزودنِ فاکتور')+'</button>'
@@ -736,7 +798,7 @@ function buyInvoiceHtml(invId, g){
     +    '</div>'
     +    '<div style="text-align:left;flex-shrink:0">'
     +      '<div style="color:#9ec5ff;font-weight:800;font-size:15px;white-space:nowrap">'+fa(money(total))+'</div>'
-    +      (head.imageFileId?'<a href="https://drive.google.com/file/d/'+head.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">🧾 فاکتور</a>':'')
+    +      (head.imageFileId?'<a href="https://drive.google.com/file/d/'+head.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">'+(head.fileKind==='pdf'?'📄 PDF':'🧾 فاکتور')+'</a>':'')
     +    '</div>'
     +  '</div></div>'
     +'<div style="background:#0b0d14">'+items+'</div>'
@@ -805,21 +867,41 @@ function buyCancel(id){
     else alert((r&&r.message)?r.message:'حذف نشد');
   });
 }
+// آپلودِ فاکتور: عکس (دوربین/گالری) یا فایلِ PDF
 function buyPickImage(id){
   var inp=document.createElement('input');
-  inp.type='file'; inp.accept='image/*';
+  inp.type='file';
+  // عکس + PDF؛ روی گوشی خودِ سیستم «دوربین / گالری / فایل» را پیشنهاد می‌دهد
+  inp.accept='image/*,application/pdf,.pdf';
   inp.onchange=function(){
     var f=this.files&&this.files[0]; if(!f) return;
+    var isPdf = (f.type==='application/pdf') || /\.pdf$/i.test(f.name||'');
+    // سقفِ حجم: PDF تا ۸ مگابایت (فشرده نمی‌شود)، عکس هر حجمی (فشرده می‌شود)
+    if(isPdf && f.size > 8*1024*1024){ alert('حجمِ فایلِ PDF بیشتر از ۸ مگابایت است.\nلطفاً فایلِ کوچک‌تری انتخاب کن.'); return; }
     alert('در حال آپلود... چند لحظه صبر کن.');
-    shrink(f,1400,0.72,function(img){
-      if(!img){ alert('خطا در خواندنِ عکس'); return; }
+    function send(b64, mime){
       fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify({action:'purUploadImage',stuToken:TOK,id:id,base64:img.base64,mime:img.mime})
+        body:JSON.stringify({action:'purUploadImage',stuToken:TOK,id:id,base64:b64,mime:mime})
       }).then(function(r){return r.json();}).then(function(res){
-        if(res&&res.status==='ok'){ alert('✓ عکسِ فاکتور ذخیره شد'); loadBuy(); }
+        if(res&&res.status==='ok'){ alert('✓ فاکتور ذخیره شد'); loadBuy(); }
         else alert((res&&res.message)?res.message:'خطا در آپلود');
       }).catch(function(){ alert('خطا در ارتباط'); });
-    });
+    }
+    if(isPdf){
+      // PDF نباید از مسیرِ فشرده‌سازیِ عکس رد شود — خام فرستاده می‌شود
+      var rd=new FileReader();
+      rd.onload=function(e){
+        try{ send(String(e.target.result).split(',')[1], 'application/pdf'); }
+        catch(err){ alert('خطا در خواندنِ فایل'); }
+      };
+      rd.onerror=function(){ alert('خطا در خواندنِ فایل'); };
+      rd.readAsDataURL(f);
+    } else {
+      shrink(f,1400,0.72,function(img){
+        if(!img){ alert('خطا در خواندنِ عکس'); return; }
+        send(img.base64, img.mime);
+      });
+    }
   };
   inp.click();
 }
@@ -1014,7 +1096,7 @@ function buyUseCard(card){
       else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
     });
   })();
-  console.log('iPrint3D STUDENT V10');
+  console.log('iPrint3D STUDENT V12');
 })();
 </script>
 </body>
