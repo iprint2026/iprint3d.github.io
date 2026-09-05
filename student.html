@@ -222,6 +222,31 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
     </div>
   </div>
 
+  <!-- پیامِ هم‌تم به‌جای alertِ مرورگر -->
+  <div id="okmdl" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:120;
+       display:flex;align-items:center;justify-content:center;padding:18px">
+    <div class="card" style="max-width:380px;width:100%;margin:0;text-align:center">
+      <div id="okmdl-icon" style="font-size:38px;margin-bottom:8px">✓</div>
+      <div id="okmdl-title" class="ttl" style="margin-bottom:7px">انجام شد</div>
+      <div id="okmdl-body" style="color:#c7cce0;font-size:13px;line-height:2;margin-bottom:16px"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="closeOk()">باشه</button>
+    </div>
+  </div>
+
+  <!-- نمایشگرِ فاکتور داخلِ خودِ سایت -->
+  <div id="viewmdl" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:130;
+       display:flex;flex-direction:column;padding:12px">
+    <div class="row" style="margin-bottom:10px;flex-shrink:0">
+      <span id="viewmdl-name" style="color:#dfe3f5;font-size:13px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <div style="display:flex;gap:7px;flex-shrink:0">
+        <a id="viewmdl-dl" class="btn btn-sm" download style="text-decoration:none">⬇ دانلود</a>
+        <button class="btn btn-sm" onclick="closeView()">✕ بستن</button>
+      </div>
+    </div>
+    <div id="viewmdl-body" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;
+         background:#0b0d14;border:1px solid #1e2235;border-radius:12px"></div>
+  </div>
+
   <!-- مودال فاکتور چندقلمی -->
   <div id="imdl" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99;
        display:flex;align-items:center;justify-content:center;padding:16px">
@@ -362,6 +387,47 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function fa(s){ return String(s==null?'':s).replace(/[0-9]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
 function la(s){ return String(s==null?'':s).replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }); }
+// ── پیامِ هم‌تم به‌جای alertِ مرورگر ──
+function showOk(title, body, icon){
+  var t=document.getElementById('okmdl-title'), b=document.getElementById('okmdl-body'), ic=document.getElementById('okmdl-icon');
+  if(ic) ic.textContent = icon || '✓';
+  if(t) t.textContent = title || 'انجام شد';
+  if(b) b.innerHTML = body || '';
+  var m=document.getElementById('okmdl'); if(m) m.className='';
+}
+function closeOk(){ var m=document.getElementById('okmdl'); if(m) m.className='hidden'; }
+
+// ── نمایشِ فاکتور داخلِ خودِ سایت (بدونِ رفتن به Google Drive) ──
+function viewInvoice(purchaseId){
+  var body=document.getElementById('viewmdl-body');
+  var nm=document.getElementById('viewmdl-name');
+  var dl=document.getElementById('viewmdl-dl');
+  if(!body) return;
+  if(nm) nm.textContent='در حال بارگذاری...';
+  body.innerHTML='<div class="mut" style="padding:30px">در حال بارگذاریِ فاکتور...</div>';
+  document.getElementById('viewmdl').className='';
+  call('pubGetFile',{id:purchaseId,t:Date.now()},function(r){
+    if(!(r&&r.status==='ok')){
+      body.innerHTML='<div style="color:#f0a6a8;font-size:13px;padding:30px;text-align:center">'
+        + esc((r&&r.message)||'فاکتور در دسترس نیست') + '</div>';
+      if(nm) nm.textContent='';
+      return;
+    }
+    var url='data:'+r.mime+';base64,'+r.base64;
+    if(nm) nm.textContent=r.name||'فاکتور';
+    if(dl){ dl.href=url; dl.setAttribute('download', r.name||'invoice'); }
+    if(String(r.mime).indexOf('pdf')>=0){
+      body.innerHTML='<iframe src="'+url+'" style="width:100%;height:100%;border:0;border-radius:10px"></iframe>';
+    } else {
+      body.innerHTML='<img src="'+url+'" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:10px">';
+    }
+  });
+}
+function closeView(){
+  var m=document.getElementById('viewmdl'); if(m) m.className='hidden';
+  var b=document.getElementById('viewmdl-body'); if(b) b.innerHTML='';   // آزادکردنِ حافظه
+}
+
 // ── انتخابِ فایلِ فاکتور داخلِ فرم (آپلودِ خودکار پس از ثبت) ──
 var IV_FILE = null, BV_FILE = null;
 function pickInvoiceFile(cb, infoId){
@@ -669,7 +735,8 @@ function submitResv(){
   call('pubReserve',{deviceId:SEL,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,samples:smp,t:Date.now()},function(r){
     if(r&&r.status==='ok'){
       closeMdl(); loadCal();
-      alert('✓ درخواستِ رزروِ شما ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه قطعی می‌شود. وضعیتش را در «رزروهای من» ببینید.');
+      showOk('درخواست ثبت شد',
+        'درخواستِ رزروِ شما ثبت شد.<br><span class="mut">پس از تأییدِ مسئولِ آزمایشگاه قطعی می‌شود. وضعیتش را در «رزروهای من» ببین.</span>');
     }
     else msg('mdlMsg',(r&&r.message)?r.message:'ثبت نشد');
   });
@@ -746,7 +813,7 @@ function cancelResv(id){
   if(!confirm('این درخواستِ رزرو لغو شود؟')) return;
   call('pubCancel',{id:id,t:Date.now()},function(r){
     if(r&&r.status==='ok') loadMine();
-    else alert((r&&r.message)?r.message:'لغو نشد');
+    else showOk('انجام نشد', esc((r&&r.message)||'لغو نشد'), '⚠');
   });
 }
 
@@ -813,7 +880,7 @@ function buyRowHtml(x){
         +'</div>'
         +'<div style="text-align:left;flex-shrink:0">'
         +  '<div style="color:#9ec5ff;font-weight:800;font-size:14px;white-space:nowrap">'+fa(money(x.amount))+'</div>'
-        +  (x.imageFileId?'<a href="https://drive.google.com/file/d/'+x.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">'+(x.fileKind==='pdf'?'📄 PDF':'🧾 فاکتور')+'</a>':'')
+        +  (x.imageFileId?('<button onclick="viewInvoice(\''+x.id+'\')" style="cursor:pointer;border:none;background:transparent;color:#7ab8ff;font-size:10.5px;padding:0;font-family:inherit;text-decoration:underline">'+(x.fileKind==='pdf'?'📄 دیدنِ PDF':'🧾 دیدنِ فاکتور')+'</button>'):'')
         +'</div></div>'
         +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid #1a2038">'
           +'<button class="btn btn-ghost btn-sm" onclick="buyPickImage(\'' + x.id + '\')">📎 '+(x.imageFileId?'تعویضِ فاکتور':'افزودنِ عکس/PDF فاکتور')+'</button>'
@@ -856,7 +923,7 @@ function buyInvoiceHtml(invId, g){
     +    '</div>'
     +    '<div style="text-align:left;flex-shrink:0">'
     +      '<div style="color:#9ec5ff;font-weight:800;font-size:15px;white-space:nowrap">'+fa(money(total))+'</div>'
-    +      (head.imageFileId?'<a href="https://drive.google.com/file/d/'+head.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">'+(head.fileKind==='pdf'?'📄 PDF':'🧾 فاکتور')+'</a>':'')
+    +      (head.imageFileId?('<button onclick="viewInvoice(\''+head.id+'\')" style="cursor:pointer;border:none;background:transparent;color:#7ab8ff;font-size:10.5px;padding:0;font-family:inherit;text-decoration:underline">'+(head.fileKind==='pdf'?'📄 دیدنِ PDF':'🧾 دیدنِ فاکتور')+'</button>'):'')
     +    '</div>'
     +  '</div></div>'
     +'<div style="background:#0b0d14">'+items+'</div>'
@@ -870,7 +937,7 @@ function buyInvCancel(invId, n){
   if(!confirm('کلِ این فاکتور با '+n+' قلم حذف شود؟')) return;
   call('pubInvoiceCancel',{invoiceId:invId,t:Date.now()},function(r){
     if(r&&r.status==='ok') loadBuy();
-    else alert((r&&r.message)?r.message:'حذف نشد');
+    else showOk('انجام نشد', esc((r&&r.message)||'حذف نشد'), '⚠');
   });
 }
 function buyForm(){
@@ -920,12 +987,15 @@ function submitBuy(){
       msg('bmdlMsg','در حال آپلودِ فاکتور...','ok');
       uploadHeldFile(held, r.id, function(okUp){
         closeBmdl(); loadBuy();
-        alert(okUp ? '✓ خرید و فاکتورش ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.'
-                   : '✓ خرید ثبت شد، ولی آپلودِ فاکتور انجام نشد.\nاز فهرست دوباره امتحان کن.');
+        showOk('خرید ثبت شد',
+          okUp ? 'خرید و فاکتورش ثبت شد.<br><span class="mut">پس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.</span>'
+               : 'خرید ثبت شد، ولی آپلودِ فاکتور انجام نشد.<br><span class="mut">از فهرست دوباره امتحان کن.</span>',
+          okUp ? '✓' : '⚠');
       });
     } else {
       closeBmdl(); loadBuy();
-      alert('✓ خریدِ شما ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.');
+      showOk('خرید ثبت شد',
+        'خریدِ شما ثبت شد.<br><span class="mut">پس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.</span>');
     }
   });
 }
@@ -933,7 +1003,7 @@ function buyCancel(id){
   if(!confirm('این خرید حذف شود؟')) return;
   call('pubPurchaseCancel',{id:id,t:Date.now()},function(r){
     if(r&&r.status==='ok') loadBuy();
-    else alert((r&&r.message)?r.message:'حذف نشد');
+    else showOk('انجام نشد', esc((r&&r.message)||'حذف نشد'), '⚠');
   });
 }
 // آپلودِ فاکتور: عکس (دوربین/گالری) یا فایلِ PDF
@@ -946,28 +1016,28 @@ function buyPickImage(id){
     var f=this.files&&this.files[0]; if(!f) return;
     var isPdf = (f.type==='application/pdf') || /\.pdf$/i.test(f.name||'');
     // سقفِ حجم: PDF تا ۸ مگابایت (فشرده نمی‌شود)، عکس هر حجمی (فشرده می‌شود)
-    if(isPdf && f.size > 8*1024*1024){ alert('حجمِ فایلِ PDF بیشتر از ۸ مگابایت است.\nلطفاً فایلِ کوچک‌تری انتخاب کن.'); return; }
-    alert('در حال آپلود... چند لحظه صبر کن.');
+    if(isPdf && f.size > 8*1024*1024){ showOk('فایل بزرگ است','حجمِ فایلِ PDF بیشتر از ۸ مگابایت است.<br><span class="mut">فایلِ کوچک‌تری انتخاب کن.</span>','⚠'); return; }
+    showOk('در حال آپلود','چند لحظه صبر کن...','⏳');
     function send(b64, mime){
       fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
         body:JSON.stringify({action:'purUploadImage',stuToken:TOK,id:id,base64:b64,mime:mime})
       }).then(function(r){return r.json();}).then(function(res){
-        if(res&&res.status==='ok'){ alert('✓ فاکتور ذخیره شد'); loadBuy(); }
-        else alert((res&&res.message)?res.message:'خطا در آپلود');
-      }).catch(function(){ alert('خطا در ارتباط'); });
+        if(res&&res.status==='ok'){ showOk('فاکتور ذخیره شد','سندِ فاکتور با موفقیت آپلود شد.'); loadBuy(); }
+        else showOk('خطا در آپلود', esc((res&&res.message)||'دوباره تلاش کن'), '⚠');
+      }).catch(function(){ showOk('خطا در ارتباط','اینترنت را بررسی کن و دوباره تلاش کن.','⚠'); });
     }
     if(isPdf){
       // PDF نباید از مسیرِ فشرده‌سازیِ عکس رد شود — خام فرستاده می‌شود
       var rd=new FileReader();
       rd.onload=function(e){
         try{ send(String(e.target.result).split(',')[1], 'application/pdf'); }
-        catch(err){ alert('خطا در خواندنِ فایل'); }
+        catch(err){ showOk('خطا','فایل خوانده نشد.','⚠'); }
       };
-      rd.onerror=function(){ alert('خطا در خواندنِ فایل'); };
+      rd.onerror=function(){ showOk('خطا','فایل خوانده نشد.','⚠'); };
       rd.readAsDataURL(f);
     } else {
       shrink(f,1400,0.72,function(img){
-        if(!img){ alert('خطا در خواندنِ عکس'); return; }
+        if(!img){ showOk('خطا','عکس خوانده نشد.','⚠'); return; }
         send(img.base64, img.mime);
       });
     }
@@ -1103,12 +1173,15 @@ function submitInv(){
       msg('imdlMsg','در حال آپلودِ فاکتور...','ok');
       uploadHeldFile(held, r.firstId, function(okUp){
         closeImdl(); loadBuy();
-        alert(okUp ? ('✓ فاکتورِ شما با '+fa(r.count)+' قلم و سندش ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.')
-                   : ('✓ فاکتور ثبت شد، ولی آپلودِ سند انجام نشد.\nاز فهرست دوباره امتحان کن.'));
+        showOk('فاکتور ثبت شد',
+          okUp ? ('فاکتورِ شما با <b>'+fa(r.count)+' قلم</b> و سندش ثبت شد.<br><span class="mut">پس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.</span>')
+               : ('فاکتور ثبت شد، ولی آپلودِ سند انجام نشد.<br><span class="mut">از فهرست دوباره امتحان کن.</span>'),
+          okUp ? '✓' : '⚠');
       });
     } else {
       closeImdl(); loadBuy();
-      alert('✓ فاکتورِ شما با '+fa(r.count)+' قلم ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.');
+      showOk('فاکتور ثبت شد',
+        'فاکتورِ شما با <b>'+fa(r.count)+' قلم</b> ثبت شد.<br><span class="mut">پس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.</span>');
     }
   });
 }
@@ -1176,7 +1249,7 @@ function buyUseCard(card){
       else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
     });
   })();
-  console.log('iPrint3D STUDENT V14');
+  console.log('iPrint3D STUDENT V15');
 })();
 </script>
 </body>
