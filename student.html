@@ -251,6 +251,9 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
         </div>
         <div id="iv-items"></div>
         <div id="iv-total" style="text-align:left;color:#9ec5ff;font-weight:800;font-size:15px;margin-top:9px;padding-top:9px;border-top:1px dashed #1e2235"></div>
+      <div class="mut" style="margin-top:10px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:9px;padding:10px">
+        📎 <b>عکس یا PDF فاکتور</b> را بعد از ثبت اضافه کن — در همین صفحه، زیرِ همین فاکتور دکمه‌اش می‌آید.
+      </div>
       </div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
@@ -278,6 +281,7 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
       <input class="inp" id="bv-reason" placeholder="مثلاً پذیراییِ جلسهٔ دفاع">
       <label class="lbl">پروژه (اختیاری)</label>
       <input class="inp" id="bv-proj" placeholder="مثلاً پایان‌نامه · یا: عمومی آزمایشگاه">
+      <div class="mut" style="margin:2px 0 9px">📎 عکس یا PDF فاکتور را بعد از ثبت اضافه کن.</div>
       <label class="lbl">شمارهٔ کارت <span class="mut">(برای بازپرداختِ پول)</span></label>
       <div style="display:flex;gap:6px;margin-bottom:5px">
         <input class="inp" id="bv-card" inputmode="numeric" placeholder="۶۲۲۱ ۰۶۱۲ ۴۱۱۳ ۵۲۱۱"
@@ -757,10 +761,10 @@ function buyRowHtml(x){
         +  '<div style="color:#9ec5ff;font-weight:800;font-size:14px;white-space:nowrap">'+fa(money(x.amount))+'</div>'
         +  (x.imageFileId?'<a href="https://drive.google.com/file/d/'+x.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">'+(x.fileKind==='pdf'?'📄 PDF':'🧾 فاکتور')+'</a>':'')
         +'</div></div>'
-        +(pend?('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid #1a2038">'
-          +'<button class="btn btn-ghost btn-sm" onclick="buyPickImage(\'' + x.id + '\')">🧾 '+(x.imageFileId?'تعویضِ فاکتور':'افزودنِ فاکتور')+'</button>'
-          +'<button class="btn btn-ghost btn-sm" onclick="buyCancel(\'' + x.id + '\')" style="color:#f0a6a8;border-color:#5a2a2a">حذف</button>'
-          +'</div>'):'')
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid #1a2038">'
+          +'<button class="btn btn-ghost btn-sm" onclick="buyPickImage(\'' + x.id + '\')">📎 '+(x.imageFileId?'تعویضِ فاکتور':'افزودنِ عکس/PDF فاکتور')+'</button>'
+          +(pend?('<button class="btn btn-ghost btn-sm" onclick="buyCancel(\'' + x.id + '\')" style="color:#f0a6a8;border-color:#5a2a2a">حذف</button>'):'')
+          +'</div>'
         +'</div>';
   })(x);
 }
@@ -802,10 +806,10 @@ function buyInvoiceHtml(invId, g){
     +    '</div>'
     +  '</div></div>'
     +'<div style="background:#0b0d14">'+items+'</div>'
-    +(allPend?('<div style="display:flex;gap:6px;flex-wrap:wrap;padding:11px 13px;border-top:1px solid #1a1d2e">'
-      +'<button class="btn btn-ghost btn-sm" onclick="buyPickImage(\'' + head.id + '\')">🧾 '+(head.imageFileId?'تعویضِ فاکتور':'افزودنِ فاکتور')+'</button>'
-      +'<button class="btn btn-ghost btn-sm" onclick="buyInvCancel(\'' + invId + '\',' + g.length + ')" style="color:#f0a6a8;border-color:#5a2a2a">حذفِ فاکتور</button>'
-      +'</div>'):'')
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;padding:11px 13px;border-top:1px solid #1a1d2e">'
+      +'<button class="btn btn-ghost btn-sm" onclick="buyPickImage(\'' + head.id + '\')">📎 '+(head.imageFileId?'تعویضِ فاکتور':'افزودنِ عکس/PDF فاکتور')+'</button>'
+      +(allPend?('<button class="btn btn-ghost btn-sm" onclick="buyInvCancel(\'' + invId + '\',' + g.length + ')" style="color:#f0a6a8;border-color:#5a2a2a">حذفِ فاکتور</button>'):'')
+      +'</div>'
     +'</div>';
 }
 function buyInvCancel(invId, n){
@@ -1096,7 +1100,7 @@ function buyUseCard(card){
       else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
     });
   })();
-  console.log('iPrint3D STUDENT V12');
+  console.log('iPrint3D STUDENT V13');
 })();
 </script>
 </body>
