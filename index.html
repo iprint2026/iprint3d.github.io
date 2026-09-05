@@ -878,7 +878,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V357</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V358</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -3684,14 +3684,28 @@ function loadUsageReport(){
   var el = document.getElementById('usage-report-list');
   if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#5a6080">⏳ در حال بارگذاری...</div>';
   callSheet('getUsageLog', {t:Date.now()}, function(data){
-    if(Array.isArray(data)){
-      USAGE_LOG = data;
-      // جمع‌آوری دلایل قبلی برای پیشنهاد
-      var rs = {}; data.forEach(function(r){ if(r.reason) rs[r.reason]=1; });
+    // پاسخ می‌تواند آرایهٔ ساده باشد یا آبجکتِ {rows,total,truncated} وقتی داده زیاد است
+    var rows = Array.isArray(data) ? data
+             : (data && data.status==='ok' && Array.isArray(data.rows)) ? data.rows : null;
+    if(rows){
+      USAGE_LOG = rows;
+      var rs = {}; rows.forEach(function(r){ if(r.reason) rs[r.reason]=1; });
       KNOWN_REASONS = Object.keys(rs);
       renderUsageReport();
+      if(data && data.truncated){
+        var note = document.getElementById('usage-trunc-note');
+        if(!note && el && el.parentNode){
+          note = document.createElement('div');
+          note.id = 'usage-trunc-note';
+          note.style.cssText = 'background:#2a2416;border:1px solid #5a4a2a;color:#f0c674;border-radius:9px;padding:10px 13px;font-size:12px;margin-bottom:12px;line-height:1.8';
+          el.parentNode.insertBefore(note, el);
+        }
+        if(note) note.innerHTML = 'برای سرعت، فقط <b>'+prToFa(data.limit)+'</b> رکوردِ آخر از مجموعِ <b>'+prToFa(data.total)+'</b> نمایش داده می‌شود. برای گزارشِ کامل از «خروجی Excel» استفاده کن.';
+      }
     } else {
-      if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#f87171">❌ خطا در بارگذاری</div>';
+      var msg = (data && data.message) ? escapeHtml(data.message) : 'خطا در بارگذاری';
+      if(el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#f87171">❌ '+msg
+        + '<div style="color:#8a93b2;font-size:12px;margin-top:9px">اگر تکرار شد، «🔄 بروزرسانی» را بزن یا صفحه را دوباره باز کن.</div></div>';
     }
   });
 }
@@ -12308,8 +12322,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V357 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V357";
+try{ if(window.console) console.log('%c iPrint3D FRONT V358 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V358";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
