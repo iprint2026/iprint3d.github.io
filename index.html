@@ -878,7 +878,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V355</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V356</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -10886,6 +10886,7 @@ function purInvForm(){
   var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
   window._piDate = today; window._piProj=''; window._piReason=''; window._piCode=''; window._piCard='';
   PUR_ITEMS = [ {title:'',amount:'',project:''} ];
+  PUR_INV_FILE = null;
   var inp = 'width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px';
   var lbl = 'color:#8a93b2;font-size:11.5px;margin-bottom:4px;display:block';
   var html =
@@ -10911,12 +10912,51 @@ function purInvForm(){
    +   '</div>'
    +   '<div id="pi-items"></div>'
    +   '<div id="pi-total" style="text-align:left;color:#9ec5ff;font-weight:800;font-size:14px;margin-top:8px;padding-top:8px;border-top:1px dashed #232742"></div>'
-   +   '<div style="color:#8a93b2;font-size:11px;margin-top:9px;background:#0c1120;border:1px solid #1a2440;border-radius:8px;padding:9px;line-height:1.8">📎 <b>عکس یا PDF فاکتور</b> را بعد از ثبت اضافه کن — در فهرست، زیرِ همین فاکتور دکمه‌اش می‌آید.</div>'
+   +   '<div style="margin-top:11px;background:#0c1120;border:1px solid #1a2440;border-radius:9px;padding:11px">'
+   +     '<div style="color:#c7cce0;font-size:12px;margin-bottom:8px">📎 عکس یا PDF فاکتور <span style="color:#8a93b2">(اختیاری)</span></div>'
+   +     '<button type="button" onclick="purInvPickFile()" style="width:100%;cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:8px;padding:9px;font-size:12.5px;font-family:inherit">📷 انتخابِ عکس یا فایل</button>'
+   +     '<div id="pi-file-info" style="color:#8a93b2;font-size:11px;margin-top:7px;text-align:center"></div>'
+   +   '</div>'
    + '</div>';
   uiConfirm({ title:'ثبتِ فاکتور (چند قلم)', html:html, okText:'ثبتِ فاکتور', cancelText:'انصراف', danger:false }, function(){
     purInvSubmit();
   });
   setTimeout(function(){ purItemsRender(); purInvWireCard(); }, 40);
+}
+// انتخابِ فایلِ فاکتور داخلِ فرم — پس از ثبت خودکار آپلود می‌شود
+var PUR_INV_FILE = null;
+function purInvPickFile(){
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*,application/pdf,.pdf';
+  inp.onchange = function(){
+    var f = this.files && this.files[0]; if(!f) return;
+    var isPdf = (f.type==='application/pdf') || /\.pdf$/i.test(f.name||'');
+    var info = document.getElementById('pi-file-info');
+    if(isPdf && f.size > 8*1024*1024){ if(info){ info.style.color='#f0a6a8'; info.textContent='PDF بیشتر از ۸ مگابایت است'; } return; }
+    if(info){ info.style.color='#8a93b2'; info.textContent='در حال آماده‌سازی...'; }
+    function done(p){
+      PUR_INV_FILE = p;
+      if(info){ info.style.color='#9ee0a8'; info.innerHTML = '✓ '+escapeHtml(f.name||'فایل')+' <span style="color:#8a93b2">(با ثبت آپلود می‌شود)</span>'; }
+    }
+    if(isPdf){
+      var rd = new FileReader();
+      rd.onload = function(e){ done({ base64:String(e.target.result).split(',')[1], mime:'application/pdf' }); };
+      rd.onerror = function(){ if(info){ info.style.color='#f0a6a8'; info.textContent='خطا در خواندنِ فایل'; } };
+      rd.readAsDataURL(f);
+    } else {
+      compressImage(f, 1400, 0.72).then(function(img){ done({ base64:img.base64, mime:img.mime }); })
+        .catch(function(){ if(info){ info.style.color='#f0a6a8'; info.textContent='خطا در خواندنِ عکس'; } });
+    }
+  };
+  inp.click();
+}
+function purUploadHeld(payload, purchaseId, cb){
+  if(!payload || !purchaseId){ if(cb) cb(false); return; }
+  fetch(SHEET_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'purUploadImage', token:SESSION_TOKEN, id:purchaseId,
+                           base64:payload.base64, mime:payload.mime })
+  }).then(function(r){ return r.json(); }).then(function(res){ if(cb) cb(!!(res && res.status==='ok')); })
+    .catch(function(){ if(cb) cb(false); });
 }
 function purItemAdd(){ PUR_ITEMS.push({title:'',amount:'',project:''}); purItemsRender(); }
 function purItemDel(i){ if(PUR_ITEMS.length<=1) return; PUR_ITEMS.splice(i,1); purItemsRender(); }
@@ -11006,10 +11046,19 @@ function purInvSubmit(){
     date:(window._piDate||''), project:(window._piProj||''), reason:(window._piReason||''),
     cardNumber:card, items: JSON.stringify(items), t:Date.now()
   }, function(res){
-    if(res && res.status==='ok'){
+    if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در ثبت'); return; }
+    var held = PUR_INV_FILE; PUR_INV_FILE = null;
+    if(held){
+      showToast('در حال آپلودِ فاکتور...');
+      purUploadHeld(held, res.firstId, function(okUp){
+        showToast(okUp ? ('فاکتور با '+prToFa(res.count)+' قلم و سندش ثبت شد ✓')
+                       : 'فاکتور ثبت شد، ولی آپلودِ سند انجام نشد');
+        PUR_SUG = null; purInit(true);
+      });
+    } else {
       showToast('فاکتور با '+prToFa(res.count)+' قلم ثبت شد ✓');
       PUR_SUG = null; purInit(true);
-    } else showToast((res&&res.message)?res.message:'خطا در ثبت');
+    }
   });
 }
 
@@ -12217,8 +12266,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V355 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V355";
+try{ if(window.console) console.log('%c iPrint3D FRONT V356 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V356";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
