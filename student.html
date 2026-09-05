@@ -251,8 +251,10 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
         </div>
         <div id="iv-items"></div>
         <div id="iv-total" style="text-align:left;color:#9ec5ff;font-weight:800;font-size:15px;margin-top:9px;padding-top:9px;border-top:1px dashed #1e2235"></div>
-      <div class="mut" style="margin-top:10px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:9px;padding:10px">
-        📎 <b>عکس یا PDF فاکتور</b> را بعد از ثبت اضافه کن — در همین صفحه، زیرِ همین فاکتور دکمه‌اش می‌آید.
+      <div style="margin-top:12px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:11px;padding:12px">
+        <div style="color:#c7cce0;font-size:12.5px;margin-bottom:8px">📎 عکس یا PDF فاکتور <span class="mut">(اختیاری)</span></div>
+        <button class="btn btn-sm" onclick="ivPickFile()" style="width:100%">📷 انتخابِ عکس یا فایل</button>
+        <div id="iv-file-info" class="mut" style="margin-top:7px;text-align:center"></div>
       </div>
       </div>
 
@@ -281,7 +283,11 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
       <input class="inp" id="bv-reason" placeholder="مثلاً پذیراییِ جلسهٔ دفاع">
       <label class="lbl">پروژه (اختیاری)</label>
       <input class="inp" id="bv-proj" placeholder="مثلاً پایان‌نامه · یا: عمومی آزمایشگاه">
-      <div class="mut" style="margin:2px 0 9px">📎 عکس یا PDF فاکتور را بعد از ثبت اضافه کن.</div>
+      <div style="margin:6px 0 10px;background:#0b0d14;border:1px solid #1a1d2e;border-radius:11px;padding:12px">
+        <div style="color:#c7cce0;font-size:12.5px;margin-bottom:8px">📎 عکس یا PDF فاکتور <span class="mut">(اختیاری)</span></div>
+        <button class="btn btn-sm" onclick="bvPickFile()" style="width:100%">📷 انتخابِ عکس یا فایل</button>
+        <div id="bv-file-info" class="mut" style="margin-top:7px;text-align:center"></div>
+      </div>
       <label class="lbl">شمارهٔ کارت <span class="mut">(برای بازپرداختِ پول)</span></label>
       <div style="display:flex;gap:6px;margin-bottom:5px">
         <input class="inp" id="bv-card" inputmode="numeric" placeholder="۶۲۲۱ ۰۶۱۲ ۴۱۱۳ ۵۲۱۱"
@@ -356,6 +362,54 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function fa(s){ return String(s==null?'':s).replace(/[0-9]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
 function la(s){ return String(s==null?'':s).replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }); }
+// ── انتخابِ فایلِ فاکتور داخلِ فرم (آپلودِ خودکار پس از ثبت) ──
+var IV_FILE = null, BV_FILE = null;
+function pickInvoiceFile(cb, infoId){
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*,application/pdf,.pdf';
+  inp.onchange = function(){
+    var f = this.files && this.files[0]; if(!f) return;
+    var isPdf = (f.type==='application/pdf') || /\.pdf$/i.test(f.name||'');
+    var info = document.getElementById(infoId);
+    if(isPdf && f.size > 8*1024*1024){
+      if(info){ info.style.color='#f0a6a8'; info.textContent='فایلِ PDF بیشتر از ۸ مگابایت است'; }
+      return;
+    }
+    if(info){ info.style.color='#8a93b2'; info.textContent='در حال آماده‌سازی...'; }
+    function done(payload){
+      cb(payload);
+      if(info){
+        info.style.color = '#9ee0a8';
+        info.innerHTML = '✓ ' + esc(f.name||'فایل') + ' <span class="mut">(با ثبت آپلود می‌شود)</span>';
+      }
+    }
+    if(isPdf){
+      var rd = new FileReader();
+      rd.onload = function(e){ done({ base64:String(e.target.result).split(',')[1], mime:'application/pdf', name:f.name }); };
+      rd.onerror = function(){ if(info){ info.style.color='#f0a6a8'; info.textContent='خطا در خواندنِ فایل'; } };
+      rd.readAsDataURL(f);
+    } else {
+      shrink(f, 1400, 0.72, function(img){
+        if(!img){ if(info){ info.style.color='#f0a6a8'; info.textContent='خطا در خواندنِ عکس'; } return; }
+        done({ base64:img.base64, mime:img.mime, name:f.name });
+      });
+    }
+  };
+  inp.click();
+}
+function ivPickFile(){ pickInvoiceFile(function(p){ IV_FILE = p; }, 'iv-file-info'); }
+function bvPickFile(){ pickInvoiceFile(function(p){ BV_FILE = p; }, 'bv-file-info'); }
+function uploadHeldFile(payload, purchaseId, cb){
+  if(!payload || !purchaseId){ if(cb) cb(false); return; }
+  fetch(API, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'purUploadImage', stuToken:TOK, id:purchaseId,
+                           base64:payload.base64, mime:payload.mime })
+  }).then(function(r){ return r.json(); }).then(function(res){
+    if(cb) cb(!!(res && res.status==='ok'));
+  }).catch(function(){ if(cb) cb(false); });
+}
+
 // ── تفسیرِ هوشمندِ ساعت ──
 // «۲۱» → ۲۱:۰۰ · «۲:۱۵» → ۱۴:۱۵ · «۹» → ۰۹:۰۰ · «۳ صبح» → ۰۳:۰۰
 // «۱۲ شب» → ۰۰:۰۰ · «۹۳۰» → ۰۹:۳۰ · «۱۴۳۰» → ۱۴:۳۰
@@ -832,6 +886,8 @@ function buyForm(){
     this.value=raw?money(raw):'';
     document.getElementById('bv-words').textContent=raw?(fa(money(raw))+' تومان'):'';
   };
+  BV_FILE=null;
+  var bvInfo=document.getElementById('bv-file-info'); if(bvInfo) bvInfo.textContent='';
   document.getElementById('bv-card').value='';
   document.getElementById('bv-card-msg').textContent='';
   document.getElementById('bv-card-list').style.display='none';
@@ -858,10 +914,19 @@ function submitBuy(){
   if(card && card.length!==16){ msg('bmdlMsg','شمارهٔ کارت باید ۱۶ رقم باشد'); return; }
   msg('bmdlMsg','در حال ثبت...','ok');
   call('pubPurchaseAdd',{date:date,title:title,amount:amt,reason:reason,project:proj,cardNumber:card,t:Date.now()},function(r){
-    if(r&&r.status==='ok'){
+    if(!(r&&r.status==='ok')){ msg('bmdlMsg',(r&&r.message)?r.message:'ثبت نشد'); return; }
+    var held = BV_FILE; BV_FILE = null;
+    if(held){
+      msg('bmdlMsg','در حال آپلودِ فاکتور...','ok');
+      uploadHeldFile(held, r.id, function(okUp){
+        closeBmdl(); loadBuy();
+        alert(okUp ? '✓ خرید و فاکتورش ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.'
+                   : '✓ خرید ثبت شد، ولی آپلودِ فاکتور انجام نشد.\nاز فهرست دوباره امتحان کن.');
+      });
+    } else {
       closeBmdl(); loadBuy();
-      alert('✓ خریدِ شما ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.\nمی‌توانی عکسِ فاکتور را هم اضافه کنی.');
-    } else msg('bmdlMsg',(r&&r.message)?r.message:'ثبت نشد');
+      alert('✓ خریدِ شما ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.');
+    }
   });
 }
 function buyCancel(id){
@@ -944,6 +1009,8 @@ function buyInvForm(){
   document.getElementById('iv-card-list').style.display='none';
   msg('imdlMsg','');
   IV_ITEMS=[{title:'',amount:'',project:''}];
+  IV_FILE=null;
+  var ivInfo=document.getElementById('iv-file-info'); if(ivInfo) ivInfo.textContent='';
   ivItemsRender();
   document.getElementById('imdl').className='';
   var cd=document.getElementById('iv-card');
@@ -1030,10 +1097,19 @@ function submitInv(){
     reason:document.getElementById('iv-reason').value||'',
     cardNumber:card, items:JSON.stringify(items), t:Date.now()
   },function(r){
-    if(r&&r.status==='ok'){
+    if(!(r&&r.status==='ok')){ msg('imdlMsg',(r&&r.message)?r.message:'ثبت نشد'); return; }
+    var held = IV_FILE; IV_FILE = null;
+    if(held){
+      msg('imdlMsg','در حال آپلودِ فاکتور...','ok');
+      uploadHeldFile(held, r.firstId, function(okUp){
+        closeImdl(); loadBuy();
+        alert(okUp ? ('✓ فاکتورِ شما با '+fa(r.count)+' قلم و سندش ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.')
+                   : ('✓ فاکتور ثبت شد، ولی آپلودِ سند انجام نشد.\nاز فهرست دوباره امتحان کن.'));
+      });
+    } else {
       closeImdl(); loadBuy();
-      alert('✓ فاکتورِ شما با '+fa(r.count)+' قلم ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.\nمی‌توانی عکسِ فاکتور را هم اضافه کنی.');
-    } else msg('imdlMsg',(r&&r.message)?r.message:'ثبت نشد');
+      alert('✓ فاکتورِ شما با '+fa(r.count)+' قلم ثبت شد.\n\nپس از تأییدِ مسئولِ آزمایشگاه در حسابتان منظور می‌شود.');
+    }
   });
 }
 
@@ -1100,7 +1176,7 @@ function buyUseCard(card){
       else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
     });
   })();
-  console.log('iPrint3D STUDENT V13');
+  console.log('iPrint3D STUDENT V14');
 })();
 </script>
 </body>
