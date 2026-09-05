@@ -878,7 +878,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V356</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V357</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -10517,7 +10517,7 @@ function purRowHtml(r){
     +   '</div>'
     +   '<div style="text-align:left;flex-shrink:0">'
     +     '<div style="color:#9ec5ff;font-weight:800;font-size:14px;white-space:nowrap">' + prToFa(fmtMoney(r.amount)) + '</div>'
-    +     (r.imageFileId ? '<a href="https://drive.google.com/file/d/'+r.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">'+(r.fileKind==='pdf'?'📄 فاکتور PDF':'🧾 عکسِ فاکتور')+'</a>' : '<span style="color:#5a6080;font-size:10.5px">بدون فاکتور</span>')
+    +     (r.imageFileId ? ('<button onclick="purViewFile(\''+r.id+'\')" style="cursor:pointer;border:none;background:transparent;color:#7ab8ff;font-size:10.5px;padding:0;font-family:inherit;text-decoration:underline">'+(r.fileKind==='pdf'?'📄 دیدنِ PDF':'🧾 دیدنِ فاکتور')+'</button>') : '<span style="color:#5a6080;font-size:10.5px">بدون فاکتور</span>')
     +   '</div>'
     + '</div>'
     + (acts ? '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px solid #1a2440">' + acts + '</div>' : '')
@@ -10853,7 +10853,7 @@ function purInvoiceHtml(invId, g){
     +   '</div>'
     +   '<div style="text-align:left;flex-shrink:0">'
     +     '<div style="color:#9ec5ff;font-weight:800;font-size:15px;white-space:nowrap">'+prToFa(fmtMoney(total))+'</div>'
-    +     (head.imageFileId ? '<a href="https://drive.google.com/file/d/'+head.imageFileId+'/view" target="_blank" style="color:#7ab8ff;font-size:10.5px;text-decoration:none">'+(head.fileKind==='pdf'?'📄 فاکتور PDF':'🧾 عکسِ فاکتور')+'</a>' : '<span style="color:#5a6080;font-size:10.5px">بدون عکس</span>')
+    +     (head.imageFileId ? ('<button onclick="purViewFile(\''+head.id+'\')" style="cursor:pointer;border:none;background:transparent;color:#7ab8ff;font-size:10.5px;padding:0;font-family:inherit;text-decoration:underline">'+(head.fileKind==='pdf'?'📄 دیدنِ PDF':'🧾 دیدنِ فاکتور')+'</button>') : '<span style="color:#5a6080;font-size:10.5px">بدون فاکتور</span>')
     +   '</div>'
     + '</div>'
     + '<div style="background:#0b0f1c">' + items + '</div>'
@@ -11128,6 +11128,48 @@ function purCopyFallback(txt, cb){
 }
 
 // ── عکسِ فاکتورِ خرید ──
+// نمایشِ فاکتور داخلِ خودِ سایت (به‌جای بازکردنِ Google Drive)
+function purViewFile(id){
+  var ov = document.getElementById('pur-view-ov');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'pur-view-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9600;display:flex;flex-direction:column;padding:14px';
+    ov.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:9px;margin-bottom:10px;flex-shrink:0">'
+      + '<span id="pur-view-name" style="color:#dfe3f5;font-size:13px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>'
+      + '<div style="display:flex;gap:7px;flex-shrink:0">'
+      +   '<a id="pur-view-dl" download style="cursor:pointer;border:1px solid #2a3a66;background:#1a2748;color:#9ec5ff;border-radius:7px;padding:6px 13px;font-size:12px;text-decoration:none">⬇ دانلود</a>'
+      +   '<button onclick="purCloseView()" style="cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:6px 13px;font-size:12px;font-family:inherit">✕ بستن</button>'
+      + '</div></div>'
+      + '<div id="pur-view-body" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:#0b0d14;border:1px solid #1e2235;border-radius:12px"></div>';
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'flex';
+  var body = document.getElementById('pur-view-body');
+  var nm = document.getElementById('pur-view-name');
+  var dl = document.getElementById('pur-view-dl');
+  if(nm) nm.textContent = 'در حال بارگذاری...';
+  body.innerHTML = '<div style="color:#8a93b2;font-size:13px;padding:30px">در حال بارگذاریِ فاکتور...</div>';
+  callSheet('purGetFile', { id:id, t:Date.now() }, function(r){
+    if(!(r && r.status==='ok')){
+      body.innerHTML = '<div style="color:#f0a6a8;font-size:13px;padding:30px;text-align:center">'+escapeHtml((r&&r.message)||'فاکتور در دسترس نیست')+'</div>';
+      if(nm) nm.textContent = '';
+      return;
+    }
+    var url = 'data:'+r.mime+';base64,'+r.base64;
+    if(nm) nm.textContent = r.name || 'فاکتور';
+    if(dl){ dl.href = url; dl.setAttribute('download', r.name||'invoice'); }
+    if(String(r.mime).indexOf('pdf') >= 0)
+      body.innerHTML = '<iframe src="'+url+'" style="width:100%;height:100%;border:0;border-radius:10px"></iframe>';
+    else
+      body.innerHTML = '<img src="'+url+'" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:10px">';
+  }, 60000);
+}
+function purCloseView(){
+  var ov = document.getElementById('pur-view-ov');
+  if(ov){ ov.style.display='none'; var b=document.getElementById('pur-view-body'); if(b) b.innerHTML=''; }
+}
+
 // آپلودِ فاکتور: عکس (دوربین/گالری) یا فایلِ PDF
 function purPickImage(id){
   var inp = document.createElement('input');
@@ -12266,8 +12308,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V356 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V356";
+try{ if(window.console) console.log('%c iPrint3D FRONT V357 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V357";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
