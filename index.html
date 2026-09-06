@@ -879,7 +879,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V359</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V361</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -3014,15 +3014,51 @@ function delBatch(batchId, itemId){
 }
 // بعد از هر تغییر بچ: بارگذاری مجدد + همگام‌سازی موجودی کل کالا
 function afterBatchChange(itemId, res){
-  if(res && (res.status==='ok')){
-    loadBatches(function(){
-      syncItemQtyFromBatches(itemId);
+  if(!(res && (res.status==='ok'))){ showToast('❌ خطا'); return; }
+  loadBatches(function(){
+    var it = items.find(function(i){ return i.id===itemId; });
+    var before = parseFloat(it && it.qty)||0;
+    var total  = totalFromBatches(itemId);
+    total = (total===null) ? null : Math.round(total*1000)/1000;
+    // محافظ: اگر موجودیِ فعلیِ کالا از جمعِ بچ‌ها بیشتر است، یعنی کالا موجودیِ
+    // خارج از بچ هم دارد (مثلاً قبلاً بدونِ بچ کار می‌کرده). بی‌صدا بازنویسی
+    // نکن — وگرنه آن موجودی نابود می‌شود. از کاربر بپرس.
+    if(total !== null && before > total + 0.001){
       renderBatchSection(itemId);
-      showToast('✅ انجام شد');
-    });
-  } else {
-    showToast('❌ خطا');
-  }
+      var diff = Math.round((before-total)*1000)/1000;
+      var unit = (it && it.unit) ? it.unit : '';
+      uiConfirm({
+        title:'موجودیِ خارج از بچ',
+        okText:'بله، ' + prToFa(diff) + ' را در یک بچ بگذار',
+        cancelText:'نه، موجودیِ کالا دست‌نخورده بماند',
+        danger:false,
+        html:'<div style="color:#c7cce0;font-size:13px;line-height:2">'
+          +'موجودیِ ثبت‌شدهٔ این کالا <b>'+prToFa(before)+' '+escapeHtml(unit)+'</b> است، '
+          +'ولی جمعِ بچ‌ها <b>'+prToFa(total)+' '+escapeHtml(unit)+'</b> شد.<br>'
+          +'یعنی <b>'+prToFa(diff)+' '+escapeHtml(unit)+'</b> موجودیِ قدیمی دارید که هنوز در هیچ بچی نیست.</div>'
+          +'<div style="color:#f0c674;font-size:12px;margin-top:9px;line-height:1.9">'
+          +'اگر «بله» را بزنید یک بچِ «موجودیِ قبلی» ساخته می‌شود تا چیزی از دست نرود.<br>'
+          +'اگر «نه» را بزنید موجودیِ کالا همان '+prToFa(before)+' می‌ماند و بعداً خودتان تنظیمش می‌کنید.</div>'
+      }, function(){
+        // بچِ «موجودیِ قبلی» برای مقدارِ باقی‌مانده
+        var bcode = genBatchCode(itemId);
+        showToast('⏳ در حال ساختِ بچِ موجودیِ قبلی...');
+        callSheet('addBatch', { itemId:itemId, batchCode:bcode, batchName:'موجودیِ قبلی',
+                                qty:String(diff), expiry:'', note:'ساخته‌شده هنگامِ فعال‌سازیِ بچ‌بندی', 
+                                entryDate:'', purchased:'' }, function(r2){
+          loadBatches(function(){
+            syncItemQtyFromBatches(itemId);
+            renderBatchSection(itemId);
+            showToast('✅ موجودیِ قبلی در بچِ جدا ثبت شد');
+          });
+        });
+      });
+      return;
+    }
+    syncItemQtyFromBatches(itemId);
+    renderBatchSection(itemId);
+    showToast('✅ انجام شد');
+  });
 }
 // موجودی کل کالا رو با جمع بچ‌ها هماهنگ کن (در شیت)
 function syncItemQtyFromBatches(itemId, cb){
@@ -4198,9 +4234,11 @@ function changeQty(id,dir){
 // HTML انتخاب بچ در مودال مصرف
 function batchSelectorHtml(item){
   if(!item) return '';
-  if(!isItemBatched(item)) return ''; // بچ‌بندی نداره
   var bs = batchesOf(item.id);
-  if(!bs.length) return ''; // بچ نداره → چیزی نشون نده
+  // اگر کالا بچِ واقعی دارد، انتخابگر نشان داده می‌شود — حتی اگر تیکِ «بچ‌بندی» نخورده باشد.
+  // قبلاً فقط به تیک نگاه می‌شد؛ اگر تیک نبود ولی بچ وجود داشت، کسر از بچ انجام نمی‌شد و
+  // موجودیِ کالا با جمعِ بچ‌ها اختلاف پیدا می‌کرد (باگِ «موجودیِ دوتایی»).
+  if(!bs.length) return ''; // اصلاً بچ ندارد → چیزی نشان نده
   var unit = (item.unit && item.unit!=='عدد') ? item.unit : '';
   // مرتب‌سازی: نزدیک‌ترین انقضا (و منقضی‌ها) اول — تا اول از قدیمی‌ها مصرف شود
   var sorted = bs.slice().sort(function(a,b){
@@ -4360,6 +4398,16 @@ function confirmConsume(id){
 
   // اگه کالا بچ داره، از بچ انتخاب‌شده کم کن
   var batchSel = document.getElementById('consume-batch');
+  // محافظِ دوم: اگر کالا بچِ واقعی دارد ولی انتخابگر نیامده، کسر را متوقف کن.
+  // وگرنه فقط موجودیِ کالا کم می‌شود و بچ دست‌نخورده می‌ماند → اختلافِ موجودی.
+  if(!batchSel){
+    var _itChk = items.find(function(i){ return i.id===id; });
+    var _bsChk = batchesOf(id);
+    if(_itChk && _bsChk && _bsChk.length){
+      showToast('این کالا بچ دارد — صفحه را یک بار بروزرسانی کن تا انتخابِ بچ بیاید');
+      return;
+    }
+  }
   if(batchSel){
     var batchId = batchSel.value;
     var b = BATCHES.find(function(x){ return x.id===batchId; });
@@ -12409,8 +12457,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V359 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V359";
+try{ if(window.console) console.log('%c iPrint3D FRONT V361 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V361";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
