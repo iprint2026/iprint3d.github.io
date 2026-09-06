@@ -455,6 +455,7 @@ tr:hover td{background:#0e1018}
       <!-- انتخاب دسته‌جمعی -->
       <div id="bulkBar" style="display:none;background:#1e2235;border-radius:10px;padding:10px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
         <span id="selectedCount" style="font-size:13px;color:#9aa3c2">۰ کالا انتخاب شده</span>
+        <button class="btn btn-success btn-sm" onclick="exportSelectedItemsToExcel()">📥 خروجی Excel انتخابی</button>
         <button class="btn btn-danger btn-sm" onclick="deleteSelected()">🗑️ حذف انتخاب‌شده‌ها</button>
         <button class="btn btn-ghost btn-sm" onclick="clearSelection()">انصراف</button>
       </div>
@@ -878,7 +879,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V358</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V359</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -2334,6 +2335,92 @@ function updateBulkBar(){
     bar.style.display = selected.length > 0 ? 'flex' : 'none';
     if(count) count.textContent = selected.length + ' کالا انتخاب شده';
   }
+}
+
+// ── خروجیِ Excel از کالاهای تیک‌خورده ──
+// کاملاً سمتِ مرورگر (کتابخانهٔ XLSX)؛ هیچ درخواستی به سرور نمی‌رود و
+// هیچ داده‌ای تغییر نمی‌کند — فقط از آرایهٔ items که در حافظه است می‌خواند.
+function exportSelectedItemsToExcel(){
+  var checked = document.querySelectorAll('.item-cb:checked');
+  if(!checked.length){ showToast('اول چند کالا را تیک بزن'); return; }
+  var ids = {};
+  Array.prototype.forEach.call(checked, function(c){ ids[String(c.value)] = 1; });
+  var rows = (items||[]).filter(function(i){ return ids[String(i.id)]; });
+  if(!rows.length){ showToast('کالای انتخاب‌شده پیدا نشد'); return; }
+
+  function unitOf(i){
+    var u = String(i.unit||'').trim();
+    if(u) return u;
+    return (String(i.weighted)==='true' || i.weighted===true) ? 'گرم' : '';
+  }
+  function qtyOf(i){
+    var q = parseFloat(i.qty||0)||0;
+    var u = unitOf(i);
+    // نمایشِ خوانا: زیر ۱۰۰۰ گرم → گرم، بالاتر → کیلوگرم (بدونِ تغییرِ دادهٔ اصلی)
+    if(u === 'گرم' && q >= 1000) return { n: (q/1000), u: 'کیلوگرم' };
+    return { n: q, u: u };
+  }
+
+  var headers = ['ردیف','کد','نام کالا','دسته','برند','مدل','رنگ','موجودی','واحد','وضعیت','تعداد بچ','حداقل موجودی','محل','قفسه','بارکد','توضیحات'];
+  var aoa = [
+    ['گزارشِ موجودیِ کالاهای انتخابی'],
+    ['تاریخ: ' + new Date().toLocaleDateString('fa-IR') + '   |   ' + rows.length + ' کالا'],
+    [],
+    headers
+  ];
+  rows.forEach(function(i, idx){
+    var q = qtyOf(i);
+    aoa.push([
+      idx+1,
+      i.code || i.id || '',
+      i.name || '',
+      i.cat || '',
+      i.brand || '',
+      i.model || '',
+      i.color || '',
+      q.n,
+      q.u,
+      i.status || '',
+      (parseInt(i.batchCount||0)||0) || '',
+      (parseFloat(i.minQty||0)||0) || '',
+      i.location || '',
+      i.shelf || '',
+      i.barcode || '',
+      i.note || i.desc || ''
+    ]);
+  });
+
+  if(typeof XLSX === 'undefined'){
+    var csv = '\ufeff' + headers.join(',') + '\n';
+    aoa.slice(4).forEach(function(r){
+      csv += r.map(function(v){ return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'; }).join(',')+'\n';
+    });
+    var blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download='موجودی_انتخابی.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ فایل CSV دانلود شد');
+    return;
+  }
+
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:6},{wch:13},{wch:34},{wch:14},{wch:14},{wch:18},{wch:12},
+                 {wch:11},{wch:11},{wch:10},{wch:9},{wch:12},{wch:14},{wch:10},{wch:16},{wch:26}];
+  ws['!merges'] = [ {s:{r:0,c:0},e:{r:0,c:15}}, {s:{r:1,c:0},e:{r:1,c:15}} ];
+  try{
+    if(ws['A1']) ws['A1'].s = { font:{ bold:true, sz:14 }, alignment:{ horizontal:'center' } };
+    if(ws['A2']) ws['A2'].s = { font:{ sz:10, color:{rgb:'666666'} }, alignment:{ horizontal:'center' } };
+    for(var c=0;c<headers.length;c++){
+      var ref = XLSX.utils.encode_cell({r:3,c:c});
+      if(ws[ref]) ws[ref].s = { font:{ bold:true, color:{rgb:'FFFFFF'} }, fill:{ fgColor:{rgb:'1E2235'} } };
+    }
+  }catch(e){}
+  var wb = XLSX.utils.book_new();
+  wb.Workbook = { Views:[{ RTL:true }] };
+  XLSX.utils.book_append_sheet(wb, ws, 'موجودی');
+  var fname = 'موجودی_انتخابی_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  showToast('✅ خروجیِ ' + prToFa(rows.length) + ' کالا دانلود شد');
 }
 
 function clearSelection(){
@@ -12322,8 +12409,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V358 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V358";
+try{ if(window.console) console.log('%c iPrint3D FRONT V359 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V359";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
