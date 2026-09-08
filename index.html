@@ -879,7 +879,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V362</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V363</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -11747,7 +11747,8 @@ function wsRender(){
     + '</div>';
 
   // ── انتخابِ دستگاه و ماهِ نمایش ──
-  if(!WS_SEL_MID || mids.indexOf(WS_SEL_MID)<0){ WS_SEL_MID = mids[0]; }
+  if(!WS_SEL_MID || (WS_SEL_MID!=='__ALL__' && mids.indexOf(WS_SEL_MID)<0)){ WS_SEL_MID = mids[0]; }
+  var WS_IS_ALL = (WS_SEL_MID === '__ALL__');   // نمایِ «همهٔ دستگاه‌ها» در یک تقویم
   if(!WS_VIEW_M){ WS_VIEW_M = today.m; WS_VIEW_Y = today.y; }
   var selMid = WS_SEL_MID;
   var vy = WS_VIEW_Y, vm = WS_VIEW_M;
@@ -11771,6 +11772,11 @@ function wsRender(){
       +';border-radius:8px;padding:5px 11px;font-size:12px;font-weight:'+(on?'700':'400')+'">'
       +icon+escapeHtml(wsMachineName(mid))+'</button>';
   }).join('');
+  // دکمهٔ «همهٔ دستگاه‌ها» — یک تقویمِ واحد با همه‌چیزِ همهٔ دستگاه‌ها
+  machTabs = '<button onclick="wsPickMachine(\'__ALL__\')" style="cursor:pointer;border:1px solid '
+    +(WS_IS_ALL?'#5a4a8a':'#232742')+';background:'+(WS_IS_ALL?'#241d3d':'transparent')+';color:'+(WS_IS_ALL?'#c4b0ff':'#8a93b2')
+    +';border-radius:8px;padding:5px 11px;font-size:12px;font-weight:'+(WS_IS_ALL?'700':'400')+';font-family:inherit">'
+    +'🗂 همهٔ دستگاه‌ها</button>' + machTabs;
 
   var nav = '<div class="card" style="margin-bottom:12px">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap">'
@@ -11800,12 +11806,30 @@ function wsRender(){
     var isToday=(vy===today.y && vm===today.m && d===today.d);
     var isFri=(dowIdx===6);
     var isOff=official.hasOwnProperty(k);
-    var slot=(occ[selMid]||{})[k]||null;
-    var jobs=slot?slot.jobs:[];
-    var resvs=wsResvOn(selMid, k);         // رزروهای دستیِ این روز/دستگاه
-    var resvHrs=0; resvs.forEach(function(r){ if(r.status!=='pending') resvHrs += (+r.hours||0); });
-    var cap=slot?(+slot.cap||0):Math.max(0, (((typeof whHoursOf==='function')?whHoursOf(k,dow):0) - resvHrs));
-    var used=slot?(+slot.used||0):0;
+    var slot, jobs, resvs, cap, used;
+    if(WS_IS_ALL){
+      // نمای «همه»: کارها و رزروهای همهٔ دستگاه‌ها در یک خانه، هرکدام با برچسبِ دستگاهش
+      jobs = []; cap = 0; used = 0; slot = null;
+      mids.forEach(function(mid){
+        var sl = (occ[mid]||{})[k]||null;
+        var rv = wsResvOn(mid, k);
+        var rh = 0; rv.forEach(function(r){ if(r.status!=='pending') rh += (+r.hours||0); });
+        cap  += sl ? (+sl.cap||0) : Math.max(0, (((typeof whHoursOf==='function')?whHoursOf(k,dow):0) - rh));
+        used += sl ? (+sl.used||0) : 0;
+        if(sl && sl.jobs) sl.jobs.forEach(function(a){
+          var c = {}; for(var kk in a){ if(a.hasOwnProperty(kk)) c[kk] = a[kk]; }
+          c._devName = wsMachineName(mid); jobs.push(c);
+        });
+      });
+      resvs = (WS_RESV||[]).filter(function(r){ return String(r.date)===String(k); });
+    } else {
+      slot=(occ[selMid]||{})[k]||null;
+      jobs=slot?slot.jobs:[];
+      resvs=wsResvOn(selMid, k);         // رزروهای دستیِ این روز/دستگاه
+      var resvHrs=0; resvs.forEach(function(r){ if(r.status!=='pending') resvHrs += (+r.hours||0); });
+      cap=slot?(+slot.cap||0):Math.max(0, (((typeof whHoursOf==='function')?whHoursOf(k,dow):0) - resvHrs));
+      used=slot?(+slot.used||0):0;
+    }
     var pct=cap>0?Math.min(100,Math.round(used/cap*100)):0;
     var barCol=pct>=100?'#f0a6a8':(pct>=70?'#f0c674':'#34d399');
 
@@ -11825,6 +11849,7 @@ function wsRender(){
         var cust = a.customer || '';
         return '<div onclick="event.stopPropagation(); wsOpen(\''+a.id+'\')" title="'+escapeHtml(nm+(cust?(' — '+cust):'')+' · '+prToFa(Math.round((+a.hours||0)*10)/10)+' ساعت')+'" '
           +'style="cursor:pointer;background:#1a2748;border:1px solid #2a3a66;border-radius:5px;padding:3px 5px;margin-bottom:3px;overflow:hidden">'
+          +(a._devName?'<div style="font-size:8.5px;color:#6f7ea8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(a._devName)+'</div>':'')
           +'<div style="font-size:10px;color:#9ec5ff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(a.code||'')+(nm?(' · '+escapeHtml(nm)):'')+'</div>'
           +(cust?'<div style="font-size:9px;color:#8fb0e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(cust)+'</div>':'')
           +'<div style="font-size:9px;color:#8a93b2">'+prToFa(Math.round((+a.hours||0)*10)/10)+' ساعت</div>'
@@ -11840,8 +11865,10 @@ function wsRender(){
         var who = r.personName || r.orderCode || 'رزرو';
         var pend = (r.status==='pending');
         var bg = pend ? '#2a2416' : '#16281a', bd = pend ? '#5a4a2a' : '#2f5236', fg = pend ? '#f0c674' : '#9ee0a8';
-        return '<div onclick="event.stopPropagation(); '+(pend?('wsResvDecide(\''+r.id+'\',\''+escapeHtml(who).replace(/\x27/g,'')+'\')'):('wsResvForm(\''+selMid+'\',\''+k+'\')'))+'" title="'+escapeHtml(who+(pend?' · درخواستِ دانشجو — کلیک برای تأیید':'')+(r.note?(' · '+r.note):''))+'" '
+        var _dn = WS_IS_ALL ? wsMachineName(r.deviceId) : '';
+        return '<div onclick="event.stopPropagation(); '+(pend?('wsResvDecide(\''+r.id+'\',\''+escapeHtml(who).replace(/\x27/g,'')+'\')'):('wsResvForm(\''+r.deviceId+'\',\''+k+'\')'))+'" title="'+escapeHtml(who+(_dn?(' · '+_dn):'')+(pend?' · درخواستِ دانشجو — کلیک برای تأیید':'')+(r.note?(' · '+r.note):''))+'" '
           +'style="cursor:pointer;background:'+bg+';border:1px solid '+bd+';border-radius:5px;padding:3px 5px;margin-bottom:3px;overflow:hidden">'
+          +(_dn?'<div style="font-size:8.5px;color:#6f8a72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(_dn)+'</div>':'')
           +'<div style="font-size:10px;color:'+fg+';font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(pend?'⏳ ':'')+escapeHtml(who)+'</div>'
           +(tm?'<div style="font-size:9px;color:'+(pend?'#bf9f5b':'#7bbf85')+'">'+escapeHtml(prToFa(tm))+'</div>':'')
           +'</div>';
@@ -11849,17 +11876,17 @@ function wsRender(){
     }
 
     if(!hasContent && cap>0){
-      inner += '<div style="font-size:10px;color:#39415e;margin-top:10px;text-align:center">آزاد<br><span style="font-size:9px;color:#2f374f">'+prToFa(cap)+' ساعت</span><br><span style="font-size:14px;color:#2f374f;margin-top:2px;display:inline-block">＋</span></div>';
+      inner += '<div style="font-size:10px;color:#39415e;margin-top:10px;text-align:center">آزاد<br><span style="font-size:9px;color:#2f374f">'+prToFa(cap)+' ساعت</span>'+(WS_IS_ALL?'':'<br><span style="font-size:14px;color:#2f374f;margin-top:2px;display:inline-block">＋</span>')+'</div>';
     }
 
-    cellsHtml += '<div onclick="wsResvForm(\''+selMid+'\',\''+k+'\')" title="کلیک برای رزرو" style="cursor:pointer;min-height:96px;background:'+bg+';border:1px solid '+border+';border-radius:9px;padding:6px 7px;overflow:hidden">'+inner+'</div>';
+    cellsHtml += '<div '+(WS_IS_ALL?'title="نمای کلی — برای رزرو یکی از دستگاه‌ها را انتخاب کن" style="cursor:default;':'onclick="wsResvForm(\''+selMid+'\',\''+k+'\')" title="کلیک برای رزرو" style="cursor:pointer;')+'min-height:96px;background:'+bg+';border:1px solid '+border+';border-radius:9px;padding:6px 7px;overflow:hidden">'+inner+'</div>';
   }
 
   var grid = '<div class="card" style="padding:14px">'
     + head
     + '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">'+cellsHtml+'</div>'
     + '<div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#8a93b2;align-items:center">'
-    +   '<span style="color:#7bbf85">💡 روی هر روز کلیک کن تا رزرو کنی</span>'
+    +   (WS_IS_ALL?'<span style="color:#a08ede">🗂 نمای کلیِ همهٔ دستگاه‌ها — برای رزرو یکی از دستگاه‌ها را انتخاب کن</span>':'<span style="color:#7bbf85">💡 روی هر روز کلیک کن تا رزرو کنی</span>')
     +   '<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#1a2748;border:1px solid #2a3a66;vertical-align:middle"></span> سفارشِ در جریان</span>'
     +   '<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#16281a;border:1px solid #2f5236;vertical-align:middle"></span> رزروِ دستی</span>'
     + '</div>'
@@ -12464,8 +12491,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V362 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V362";
+try{ if(window.console) console.log('%c iPrint3D FRONT V363 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V363";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
