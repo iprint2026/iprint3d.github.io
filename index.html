@@ -879,7 +879,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V363</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V365</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -4043,7 +4043,7 @@ function renderUsageReport(){
       +   '<div>🏷️ دلیل: '+escapeHtml(r.reason||'-')+'</div>'
       +   (r.batch?('<div>🧪 بچ: '+escapeHtml(r.batch)+'</div>'):'')
       +   (r.project?('<div>📁 پروژه: '+escapeHtml(r.project)+'</div>'):'')
-      +   (r._virtual ? '<div style="margin-top:8px;font-size:10.5px;color:#5f6a8c">این ردیف از روی خودِ بچ ساخته شده (رکوردِ لاگ نیست) — قابلِ حذف نیست.</div>' : (canDo('users')?('<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171;padding:4px 10px" onclick="deleteUsageLogEntry('+o.idx+')">🗑️ حذف این گزارش</button></div>'):''))
+      +   (r._virtual ? '<div style="margin-top:8px;font-size:10.5px;color:#5f6a8c">این ردیف از روی خودِ بچ ساخته شده (رکوردِ لاگ نیست) — قابلِ حذف نیست.</div>' : (canDo('users')?('<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" style="font-size:11px;color:#6ee7a8;border-color:#1d4d38;padding:4px 10px" onclick="undoUsageLogEntry('+o.idx+')">↩️ حذف + بازگرداندنِ موجودی</button><button class="btn btn-ghost btn-sm" style="font-size:11px;color:#f87171;padding:4px 10px" onclick="deleteUsageLogEntry('+o.idx+')">🗑️ فقط حذفِ گزارش</button></div>'):''))
       + '</div>'
       + '</div>';
   });
@@ -4075,6 +4075,35 @@ function deleteUsageLogEntry(idx){
     if(res && res.status==='ok'){
       showToast('🗑️ گزارش حذف شد');
       loadUsageReport(); // بارگذاری مجدد از شیت
+    } else {
+      showToast('❌ خطا: ' + (res && res.message ? res.message : 'نامشخص'));
+    }
+  });
+}
+// حذفِ گزارش **همراه با بازگرداندنِ موجودی** — برای وقتی اشتباهی مصرف/ورود ثبت شده
+function undoUsageLogEntry(idx){
+  if(!canDo('users')){ showToast('فقط ادمین دسترسی دارد'); return; }
+  var r = USAGE_LOG[idx];
+  if(!r){ showToast('گزارش یافت نشد'); return; }
+  var chg = parseFloat(String(r.change||'').replace(/[^\d.\-]/g,''));
+  if(!isFinite(chg) || chg===0){ showToast('مقدارِ این رکورد عددی نیست'); return; }
+  var back = -chg;
+  var msg = '↩️ این گزارش حذف و موجودی به حالتِ قبل برگردانده شود؟\n\n'
+    + '📦 کالا: ' + (r.itemName||'-') + '\n'
+    + '🗓️ تاریخ: ' + (r.date||'-') + '\n'
+    + (r.batch?('🧪 بچ: ' + r.batch + '\n'):'')
+    + '\n' + (back>0?'➕ افزوده می‌شود: ':'➖ کم می‌شود: ') + Math.abs(back) + ' ' + unitOfUsage(r);
+  if(!confirm(msg)) return;
+  showToast('⏳ در حال بازگرداندن...');
+  callSheet('deleteUsageLogRestore', {rowIndex: idx, matchDate: r.date||'', matchItemId: r.itemId||''}, function(res){
+    if(res && res.status==='ok'){
+      var t = '✅ برگشت خورد — موجودیِ کالا: ' + res.itemQty;
+      if(res.batchExpected && !res.batchDone) t += ' ⚠️ بچ «'+(res.batchCode||'')+'» پیدا نشد، دستی اصلاح کن';
+      else if(res.batchExpected && !res.noteRemoved) t += ' ⚠️ خطِ توضیحاتِ بچ پیدا نشد، دستی پاک کن';
+      showToast(t);
+      loadUsageReport();
+      if(typeof loadFromSheet==='function') loadFromSheet();
+      if(typeof loadBatches==='function') loadBatches();
     } else {
       showToast('❌ خطا: ' + (res && res.message ? res.message : 'نامشخص'));
     }
@@ -12491,8 +12520,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V363 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V363";
+try{ if(window.console) console.log('%c iPrint3D FRONT V365 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V365";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
