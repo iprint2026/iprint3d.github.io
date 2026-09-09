@@ -879,7 +879,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V365</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V366</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -4253,6 +4253,13 @@ function changeQty(id,dir){
     openConsumeModal(id);
   } else {
     // افزایش
+    // اگر کالا بچِ واقعی دارد، افزایش هم باید به یک بچِ مشخص برود — وگرنه موجودیِ کالا
+    // با جمعِ بچ‌ها اختلاف پیدا می‌کند (همان باگِ «موجودیِ دوتایی»، این‌بار در جهتِ افزایش).
+    var _bsAdd = batchesOf(id);
+    if(_bsAdd && _bsAdd.length && currentUser && currentUser.role==='admin'){
+      openAddQtyModal(id);
+      return;
+    }
     var unitTxt = (item.unit && item.unit!=='عدد') ? item.unit : 'عدد';
     const amt=parseFloat(prompt('چه مقدار اضافه شد؟ ('+unitTxt+')')||'0');
     if(!amt||isNaN(amt)||amt<=0)return;
@@ -4260,8 +4267,86 @@ function changeQty(id,dir){
   }
 }
 
+// یک خطِ ورود به یادداشتِ بچ اضافه می‌کند (قرینهٔ appendConsumeNote)
+function appendEntryNote(oldNote, amt, unit, reason){
+  var today = new Date().toLocaleDateString('fa-IR');
+  var line = today + ' — ورود ' + amt + (unit?(' '+unit):'') + (reason?(': ' + reason):'');
+  oldNote = (oldNote||'').trim();
+  return oldNote ? (oldNote + '\n' + line) : line;
+}
+
+// مودالِ افزایش موجودی با انتخابِ بچ — قرینهٔ openConsumeModal
+function openAddQtyModal(id){
+  const item=items.find(function(i){return i.id===id;});
+  if(!item)return;
+  var unit = item.unit || 'عدد';
+  var html = ''
+    + '<div id="addQtyOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
+    + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:420px;width:100%;margin-top:30px">'
+    + '<div style="font-size:16px;font-weight:700;color:#4ade80;margin-bottom:4px">➕ افزایش موجودی</div>'
+    + '<div style="font-size:13px;color:#9aa3c2;margin-bottom:16px">'+escapeHtml(item.name)+' (موجودی فعلی: '+item.qty+' '+escapeHtml(unit)+')</div>'
+    + batchSelectorHtml(item, 'به کدام بچ اضافه شود؟')
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">چه مقدار اضافه شد؟</label>'
+    + '<div style="display:flex;gap:8px;margin-bottom:14px">'
+    +   '<input class="inp" id="consume-amt" type="number" min="0" step="any" placeholder="مثلاً 1" style="flex:1">'
+    +   batchUnitSelectorHtmlConsume(unit)
+    + '</div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">دلیل (اختیاری)</label>'
+    + '<input class="inp" id="addqty-reason" placeholder="مثلاً خریدِ جدید، اصلاح موجودی..." autocomplete="off">'
+    + '<div style="font-size:11px;color:#5a6080;margin-top:8px;line-height:1.7">موجودیِ کالا بعد از ثبت از روی جمعِ بچ‌ها بازمحاسبه می‌شود.</div>'
+    + '<div style="display:flex;gap:8px;margin-top:18px">'
+    +   '<button class="btn btn-success" style="flex:1" onclick="confirmAddQty(\''+id+'\')">ثبت افزایش</button>'
+    +   '<button class="btn btn-ghost" onclick="closeAddQty()">انصراف</button>'
+    +   '<button class="btn btn-ghost" onclick="closeAddQty(); openAddBatch(\''+id+'\')" title="اگر رولِ تازه است">＋ بچ جدید</button>'
+    + '</div>'
+    + '</div></div>';
+  var div = document.createElement('div');
+  div.id = 'addQtyModalHost';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+function closeAddQty(){
+  var h = document.getElementById('addQtyModalHost');
+  if(h && h.parentNode) h.parentNode.removeChild(h);
+}
+function confirmAddQty(id){
+  var amtRaw = parseFloat((document.getElementById('consume-amt')||{}).value||'0');
+  if(!amtRaw || isNaN(amtRaw) || amtRaw<=0){ showToast('مقدار را وارد کنید'); return; }
+  var item = items.find(function(i){ return i.id===id; });
+  if(!item){ showToast('کالا یافت نشد'); return; }
+  var baseUnit = item.unit || 'عدد';
+  var cuSel = document.getElementById('consume-unit');
+  var chosenUnit = cuSel ? cuSel.value : baseUnit;
+  var amt = amtRaw;
+  if(chosenUnit !== baseUnit){
+    var conv = convertUnit(amtRaw, chosenUnit, baseUnit);
+    if(conv===null){ showToast('واحد قابل تبدیل نیست'); return; }
+    amt = Math.round(conv*1000)/1000;
+  }
+  var reason = ((document.getElementById('addqty-reason')||{}).value||'').trim();
+  var batchSel = document.getElementById('consume-batch');
+  if(!batchSel){ showToast('انتخابِ بچ نیامد — صفحه را یک بار بروزرسانی کن'); return; }
+  var b = BATCHES.find(function(x){ return x.id===batchSel.value; });
+  if(!b){ showToast('بچ انتخاب نشد'); return; }
+  var bq = parseFloat(b.qty)||0;
+  var newBq = Math.round((bq+amt)*1000)/1000;
+  var unitTxt = (item.unit && item.unit!=='عدد') ? item.unit : '';
+  var batchLabel = (b.batchCode ? String(b.batchCode) : '') + (b.batchName ? ((b.batchCode?' · ':'')+b.batchName) : '');
+  var newNote = appendEntryNote(b.note, amt, unitTxt, reason);
+  closeAddQty();
+  showToast('⏳ در حال ثبت...');
+  callSheet('updateBatch', {id:b.id, qty:String(newBq), note:newNote}, function(res){
+    loadBatches(function(){
+      syncItemQtyFromBatches(id);
+      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(amt),reason:(reason||'افزایش موجودی'),project:'',projectKey:'',user:(currentUser?currentUser.user:''),unit:unitTxt,batch:batchLabel},function(){ loadProjects(); });
+      renderBatchSection(id);
+      showToast('✅ '+amt+(unitTxt?(' '+unitTxt):'')+' به بچ «'+(b.batchName||b.batchCode||'')+'» اضافه شد');
+    });
+  });
+}
+
 // HTML انتخاب بچ در مودال مصرف
-function batchSelectorHtml(item){
+function batchSelectorHtml(item, labelTxt){
   if(!item) return '';
   var bs = batchesOf(item.id);
   // اگر کالا بچِ واقعی دارد، انتخابگر نشان داده می‌شود — حتی اگر تیکِ «بچ‌بندی» نخورده باشد.
@@ -4276,7 +4361,7 @@ function batchSelectorHtml(item){
     if(ta===null) return 1; if(tb===null) return -1;
     return ta - tb;
   });
-  var html = '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:8px">از کدام بچ کم شود؟ <span style="color:#5a6080">(روی بچ بزنید)</span></label>';
+  var html = '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:8px">'+(labelTxt||'از کدام بچ کم شود؟')+' <span style="color:#5a6080">(روی بچ بزنید)</span></label>';
   html += '<input type="hidden" id="consume-batch" value="'+(sorted[0]?sorted[0].id:'')+'">';
   html += '<div id="consume-batch-list" style="margin-bottom:14px">';
   sorted.forEach(function(b, idx){
@@ -12520,8 +12605,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V365 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V365";
+try{ if(window.console) console.log('%c iPrint3D FRONT V366 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V366";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
