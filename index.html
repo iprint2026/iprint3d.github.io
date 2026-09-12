@@ -879,7 +879,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V366</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V367</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -10620,6 +10620,7 @@ function purRenderChrome(){
       '<button class="btn btn-ghost btn-sm" onclick="purAddForm()">➕ خریدِ تکی</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="purInvForm()">🧾 فاکتورِ چندقلمی</button>'
     + (PUR_ISADMIN ? '<button class="btn btn-ghost btn-sm" onclick="purXlsx()">📥 خروجی اکسل</button>' : '')
+    + (PUR_ISADMIN ? '<button class="btn btn-ghost btn-sm" onclick="purMergeForm()">🔗 ادغامِ پروژه‌ها</button>' : '')
     + '<button class="btn btn-ghost btn-sm" onclick="purInit(true)">🔄 بروزرسانی</button>';
   var sub = document.getElementById('pur-sub');
   if(sub) sub.textContent = PUR_ISADMIN ? 'همهٔ خریدهای کارمندان و دانشجویان' : 'خریدهای ثبت‌شدهٔ شما';
@@ -10897,6 +10898,98 @@ function purForm(existing){
     }
   });
   setTimeout(purWireForm, 40);
+}
+// ── ادغامِ دو نامِ پروژه (برای پاک‌سازیِ دادهٔ موجود) ──
+// «ماکت» و «ماکت راکتور» یک پروژه‌اند ولی جدا ثبت شده‌اند؛ این ابزار یکی‌شان می‌کند
+// تا آمارِ خرجِ پروژه در خروجیِ اکسل تکه‌تکه نباشد.
+function purMergeForm(){
+  var list = purProjList();
+  if(!list.length){ showToast('پروژه‌ای برای ادغام نیست'); return; }
+  function opts(sel){
+    return list.map(function(x){
+      return '<option value="'+escapeHtml(String(x))+'">'+escapeHtml(String(x))+'</option>';
+    }).join('');
+  }
+  var si = 'width:100%;box-sizing:border-box;background:#0c1120;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px;font-family:inherit';
+  var html = ''
+    + '<div style="color:#8a93b2;font-size:12px;margin-bottom:12px;line-height:1.8">همهٔ خریدهای پروژهٔ «مبدأ» به نامِ پروژهٔ «مقصد» منتقل می‌شوند. فقط نامِ پروژه عوض می‌شود — مبلغ، تاریخ و بقیهٔ اطلاعات دست‌نخورده می‌مانند.</div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:5px">از (این نام حذف می‌شود)</label>'
+    + '<select id="pm-from" onchange="window._pmFrom=this.value; purMergePreview()" style="'+si+';margin-bottom:12px">'+opts()+'</select>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:5px">به (نامِ نهایی)</label>'
+    + '<select id="pm-to" onchange="window._pmTo=this.value; purMergePreview()" style="'+si+'">'+opts()+'</select>'
+    + '<div id="pm-preview" style="font-size:12px;color:#f0c674;margin-top:12px;min-height:18px"></div>';
+  window._pmFrom = list[0]; window._pmTo = list[0];
+  uiConfirm({ title:'🔗 ادغامِ پروژه‌ها', html:html, okText:'ادغام کن', cancelText:'انصراف', danger:true }, function(){
+    var from = window._pmFrom||'', to = window._pmTo||'';
+    if(!from || !to || from===to){ showToast('مبدأ و مقصد باید متفاوت باشند'); return; }
+    showToast('⏳ در حال ادغام...');
+    callSheet('purMergeProject', {from:from, to:to, dryRun:'false'}, function(r){
+      if(r && r.status==='ok'){
+        showToast('✅ '+prToFa(r.count)+' قلم به «'+to+'» منتقل شد');
+        PUR_SUG = null; purInit(true);
+      } else showToast('❌ '+((r&&r.message)||'خطا'));
+    });
+  });
+  setTimeout(purMergePreview, 60);
+}
+function purMergePreview(){
+  var box = document.getElementById('pm-preview'); if(!box) return;
+  var from = window._pmFrom||'', to = window._pmTo||'';
+  if(!from || !to || from===to){ box.textContent = 'مبدأ و مقصد باید متفاوت باشند'; return; }
+  box.textContent = 'در حال شمارش...';
+  callSheet('purMergeProject', {from:from, to:to, dryRun:'true'}, function(r){
+    var b2 = document.getElementById('pm-preview'); if(!b2) return;
+    if(r && r.status==='ok'){
+      b2.textContent = r.count
+        ? ('⚠️ '+prToFa(r.count)+' قلم (جمعاً '+prToFa(fmtMoney(r.amount))+' تومان) از «'+from+'» به «'+to+'» منتقل می‌شود')
+        : ('قلمی با پروژهٔ «'+from+'» پیدا نشد');
+    } else b2.textContent = '';
+  });
+}
+// ── پیشنهادِ پروژه روی ردیف‌های فاکتورِ چندقلمی ──
+// بدونِ این، هر کاربر نامِ خودش را می‌نویسد و «ماکت» و «ماکت راکتور» دو پروژهٔ
+// جدا می‌شوند؛ آن‌وقت آمارِ خرجِ سالانهٔ یک پروژه تکه‌تکه می‌شود.
+function purProjList(){ return ((PUR_SUG||{}).projects) || []; }
+function purItemProjSug(i){
+  var el = document.getElementById('pi-proj-'+i), box = document.getElementById('pi-proj-sug-'+i);
+  if(!el || !box) return;
+  var q = String(el.value||'').trim();
+  purItemProjWarn(i, q);
+  if(q.length < 1){ box.style.display='none'; return; }
+  var hits = purProjList().filter(function(x){ return String(x).indexOf(q) >= 0 && String(x) !== q; }).slice(0,7);
+  if(!hits.length){ box.style.display='none'; return; }
+  box.innerHTML = hits.map(function(x){
+    return '<div onmousedown="purItemProjPick('+i+',this)" data-v="'+escapeHtml(String(x))+'" '
+      + 'style="padding:8px 11px;cursor:pointer;font-size:12.5px;color:#c7cce0;border-bottom:1px solid #1a2038" '
+      + 'onmouseover="this.style.background=\'#1e2439\'" onmouseout="this.style.background=\'transparent\'">'
+      + escapeHtml(String(x)) + '</div>';
+  }).join('');
+  box.style.display='block';
+}
+function purItemProjPick(i, el){
+  var v = el.getAttribute('data-v')||'';
+  var inp = document.getElementById('pi-proj-'+i);
+  if(inp) inp.value = v;
+  purItemSet(i, 'project', v);
+  var box = document.getElementById('pi-proj-sug-'+i); if(box) box.style.display='none';
+  purItemProjWarn(i, v);
+}
+function purItemProjHide(i){
+  setTimeout(function(){
+    var box = document.getElementById('pi-proj-sug-'+i); if(box) box.style.display='none';
+  }, 140);
+}
+// هشدار وقتی نامِ تایپ‌شده پروژهٔ موجود نیست ولی پروژه‌ای شبیهش هست
+function purItemProjWarn(i, q){
+  var w = document.getElementById('pi-proj-warn-'+i); if(!w) return;
+  q = String(q||'').trim();
+  var all = purProjList();
+  if(!q || all.indexOf(q) >= 0){ w.textContent=''; return; }
+  var near = all.filter(function(x){
+    var s = String(x);
+    return s.indexOf(q) >= 0 || q.indexOf(s) >= 0;
+  }).slice(0,3);
+  w.textContent = near.length ? ('⚠️ پروژهٔ مشابه هست: ' + near.join(' · ')) : '';
 }
 // سیم‌کشیِ فیلدها: جداکنندهٔ هزارگان + پیشنهادِ سفارشی
 function purWireForm(){
@@ -11257,7 +11350,11 @@ function purItemsRender(){
       + '<input value="'+escapeHtml(it.title||'')+'" oninput="purItemSet('+i+',\'title\',this.value)" placeholder="نامِ کالا" style="'+si+';margin-bottom:6px">'
       + '<div style="display:flex;gap:6px">'
       +   '<input id="pi-amt-'+i+'" value="'+(it.amount?escapeHtml(fmtMoney(it.amount)):'')+'" oninput="purItemSet('+i+',\'amount\',this.value)" inputmode="numeric" placeholder="مبلغ" style="'+si+';flex:1;text-align:center;font-weight:700">'
-      +   '<input value="'+escapeHtml(it.project||'')+'" oninput="purItemSet('+i+',\'project\',this.value)" placeholder="پروژه (اگر فرق دارد)" style="'+si+';flex:1.3">'
+      +   '<div style="flex:1.3;position:relative">'
+      +     '<input id="pi-proj-'+i+'" value="'+escapeHtml(it.project||'')+'" oninput="purItemSet('+i+',\'project\',this.value); purItemProjSug('+i+')" onfocus="purItemProjSug('+i+')" onblur="purItemProjHide('+i+')" autocomplete="off" placeholder="پروژه (اگر فرق دارد)" style="'+si+'">'
+      +     '<div id="pi-proj-sug-'+i+'" style="display:none;position:absolute;top:100%;right:0;left:0;z-index:50;background:#0e1426;border:1px solid #232742;border-radius:7px;margin-top:3px;max-height:190px;overflow:auto"></div>'
+      +     '<div id="pi-proj-warn-'+i+'" style="font-size:10.5px;color:#f0c674;margin-top:3px"></div>'
+      +   '</div>'
       + '</div></div>';
   }).join('');
   purItemsTotal();
@@ -12605,8 +12702,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V366 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V366";
+try{ if(window.console) console.log('%c iPrint3D FRONT V367 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V367";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
