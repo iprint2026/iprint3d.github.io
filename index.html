@@ -224,7 +224,7 @@ tr:hover td{background:#0e1018}
     box-sizing:border-box;
   }
   .sidebar .nav-icon{font-size:20px;width:26px;flex-shrink:0;text-align:center}
-  .sidebar .nav > span:not(#usersBadge):not(#notifBadge){display:inline !important}
+  .sidebar .nav > span:not(#usersBadge):not(#notifBadge):not(#wsBadge):not(#stuBadge):not(#purBadge){display:inline !important}
   .sidebar-bottom{display:block !important;margin-top:auto;padding-bottom:10px}
   .user-chip{display:flex !important}
   .sidebar-bottom button{display:flex !important;align-items:center;justify-content:center;gap:8px}
@@ -377,9 +377,9 @@ tr:hover td{background:#0e1018}
     <div class="nav" onclick="gotoView('pricing',this)"><span class="nav-icon">🧮</span><span>برآورد قیمت</span></div>
     <div class="nav" onclick="gotoView('archive',this)"><span class="nav-icon">📁</span><span>آرشیو و گزارش‌ها</span></div>
     <div class="nav" onclick="gotoView('custbank',this)"><span class="nav-icon">🏢</span><span>بانک مشتری</span></div>
-    <div class="nav" onclick="gotoView('workshop',this)"><span class="nav-icon">🗓️</span><span>تقویم کارگاه</span></div>
-    <div class="nav" onclick="gotoView('students',this)"><span class="nav-icon">👥</span><span>دانشجوها</span></div>
-    <div class="nav" onclick="gotoView('purchases',this)"><span class="nav-icon">🧾</span><span>دفتر خرید</span></div>
+    <div class="nav" onclick="gotoView('workshop',this)"><span class="nav-icon">🗓️</span><span>تقویم کارگاه</span><span id="wsBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
+    <div class="nav" onclick="gotoView('students',this)"><span class="nav-icon">👥</span><span>دانشجوها</span><span id="stuBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
+    <div class="nav" onclick="gotoView('purchases',this)"><span class="nav-icon">🧾</span><span>دفتر خرید</span><span id="purBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
 
     <div class="nav" onclick="gotoView('users',this)"><span class="nav-icon">👥</span><span>کاربران</span><span id="usersBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
     <div class="nav" id="notifNav" onclick="gotoView('notif',this)"><span class="nav-icon">📋</span><span>درخواست‌ها</span><span id="notifBadge" style="background:#f87171;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;margin-right:4px;padding:0 4px">0</span></div>
@@ -879,7 +879,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V368</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V369</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -2129,6 +2129,10 @@ function gotoView(v,el){
   var viewEl = document.getElementById('view-'+v);
   if(viewEl) viewEl.classList.remove('hidden');
   if(el && el.classList) el.classList.add('active');
+  // ورود به این سه صفحه یعنی کارهای در انتظارشان دیده شده‌اند
+  if(v==='purchases' || v==='students' || v==='workshop'){
+    if(canDo('users')) notifMarkSeen(v);
+  }
   if(v==='dashboard')renderDashboard();
   else if(v==='items')renderItems();
   else if(v==='add'){renderCatSelect();}
@@ -6593,6 +6597,36 @@ function saveDismissedNotifs(arr){
   localStorage.setItem('dismissed_notifs', JSON.stringify(arr));
 }
 // شناسه درخواست‌هایی که ادمین دیده (تا badge صفر شه)
+// ── عددِ قرمزِ سه بخشِ جدید: دفتر خرید، دانشجوها، تقویمِ کارگاه ──
+// شناسه‌ها از سرور می‌آیند و آنچه قبلاً دیده شده کنار گذاشته می‌شود، پس با ورود
+// به صفحه عدد پاک می‌شود ولی با آمدنِ موردِ تازه دوباره ظاهر می‌شود.
+var NOTIF_IDS = { pur: [], stu: [], resv: [] };
+function notifSeenGet(key){
+  try { return JSON.parse(localStorage.getItem(key)||'[]'); } catch(e){ return []; }
+}
+function notifSeenSet(key, ids){
+  try { localStorage.setItem(key, JSON.stringify(ids||[])); } catch(e){}
+}
+function notifPaint(badgeId, seenKey, ids){
+  var badge = document.getElementById(badgeId);
+  if(!badge) return;
+  ids = ids || [];
+  var seen = notifSeenGet(seenKey);
+  var count = ids.filter(function(x){ return seen.indexOf(x) === -1; }).length;
+  badge.textContent = prToFa(count);
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+// با باز کردنِ صفحه، موارد فعلی «دیده‌شده» می‌شوند. شناسه‌های قدیمی که دیگر در
+// انتظار نیستند دور ریخته می‌شوند تا حافظهٔ مرورگر بی‌جهت پر نشود.
+function notifMarkSeen(which){
+  var map = { purchases:['seen_pur','pur','purBadge'],
+              students:['seen_stu','stu','stuBadge'],
+              workshop:['seen_resv','resv','wsBadge'] };
+  var m = map[which]; if(!m) return;
+  var ids = (NOTIF_IDS[m[1]]||[]).slice();
+  notifSeenSet(m[0], ids);
+  notifPaint(m[2], m[0], ids);
+}
 function getSeenRequests(){
   try { return JSON.parse(localStorage.getItem('seen_requests')||'[]'); } catch(e){ return []; }
 }
@@ -6795,6 +6829,14 @@ function updateAllBadges(){
         badge.style.display = count > 0 ? 'flex' : 'none';
       }
     });
+    // ── عددِ قرمزِ دفتر خرید / دانشجوها / تقویمِ کارگاه — هر سه در یک درخواست ──
+    callSheet('notifCounts', {t:Date.now()}, function(r){
+      if(!r || r.status!=='ok') return;
+      NOTIF_IDS = { pur: r.pur||[], stu: r.stu||[], resv: r.resv||[] };
+      notifPaint('purBadge', 'seen_pur',  NOTIF_IDS.pur);
+      notifPaint('stuBadge', 'seen_stu',  NOTIF_IDS.stu);
+      notifPaint('wsBadge',  'seen_resv', NOTIF_IDS.resv);
+    });
   } else {
     // operator: badge درخواست‌ها = پیام‌های جدید یا تغییر وضعیت
     callSheet('getMyChanges', {user:currentUser.user, t:Date.now()}, function(data){
@@ -6827,7 +6869,7 @@ var _badgeTimer = null;
 function startBadgeRefresh(){
   if(_badgeTimer) clearInterval(_badgeTimer);
   setTimeout(updateAllBadges, 1500);
-  _badgeTimer = setInterval(updateAllBadges, 20000);
+  _badgeTimer = setInterval(updateAllBadges, 60000);
 }
 
 function togglePassView(username){
@@ -12722,8 +12764,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V368 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V368";
+try{ if(window.console) console.log('%c iPrint3D FRONT V369 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V369";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
