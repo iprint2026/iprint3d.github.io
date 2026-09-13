@@ -879,7 +879,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V370</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V371</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -9846,7 +9846,7 @@ var WS_QOPEN = {};                   // کدام کارتِ صف باز است (
 var WS_QALL = false;                 // همه باز/بسته
 var WS_MNAMES = {};                  // نقشهٔ اسمِ پرینترها از بک‌اند (مستقل از config)
 var WS_VIEW_M = 0, WS_VIEW_Y = 0;   // ماه/سالِ نمایشِ تقویم (۰ = هنوز ست نشده → به ماهِ امروز می‌رود)
-var WS_SEL_MID = '';                 // دستگاهِ انتخاب‌شده در گریدِ ماهانه
+var WS_SEL_MID = '__ALL__';          // پیش‌فرض: نمایِ همهٔ دستگاه‌ها، تا ادمین یکجا همه‌چیز را ببیند
 
 // ══════════════ ساعتِ کاریِ کارگاه (V312) ══════════════
 // دو لایه: پیش‌فرضِ هفتگی + استثنای روزانه. استثنا بر پیش‌فرض مقدم است.
@@ -10178,6 +10178,33 @@ function wsGotoMonth(delta){
   while(WS_VIEW_M<1){ WS_VIEW_M+=12; WS_VIEW_Y--; }
   wsRender();
 }
+// ── شمارندهٔ درخواستِ رزروِ هر دستگاه روی تبِ خودش ──
+// از همان حافظهٔ «دیده‌شده»ی عددِ قرمزِ منو استفاده می‌کند، پس هر دو با هم
+// هماهنگ می‌مانند و ادمین دوبار یک چیز را نمی‌بیند.
+function wsPendingUnseen(mid){
+  var seen = (typeof notifSeenGet==='function') ? notifSeenGet('seen_resv') : [];
+  return (WS_RESV||[]).filter(function(r){
+    return String(r.deviceId)===String(mid)
+        && String(r.status)==='pending'
+        && seen.indexOf(String(r.id)) === -1;
+  }).length;
+}
+// وقتی ادمین روزی را باز می‌کند، درخواست‌های همان روز «دیده‌شده» می‌شوند
+function wsMarkDaySeen(deviceId, dayKey){
+  if(typeof notifSeenGet!=='function') return;
+  var seen = notifSeenGet('seen_resv');
+  var added = false;
+  (WS_RESV||[]).forEach(function(r){
+    if(String(r.status)!=='pending') return;
+    if(String(r.date)!==String(dayKey)) return;
+    if(deviceId && deviceId!=='__ALL__' && String(r.deviceId)!==String(deviceId)) return;
+    if(seen.indexOf(String(r.id))===-1){ seen.push(String(r.id)); added = true; }
+  });
+  if(added){
+    notifSeenSet('seen_resv', seen);
+    if(typeof notifPaint==='function') notifPaint('wsBadge','seen_resv',(NOTIF_IDS&&NOTIF_IDS.resv)||[]);
+  }
+}
 function wsPickMachine(mid){ WS_SEL_MID = mid; wsRender(); }
 // باز/بستهٔ کارتِ صفِ یک دستگاه (نمای نردبانی)
 function wsQToggle(mid){ WS_QOPEN[mid] = !WS_QOPEN[mid]; wsRender(); }
@@ -10484,6 +10511,7 @@ function wsResvOn(deviceId, dayKey){
 }
 // فرمِ افزودنِ رزرو روی یک روز (کلیک روی خانهٔ تقویم)
 function wsResvForm(deviceId, dayKey){
+  wsMarkDaySeen(deviceId, dayKey);   // باز کردنِ روز یعنی درخواست‌هایش دیده شد
   var lab = wsIsLab(deviceId);
   var devName = wsMachineName(deviceId);
   var existing = wsResvOn(deviceId, dayKey);
@@ -11783,8 +11811,35 @@ function stuApprove(id){
 }
 // تأیید یا ردِ درخواستِ رزروِ دانشجو
 function wsResvDecide(id, who){
-  uiConfirm({ title:'درخواستِ رزرو', html:'<div style="color:#c7cce0;font-size:13px;margin-bottom:6px">درخواستِ «'+escapeHtml(who)+'»</div>'
-      +'<div style="color:#8a93b2;font-size:12px">با تأیید، این زمان قطعی می‌شود و از ظرفیتِ دستگاه کم می‌شود.</div>',
+  var _rr = (WS_RESV||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+  if(_rr) wsMarkDaySeen(_rr.deviceId, _rr.date);
+  // جزئیاتِ کاملِ رزرو را از لیستِ بارگذاری‌شده برمی‌داریم تا ادمین بتواند
+  // آگاهانه تصمیم بگیرد — نه فقط با دیدنِ یک اسم.
+  var r = (WS_RESV||[]).filter(function(x){ return String(x.id)===String(id); })[0] || {};
+  function row(lbl, val){
+    if(val===undefined || val===null || String(val).trim()==='' ) return '';
+    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #1a2038;font-size:12.5px">'
+      + '<span style="color:#8a93b2;flex-shrink:0">'+lbl+'</span>'
+      + '<span style="color:#dfe3f5;text-align:left;min-width:0">'+escapeHtml(String(val))+'</span></div>';
+  }
+  var timeTxt = (r.fromTime && r.toTime) ? (prToFa(r.fromTime)+' — '+prToFa(r.toTime)) : '';
+  var hoursTxt = r.hours ? (prToFa(r.hours)+' ساعت') : '';
+  var devTxt = wsMachineName(r.deviceId) || r.deviceId || '';
+  var byTxt = String(r.createdBy||'');
+  if(byTxt.indexOf('stu:')===0) byTxt = 'دانشجو';
+  else if(byTxt.indexOf('staff:')===0) byTxt = 'کارمند (' + byTxt.slice(6) + ')';
+
+  var html = '<div style="color:#c7cce0;font-size:13.5px;font-weight:700;margin-bottom:10px">'+escapeHtml(r.personName||who||'')+'</div>'
+    + row('دستگاه', devTxt)
+    + row('تاریخ', prToFa(r.date||''))
+    + row('ساعت', timeTxt)
+    + row('مدت', hoursTxt)
+    + row('تعدادِ نمونه', r.samples ? prToFa(r.samples) : '')
+    + row('کدِ سفارش', r.orderCode||'')
+    + row('توضیح', r.note||'')
+    + row('ثبت‌کننده', byTxt)
+    + '<div style="color:#8a93b2;font-size:12px;margin-top:10px">با تأیید، این زمان قطعی می‌شود و از ظرفیتِ دستگاه کم می‌شود.</div>';
+  uiConfirm({ title:'درخواستِ رزرو', html:html,
       okText:'✓ تأیید رزرو', cancelText:'بستن', danger:false }, function(){
     callSheet('resvUpdate', { id:id, status:'confirmed', t:Date.now() }, function(res){
       if(res && res.status==='ok'){ showToast('رزرو تأیید شد ✓'); wsInit(true); }
@@ -12020,7 +12075,7 @@ function wsRender(){
     + '</div>';
 
   // ── انتخابِ دستگاه و ماهِ نمایش ──
-  if(!WS_SEL_MID || (WS_SEL_MID!=='__ALL__' && mids.indexOf(WS_SEL_MID)<0)){ WS_SEL_MID = mids[0]; }
+  if(!WS_SEL_MID || (WS_SEL_MID!=='__ALL__' && mids.indexOf(WS_SEL_MID)<0)){ WS_SEL_MID = '__ALL__'; }
   var WS_IS_ALL = (WS_SEL_MID === '__ALL__');   // نمایِ «همهٔ دستگاه‌ها» در یک تقویم
   if(!WS_VIEW_M){ WS_VIEW_M = today.m; WS_VIEW_Y = today.y; }
   var selMid = WS_SEL_MID;
@@ -12040,10 +12095,15 @@ function wsRender(){
     var on = (mid===selMid);
     var lab = wsIsLab(mid);
     var icon = lab ? '🔬 ' : (wsMachKind(mid)==='DLP' ? '🧪 ' : '🖨️ ');
+    // تعدادِ درخواستِ در انتظارِ این دستگاه که ادمین هنوز بازش نکرده
+    var pend = wsPendingUnseen(mid);
+    var dot = pend > 0
+      ? '<span style="background:#f87171;color:#fff;border-radius:9px;min-width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;margin-right:5px;padding:0 4px;vertical-align:middle">'+prToFa(pend)+'</span>'
+      : '';
     return '<button onclick="wsPickMachine(\''+mid+'\')" style="cursor:pointer;border:1px solid '
-      +(on?(lab?'#3a5a3a':'#2a3a66'):'#232742')+';background:'+(on?(lab?'#16281a':'#1a2748'):'transparent')+';color:'+(on?(lab?'#9ee0a8':'#9ec5ff'):'#8a93b2')
+      +(on?(lab?'#3a5a3a':'#2a3a66'):(pend>0?'#6a3a3a':'#232742'))+';background:'+(on?(lab?'#16281a':'#1a2748'):'transparent')+';color:'+(on?(lab?'#9ee0a8':'#9ec5ff'):'#8a93b2')
       +';border-radius:8px;padding:5px 11px;font-size:12px;font-weight:'+(on?'700':'400')+'">'
-      +icon+escapeHtml(wsMachineName(mid))+'</button>';
+      +icon+escapeHtml(wsMachineName(mid))+dot+'</button>';
   }).join('');
   // دکمهٔ «همهٔ دستگاه‌ها» — یک تقویمِ واحد با همه‌چیزِ همهٔ دستگاه‌ها
   machTabs = '<button onclick="wsPickMachine(\'__ALL__\')" style="cursor:pointer;border:1px solid '
@@ -12764,8 +12824,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V370 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V370";
+try{ if(window.console) console.log('%c iPrint3D FRONT V371 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V371";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
