@@ -879,7 +879,7 @@ function doPost(e){
             <div><label style="font-size:11px;color:#5a6080">مدلسازی <span style="color:#4a4f6a">(تومان/ساعت)</span></label><input class="inp pr-money" id="pr-r-modeling"></div>
           </div>
 
-          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V369</span></div>
+          <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">پیش‌فرض‌ها <span style="font-size:10px;color:#5fd0e3;background:#0c2a24;border:1px solid #14543d;border-radius:6px;padding:1px 7px;margin-right:6px">نسخه V370</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:11px;color:#5a6080">ضریب سود</label><input class="inp" id="pr-d-profit" type="number" step="0.1"></div>
             <div><label style="font-size:11px;color:#5fd0e3">🧪 ضریب ریسک مواد <span style="color:#4a4f6a">(فقط برای خرید)</span></label><input class="inp" id="pr-d-risk" type="number" step="0.05" placeholder="مثلاً 1.2" style="border-color:#16424f;color:#5fd0e3"></div>
@@ -11837,7 +11837,7 @@ function stuCopy(txt){
 function stuSetNid(id, name){
   window._stuNidVal = '';
   var html = '<div style="color:#8a93b2;font-size:12px;margin-bottom:9px">کدِ ملیِ «'+escapeHtml(name)+'» برای بانکِ اطلاعات ثبت شود:</div>'
-    + '<input id="stu-setnid" oninput="window._stuNidVal=this.value" inputmode="numeric" placeholder="مثلاً ۰۱۵۰۶۵۵۹۹۱" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:10px;font-size:15px;text-align:center;letter-spacing:1px;direction:ltr">'
+    + '<input id="stu-setnid" oninput="window._stuNidVal=this.value" inputmode="numeric" placeholder="۱۰ رقم" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:10px;font-size:15px;text-align:center;letter-spacing:1px;direction:ltr">'
     + '<div id="stu-setnid-msg" style="font-size:11px;min-height:15px;margin-top:5px;text-align:center"></div>'
     + '<div style="color:#8a6a2a;font-size:11px;margin-top:6px;line-height:1.8">این کار فقط سابقه را کامل می‌کند و <b>رمزِ دانشجو را عوض نمی‌کند</b>.</div>';
   uiConfirm({ title:'ثبتِ کدِ ملی', html:html, okText:'ثبت', cancelText:'انصراف', danger:false }, function(){
@@ -12764,8 +12764,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V369 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V369";
+try{ if(window.console) console.log('%c iPrint3D FRONT V370 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V370";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
