@@ -706,7 +706,7 @@ function drawCal(){
 
 /* ── مودال رزرو ── */
 function openMdl(k){
-  MDL_DATE=k;
+  MDL_DATE=k; EDIT_ID='';
   var dv=DEVS.filter(function(x){return x.id===SEL;})[0];
   document.getElementById('mdlSub').textContent=(dv?dv.name:'دستگاه')+' · روزِ '+fa(k);
   ['mv-samples','mv-hours','mv-from','mv-to','mv-note'].forEach(function(i){ var e=document.getElementById(i); if(e) e.value=''; });
@@ -717,7 +717,32 @@ function openMdl(k){
   wireTime('mv-from','mv-from-h');
   wireTime('mv-to','mv-to-h');
 }
-function closeMdl(){ document.getElementById('mdl').className='hidden'; }
+function closeMdl(){ document.getElementById('mdl').className='hidden'; EDIT_ID=''; }
+
+// ── ویرایشِ رزروِ در انتظار ──
+// از همان مودالِ رزرو استفاده می‌کند تا رفتار و اعتبارسنجی یکی بماند.
+var EDIT_ID='';
+function editResv(id){
+  var x=null;
+  for(var i=0;i<MINE.length;i++){ if(String(MINE[i].id)===String(id)){ x=MINE[i]; break; } }
+  if(!x){ showOk('پیدا نشد','این رزرو دیگر در فهرست نیست.','⚠'); return; }
+  EDIT_ID=String(id);
+  MDL_DATE=x.date;
+  document.getElementById('mdlSub').textContent=(x.deviceName||'دستگاه')+' · ویرایشِ روزِ '+fa(x.date);
+  var ex=!!(x.fromTime||x.toTime);
+  document.getElementById('mv-exact').checked=ex;
+  var b=document.getElementById('exactBox');
+  b.className=ex?'':'hidden'; b.style.display=ex?'block':'none';
+  document.getElementById('mv-from').value=x.fromTime||'';
+  document.getElementById('mv-to').value=x.toTime||'';
+  document.getElementById('mv-hours').value=ex?'':(x.hours||'');
+  document.getElementById('mv-samples').value=x.samples||'';
+  document.getElementById('mv-note').value=x.note||'';
+  msg('mdlMsg','');
+  document.getElementById('mdl').className='';
+  wireTime('mv-from','mv-from-h');
+  wireTime('mv-to','mv-to-h');
+}
 function toggleExact(){
   var on=document.getElementById('mv-exact').checked;
   var b=document.getElementById('exactBox');
@@ -732,8 +757,19 @@ function submitResv(){
   var nt=document.getElementById('mv-note').value||'';
   if(!ex && !(parseFloat(hrs)>0)){ msg('mdlMsg','تعدادِ ساعت را وارد کنید'); return; }
   if(ex && (!fr.trim()||!to.trim())){ msg('mdlMsg','ساعتِ شروع و پایان را وارد کنید'); return; }
-  msg('mdlMsg','در حال ثبت...','ok');
   var smp=la(document.getElementById('mv-samples').value||'').replace(/[^0-9]/g,'');
+  if(EDIT_ID){
+    msg('mdlMsg','در حال ذخیره...','ok');
+    call('pubResvEdit',{id:EDIT_ID,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,samples:smp,t:Date.now()},function(r){
+      if(r&&r.status==='ok'){
+        closeMdl(); loadMine();
+        showOk('ذخیره شد','تغییراتِ رزروِ شما ثبت شد.<br><span class="mut">همچنان در انتظارِ تأییدِ مسئولِ آزمایشگاه است.</span>');
+      }
+      else msg('mdlMsg',(r&&r.message)?r.message:'ذخیره نشد');
+    });
+    return;
+  }
+  msg('mdlMsg','در حال ثبت...','ok');
   call('pubReserve',{deviceId:SEL,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,samples:smp,t:Date.now()},function(r){
     if(r&&r.status==='ok'){
       closeMdl(); loadCal();
@@ -753,6 +789,7 @@ function goTab(t){
   if(t==='mine') loadMine();
   if(t==='buy')  loadBuy();
 }
+var MINE=[];
 function loadMine(){
   document.getElementById('mineBody').innerHTML='<div class="card mut" style="text-align:center;padding:24px">در حال بارگذاری...</div>';
   loadUsage();
@@ -762,6 +799,7 @@ function loadMine(){
       document.getElementById('mineBody').innerHTML='<div class="card err">'+esc((r&&r.message)||'خطا')+'</div>'; return;
     }
     var L=r.reservations||[];
+    MINE=L;
     if(!L.length){
       document.getElementById('mineBody').innerHTML='<div class="card" style="text-align:center;padding:26px">'
         +'<div style="font-size:13px;color:#8a93b2">هنوز رزروی ندارید</div>'
@@ -777,7 +815,10 @@ function loadMine(){
         +'<span class="tag '+(pend?'tag-pending':'tag-ok')+'">'+(pend?'در انتظار تأیید':'تأییدشده')+'</span></div>'
         +'<div class="sub">📅 '+esc(fa(x.date))+(tm?(' · '+esc(fa(tm))):'')+'</div>'
         +(x.note?('<div class="mut" style="margin-top:3px">'+esc(x.note)+'</div>'):'')+'</div>'
-        +(pend?('<button class="btn btn-ghost btn-sm" onclick="cancelResv(\'' + x.id + '\')">لغو</button>'):'')
+        +(pend?('<div style="display:flex;gap:6px;flex-shrink:0">'
+             +'<button class="btn btn-ghost btn-sm" onclick="editResv(\'' + x.id + '\')">✏️ ویرایش</button>'
+             +'<button class="btn btn-ghost btn-sm" onclick="cancelResv(\'' + x.id + '\')" style="color:#f0a6a8;border-color:#5a2a2a">لغو</button>'
+             +'</div>'):'')
         +'</div></div>';
     }).join('');
   });
@@ -1251,7 +1292,7 @@ function buyUseCard(card){
       else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
     });
   })();
-  console.log('iPrint3D STUDENT V16');
+  console.log('iPrint3D STUDENT V17');
 })();
 </script>
 </body>
