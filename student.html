@@ -809,10 +809,11 @@ function loadMine(){
     L.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
     document.getElementById('mineBody').innerHTML=L.map(function(x){
       var tm=(x.fromTime||x.toTime)?((x.fromTime||'?')+'–'+(x.toTime||'?')):(x.hours?(fa(x.hours)+' ساعت'):'');
-      var pend=(x.status==='pending');
+      var pend=(x.status==='pending'), rej=(x.status==='rejected');
       return '<div class="card"><div class="row">'
         +'<div><div style="font-weight:700;font-size:13.5px">'+esc(x.deviceName)+' '
-        +'<span class="tag '+(pend?'tag-pending':'tag-ok')+'">'+(pend?'در انتظار تأیید':'تأییدشده')+'</span></div>'
+        +'<span class="tag '+(pend||rej?'tag-pending':'tag-ok')+'"'+(rej?' style="color:#f0a6a8;border-color:#5a2a2a"':'')+'>'
+        +(pend?'در انتظار تأیید':(rej?'ردشده':'تأییدشده'))+'</span></div>'
         +'<div class="sub">📅 '+esc(fa(x.date))+(tm?(' · '+esc(fa(tm))):'')+'</div>'
         +(x.note?('<div class="mut" style="margin-top:3px">'+esc(x.note)+'</div>'):'')+'</div>'
         +(pend?('<div style="display:flex;gap:6px;flex-shrink:0">'
@@ -1292,7 +1293,7 @@ function buyUseCard(card){
       else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
     });
   })();
-  console.log('iPrint3D STUDENT V17');
+  console.log('iPrint3D STUDENT V18');
 })();
 </script>
 </body>
