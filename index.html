@@ -10518,11 +10518,13 @@ function wsResvForm(deviceId, dayKey){
   var list = existing.map(function(r){
     var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : (r.hours ? (prToFa(r.hours)+' ساعت') : 'بدونِ ساعتِ مشخص');
     if(r.samples > 0) tm += ' · ' + prToFa(r.samples) + ' نمونه';
-    var pend = (r.status==='pending');
+    var pend = (r.status==='pending'), rej = (r.status==='rejected');
     var nm = escapeHtml(String(r.personName||r.orderCode||'رزرو')).replace(/"/g,'').replace(/\x27/g,'');
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;border:1px solid '+(pend?'#5a4a2a':'#232742')+';border-radius:7px;margin-bottom:5px;background:'+(pend?'#1a1710':'transparent')+'">'
-      + '<div style="min-width:0"><div style="color:#dfe3f5;font-size:12px;font-weight:600">'+(pend?'⏳ ':'')+escapeHtml(r.personName||r.orderCode||'رزرو')
-      +   (pend?'<span style="color:#f0c674;font-size:10px;font-weight:400"> · در انتظار تأیید</span>':'')+'</div>'
+    var _bd = pend?'#5a4a2a':(rej?'#5a2a2a':'#232742'), _bg = pend?'#1a1710':(rej?'#1a1010':'transparent');
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;border:1px solid '+_bd+';border-radius:7px;margin-bottom:5px;background:'+_bg+'">'
+      + '<div style="min-width:0"><div style="color:#dfe3f5;font-size:12px;font-weight:600">'+(pend?'⏳ ':(rej?'❌ ':''))+escapeHtml(r.personName||r.orderCode||'رزرو')
+      +   (pend?'<span style="color:#f0c674;font-size:10px;font-weight:400"> · در انتظار تأیید</span>':'')
+      +   (rej ?'<span style="color:#f0a6a8;font-size:10px;font-weight:400"> · ردشده</span>':'')+'</div>'
       + '<div style="color:#8a93b2;font-size:10.5px">'+escapeHtml(tm)+(r.note?(' · '+escapeHtml(r.note)):'')+'</div></div>'
       + '<div style="display:flex;gap:4px;flex-shrink:0">'
       +   (pend?'<button onclick="wsResvSetStatus(\''+r.id+'\',\'confirmed\')" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:6px;padding:3px 9px;font-size:10.5px">✓ تأیید</button>':'')
@@ -12215,14 +12217,16 @@ function wsRender(){
       inner += resvs.map(function(r){
         var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : (r.hours ? (prToFa(r.hours)+'س') : '');
         var who = r.personName || r.orderCode || 'رزرو';
-        var pend = (r.status==='pending');
-        var bg = pend ? '#2a2416' : '#16281a', bd = pend ? '#5a4a2a' : '#2f5236', fg = pend ? '#f0c674' : '#9ee0a8';
+        var pend = (r.status==='pending'), rej = (r.status==='rejected');
+        var bg = pend ? '#2a2416' : (rej ? '#2a1616' : '#16281a'),
+            bd = pend ? '#5a4a2a' : (rej ? '#5a2a2a' : '#2f5236'),
+            fg = pend ? '#f0c674' : (rej ? '#f0a6a8' : '#9ee0a8');
         var _dn = WS_IS_ALL ? wsMachineName(r.deviceId) : '';
         return '<div onclick="event.stopPropagation(); '+(pend?('wsResvDecide(\''+r.id+'\',\''+escapeHtml(who).replace(/\x27/g,'')+'\')'):('wsResvForm(\''+r.deviceId+'\',\''+k+'\')'))+'" title="'+escapeHtml(who+(_dn?(' · '+_dn):'')+(pend?' · درخواستِ دانشجو — کلیک برای تأیید':'')+(r.note?(' · '+r.note):''))+'" '
           +'style="cursor:pointer;background:'+bg+';border:1px solid '+bd+';border-radius:5px;padding:3px 5px;margin-bottom:3px;overflow:hidden">'
           +(_dn?'<div style="font-size:8.5px;color:#6f8a72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(_dn)+'</div>':'')
-          +'<div style="font-size:10px;color:'+fg+';font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(pend?'⏳ ':'')+escapeHtml(who)+'</div>'
-          +(tm?'<div style="font-size:9px;color:'+(pend?'#bf9f5b':'#7bbf85')+'">'+escapeHtml(prToFa(tm))+'</div>':'')
+          +'<div style="font-size:10px;color:'+fg+';font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(pend?'⏳ ':(rej?'❌ ':''))+escapeHtml(who)+'</div>'
+          +(tm?'<div style="font-size:9px;color:'+(pend?'#bf9f5b':(rej?'#bf8b8b':'#7bbf85'))+'">'+escapeHtml(prToFa(tm))+'</div>':'')
           +'</div>';
       }).join('');
     }
@@ -12843,7 +12847,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V372 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V373 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V372";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
