@@ -1059,6 +1059,7 @@ function doPost(e){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <div class="page-title" style="margin:0">📁 آرشیو و گزارش‌ها</div>
         <div style="display:flex;gap:8px">
+          <button class="btn btn-sm" style="background:#1a1440;border-color:#4b3fb0;color:#c4b5fd" onclick="cmbOpen()">🧩 برآورد ترکیبی</button>
           <button class="btn btn-primary btn-sm" onclick="rangeReportOpen()">📊 گزارش اکسل</button>
           <button class="btn btn-ghost btn-sm" onclick="archiveInit()">↻ تازه‌سازی</button>
         </div>
@@ -12847,8 +12848,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V373 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V372";
+try{ if(window.console) console.log('%c iPrint3D FRONT V374 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V374";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -15723,6 +15724,199 @@ function omDelete(id){
       if(res && res.status==='ok'){ showToast('سفارش حذف شد'); custBankInvalidate(); orderModalClose(); archiveInit(); }
       else showToast('خطا در حذف');
     });
+  });
+}
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  V374 — برآوردِ ترکیبی (مرحلهٔ ۲: رابطِ کاربری)
+//  بلوکِ مستقل: فقط توابعِ موجود را صدا می‌زند (callSheet، callSheetPayload،
+//  escapeHtml، showToast، archiveInit، pricingEditOrder) و هیچ‌کدام را تغییر نمی‌دهد.
+//  تا کاربر در جدولِ تطبیق «ساختن» را نزند، هیچ چیزی ذخیره نمی‌شود.
+// ═══════════════════════════════════════════════════════════════════
+var CMB = { sel:{}, ids:[], opts:null, draft:null, busy:false, seq:0 };
+
+function cmbFa(n){ return String(n).replace(/\d/g, function(d){ return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }); }
+function cmbMoney(n){ n = Math.round(+n||0); var neg = n<0; var s = String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'٬'); return (neg?'−':'') + cmbFa(s); }
+function cmbClose(){ var o=document.getElementById('cmb-ov'); if(o&&o.parentNode) o.parentNode.removeChild(o); CMB.busy=false; }
+function cmbShell(title, bodyHtml, footHtml){
+  var o=document.getElementById('cmb-ov');
+  if(!o){
+    o=document.createElement('div'); o.id='cmb-ov';
+    o.style.cssText='position:fixed;inset:0;z-index:9300;background:rgba(4,6,12,.86);display:flex;align-items:flex-start;justify-content:center;padding:18px 10px;overflow:auto';
+    document.body.appendChild(o);
+  }
+  o.innerHTML='<div style="background:#0e1220;border:1px solid #23304f;border-radius:16px;max-width:760px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.55);margin:auto 0">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:#0c1120;border-bottom:1px solid #1a2440;border-radius:16px 16px 0 0">'
+    +  '<div style="font-weight:800;color:#dfe3f5;font-size:15px">'+title+'</div>'
+    +  '<button onclick="cmbClose()" style="background:none;border:none;color:#8a93b2;font-size:18px;cursor:pointer">✕</button></div>'
+    +'<div id="cmb-body" style="padding:14px 16px;color:#c7cce0;font-size:13px;line-height:1.9">'+bodyHtml+'</div>'
+    +(footHtml?('<div style="display:flex;gap:9px;justify-content:flex-start;flex-wrap:wrap;padding:12px 16px;background:#0c1120;border-top:1px solid #1a2440;border-radius:0 0 16px 16px">'+footHtml+'</div>'):'')
+    +'</div>';
+}
+
+// ── مرحلهٔ ۱: انتخابِ برآوردها ──
+function cmbOpen(){
+  CMB = { sel:{}, ids:[], opts:null, draft:null, busy:false, seq:0 };
+  if(typeof arData==='undefined' || !arData || !arData.length){
+    if(typeof archiveInit==='function'){ archiveInit(function(){ cmbOpen(); }); return; }
+    showToast('فهرستِ برآوردها بارگذاری نشده'); return;
+  }
+  cmbShell('🧩 ساختِ برآوردِ ترکیبی',
+    '<div style="color:#8a93b2;font-size:12px;margin-bottom:9px">دو یا چند برآورد را انتخاب کن. برآوردهای اصلی هیچ تغییری نمی‌کنند؛ یک برآوردِ تازه ساخته می‌شود.</div>'
+    +'<input id="cmb-q" class="inp" placeholder="🔍 جست‌وجو: کد، نامِ قطعه یا مشتری" oninput="cmbRenderList()" style="width:100%;margin-bottom:10px">'
+    +'<div id="cmb-list" style="max-height:52vh;overflow:auto"></div>'
+    +'<div id="cmb-selinfo" style="margin-top:9px;color:#9ec5ff;font-size:12px"></div>',
+    '<button class="btn btn-primary btn-sm" onclick="cmbGoConfig()">ادامه ←</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="cmbClose()">انصراف</button>');
+  cmbRenderList();
+}
+function cmbRenderList(){
+  var box=document.getElementById('cmb-list'); if(!box) return;
+  var q=String((document.getElementById('cmb-q')||{}).value||'').trim().toLowerCase();
+  var rows=(arData||[]).filter(function(e){
+    if(!q) return true;
+    return String(e.code||'').toLowerCase().indexOf(q)>=0 || String(e.projectName||'').toLowerCase().indexOf(q)>=0 || String(e.customer||'').toLowerCase().indexOf(q)>=0;
+  }).slice(0,150);
+  box.innerHTML = rows.length ? rows.map(function(e){
+    var on=!!CMB.sel[e.id];
+    return '<label style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid '+(on?'#3d4fa8':'#1a2038')+';background:'+(on?'#131a36':'transparent')+';border-radius:9px;margin-bottom:6px;cursor:pointer">'
+      +'<input type="checkbox" '+(on?'checked':'')+' onchange="cmbToggle(\''+String(e.id).replace(/[\'\"\\]/g,'')+'\',this.checked)" style="margin-top:5px;width:16px;height:16px">'
+      +'<div style="min-width:0;flex:1"><div style="color:#dfe3f5;font-weight:700">'+escapeHtml(e.code||'—')+' · '+escapeHtml(e.projectName||'')+'</div>'
+      +'<div style="color:#8a93b2;font-size:11.5px">'+escapeHtml(e.customer||'—')+' · '+cmbFa(escapeHtml(e.dateStr||''))+' · '+cmbMoney(e.total)+' تومان</div></div></label>';
+  }).join('') : '<div style="color:#5a6080;text-align:center;padding:20px">نتیجه‌ای پیدا نشد</div>';
+  var n=CMB.ids.length;
+  var si=document.getElementById('cmb-selinfo'); if(si) si.textContent = n ? (cmbFa(n)+' برآورد انتخاب شده') : '';
+}
+function cmbToggle(id, on){
+  if(on){ if(!CMB.sel[id]){ CMB.sel[id]=1; CMB.ids.push(id); } }
+  else { delete CMB.sel[id]; CMB.ids = CMB.ids.filter(function(x){ return x!==id; }); }
+  cmbRenderList();
+}
+
+// ── مرحلهٔ ۲ و ۳: تنظیم + جدولِ تطبیق (هر تغییر → پیش‌نمایشِ تازه از سرور) ──
+function cmbGoConfig(){
+  if(CMB.ids.length < 2){ showToast('حداقل دو برآورد انتخاب کن'); return; }
+  if(CMB.ids.length > 12){ showToast('حداکثر ۱۲ برآورد'); return; }
+  CMB.opts = { dlpFix:true, name:'', sources: CMB.ids.map(function(id){ return { id:id, lock:false, take:{} }; }), rateChoice:{}, instituteFrom:'' };
+  cmbShell('🧩 برآوردِ ترکیبی — تنظیم و بررسی', '<div style="color:#5a6080;text-align:center;padding:30px">در حالِ محاسبه...</div>', '');
+  cmbFetchDraft();
+}
+function cmbSrcOpt(id){ for(var i=0;i<CMB.opts.sources.length;i++) if(CMB.opts.sources[i].id===id) return CMB.opts.sources[i]; return null; }
+function cmbFetchDraft(){
+  var my = ++CMB.seq;
+  var b=document.getElementById('cmb-calc'); if(b) b.style.display='inline';
+  callSheetPayload('combineDraft', JSON.stringify({ ids:CMB.ids, opts:CMB.opts }), { t:Date.now() }, function(r){
+    if(my !== CMB.seq) return;                         // پاسخِ کهنه نادیده گرفته شود
+    if(!(r && r.status==='ok')){
+      cmbShell('🧩 برآوردِ ترکیبی', '<div style="color:#f0a6a8;padding:14px">خطا: '+escapeHtml((r&&r.message)||'پاسخ نیامد')+'</div>',
+        '<button class="btn btn-ghost btn-sm" onclick="cmbOpen()">← برگشت</button>');
+      return;
+    }
+    CMB.draft = r;
+    cmbRenderConfig();
+  }, 120000);
+}
+function cmbSet(kind, id, key, val){
+  if(kind==='lock'){ var s=cmbSrcOpt(id); if(s) s.lock=!!val; }
+  else if(kind==='take'){
+    var s2=cmbSrcOpt(id); if(!s2) return;
+    var m=String(key).match(/^(extra|prePro)(\d+)$/);
+    if(m){ if(!Array.isArray(s2.take[m[1]])) s2.take[m[1]]=[]; s2.take[m[1]][+m[2]] = !!val; }
+    else s2.take[key] = !!val;
+  }
+  else if(kind==='rate'){ CMB.opts.rateChoice[key] = val; }
+  else if(kind==='inst'){ CMB.opts.instituteFrom = val; }
+  else if(kind==='dlp'){ CMB.opts.dlpFix = !!val; }
+  cmbFetchDraft();
+}
+function cmbRenderConfig(){
+  var d=CMB.draft; if(!d) return;
+  var H='';
+  // اختلافِ نرخ‌ها
+  if(d.conflicts && d.conflicts.length){
+    H+='<div style="border:1px solid #6b5a22;background:#1d1a0e;border-radius:10px;padding:10px 12px;margin-bottom:12px">'
+      +'<div style="color:#f0c674;font-weight:700;margin-bottom:6px">⚠️ این نرخ‌ها بینِ برآوردها فرق دارند — کدام ملاک باشد؟</div>';
+    d.conflicts.forEach(function(c){
+      var nm = (c.values[0]&&c.values[0].name)||c.id;
+      H+='<div style="margin-bottom:6px"><div style="color:#dfe3f5;font-size:12.5px">'+escapeHtml(nm)+'</div><div style="display:flex;gap:12px;flex-wrap:wrap">';
+      c.values.forEach(function(v){
+        var val = (v.value==null) ? 'ترکیبِ متفاوت' : (c.kind==='institute' ? (cmbFa(v.value)+'٪') : cmbMoney(v.value));
+        var fn = c.kind==='institute' ? ('cmbSet(\'inst\',null,null,\''+v.sourceId+'\')') : ('cmbSet(\'rate\',null,\''+c.key+'\',\''+v.sourceId+'\')');
+        H+='<label style="cursor:pointer;font-size:12px;color:#c7cce0"><input type="radio" name="cf_'+escapeHtml(c.key)+'" '+(c.chosen===v.sourceId?'checked':'')+' onchange="'+fn+'"> '
+          +escapeHtml(v.code||'')+': '+val+'</label>';
+      });
+      H+='</div></div>';
+    });
+    H+='</div>';
+  }
+  // کارتِ هر منبع
+  (d.sources||[]).forEach(function(s){
+    var so=cmbSrcOpt(s.id)||{};
+    H+='<div style="border:1px solid #1e2640;border-radius:11px;padding:10px 12px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">'
+      +  '<div style="color:#dfe3f5;font-weight:800">'+escapeHtml(s.code||'')+' · '+escapeHtml(s.name||'')
+      +    (s.v2?'':' <span style="color:#f0c674;font-size:11px">(فرمولِ قدیمی)</span>')+'</div>'
+      +  '<label style="cursor:pointer;font-size:12px;color:#9ee0a8"><input type="checkbox" '+(so.lock?'checked':'')+' onchange="cmbSet(\'lock\',\''+s.id+'\',null,this.checked)"> 🔒 قیمتِ برآوردِ اصلی بماند</label>'
+      +'</div>';
+    if(s.extras && s.extras.length){
+      H+='<div style="color:#8a93b2;font-size:11.5px;margin-top:6px">هزینه‌های اضافی (فقط روی قطعه‌های همین برآورد):</div><div style="display:flex;gap:6px 14px;flex-wrap:wrap">';
+      s.extras.forEach(function(x){
+        H+='<label style="cursor:pointer;font-size:12px;color:'+(so.lock?'#5a6080':'#c7cce0')+'"><input type="checkbox" '+(x.taken?'checked':'')+(so.lock?' disabled':'')
+          +' onchange="cmbSet(\'take\',\''+s.id+'\',\''+x.key+'\',this.checked)"> '+escapeHtml(x.name)+' · '+cmbMoney(x.amount)+'</label>';
+      });
+      H+='</div>';
+      if(so.lock) H+='<div style="color:#5a6080;font-size:11px">با قفل، همهٔ هزینه‌ها همان‌طور که در برآوردِ اصلی بود حساب می‌شوند.</div>';
+    }
+    H+='</div>';
+  });
+  // جدولِ تطبیق
+  H+='<div style="color:#dfe3f5;font-weight:800;margin:14px 0 6px">جدولِ تطبیق</div>'
+    +'<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="color:#8a93b2;text-align:right"><th style="padding:6px">قطعه</th><th>تعداد</th><th>اصلی</th><th>ترکیبی</th><th>اختلاف</th></tr>';
+  (d.compare||[]).forEach(function(c){
+    var diff=c.newTotal-c.origTotal;
+    var col = Math.abs(diff)<=1 ? '#5a6080' : (diff>0?'#f0c674':'#9ee0a8');
+    var warn = (c.reasons||[]).some(function(x){ return String(x).indexOf('⚠️')===0; });
+    H+='<tr style="border-top:1px solid #1a2038;vertical-align:top'+(warn?';background:#2a1414':'')+'">'
+      +'<td style="padding:6px;color:#dfe3f5">'+escapeHtml(c.section)+'<div style="color:#5a6080;font-size:10.5px">'+escapeHtml(c.sourceCode||'')+(c.locked?' · 🔒':'')+'</div>'
+      +((c.reasons||[]).length?('<div style="color:'+(warn?'#f0a6a8':'#8a93b2')+';font-size:10.5px;line-height:1.7">↳ '+c.reasons.map(escapeHtml).join('<br>↳ ')+'</div>'):'')
+      +'</td><td>'+cmbFa(c.qty)+'</td><td>'+cmbMoney(c.origTotal)+'</td><td>'+cmbMoney(c.newTotal)+'</td>'
+      +'<td style="color:'+col+'">'+(Math.abs(diff)<=1?'—':((diff>0?'+':'')+cmbMoney(diff)))+'</td></tr>';
+  });
+  var T=d.totals||{}, td=(T.new||0)-(T.orig||0);
+  H+='<tr style="border-top:2px solid #2a3560;font-weight:800;color:#dfe3f5"><td style="padding:7px">جمع</td><td></td><td>'+cmbMoney(T.orig)+'</td><td>'+cmbMoney(T.new)+'</td>'
+    +'<td style="color:'+(Math.abs(td)<=1?'#5a6080':(td>0?'#f0c674':'#9ee0a8'))+'">'+(Math.abs(td)<=1?'—':((td>0?'+':'')+cmbMoney(td)))+'</td></tr></table></div>'
+    +'<div style="color:#8a93b2;font-size:11.5px;margin-top:6px">سودِ خالصِ ترکیبی: '+cmbMoney(T.netProfit)+' · سهمِ پژوهشگاه: '+cmbMoney(T.institute)+'</div>';
+  // تنظیماتِ پایانی
+  H+='<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">'
+    +'<label style="cursor:pointer;font-size:12px"><input type="checkbox" '+(CMB.opts.dlpFix?'checked':'')+' onchange="cmbSet(\'dlp\',null,null,this.checked)"> اصلاحِ سینیِ DLP وقتی تعداد سینی را پر نمی‌کند</label>'
+    +'<input id="cmb-name" class="inp" placeholder="نامِ برآوردِ ترکیبی (اختیاری)" value="'+escapeHtml(CMB.opts.name||'')+'" oninput="CMB.opts.name=this.value" style="width:100%"></div>';
+  cmbShell('🧩 برآوردِ ترکیبی — تنظیم و بررسی', H,
+    '<button class="btn btn-primary btn-sm" onclick="cmbSave()">✓ ساختِ برآوردِ ترکیبی</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="cmbOpen()">← برگشت به انتخاب</button>'
+    +'<span id="cmb-calc" style="display:none;color:#8a93b2;font-size:12px;align-self:center">در حالِ محاسبه...</span>');
+}
+function cmbSave(){
+  if(CMB.busy) return;
+  var d=CMB.draft; if(!d) return;
+  var warn=(d.compare||[]).some(function(c){ return (c.reasons||[]).some(function(x){ return String(x).indexOf('⚠️')===0; }); });
+  var msg='یک برآوردِ <b>تازه</b> با جمعِ <b>'+cmbMoney((d.totals||{}).new)+' تومان</b> ساخته می‌شود.<br>برآوردهای اصلی هیچ تغییری نمی‌کنند.'
+    +(warn?'<br><span style="color:#f0a6a8">⚠️ یک یا چند قطعه هشدار دارند — جدول را دوباره ببین.</span>':'');
+  uiConfirm({ title:'ساختِ برآوردِ ترکیبی', html:msg, okText:'بساز', cancelText:'انصراف', danger:false }, function(){
+    CMB.busy=true;
+    showToast('⏳ در حالِ ساخت...');
+    callSheetPayload('combineSave', JSON.stringify({ ids:CMB.ids, opts:CMB.opts }), { t:Date.now() }, function(r){
+      CMB.busy=false;
+      if(!(r && r.status==='ok')){ showToast((r&&r.message)?('خطا: '+r.message):'ساخته نشد'); return; }
+      var nid=r.id, code=r.code||'';
+      cmbShell('✅ برآوردِ ترکیبی ساخته شد',
+        '<div style="font-size:14px;color:#dfe3f5">'+escapeHtml(code)+' · '+escapeHtml(r.name||'')+'</div>'
+        +'<div style="color:#8a93b2;margin-top:4px">جمع: '+cmbMoney(r.total)+' تومان</div>',
+        '<button class="btn btn-primary btn-sm" onclick="cmbClose();pricingEditOrder(\''+String(nid).replace(/[\'\"\\]/g,'')+'\')">✏️ باز کردن در ویرایشگر</button>'
+        +'<button class="btn btn-ghost btn-sm" onclick="cmbClose()">بستن</button>');
+      if(typeof archiveInit==='function') archiveInit();
+    }, 180000);
   });
 }
 </script>
