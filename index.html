@@ -12848,8 +12848,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V376 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V376";
+try{ if(window.console) console.log('%c iPrint3D FRONT V377 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V377";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -15844,7 +15844,7 @@ function cmbToggle(id, on){
 function cmbGoConfig(){
   if(CMB.ids.length < 2){ showToast('حداقل دو برآورد انتخاب کن'); return; }
   if(CMB.ids.length > 12){ showToast('حداکثر ۱۲ برآورد'); return; }
-  CMB.opts = { dlpFix:true, name:'', sources: CMB.ids.map(function(id){ return { id:id, lock:false, take:{} }; }), rateChoice:{}, instituteFrom:'' };
+  CMB.opts = { dlpFix:true, name:'', sources: CMB.ids.map(function(id){ return { id:id, lock:false, take:{} }; }), rateChoice:{}, instituteFrom:'', rateMode:'', parts:{} };
   cmbShell('🧩 برآوردِ ترکیبی — تنظیم و بررسی', '<div style="color:#5a6080;text-align:center;padding:30px">در حالِ محاسبه...</div>', '');
   cmbFetchDraft();
 }
@@ -15874,8 +15874,16 @@ function cmbSet(kind, id, key, val){
   else if(kind==='rate'){ CMB.opts.rateChoice[key] = val; }
   else if(kind==='inst'){ CMB.opts.instituteFrom = val; }
   else if(kind==='dlp'){ CMB.opts.dlpFix = !!val; }
+  else if(kind==='today'){ CMB.opts.rateMode = val ? 'today' : ''; }
+  else if(kind==='qty'){
+    var q = parseInt(String(val||'').replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[^0-9]/g,''),10);
+    if(!(q>0)){ showToast('تعداد باید عددِ مثبت باشد'); cmbRenderConfig(); return; }
+    (CMB.opts.parts[key] = CMB.opts.parts[key] || {}).qty = q;
+  }
   cmbFetchDraft();
 }
+function cmbSetName(key, v){ (CMB.opts.parts[key] = CMB.opts.parts[key] || {}).name = String(v||''); }
+function cmbToggleDet(i){ var e=document.getElementById('cmbdet-'+i); if(e) e.style.display = (e.style.display==='none'?'':'none'); }
 function cmbRenderConfig(){
   var d=CMB.draft; if(!d) return;
   var H='';
@@ -15889,13 +15897,15 @@ function cmbRenderConfig(){
       c.values.forEach(function(v){
         var val = (v.value==null) ? 'ترکیبِ متفاوت' : (c.kind==='institute' ? (cmbFa(v.value)+'٪') : cmbMoney(v.value));
         var fn = c.kind==='institute' ? ('cmbSet(\'inst\',null,null,\''+v.sourceId+'\')') : ('cmbSet(\'rate\',null,\''+c.key+'\',\''+v.sourceId+'\')');
+        var lbl = (v.sourceId==='__today__') ? '<b style="color:#9ee0a8">نرخِ امروز</b>' : escapeHtml(v.code||'');
         H+='<label style="cursor:pointer;font-size:12px;color:#c7cce0"><input type="radio" name="cf_'+escapeHtml(c.key)+'" '+(c.chosen===v.sourceId?'checked':'')+' onchange="'+fn+'"> '
-          +escapeHtml(v.code||'')+': '+val+'</label>';
+          +lbl+': '+val+'</label>';
       });
       H+='</div></div>';
     });
     H+='</div>';
   }
+  H+='<label style="display:block;cursor:pointer;font-size:12.5px;color:#9ee0a8;margin:-4px 0 12px"><input type="checkbox" '+(CMB.opts.rateMode==='today'?'checked':'')+' onchange="cmbSet(\'today\',null,null,this.checked)"> همهٔ نرخ‌ها با <b>نرخِ امروزِ تنظیمات</b> حساب شوند</label>';
   // کارتِ هر منبع
   (d.sources||[]).forEach(function(s){
     var so=cmbSrcOpt(s.id)||{};
@@ -15918,22 +15928,40 @@ function cmbRenderConfig(){
   });
   // جدولِ تطبیق
   H+='<div style="color:#dfe3f5;font-weight:800;margin:14px 0 6px">جدولِ تطبیق</div>'
-    +'<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
-    +'<tr style="color:#8a93b2;text-align:right"><th style="padding:6px">قطعه</th><th>تعداد</th><th>اصلی</th><th>ترکیبی</th><th>اختلاف</th></tr>';
-  (d.compare||[]).forEach(function(c){
+    +'<div style="color:#5a6080;font-size:11px;margin-bottom:6px">نام و تعداد را همین‌جا می‌توانی عوض کنی. روی «جزئیات» بزن تا تفکیکِ هر عدد را ببینی.</div>';
+  (d.compare||[]).forEach(function(c, i){
     var diff=c.newTotal-c.origTotal;
     var col = Math.abs(diff)<=1 ? '#5a6080' : (diff>0?'#f0c674':'#9ee0a8');
     var warn = (c.reasons||[]).some(function(x){ return String(x).indexOf('⚠️')===0; });
-    H+='<tr style="border-top:1px solid #1a2038;vertical-align:top'+(warn?';background:#2a1414':'')+'">'
-      +'<td style="padding:6px;color:#dfe3f5">'+escapeHtml(c.section)+'<div style="color:#5a6080;font-size:10.5px">'+escapeHtml(c.sourceCode||'')+(c.locked?' · 🔒':'')+'</div>'
-      +((c.reasons||[]).length?('<div style="color:'+(warn?'#f0a6a8':'#8a93b2')+';font-size:10.5px;line-height:1.7">↳ '+c.reasons.map(escapeHtml).join('<br>↳ ')+'</div>'):'')
-      +'</td><td>'+cmbFa(c.qty)+'</td><td>'+cmbMoney(c.origTotal)+'</td><td>'+cmbMoney(c.newTotal)+'</td>'
-      +'<td style="color:'+col+'">'+(Math.abs(diff)<=1?'—':((diff>0?'+':'')+cmbMoney(diff)))+'</td></tr>';
+    var po = (CMB.opts.parts||{})[c.key] || {};
+    var origPU = c.origQty ? Math.round(c.origTotal / c.origQty) : c.origPerUnit;
+    function catRow(lbl, a, b){ var dd=b-a; return '<tr><td style="padding:2px 6px;color:#8a93b2">'+lbl+'</td><td>'+cmbMoney(a)+'</td><td>'+cmbMoney(b)+'</td><td style="color:'+(Math.abs(dd)<=1?'#5a6080':(dd>0?'#f0c674':'#9ee0a8'))+'">'+(Math.abs(dd)<=1?'—':((dd>0?'+':'')+cmbMoney(dd)))+'</td></tr>'; }
+    H+='<div style="border:1px solid '+(warn?'#5a2a2a':'#1e2640')+';background:'+(warn?'#1a1010':'transparent')+';border-radius:10px;padding:9px 10px;margin-bottom:8px">'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+      +  '<input class="inp" value="'+escapeHtml(po.name!=null && po.name!=='' ? po.name : c.section)+'" oninput="cmbSetName(\''+c.key+'\',this.value)" title="نامِ قطعه در برآورد و فاکتور" style="flex:1;min-width:160px;padding:6px 9px;font-size:13px">'
+      +  '<span style="color:#5a6080;font-size:11px">'+escapeHtml(c.sourceCode||'')+(c.locked?' · 🔒':'')+'</span>'
+      +  '<label style="font-size:12px;color:#8a93b2">تعداد <input class="inp" type="text" inputmode="numeric" value="'+cmbFa(c.qty)+'" onchange="cmbSet(\'qty\',null,\''+c.key+'\',this.value)" style="width:64px;padding:5px 6px;text-align:center;font-size:13px"></label>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:7px;font-size:12px">'
+      +  '<div><div style="color:#5a6080;font-size:10.5px">هر عدد</div>'+cmbMoney(origPU)+' ← <b style="color:#dfe3f5">'+cmbMoney(c.newPerUnit)+'</b></div>'
+      +  '<div><div style="color:#5a6080;font-size:10.5px">جمع</div>'+cmbMoney(c.origTotal)+' ← <b style="color:#dfe3f5">'+cmbMoney(c.newTotal)+'</b></div>'
+      +  '<div><div style="color:#5a6080;font-size:10.5px">اختلاف</div><b style="color:'+col+'">'+(Math.abs(diff)<=1?'—':((diff>0?'+':'')+cmbMoney(diff)))+'</b></div>'
+      +'</div>'
+      +((c.reasons||[]).length?('<div style="color:'+(warn?'#f0a6a8':'#8a93b2')+';font-size:10.5px;line-height:1.7;margin-top:4px">↳ '+c.reasons.map(escapeHtml).join('<br>↳ ')+'</div>'):'')
+      +'<button onclick="cmbToggleDet('+i+')" style="background:none;border:none;color:#7ab8ff;font-size:11px;cursor:pointer;padding:3px 0;font-family:inherit">▾ جزئیاتِ هر عدد</button>'
+      +'<div id="cmbdet-'+i+'" style="display:none"><table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-top:3px">'
+      +  '<tr style="color:#5a6080"><td style="padding:2px 6px"></td><td>اصلی</td><td>ترکیبی</td><td>اختلاف</td></tr>'
+      +  catRow('دستگاه', (c.origCat||{}).machine||0, (c.newCat||{}).machine||0)
+      +  catRow('مواد', (c.origCat||{}).material||0, (c.newCat||{}).material||0)
+      +  catRow('نیرو و فینیشینگ', (c.origCat||{}).labor||0, (c.newCat||{}).labor||0)
+      +  '<tr><td style="padding:2px 6px;color:#8a93b2">سهمِ هزینه‌های اضافی</td><td></td><td>'+cmbMoney(c.ownExtraPerUnit||0)+'</td><td></td></tr>'
+      +'</table><div style="color:#5a6080;font-size:10.5px">قیمتِ هر عدد = تمام‌شده × ضریبِ سود + پژوهشگاه + سهمِ هزینه‌ها</div></div>'
+      +'</div>';
   });
   var T=d.totals||{}, td=(T.new||0)-(T.orig||0);
-  H+='<tr style="border-top:2px solid #2a3560;font-weight:800;color:#dfe3f5"><td style="padding:7px">جمع</td><td></td><td>'+cmbMoney(T.orig)+'</td><td>'+cmbMoney(T.new)+'</td>'
-    +'<td style="color:'+(Math.abs(td)<=1?'#5a6080':(td>0?'#f0c674':'#9ee0a8'))+'">'+(Math.abs(td)<=1?'—':((td>0?'+':'')+cmbMoney(td)))+'</td></tr></table></div>'
-    +'<div style="color:#8a93b2;font-size:11.5px;margin-top:6px">سودِ خالصِ ترکیبی: '+cmbMoney(T.netProfit)+' · سهمِ پژوهشگاه: '+cmbMoney(T.institute)+'</div>';
+  H+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:2px solid #2a3560;padding:9px 4px;font-weight:800;color:#dfe3f5">'
+    +'<span>جمع</span><span>'+cmbMoney(T.orig)+' ← '+cmbMoney(T.new)+' <span style="color:'+(Math.abs(td)<=1?'#5a6080':(td>0?'#f0c674':'#9ee0a8'))+'">'+(Math.abs(td)<=1?'':(' ('+(td>0?'+':'')+cmbMoney(td)+')'))+'</span></span></div>'
+    +'<div style="color:#8a93b2;font-size:11.5px;margin-top:2px">سودِ خالصِ ترکیبی: '+cmbMoney(T.netProfit)+' · سهمِ پژوهشگاه: '+cmbMoney(T.institute)+'</div>';
   // تنظیماتِ پایانی
   H+='<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">'
     +'<label style="cursor:pointer;font-size:12px"><input type="checkbox" '+(CMB.opts.dlpFix?'checked':'')+' onchange="cmbSet(\'dlp\',null,null,this.checked)"> اصلاحِ سینیِ DLP وقتی تعداد سینی را پر نمی‌کند</label>'
