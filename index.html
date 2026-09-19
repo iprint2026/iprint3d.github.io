@@ -12848,8 +12848,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V377 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V377";
+try{ if(window.console) console.log('%c iPrint3D FRONT V378 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V378";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -15884,13 +15884,15 @@ function cmbSet(kind, id, key, val){
 }
 function cmbSetName(key, v){ (CMB.opts.parts[key] = CMB.opts.parts[key] || {}).name = String(v||''); }
 function cmbToggleDet(i){ var e=document.getElementById('cmbdet-'+i); if(e) e.style.display = (e.style.display==='none'?'':'none'); }
+function cmbHelp(t){ return '<div style="color:#7d86a6;font-size:11px;line-height:1.8;margin:3px 0 6px">ℹ️ '+t+'</div>'; }
 function cmbRenderConfig(){
   var d=CMB.draft; if(!d) return;
   var H='';
   // اختلافِ نرخ‌ها
   if(d.conflicts && d.conflicts.length){
     H+='<div style="border:1px solid #6b5a22;background:#1d1a0e;border-radius:10px;padding:10px 12px;margin-bottom:12px">'
-      +'<div style="color:#f0c674;font-weight:700;margin-bottom:6px">⚠️ این نرخ‌ها بینِ برآوردها فرق دارند — کدام ملاک باشد؟</div>';
+      +'<div style="color:#f0c674;font-weight:700;margin-bottom:6px">⚠️ این نرخ‌ها بینِ برآوردها فرق دارند — کدام ملاک باشد؟</div>'
+      +cmbHelp('یک دستگاه یا مادهٔ مشترک در برآوردهای مختلف با قیمتِ متفاوت ثبت شده. انتخاب کن قیمتِ کدام برآورد برای همهٔ قطعه‌ها ملاک باشد. «نرخِ امروز» یعنی قیمتی که الان در تنظیمات داری.');
     d.conflicts.forEach(function(c){
       var nm = (c.values[0]&&c.values[0].name)||c.id;
       H+='<div style="margin-bottom:6px"><div style="color:#dfe3f5;font-size:12.5px">'+escapeHtml(nm)+'</div><div style="display:flex;gap:12px;flex-wrap:wrap">';
@@ -15905,30 +15907,32 @@ function cmbRenderConfig(){
     });
     H+='</div>';
   }
-  H+='<label style="display:block;cursor:pointer;font-size:12.5px;color:#9ee0a8;margin:-4px 0 12px"><input type="checkbox" '+(CMB.opts.rateMode==='today'?'checked':'')+' onchange="cmbSet(\'today\',null,null,this.checked)"> همهٔ نرخ‌ها با <b>نرخِ امروزِ تنظیمات</b> حساب شوند</label>';
+  H+='<label style="display:block;cursor:pointer;font-size:12.5px;color:#9ee0a8;margin:-4px 0 12px"><input type="checkbox" '+(CMB.opts.rateMode==='today'?'checked':'')+' onchange="cmbSet(\'today\',null,null,this.checked)"> همهٔ نرخ‌ها با <b>نرخِ امروزِ تنظیمات</b> حساب شوند</label>'
+    +cmbHelp('اگر تیک بزنی، همهٔ قطعه‌ها با قیمت‌های فعلیِ دستگاه، مواد و دستمزد در تنظیمات دوباره حساب می‌شوند، نه با نرخ‌هایی که موقعِ ساختِ هر برآورد ثبت شده بود.');
   // کارتِ هر منبع
-  (d.sources||[]).forEach(function(s){
+  (d.sources||[]).forEach(function(s, _si){
     var so=cmbSrcOpt(s.id)||{};
     H+='<div style="border:1px solid #1e2640;border-radius:11px;padding:10px 12px;margin-bottom:10px">'
       +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">'
       +  '<div style="color:#dfe3f5;font-weight:800">'+escapeHtml(s.code||'')+' · '+escapeHtml(s.name||'')
       +    (s.v2?'':' <span style="color:#f0c674;font-size:11px">(فرمولِ قدیمی)</span>')+'</div>'
       +  '<label style="cursor:pointer;font-size:12px;color:#9ee0a8"><input type="checkbox" '+(so.lock?'checked':'')+' onchange="cmbSet(\'lock\',\''+s.id+'\',null,this.checked)"> 🔒 قیمتِ برآوردِ اصلی بماند</label>'
-      +'</div>';
+      +'</div>'
+      +(_si>0?'':cmbHelp('🔒 قفل: اگر تیک بزنی، قیمتِ قطعه‌های این برآورد دقیقاً همان قیمتی می‌ماند که قبلاً به مشتری داده شده و با نرخ‌های جدید عوض نمی‌شود. بدونِ قفل، قیمت با نرخ‌های انتخاب‌شده دوباره حساب می‌شود.'));
     if(s.extras && s.extras.length){
       H+='<div style="color:#8a93b2;font-size:11.5px;margin-top:6px">هزینه‌های اضافی (فقط روی قطعه‌های همین برآورد):</div><div style="display:flex;gap:6px 14px;flex-wrap:wrap">';
       s.extras.forEach(function(x){
         H+='<label style="cursor:pointer;font-size:12px;color:'+(so.lock?'#5a6080':'#c7cce0')+'"><input type="checkbox" '+(x.taken?'checked':'')+(so.lock?' disabled':'')
           +' onchange="cmbSet(\'take\',\''+s.id+'\',\''+x.key+'\',this.checked)"> '+escapeHtml(x.name)+' · '+cmbMoney(x.amount)+'</label>';
       });
-      H+='</div>';
+      H+='</div>'+cmbHelp('هر هزینه‌ای که تیک داشته باشد فقط روی قطعه‌های همین برآورد پخش می‌شود، نه روی کلِ سفارشِ ترکیبی. تیکش را برداری، آن هزینه در برآوردِ جدید حساب نمی‌شود.');
       if(so.lock) H+='<div style="color:#5a6080;font-size:11px">با قفل، همهٔ هزینه‌ها همان‌طور که در برآوردِ اصلی بود حساب می‌شوند.</div>';
     }
     H+='</div>';
   });
   // جدولِ تطبیق
   H+='<div style="color:#dfe3f5;font-weight:800;margin:14px 0 6px">جدولِ تطبیق</div>'
-    +'<div style="color:#5a6080;font-size:11px;margin-bottom:6px">نام و تعداد را همین‌جا می‌توانی عوض کنی. روی «جزئیات» بزن تا تفکیکِ هر عدد را ببینی.</div>';
+    +'<div style="color:#5a6080;font-size:11px;margin-bottom:6px">نام و تعداد را همین‌جا می‌توانی عوض کنی. روی «جزئیات» بزن تا تفکیکِ هر عدد را ببینی. عددِ سمتِ راستِ فلش قیمتِ برآوردِ اصلی است و عددِ سمتِ چپ قیمتِ جدید. زرد یعنی گران‌تر شده، سبز یعنی ارزان‌تر، «—» یعنی بدونِ تغییر.</div>';
   (d.compare||[]).forEach(function(c, i){
     var diff=c.newTotal-c.origTotal;
     var col = Math.abs(diff)<=1 ? '#5a6080' : (diff>0?'#f0c674':'#9ee0a8');
@@ -15961,11 +15965,13 @@ function cmbRenderConfig(){
   var T=d.totals||{}, td=(T.new||0)-(T.orig||0);
   H+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:2px solid #2a3560;padding:9px 4px;font-weight:800;color:#dfe3f5">'
     +'<span>جمع</span><span>'+cmbMoney(T.orig)+' ← '+cmbMoney(T.new)+' <span style="color:'+(Math.abs(td)<=1?'#5a6080':(td>0?'#f0c674':'#9ee0a8'))+'">'+(Math.abs(td)<=1?'':(' ('+(td>0?'+':'')+cmbMoney(td)+')'))+'</span></span></div>'
-    +'<div style="color:#8a93b2;font-size:11.5px;margin-top:2px">سودِ خالصِ ترکیبی: '+cmbMoney(T.netProfit)+' · سهمِ پژوهشگاه: '+cmbMoney(T.institute)+'</div>';
+    +'<div style="color:#8a93b2;font-size:11.5px;margin-top:2px">سودِ خالصِ ترکیبی: '+cmbMoney(T.netProfit)+' · سهمِ پژوهشگاه: '+cmbMoney(T.institute)+'</div>'
+    +cmbHelp('سودِ خالص یعنی چیزی که بعد از کسرِ هزینهٔ تمام‌شده، سهمِ پژوهشگاه و هزینه‌های اضافی برای خودت می‌ماند.');
   // تنظیماتِ پایانی
   H+='<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">'
     +'<label style="cursor:pointer;font-size:12px"><input type="checkbox" '+(CMB.opts.dlpFix?'checked':'')+' onchange="cmbSet(\'dlp\',null,null,this.checked)"> اصلاحِ سینیِ DLP وقتی تعداد سینی را پر نمی‌کند</label>'
-    +'<input id="cmb-name" class="inp" placeholder="نامِ برآوردِ ترکیبی (اختیاری)" value="'+escapeHtml(CMB.opts.name||'')+'" oninput="CMB.opts.name=this.value" style="width:100%"></div>';
+    +cmbHelp('در DLP قیمتِ هر عدد بر اساسِ سینیِ پُر حساب می‌شود. مثلاً اگر سینی ۱۰ تایی باشد و ۱۵ عدد سفارش باشد، واقعاً ۲ سینی چاپ می‌شود، یعنی هر سینی ۷ یا ۸ عدد. با این تیک، قیمت بر اساسِ تعدادِ واقعیِ سینی‌ها درست می‌شود تا ضرر نکنی. بدونِ تیک، همان حسابِ برآوردِ اصلی می‌ماند.')
+    +'<input id="cmb-name" class="inp" placeholder="نامِ برآوردِ ترکیبی (اختیاری — خالی بماند، نام خودکار ساخته می‌شود)" value="'+escapeHtml(CMB.opts.name||'')+'" oninput="CMB.opts.name=this.value" style="width:100%"></div>';
   cmbShell('🧩 برآوردِ ترکیبی — تنظیم و بررسی', H,
     '<button class="btn btn-primary btn-sm" onclick="cmbSave()">✓ ساختِ برآوردِ ترکیبی</button>'
     +'<button class="btn btn-ghost btn-sm" onclick="cmbClose()">← برگشت به انتخاب</button>'
