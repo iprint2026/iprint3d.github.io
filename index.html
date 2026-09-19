@@ -12848,8 +12848,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V378 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V378";
+try{ if(window.console) console.log('%c iPrint3D FRONT V379 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V379";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -15884,7 +15884,7 @@ function cmbSet(kind, id, key, val){
 }
 function cmbSetName(key, v){ (CMB.opts.parts[key] = CMB.opts.parts[key] || {}).name = String(v||''); }
 function cmbToggleDet(i){ var e=document.getElementById('cmbdet-'+i); if(e) e.style.display = (e.style.display==='none'?'':'none'); }
-function cmbHelp(t){ return '<div style="color:#7d86a6;font-size:11px;line-height:1.8;margin:3px 0 6px">ℹ️ '+t+'</div>'; }
+function cmbHelp(t){ return '<div style="color:#c9a8e8;background:rgba(160,110,220,.08);border-right:3px solid #8b5cc9;border-radius:6px;font-size:11px;line-height:1.85;margin:5px 0 8px;padding:5px 9px"><b style="color:#b98ae6">راهنما:</b> '+t+'</div>'; }
 function cmbRenderConfig(){
   var d=CMB.draft; if(!d) return;
   var H='';
@@ -15918,7 +15918,7 @@ function cmbRenderConfig(){
       +    (s.v2?'':' <span style="color:#f0c674;font-size:11px">(فرمولِ قدیمی)</span>')+'</div>'
       +  '<label style="cursor:pointer;font-size:12px;color:#9ee0a8"><input type="checkbox" '+(so.lock?'checked':'')+' onchange="cmbSet(\'lock\',\''+s.id+'\',null,this.checked)"> 🔒 قیمتِ برآوردِ اصلی بماند</label>'
       +'</div>'
-      +(_si>0?'':cmbHelp('🔒 قفل: اگر تیک بزنی، قیمتِ قطعه‌های این برآورد دقیقاً همان قیمتی می‌ماند که قبلاً به مشتری داده شده و با نرخ‌های جدید عوض نمی‌شود. بدونِ قفل، قیمت با نرخ‌های انتخاب‌شده دوباره حساب می‌شود.'));
+      +(_si>0?'':cmbHelp('<b>با قفل</b>، قیمتِ هر عدد دقیقاً همان قیمتِ برآوردِ اصلی می‌ماند؛ تعداد، نرخِ جدید و اصلاحِ سینی رویش اثر ندارند. برای وقتی که قیمت را قبلاً به مشتری گفته‌ای.<br><b>بدونِ قفل</b>، قیمت دوباره حساب می‌شود: با نرخِ انتخاب‌شده، و اگر تعداد را کم کنی، هزینه‌های اضافی و سینیِ DLP روی تعدادِ کمتر پخش می‌شوند و قیمتِ هر عدد بالا می‌رود.'));
     if(s.extras && s.extras.length){
       H+='<div style="color:#8a93b2;font-size:11.5px;margin-top:6px">هزینه‌های اضافی (فقط روی قطعه‌های همین برآورد):</div><div style="display:flex;gap:6px 14px;flex-wrap:wrap">';
       s.extras.forEach(function(x){
@@ -15932,7 +15932,8 @@ function cmbRenderConfig(){
   });
   // جدولِ تطبیق
   H+='<div style="color:#dfe3f5;font-weight:800;margin:14px 0 6px">جدولِ تطبیق</div>'
-    +'<div style="color:#5a6080;font-size:11px;margin-bottom:6px">نام و تعداد را همین‌جا می‌توانی عوض کنی. روی «جزئیات» بزن تا تفکیکِ هر عدد را ببینی. عددِ سمتِ راستِ فلش قیمتِ برآوردِ اصلی است و عددِ سمتِ چپ قیمتِ جدید. زرد یعنی گران‌تر شده، سبز یعنی ارزان‌تر، «—» یعنی بدونِ تغییر.</div>';
+    +cmbHelp('نام و تعداد را همین‌جا می‌توانی عوض کنی. روی «جزئیات» بزن تا تفکیکِ هر عدد را ببینی. عددِ سمتِ راستِ فلش قیمتِ برآوردِ اصلی است و عددِ سمتِ چپ قیمتِ جدید. زرد یعنی گران‌تر شده، سبز یعنی ارزان‌تر، «—» یعنی بدونِ تغییر.')
+    +cmbHelp('<b>کم کردنِ تعداد</b> (بدونِ قفل): در FDM قیمتِ هر عدد تقریباً ثابت می‌ماند و فقط هزینه‌های اضافیِ تیک‌خورده روی تعدادِ کمتر پخش می‌شوند. در DLP هر سینی یک هزینهٔ ثابت دارد؛ مثلاً با ۱ عدد، کلِ هزینهٔ یک سینی روی همان ۱ عدد می‌افتد و قیمتش چند برابر می‌شود. زیرِ هر قطعه علتِ تغییر نوشته می‌شود.');
   (d.compare||[]).forEach(function(c, i){
     var diff=c.newTotal-c.origTotal;
     var col = Math.abs(diff)<=1 ? '#5a6080' : (diff>0?'#f0c674':'#9ee0a8');
