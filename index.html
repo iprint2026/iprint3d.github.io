@@ -1059,7 +1059,7 @@ function doPost(e){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <div class="page-title" style="margin:0">📁 آرشیو و گزارش‌ها</div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-sm" style="background:#1a1440;border-color:#4b3fb0;color:#c4b5fd" onclick="cmbOpen()">🧩 برآورد ترکیبی</button>
+          <button class="btn btn-sm" style="background:#1a1440;border-color:#4b3fb0;color:#c4b5fd" id="cmb-mode-btn" onclick="cmbModeToggle()">🧩 برآورد ترکیبی</button>
           <button class="btn btn-primary btn-sm" onclick="rangeReportOpen()">📊 گزارش اکسل</button>
           <button class="btn btn-ghost btn-sm" onclick="archiveInit()">↻ تازه‌سازی</button>
         </div>
@@ -12848,8 +12848,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V374 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V374";
+try{ if(window.console) console.log('%c iPrint3D FRONT V375 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V375";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -14635,8 +14635,8 @@ function archiveRender(){
           ? '<img src="'+tsrc+'" style="width:42px;height:42px;border-radius:8px;object-fit:cover;border:1px solid #232539;flex:none">'
           : (e.hasImage ? '<div id="arthumb-'+e.id+'" data-lazy="'+e.id+'" style="width:42px;height:42px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;flex:none;font-size:15px;overflow:hidden">🖼</div>' : '');
       }
-      return '<div class="ar-est" style="cursor:pointer" onclick="archiveProfile(\''+e.id+'\')">'
-        +'<div class="ar-estmain" style="flex:1;display:flex;align-items:center;gap:10px">'+thumb
+      return '<div class="ar-est" id="arest-'+e.id+'" style="cursor:pointer'+cmbCardStyle(e.id)+'" onclick="arEstClick(\''+e.id+'\')">'
+        +'<div class="ar-estmain" style="flex:1;display:flex;align-items:center;gap:10px">'+cmbBox(e.id)+thumb
         +'<div><div class="nm">'+codeChip+escapeHtml(e.projectName||'—')+' &nbsp;'+badge+'</div>'
         +'<div class="meta">'+escapeHtml(e.customer||'—')+' · '+escapeHtml(e.dateStr||'')+' · <span style="color:#fbbf24;font-weight:700">'+prToFa(prSep(e.total))+' تومان</span></div></div></div>'
         +'<span style="color:#5a6080;font-size:18px">‹</span></div>';
@@ -15736,6 +15736,51 @@ function omDelete(id){
 // ═══════════════════════════════════════════════════════════════════
 var CMB = { sel:{}, ids:[], opts:null, draft:null, busy:false, seq:0 };
 
+// ── حالتِ انتخاب روی خودِ صفحهٔ آرشیو (V375) ──
+// وقتی خاموش است: کارت‌ها دقیقاً مثلِ قبل رفتار می‌کنند (کلیک → پروفایلِ سفارش).
+// انتخاب‌ها در CMB.sel می‌مانند، پس با باز/بستنِ ماه‌ها و جست‌وجو از دست نمی‌روند.
+var CMB_MODE = false;
+function arEstClick(id){ if(CMB_MODE) cmbPick(id); else archiveProfile(id); }
+function cmbCardStyle(id){ return (CMB_MODE && CMB.sel[id]) ? ';border-color:#6d5bd6;background:#171238' : ''; }
+function cmbBox(id){
+  if(!CMB_MODE) return '';
+  var on = !!CMB.sel[id];
+  return '<span id="cmbbox-'+id+'" style="flex:none;width:22px;height:22px;border-radius:6px;border:2px solid '+(on?'#8b7cf6':'#3a4060')+';background:'+(on?'#6d5bd6':'transparent')+';display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:900">'+(on?'✓':'')+'</span>';
+}
+function cmbModeToggle(){
+  CMB_MODE = !CMB_MODE;
+  if(CMB_MODE){ CMB = { sel:{}, ids:[], opts:null, draft:null, busy:false, seq:0 }; }
+  var b=document.getElementById('cmb-mode-btn');
+  if(b) b.textContent = CMB_MODE ? '✕ لغوِ انتخاب' : '🧩 برآورد ترکیبی';
+  if(typeof archiveRender==='function') archiveRender();
+  cmbBar();
+  if(CMB_MODE) showToast('روی سفارش‌ها بزن تا انتخاب شوند — از هر ماهی');
+}
+function cmbPick(id){
+  if(CMB.sel[id]){ delete CMB.sel[id]; CMB.ids = CMB.ids.filter(function(x){ return x!==id; }); }
+  else { if(CMB.ids.length >= 12){ showToast('حداکثر ۱۲ برآورد'); return; } CMB.sel[id]=1; CMB.ids.push(id); }
+  // فقط همان کارت و نوار به‌روز می‌شوند؛ لیست دوباره ساخته نمی‌شود (ماه‌های باز بسته نمی‌شوند)
+  var bx=document.getElementById('cmbbox-'+id);
+  if(bx){ var on=!!CMB.sel[id]; bx.style.borderColor=on?'#8b7cf6':'#3a4060'; bx.style.background=on?'#6d5bd6':'transparent'; bx.textContent=on?'✓':''; }
+  var cd=document.getElementById('arest-'+id);
+  if(cd){ cd.style.borderColor = CMB.sel[id] ? '#6d5bd6' : ''; cd.style.background = CMB.sel[id] ? '#171238' : ''; }
+  cmbBar();
+}
+function cmbBar(){
+  var bar=document.getElementById('cmb-bar');
+  if(!CMB_MODE){ if(bar&&bar.parentNode) bar.parentNode.removeChild(bar); return; }
+  if(!bar){
+    bar=document.createElement('div'); bar.id='cmb-bar';
+    bar.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:9000;background:#151a33;border:1px solid #4b3fb0;border-radius:14px;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 24px);box-shadow:0 10px 30px rgba(0,0,0,.6)';
+    document.body.appendChild(bar);
+  }
+  var codes = CMB.ids.map(function(id){ var e=null; (arData||[]).forEach(function(x){ if(x.id===id) e=x; }); return e ? (e.code||'—') : '—'; });
+  bar.innerHTML = '<span style="color:#c4b5fd;font-weight:800;font-size:13px">🧩 '+cmbFa(CMB.ids.length)+' انتخاب</span>'
+    + (codes.length ? '<span style="color:#8a93b2;font-size:11.5px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(codes.join(' + '))+'</span>' : '<span style="color:#5a6080;font-size:11.5px">روی سفارش‌ها بزن</span>')
+    + '<button class="btn btn-primary btn-sm" onclick="cmbGoConfig()"'+(CMB.ids.length<2?' disabled style="opacity:.45"':'')+'>ادامه ←</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="cmbModeToggle()">لغو</button>';
+}
+
 function cmbFa(n){ return String(n).replace(/\d/g, function(d){ return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }); }
 function cmbMoney(n){ n = Math.round(+n||0); var neg = n<0; var s = String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'٬'); return (neg?'−':'') + cmbFa(s); }
 function cmbClose(){ var o=document.getElementById('cmb-ov'); if(o&&o.parentNode) o.parentNode.removeChild(o); CMB.busy=false; }
@@ -15810,7 +15855,7 @@ function cmbFetchDraft(){
     if(my !== CMB.seq) return;                         // پاسخِ کهنه نادیده گرفته شود
     if(!(r && r.status==='ok')){
       cmbShell('🧩 برآوردِ ترکیبی', '<div style="color:#f0a6a8;padding:14px">خطا: '+escapeHtml((r&&r.message)||'پاسخ نیامد')+'</div>',
-        '<button class="btn btn-ghost btn-sm" onclick="cmbOpen()">← برگشت</button>');
+        '<button class="btn btn-ghost btn-sm" onclick="cmbClose()">← برگشت</button>');
       return;
     }
     CMB.draft = r;
@@ -15894,7 +15939,7 @@ function cmbRenderConfig(){
     +'<input id="cmb-name" class="inp" placeholder="نامِ برآوردِ ترکیبی (اختیاری)" value="'+escapeHtml(CMB.opts.name||'')+'" oninput="CMB.opts.name=this.value" style="width:100%"></div>';
   cmbShell('🧩 برآوردِ ترکیبی — تنظیم و بررسی', H,
     '<button class="btn btn-primary btn-sm" onclick="cmbSave()">✓ ساختِ برآوردِ ترکیبی</button>'
-    +'<button class="btn btn-ghost btn-sm" onclick="cmbOpen()">← برگشت به انتخاب</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="cmbClose()">← برگشت به انتخاب</button>'
     +'<span id="cmb-calc" style="display:none;color:#8a93b2;font-size:12px;align-self:center">در حالِ محاسبه...</span>');
 }
 function cmbSave(){
@@ -15915,6 +15960,7 @@ function cmbSave(){
         +'<div style="color:#8a93b2;margin-top:4px">جمع: '+cmbMoney(r.total)+' تومان</div>',
         '<button class="btn btn-primary btn-sm" onclick="cmbClose();pricingEditOrder(\''+String(nid).replace(/[\'\"\\]/g,'')+'\')">✏️ باز کردن در ویرایشگر</button>'
         +'<button class="btn btn-ghost btn-sm" onclick="cmbClose()">بستن</button>');
+      CMB_MODE=false; cmbBar(); var _mb=document.getElementById('cmb-mode-btn'); if(_mb) _mb.textContent='🧩 برآورد ترکیبی';
       if(typeof archiveInit==='function') archiveInit();
     }, 180000);
   });
