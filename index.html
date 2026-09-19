@@ -5891,7 +5891,7 @@ function showToast(msg){
   if(!t){
     t = document.createElement('div');
     t.id = 'toast';
-    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e2235;color:#e2e4f0;padding:10px 20px;border-radius:10px;font-size:13px;z-index:9999;border:1px solid #2a2f45;transition:opacity 0.3s';
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e2235;color:#e2e4f0;padding:10px 20px;border-radius:10px;font-size:13px;z-index:9999;border:1px solid #2a2f45;transition:opacity 0.3s;pointer-events:none';
     document.body.appendChild(t);
   }
   t.textContent = msg;
@@ -12848,8 +12848,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V375 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V375";
+try{ if(window.console) console.log('%c iPrint3D FRONT V376 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V376";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -15767,11 +15767,12 @@ function cmbPick(id){
   cmbBar();
 }
 function cmbBar(){
+  try{ var _t=document.getElementById('toast'); if(_t) _t.style.pointerEvents='none'; }catch(e){}
   var bar=document.getElementById('cmb-bar');
   if(!CMB_MODE){ if(bar&&bar.parentNode) bar.parentNode.removeChild(bar); return; }
   if(!bar){
     bar=document.createElement('div'); bar.id='cmb-bar';
-    bar.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:9000;background:#151a33;border:1px solid #4b3fb0;border-radius:14px;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 24px);box-shadow:0 10px 30px rgba(0,0,0,.6)';
+    bar.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:9000;background:#151a33;border:1px solid #4b3fb0;border-radius:14px;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 24px);box-shadow:0 10px 30px rgba(0,0,0,.6)';
     document.body.appendChild(bar);
   }
   var codes = CMB.ids.map(function(id){ var e=null; (arData||[]).forEach(function(x){ if(x.id===id) e=x; }); return e ? (e.code||'—') : '—'; });
