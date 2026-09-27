@@ -12851,8 +12851,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V382 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V382";
+try{ if(window.console) console.log('%c iPrint3D FRONT V383 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V383";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -13065,7 +13065,7 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
-var prCompSeq = 0;   // V382: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
+var prCompSeq = 0;   // V383: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
   var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
@@ -13595,7 +13595,7 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
-  // V382: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  // V383: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
   var durBlock = function(){
     try{
       var mb={}, labMin=0, modH=0;
@@ -13614,6 +13614,16 @@ function pricingCopy(){
       if(labMin>0){ any=true; L.push('• 👷 نیروی انسانی و پرداخت نهایی: '+hh(labMin/60)+' ساعت'); }
       if(modH>0){ any=true; L.push('• ✏️ طراحی و مدلسازی: '+hh(modH)+' ساعت'); }
       if(!any) L.push('• زمانی ثبت نشده');
+    }catch(e){}
+  };
+  // V383: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
+  var schedBlock = function(){
+    try{
+      var sc = o.schedule;
+      if(!(sc && sc.invNotice && String(sc.invText||'').trim())) return;
+      L.push('');
+      L.push('🚚 موعدِ تحویل: ' + String(sc.invText).trim());
+      if(sc.result && sc.result.date) L.push('📅 تاریخِ تقریبیِ تحویل: ' + prToFa(sc.result.date) + (sc.startDate ? (' (شروعِ کار: ' + prToFa(sc.startDate) + ')') : ''));
     }catch(e){}
   };
   var profitVal = (r.netProfit!=null ? r.netProfit : (r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
@@ -13661,6 +13671,7 @@ function pricingCopy(){
     if(r.shipping)  L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
     L.push('');
     L.push('💰 مبلغ کلِ قابلِ پرداخت' + ((r.sections||[]).some(function(x){return x.matNoProfit&&(+x.matRiskX||1)!==1;})?' (اعلامی — با لحاظِ ضریبِ ریسکِ مواد)':'') + ': ' + prFmt(r.orderTotal));
+    schedBlock();
     durBlock();
     L.push('');
     L.push('— — — — — (اطلاعات داخلی) — — — — —');
@@ -13717,6 +13728,7 @@ function pricingCopy(){
   L.push('');
   L.push('💰 مبلغ کلِ قابلِ پرداخت' + _rsk + ': ' + prFmt(r.orderTotal));
   L.push('💵 قیمت هر عدد (با لحاظِ همه‌ی هزینه‌ها): ' + prFmt(r.perUnit));
+  schedBlock();
   durBlock();
   L.push('');
   L.push('— — — — — (اطلاعات داخلی) — — — — —');
@@ -14509,7 +14521,7 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
-// V382: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+// V383: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
 function prSaveLock(on){
   var id='pr-save-lock', el=document.getElementById(id);
   if(!on){ if(el) el.remove(); return; }
