@@ -13623,7 +13623,6 @@ function pricingCopy(){
       if(!(sc && sc.invNotice && String(sc.invText||'').trim())) return;
       L.push('');
       L.push('🚚 موعدِ تحویل: ' + String(sc.invText).trim());
-      if(sc.result && sc.result.date) L.push('📅 تاریخِ تقریبیِ تحویل: ' + prToFa(sc.result.date) + (sc.startDate ? (' (شروعِ کار: ' + prToFa(sc.startDate) + ')') : ''));
     }catch(e){}
   };
   var profitVal = (r.netProfit!=null ? r.netProfit : (r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
