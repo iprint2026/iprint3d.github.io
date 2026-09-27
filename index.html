@@ -8443,7 +8443,8 @@ var prBound = false;
 
 function prSep(n){ try{ return new Intl.NumberFormat('en-US').format(Math.round(n)); }catch(e){ return String(n); } }
 function prFmt(n){ return isFinite(n) ? (prSep(n) + ' تومان') : '—'; }
-function prParseMoney(s){ var r = String(s).replace(/[^\d]/g,''); return r===''?0:+r; }
+function prEnDigits(s){ return String(s==null?'':s).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);}); }
+function prParseMoney(s){ var r = prEnDigits(s).replace(/[^\d]/g,''); return r===''?0:+r; }
 var prFaD = '۰۱۲۳۴۵۶۷۸۹';
 function prToFa(s){ return String(s).replace(/\d/g, function(d){ return prFaD[d]; }); }
 
@@ -8457,6 +8458,8 @@ function pricingResetForNext(){
   prState.editId = null; prState.cfgDirty = false;
   prState.savedCode = '';
   prPendingImage = null;
+  try{ prActiveSecImg=''; prLastResult=null; prEditSnapshot=''; prEditNeedBaseline=false; }catch(_e){}
+  try{ var _mrx0=document.getElementById('pr-p-matriskx'); if(_mrx0) _mrx0.value=''; }catch(_e){}
   var ind=document.getElementById('pr-image-ind'); if(ind) ind.textContent='';
   if(typeof prRenderEditBanner==='function') prRenderEditBanner();
   prRenderOrder(); prRenderLines(); prDoCompute();
@@ -12327,7 +12330,7 @@ function prRevertSecManual(secId, autoV){
 }
 function prSetSecManual(sid, val, autoVal){
   var s = prSecFind(sid); if(!s) return;
-  var clean = String(val).replace(/[^\d]/g,'');
+  var clean = prEnDigits(val).replace(/[^\d]/g,'');
   var n = (clean==='') ? NaN : (+clean||0);
   if(isNaN(n) || (autoVal!=null && Math.round(n)===Math.round(autoVal))){
     s.manualUnit = '';
@@ -12469,7 +12472,7 @@ function prDelPrePro(id){
 function prPreProSet(id, field, val){
   var L=prPreProList();
   for(var i=0;i<L.length;i++){ if(L[i].id===id){
-    L[i][field] = (field==='name'||field==='machineId'||field==='materialId'||field==='matSel') ? val : (String(val).replace(/[^\d.]/g,''));
+    L[i][field] = (field==='name'||field==='machineId'||field==='materialId'||field==='matSel') ? val : (prEnDigits(val).replace(/[^\d.]/g,''));
     break;
   } }
   prPreProSync(); prScheduleCompute();
@@ -12490,7 +12493,7 @@ function prPreProSync(){
     var lines=[];
     if(pp.machineId && +pp.hours>0){
       var mc=null; (prState.machines||[]).forEach(function(m){ if(m.id===pp.machineId) mc=m; });
-      var kind = (mc && /dlp/i.test(mc.name||'')) ? 'machine_dlp' : 'machine_fdm';
+      var kind = (mc && (String(mc.type||'').toUpperCase()==='DLP' || /dlp/i.test(mc.name||''))) ? 'machine_dlp' : 'machine_fdm';
       lines.push({ kind:kind, machineId:pp.machineId, hours:+pp.hours||0, plateTime:+pp.hours||0, perPlate:1 });
     }
     if(pp.materialId && +pp.grams>0){
@@ -12848,8 +12851,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V379 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V379";
+try{ if(window.console) console.log('%c iPrint3D FRONT V382 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V382";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12915,6 +12918,7 @@ function prRenderEditBanner(){
   }
 }
 function pricingNewOrder(){
+  try{ prPendingImage=null; prActiveSecImg=''; var _pind=document.getElementById('pr-image-ind'); if(_pind) _pind.textContent=''; }catch(_e){}
   prState.editId = null; prState.savedCode = ''; prState.cfgDirty = false;
   prState.loaded = false;
   try{ if(prState.order) delete prState.order.reorderFrom; }catch(e){}
@@ -12927,6 +12931,7 @@ function pricingNewOrder(){
 // ولی **نرخ‌های امروز** را اعمال می‌کند و یک سفارشِ کاملاً جدید می‌سازد.
 // یعنی: همان کار، با قیمتِ روز — بدونِ اینکه سفارشِ قبلی دست بخورد.
 function pricingReorder(id){
+  try{ prPendingImage=null; prActiveSecImg=''; var _pind=document.getElementById('pr-image-ind'); if(_pind) _pind.textContent=''; }catch(_e){}
   callSheet('getEstimateForEdit', { id:id, t:Date.now() }, function(res){
     if(!(res && res.status==='ok')){ showToast('خطا در بارگذاری سفارش'); return; }
     var oldCode = res.code||'';
@@ -12999,6 +13004,7 @@ function pricingReorder(id){
   });
 }
 function pricingEditOrder(id){
+  try{ prPendingImage=null; prActiveSecImg=''; var _pind=document.getElementById('pr-image-ind'); if(_pind) _pind.textContent=''; }catch(_e){}
   callSheet('getEstimateForEdit', { id:id, t:Date.now() }, function(res){
     if(!(res && res.status==='ok')){ showToast('خطا در بارگذاری سفارش برای ویرایش'); return; }
     var c = res.config||{};
@@ -13059,7 +13065,9 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
+var prCompSeq = 0;   // V382: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
+  var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
   if(typeof prState!=='undefined' && !prState.editId) prState.savedCode='';
   var cs = document.getElementById('pr-calc-status');
@@ -13076,6 +13084,7 @@ function prDoCompute(){
   if(cs){ cs.style.color='#5a6080'; cs.textContent = 'در حال محاسبه...'; }
   var _prComputeTry = function(_triesLeft){
    callSheetPayload('computePrice', prPayload(true), null, function(res){
+    if(_mySeq !== prCompSeq) return;   // جوابِ کهنه
     if(res && res.status==='ok' && res.result){
       prLastResult = res.result;
       prRenderTape(res.result);
@@ -13346,7 +13355,7 @@ function prMaterialsBox(r){
   return h;
 }
 function prSetOrderManual(val, autoVal){
-  var clean=String(val).replace(/[^\d]/g,'');
+  var clean=prEnDigits(val).replace(/[^\d]/g,'');
   var n=(clean==='')?NaN:(+clean||0);
   if(isNaN(n)||(autoVal!=null&&Math.round(n)===Math.round(autoVal))) prState.order.manualUnit=0;
   else prState.order.manualUnit=n;
@@ -13354,7 +13363,7 @@ function prSetOrderManual(val, autoVal){
 }
 // ویرایشِ قیمتِ کلِ نهایی: پارامترها ثابت، فقط سود تغییر می‌کند
 function prSetOrderManualTotal(val, autoTotal, extras, qty){
-  var clean=String(val).replace(/[^\d]/g,'');
+  var clean=prEnDigits(val).replace(/[^\d]/g,'');
   var T=(clean==='')?NaN:(+clean||0);
   qty=+qty||1; extras=+extras||0;
   if(window.console){
@@ -13401,7 +13410,7 @@ function prModelingBox(r){
     +'</div>';
 }
 function prSetModelingManual(val, autoVal){
-  var clean=String(val).replace(/[^\d]/g,'');
+  var clean=prEnDigits(val).replace(/[^\d]/g,'');
   var n=(clean==='')?NaN:(+clean||0);
   if(isNaN(n)||(autoVal!=null&&Math.round(n)===Math.round(autoVal))) prState.order.modelingManual='';
   else prState.order.modelingManual=n;
@@ -13586,6 +13595,28 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
+  // V382: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  var durBlock = function(){
+    try{
+      var mb={}, labMin=0, modH=0;
+      var mNm=function(id){ for(var i=0;i<(prState.machines||[]).length;i++){ if(prState.machines[i].id===id) return prState.machines[i].name||'دستگاه'; } return 'دستگاه'; };
+      var addLines=function(lns, q){ (lns||[]).forEach(function(l){
+        if(l.kind==='labor'||l.kind==='finishing') labMin += (+l.minutes||0)*q;
+        else if(l.kind==='machine_fdm'){ var n=mNm(l.machineId); mb[n]=(mb[n]||0)+(+l.hours||0)*q; }
+        else if(String(l.kind).indexOf('machine')===0){ var n2=mNm(l.machineId); mb[n2]=(mb[n2]||0)+((+l.plateTime||0)/Math.max(1,+l.perPlate||1))*q; }
+      }); };
+      if(r.multi){ (o.sections||[]).forEach(function(sc){ addLines(sc.lines, Math.max(1,+sc.qty||1)); }); }
+      else addLines(prState.lines, Math.max(1,+r.qty||1));
+      (prState.lines||[]).forEach(function(l){ if(l.kind==='modeling') modH += (l.hours!=null&&l.hours!=='')?(+l.hours||0):((+l.minutes||0)/60); });
+      var hh=function(x){ return prToFa(String(Math.round((+x||0)*10)/10)); }, any=false;
+      L.push(''); L.push('▌ مدت زمان انجام (کلِ سفارش)');
+      Object.keys(mb).forEach(function(n){ if(mb[n]>0){ any=true; L.push('• 🖨 '+n+': '+hh(mb[n])+' ساعت چاپ'); } });
+      if(labMin>0){ any=true; L.push('• 👷 نیروی انسانی و پرداخت نهایی: '+hh(labMin/60)+' ساعت'); }
+      if(modH>0){ any=true; L.push('• ✏️ طراحی و مدلسازی: '+hh(modH)+' ساعت'); }
+      if(!any) L.push('• زمانی ثبت نشده');
+    }catch(e){}
+  };
+  var profitVal = (r.netProfit!=null ? r.netProfit : (r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal)));
   var orderUrl = prState.savedCode ? (location.origin + location.pathname + '#order=' + encodeURIComponent(prState.savedCode)) : '';
   var linkBlock = function(){ if(orderUrl){ L.push(''); L.push('🔗 پیگیری و مشاهده‌ی این سفارش (با ورود به حساب):'); L.push(orderUrl); } };
   if(r.multi){
@@ -13607,8 +13638,15 @@ function pricingCopy(){
       L.push('🧩 قطعه ' + prToFa(i+1) + ': ' + (s.name||'') + ' — تعداد ' + prToFa(prSep(s.qty)) + ' عدد');
       L.push('   ▪ هزینه‌ی دستگاه و چاپ: ' + prFmt(mach) + ' (' + uN(H) + ' ساعت)');
       L.push('   ▪ دستمزد و پرداخت نهایی: ' + prFmt(lab) + ' (' + uN(Mn) + ' دقیقه)');
-      L.push('   ▪ مواد اولیه: ' + prFmt(matC) + ' (' + uN(G) + ' گرم)');
-      L.push('   ➖ تمام‌شده‌ی هر عدد: ' + prFmt(base));
+      var _rxS=(r.calcVersion===2&&s.matNoProfit&&(+s.matRiskX>0)&&(+s.matRiskX)!==1)?(+s.matRiskX):1;
+      if(_rxS!==1){
+        L.push('   ▪ مواد اولیه — قبل از ضریبِ ریسک: ' + prFmt(matC) + ' (' + uN(G) + ' گرم)');
+        L.push('   ▪ مواد اولیه — بعد از ضریبِ ریسکِ ×' + prToFa(_rxS) + ': ' + prFmt(matC*_rxS) + ' (' + uN(G*_rxS) + ' گرم)');
+        L.push('   ➖ تمام‌شده‌ی هر عدد (با ضریبِ ریسکِ مواد): ' + prFmt(base + matC*(_rxS-1)));
+      } else {
+        L.push('   ▪ مواد اولیه: ' + prFmt(matC) + ' (' + uN(G) + ' گرم)');
+        L.push('   ➖ تمام‌شده‌ی هر عدد: ' + prFmt(base));
+      }
       if(s.matNoProfit) L.push('   🧪 مواد خارج از ضریب سود (مواد ×' + prToFa(s.matRiskX||1) + '، سود فقط روی کار و دستگاه)');
       L.push('   ✅ قیمت هر عدد: ' + prFmt(s.perUnit) + ' · ضریب سود ' + prToFa((s.effProfit!=null?s.effProfit:s.profit)) + '×' + ((s.matNoProfit&&s.effProfitWork!=null)?(' · سودِ کار ×'+prToFa(s.effProfitWork)):''));
       L.push('   ◀ جمع این قطعه (' + prToFa(prSep(s.qty)) + ' عدد): ' + prFmt(s.total));
@@ -13622,11 +13660,12 @@ function pricingCopy(){
     if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
     if(r.shipping)  L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
     L.push('');
-    L.push('💰 مبلغ کلِ قابلِ پرداخت: ' + prFmt(r.orderTotal));
+    L.push('💰 مبلغ کلِ قابلِ پرداخت' + ((r.sections||[]).some(function(x){return x.matNoProfit&&(+x.matRiskX||1)!==1;})?' (اعلامی — با لحاظِ ضریبِ ریسکِ مواد)':'') + ': ' + prFmt(r.orderTotal));
+    durBlock();
     L.push('');
     L.push('— — — — — (اطلاعات داخلی) — — — — —');
     if(r.institute) L.push('🏛 از مبلغ بالا، سهم پژوهشگاه: ' + prFmt(r.institute));
-    L.push('💎 سود این سفارش: ' + prFmt(r.netProfit!=null ? r.netProfit : (r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal))));
+    L.push('💎 سود این پروژه: ' + prFmt(profitVal));
     matBlock();
     if(o.notes && String(o.notes).trim()){ L.push(''); L.push('▌ توضیحات'); L.push(String(o.notes).trim()); }
     linkBlock();
@@ -13646,8 +13685,16 @@ function pricingCopy(){
   L.push('▌ هزینه‌ی ساختِ هر عدد (قیمت تمام‌شده)');
   L.push('• هزینه‌ی دستگاه و چاپ: ' + prFmt(r.cat.machine) + ' (' + _uN1(_H1) + ' ساعت)');
   L.push('• دستمزد و پرداخت نهایی: ' + prFmt(r.cat.labor + r.cat.finishing) + ' (' + _uN1(_M1) + ' دقیقه)');
-  L.push('• مواد اولیه: ' + prFmt(r.material) + ' (' + _uN1(_G1) + ' گرم)');
-  L.push('➖ جمع هزینه‌ی تمام‌شده‌ی هر عدد: ' + prFmt(r.base));
+  var _rx1=(r.calcVersion===2&&r.matNoProfit&&(+r.matRiskX>0)&&(+r.matRiskX)!==1)?(+r.matRiskX):1;
+  if(_rx1!==1){
+    L.push('• مواد اولیه — قبل از ضریبِ ریسک: ' + prFmt(r.material) + ' (' + _uN1(_G1) + ' گرم)');
+    L.push('• مواد اولیه — بعد از ضریبِ ریسکِ ×' + prToFa(_rx1) + ': ' + prFmt((+r.material||0)*_rx1) + ' (' + _uN1(_G1*_rx1) + ' گرم)   ← در قیمت همین حساب شده');
+    L.push('➖ جمع هزینه‌ی تمام‌شده‌ی هر عدد (با ضریبِ ریسکِ مواد): ' + prFmt(r.base));
+  } else {
+    L.push('• مواد اولیه: ' + prFmt(r.material) + ' (' + _uN1(_G1) + ' گرم)');
+    L.push('➖ جمع هزینه‌ی تمام‌شده‌ی هر عدد: ' + prFmt(r.base));
+  }
+  var _rsk = (_rx1!==1) ? ' (اعلامی — با لحاظِ ضریبِ ریسکِ مواد)' : '';
   L.push('');
   L.push('▌ قیمت‌گذاری هر عدد');
   // در نسخهٔ ۲ فیلدِ perPartAnnounced وجود ندارد؛ قیمتِ هر عدد از perUnit/بخش می‌آید
@@ -13657,7 +13704,7 @@ function pricingCopy(){
   if(!manual){
     L.push('• قیمت با احتساب سود: ' + prFmt(_isV2t ? (_unitAnn - _instUnit) : r.perPartMargin));
     if(r.institute) L.push('• سهم پژوهشگاه (هر عدد): ' + prFmt(_instUnit));
-    L.push('✅ قیمت نهاییِ هر عدد: ' + prFmt(_unitAnn));
+    L.push('✅ قیمت نهاییِ هر عدد' + _rsk + ': ' + prFmt(_unitAnn));
   } else {
     L.push('✅ قیمت نهاییِ هر عدد (اعلامی): ' + prFmt(_isV2t ? _unitAnn : r.manualUnit));
   }
@@ -13668,14 +13715,15 @@ function pricingCopy(){
   if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
   if(r.shipping) L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
   L.push('');
-  L.push('💰 مبلغ کلِ قابلِ پرداخت: ' + prFmt(r.orderTotal));
+  L.push('💰 مبلغ کلِ قابلِ پرداخت' + _rsk + ': ' + prFmt(r.orderTotal));
   L.push('💵 قیمت هر عدد (با لحاظِ همه‌ی هزینه‌ها): ' + prFmt(r.perUnit));
+  durBlock();
   L.push('');
   L.push('— — — — — (اطلاعات داخلی) — — — — —');
   L.push('📊 ضریب سود مؤثر: ' + prToFa((r.effProfit!=null?r.effProfit:r.profit)) + '×' + ((r.matNoProfit&&r.effProfitWork!=null)?(' · سودِ کار ×'+prToFa(r.effProfitWork)):''));
   if(r.matNoProfit) L.push('🧪 مواد خارج از ضریب سود (مواد ×' + prToFa(r.matRiskX||1) + ')');
   if(r.institute) L.push('🏛 از مبلغ بالا، سهم پژوهشگاه: ' + prFmt(r.institute));
-  L.push('💎 سود این سفارش: ' + prFmt(r.netProfit!=null ? r.netProfit : (r.profitAmount!=null?r.profitAmount:(r.orderTotal - r.rawTotal))));
+  L.push('💎 سود این پروژه: ' + prFmt(profitVal) + (r.matNoProfit ? ' (سود فقط روی کار و دستگاه؛ روی مواد سودی نیامده)' : ''));
   matBlock();
   if(o.notes && String(o.notes).trim()){
     L.push('');
@@ -14461,6 +14509,17 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
+// V382: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+function prSaveLock(on){
+  var id='pr-save-lock', el=document.getElementById(id);
+  if(!on){ if(el) el.remove(); return; }
+  if(el) return;
+  el=document.createElement('div'); el.id=id;
+  el.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(6,8,16,.55);display:flex;align-items:center;justify-content:center;cursor:wait';
+  el.innerHTML='<div style="background:#12162a;border:1px solid #2a3560;border-radius:12px;padding:16px 20px;color:#dfe3f5;font-size:13.5px;text-align:center;line-height:1.9">⏳ در حالِ ذخیرهٔ برآورد…<br><span style="color:#8a93b2;font-size:12px">تا تمام شدن صبر کن؛ بعد فرم برای برآوردِ بعدی خالی می‌شود.</span></div>';
+  document.body.appendChild(el);
+  setTimeout(function(){ var e2=document.getElementById(id); if(e2) e2.remove(); }, 150000);   // ایمنی: هرگز گیر نماند
+}
 function pricingSaveEstimate(){
   if(typeof prState==='undefined' || !prHasAnyLine()){ showToast('اول یک برآورد بساز'); return; }
   prSyncMnpFromDom();
@@ -14469,14 +14528,17 @@ function pricingSaveEstimate(){
   try{ if(typeof prSyncOrderInputs==='function') prSyncOrderInputs(); }catch(e){}
   var btn=document.getElementById('pr-btn-save'); var old=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.innerHTML='در حال ذخیره...'; }
+  prSaveLock(true);
   callSheetPayload('saveEstimate', prPayload(), null, function(res){
     if(!(res && res.status==='ok')){
+      prSaveLock(false);
       if(btn){ btn.disabled=false; btn.innerHTML=old; }
       showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); return;
     }
     var savedCode = res.code||'';
     var _wasEdit = !!prState.editId, _savedId = res.id;
     custBankInvalidate();
+    if(res.renamedTo){ setTimeout(function(){ showToast('ℹ️ برآوردی با همین نام امروز وجود داشت — این یکی با نامِ «'+res.renamedTo+'» جدا ذخیره شد'); }, 2600); }
     showToast(res.edited ? ('✅ ویرایش ذخیره شد · کد '+savedCode) : (savedCode ? ('✅ ذخیره شد · کد سفارش: '+savedCode) : '✅ سفارش ذخیره شد'));
     var buildXlsx = function(){
       if(btn){ btn.innerHTML='در حال ساخت اکسل...'; }
@@ -14485,6 +14547,7 @@ function pricingSaveEstimate(){
         if(r2 && r2.status==='ok'){ showToast('✅ ذخیره کامل شد (کد '+savedCode+')'); }
         else { showToast('سفارش ذخیره شد، ولی ساخت اکسل ناموفق بود'); }
         pricingResetForNext();
+        prSaveLock(false);
         if(_wasEdit && _savedId) prOpenProfileAfter(_savedId);
       }, 70000);
     };
