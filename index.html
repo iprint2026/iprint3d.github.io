@@ -3874,12 +3874,13 @@ function virtualEntryRecords(){
       });
     });
     // کالاهای بدونِ بچ: از تاریخِ ثبتِ خودِ کالا رکوردِ ورود ساخته می‌شود
-    var loggedItems = {};
-    (USAGE_LOG||[]).forEach(function(r){ if((parseFloat(r.change||'0')||0) > 0 && r.itemId) loggedItems[String(r.itemId)] = true; });
+    // V392: ورودهای ثبت‌شده از موجودیِ فعلی کم می‌شوند تا دوباره‌شماری نشود
+    // (قبلاً اگر حتی یک ورودِ ثبت‌شده داشت، ورودِ اولیه کلاً حذف می‌شد)
+    var loggedIn = {};
+    (USAGE_LOG||[]).forEach(function(r){ var c=(parseFloat(r.change||'0')||0); if(c > 0 && r.itemId) loggedIn[String(r.itemId)] = (loggedIn[String(r.itemId)]||0) + c; });
     (typeof items!=='undefined' && items ? items : []).forEach(function(it){
-      if(String(it.id) in loggedItems) return;                       // از قبل رکوردِ ورود دارد
       if(BATCHES.some(function(b){ return String(b.itemId)===String(it.id); })) return;  // بچ دارد → بالا حساب شد
-      var q = parseFloat(it.qty||'0')||0;
+      var q = Math.round(((parseFloat(it.qty||'0')||0) - (loggedIn[String(it.id)]||0))*1000)/1000;
       if(q <= 0) return;
       var d2 = it.date ? String(it.date).split(',')[0].trim() : '';
       if(!d2) return;
@@ -4261,7 +4262,7 @@ function changeQty(id,dir){
     // اگر کالا بچِ واقعی دارد، افزایش هم باید به یک بچِ مشخص برود — وگرنه موجودیِ کالا
     // با جمعِ بچ‌ها اختلاف پیدا می‌کند (همان باگِ «موجودیِ دوتایی»، این‌بار در جهتِ افزایش).
     var _bsAdd = batchesOf(id);
-    if(_bsAdd && _bsAdd.length && currentUser && currentUser.role==='admin'){
+    if(currentUser && currentUser.role==='admin'){   // V392: ادمین همیشه فرمِ کامل (با تاریخ و دلیل)، با بچ یا بدونِ بچ
       openAddQtyModal(id);
       return;
     }
@@ -4274,7 +4275,7 @@ function changeQty(id,dir){
 
 // یک خطِ ورود به یادداشتِ بچ اضافه می‌کند (قرینهٔ appendConsumeNote)
 function appendEntryNote(oldNote, amt, unit, reason){
-  var today = new Date().toLocaleDateString('fa-IR');
+  var today = window._consumeDate || new Date().toLocaleDateString('fa-IR');
   var line = today + ' — ورود ' + amt + (unit?(' '+unit):'') + (reason?(': ' + reason):'');
   oldNote = (oldNote||'').trim();
   return oldNote ? (oldNote + '\n' + line) : line;
@@ -4285,6 +4286,7 @@ function openAddQtyModal(id){
   const item=items.find(function(i){return i.id===id;});
   if(!item)return;
   var unit = item.unit || 'عدد';
+  window._consumeDate = '';
   var html = ''
     + '<div id="addQtyOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
     + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:420px;width:100%;margin-top:30px">'
@@ -4296,6 +4298,9 @@ function openAddQtyModal(id){
     +   '<input class="inp" id="consume-amt" type="number" min="0" step="any" placeholder="مثلاً 1" style="flex:1">'
     +   batchUnitSelectorHtmlConsume(unit)
     + '</div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخِ ورود <span style="color:#5a6080">(خالی = امروز)</span></label>'
+    + '<input class="inp" id="consume-date" placeholder="مثلاً ۱۴۰۵/۰۶/۱۵" oninput="previewConsumeDate()" autocomplete="off" style="text-align:center;direction:ltr;margin-bottom:3px">'
+    + '<div id="consume-date-preview" style="font-size:11px;color:#5a6080;margin-bottom:14px">خالی = تاریخ امروز ثبت می‌شود</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">دلیل (اختیاری)</label>'
     + '<input class="inp" id="addqty-reason" placeholder="مثلاً خریدِ جدید، اصلاح موجودی..." autocomplete="off">'
     + '<div style="font-size:11px;color:#5a6080;margin-top:8px;line-height:1.7">موجودیِ کالا بعد از ثبت از روی جمعِ بچ‌ها بازمحاسبه می‌شود.</div>'
@@ -4315,6 +4320,9 @@ function closeAddQty(){
   if(h && h.parentNode) h.parentNode.removeChild(h);
 }
 function confirmAddQty(id){
+  var _cd = readConsumeDate();
+  if(_cd === null){ showToast('تاریخ نامعتبر است — مثلاً ۱۴۰۵/۰۶/۱۵'); return; }
+  window._consumeDate = _cd;
   var amtRaw = parseFloat((document.getElementById('consume-amt')||{}).value||'0');
   if(!amtRaw || isNaN(amtRaw) || amtRaw<=0){ showToast('مقدار را وارد کنید'); return; }
   var item = items.find(function(i){ return i.id===id; });
@@ -4330,7 +4338,16 @@ function confirmAddQty(id){
   }
   var reason = ((document.getElementById('addqty-reason')||{}).value||'').trim();
   var batchSel = document.getElementById('consume-batch');
-  if(!batchSel){ showToast('انتخابِ بچ نیامد — صفحه را یک بار بروزرسانی کن'); return; }
+  if(!batchSel){
+    if(batchesOf(id).length){ showToast('انتخابِ بچ نیامد — صفحه را یک بار بروزرسانی کن'); return; }
+    // V392: کالای بدونِ بچ — موجودیِ خودِ کالا زیاد می‌شود و ورود (با تاریخ) در گزارش ثبت می‌شود
+    var _u0 = (item.unit && item.unit!=='عدد') ? item.unit : '';
+    closeAddQty();
+    applyQtyChange(id, 1, amt, reason, '', '');
+    callSheet('logUsage',{date:(_cd||''),itemId:id,itemName:item.name,change:String(amt),reason:(reason||'افزایش موجودی'),project:'',projectKey:'',user:(currentUser?currentUser.user:''),unit:_u0,batch:''},function(){ loadProjects(); });
+    showToast('✅ '+amt+(_u0?(' '+_u0):'')+' اضافه شد');
+    return;
+  }
   var b = BATCHES.find(function(x){ return x.id===batchSel.value; });
   if(!b){ showToast('بچ انتخاب نشد'); return; }
   var bq = parseFloat(b.qty)||0;
@@ -4343,7 +4360,7 @@ function confirmAddQty(id){
   callSheet('updateBatch', {id:b.id, qty:String(newBq), note:newNote}, function(res){
     loadBatches(function(){
       syncItemQtyFromBatches(id);
-      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(amt),reason:(reason||'افزایش موجودی'),project:'',projectKey:'',user:(currentUser?currentUser.user:''),unit:unitTxt,batch:batchLabel},function(){ loadProjects(); });
+      callSheet('logUsage',{date:(_cd||''),itemId:id,itemName:item.name,change:String(amt),reason:(reason||'افزایش موجودی'),project:'',projectKey:'',user:(currentUser?currentUser.user:''),unit:unitTxt,batch:batchLabel},function(){ loadProjects(); });
       renderBatchSection(id);
       showToast('✅ '+amt+(unitTxt?(' '+unitTxt):'')+' به بچ «'+(b.batchName||b.batchCode||'')+'» اضافه شد');
     });
@@ -4406,6 +4423,7 @@ function openConsumeModal(id){
   if(!item)return;
   loadProjects();
   var unit = item.unit || 'عدد';
+  window._consumeDate = '';
   var html = ''
     + '<div id="consumeOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">'
     + '<div onclick="event.stopPropagation()" style="background:#11131f;border:1px solid #1a1d2e;border-radius:14px;padding:20px;max-width:420px;width:100%;margin-top:30px">'
@@ -4417,6 +4435,9 @@ function openConsumeModal(id){
     +   '<input class="inp" id="consume-amt" type="number" min="0" step="any" placeholder="مثلاً 1" style="flex:1">'
     +   batchUnitSelectorHtmlConsume(unit)
     + '</div>'
+    + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">تاریخِ مصرف <span style="color:#5a6080">(خالی = امروز)</span></label>'
+    + '<input class="inp" id="consume-date" placeholder="مثلاً ۱۴۰۵/۰۶/۱۵" oninput="previewConsumeDate()" autocomplete="off" style="text-align:center;direction:ltr;margin-bottom:3px">'
+    + '<div id="consume-date-preview" style="font-size:11px;color:#5a6080;margin-bottom:14px">خالی = تاریخ امروز ثبت می‌شود</div>'
     + '<label style="font-size:12px;color:#9aa3c2;display:block;margin-bottom:6px">برای چه چیزی مصرف شد؟</label>'
     + '<input class="inp" id="consume-reason" placeholder="مثلاً پروژه چاپ، فروش، ضایعات..." oninput="onReasonInput()" autocomplete="off" style="margin-bottom:4px">'
     + '<div id="consume-reason-suggest"></div>'
@@ -4488,8 +4509,27 @@ function pickProject(label){
   document.getElementById('consume-project-suggest').innerHTML='';
 }
 // افزودن یک خط مصرف به یادداشت قبلی بچ (با حفظ تاریخچه)
+// V392: تاریخِ دلخواه برای ثبتِ مصرف (مثلاً فروشی که دیرتر یادت آمد)
+function previewConsumeDate(){
+  var inp=document.getElementById('consume-date'), prev=document.getElementById('consume-date-preview'); if(!inp||!prev) return;
+  var v=String(inp.value||'').replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}).trim();
+  if(!v){ prev.textContent='خالی = تاریخ امروز ثبت می‌شود'; prev.style.color='#5a6080'; return; }
+  var both=smartDateBoth(v);
+  if(both && +both.shamsi.split('/')[0]>1300){ prev.innerHTML='📅 ثبت با تاریخِ <b>'+prToFa(both.shamsi)+'</b>'; prev.style.color='#60a5fa'; }
+  else { prev.textContent='فرمت: سال/ماه/روز — مثلاً ۱۴۰۵/۰۶/۱۵'; prev.style.color='#f0c674'; }
+}
+// '' = امروز (سرور خودش می‌گذارد) · وگرنه تاریخِ شمسی با ارقامِ فارسی (همان شکلِ لاگ، تا Sheets آن را به Date تبدیل نکند) · null = نامعتبر
+function readConsumeDate(){
+  var inp=document.getElementById('consume-date'); if(!inp) return '';
+  var v=String(inp.value||'').replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}).trim();
+  if(!v) return '';
+  var both=smartDateBoth(v); if(!both) return null;
+  var p=both.shamsi.split('/').map(function(x){return parseInt(x,10);});
+  if(!(p[0]>1300 && p[1]>=1 && p[1]<=12 && p[2]>=1 && p[2]<=31)) return null;
+  return prToFa(p[0]+'/'+p[1]+'/'+p[2]);
+}
 function appendConsumeNote(oldNote, amt, unit, reason, project){
-  var today = new Date().toLocaleDateString('fa-IR');
+  var today = window._consumeDate || new Date().toLocaleDateString('fa-IR');
   var line = today + ' — مصرف ' + amt + (unit?(' '+unit):'') + ': ' + (reason||'');
   if(project) line += ' (پروژه: ' + project + ')';
   oldNote = (oldNote||'').trim();
@@ -4497,6 +4537,9 @@ function appendConsumeNote(oldNote, amt, unit, reason, project){
 }
 
 function confirmConsume(id){
+  var _cd = readConsumeDate();
+  if(_cd === null){ showToast('تاریخ نامعتبر است — مثلاً ۱۴۰۵/۰۶/۱۵'); return; }
+  window._consumeDate = _cd;
   var amtRaw = parseFloat(document.getElementById('consume-amt').value||'0');
   if(!amtRaw || isNaN(amtRaw) || amtRaw<=0){ showToast('مقدار را وارد کنید'); return; }
   // تبدیل واحد به واحد پایه کالا
@@ -4547,7 +4590,7 @@ function confirmConsume(id){
           callSheet('deleteBatch', {id:batchId}, function(res){
             loadBatches(function(){
               syncItemQtyFromBatches(id);
-              callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:batchLabel},function(){ loadProjects(); });
+              callSheet('logUsage',{date:(_cd||''),itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:batchLabel},function(){ loadProjects(); });
               renderBatchSection(id);
               showToast('✅ بچ «'+(b.batchName||'')+'» خالی شد و حذف گردید');
               closeDetail();
@@ -4558,7 +4601,7 @@ function confirmConsume(id){
           callSheet('updateBatch', {id:batchId, qty:String(newBq), note:newNote}, function(res){
             loadBatches(function(){
               syncItemQtyFromBatches(id);
-              callSheet('logUsage',{itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:batchLabel},function(){ loadProjects(); });
+              callSheet('logUsage',{date:(_cd||''),itemId:id,itemName:(item?item.name:''),change:String(-amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:unitTxt,batch:batchLabel},function(){ loadProjects(); });
               renderBatchSection(id);
               showToast('✅ مصرف از بچ «'+(b.batchName||'')+'» ثبت شد');
               closeDetail();
@@ -4578,6 +4621,7 @@ function confirmConsume(id){
           _project: project,
           _projectKey: projectKey,
           _unit: unitTxt,
+          _date: (window._consumeDate||''),
           qty: Math.max(0, (parseFloat(item.qty)||0) - amt)
         });
         window._pendingInitMsg = 'مصرف ' + amt + (unitTxt?(' '+unitTxt):'') + ' از بچ «'+(b.batchName||'')+'» — دلیل: ' + reason + (project?(' - پروژه: '+project):'');
@@ -4611,7 +4655,7 @@ function applyQtyChange(id, dir, amt, reason, project, projectKey){
     });
     // ثبت لاگ مصرف (فقط برای کاهش)
     if(dir<0){
-      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:(item.unit&&item.unit!=='عدد'?item.unit:'')},function(){ loadProjects(); });
+      callSheet('logUsage',{date:(dir<0?(window._consumeDate||''):''),itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:(item.unit&&item.unit!=='عدد'?item.unit:'')},function(){ loadProjects(); });
     }
     closeDetail(); openDetail(id); renderDashboard();
   } else {
@@ -4623,7 +4667,7 @@ function applyQtyChange(id, dir, amt, reason, project, projectKey){
     submitChange('edit', id, changeData);
     // لاگ مصرف رو همون موقع ثبت کن (مصرف واقعی اتفاق افتاده)
     if(dir<0){
-      callSheet('logUsage',{itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:(item.unit&&item.unit!=='عدد'?item.unit:'')},function(){ loadProjects(); });
+      callSheet('logUsage',{date:(dir<0?(window._consumeDate||''):''),itemId:id,itemName:item.name,change:String(dir*amt),reason:reason,project:project,projectKey:projectKey,user:currentUser.user,unit:(item.unit&&item.unit!=='عدد'?item.unit:'')},function(){ loadProjects(); });
     }
     closeDetail();
   }
@@ -5720,7 +5764,7 @@ function approvePendingChange(id){
     function finishApprove(){
       loadBatches(function(){
         syncItemQtyFromBatches(itemId);
-        callSheet('logUsage',{itemId:itemId,itemName:(item?item.name:''),change:String(-amt),reason:data._reason||'',project:data._project||'',projectKey:data._projectKey||'',user:(ch.user||''),unit:data._unit||'',batch:((data._batchCode?String(data._batchCode):'')+(data._batchName?((data._batchCode?' · ':'')+data._batchName):''))},function(){ loadProjects(); });
+        callSheet('logUsage',{date:(data._date||''),itemId:itemId,itemName:(item?item.name:''),change:String(-amt),reason:data._reason||'',project:data._project||'',projectKey:data._projectKey||'',user:(ch.user||''),unit:data._unit||'',batch:((data._batchCode?String(data._batchCode):'')+(data._batchName?((data._batchCode?' · ':'')+data._batchName):''))},function(){ loadProjects(); });
         // درخواست را تأیید‌شده علامت بزن
         callSheet('approvePendingChange', {id:id, adminMsg:adminMsg||('مصرف '+amt+' از بچ تأیید شد')}, function(res){
           loadPendingChanges(); loadFromSheet(); updateAllBadges();
@@ -10902,7 +10946,7 @@ function purForm(existing){
   var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
   window._puDate  = e.date || today;
   window._puTitle = e.title || '';
-  // V390: تعداد + قیمتِ هر عدد یا جمع
+  // V392: تعداد + قیمتِ هر عدد یا جمع
   window._puQty   = (e.qty && +e.qty>0) ? String(e.qty) : '1';
   window._puMode  = (!e.id || (e.qty && +e.qty>1)) ? 'unit' : 'total';
   window._puAmt   = (window._puMode==='unit') ? (e.unitPrice ? String(Math.round(+e.unitPrice)) : '') : (e.amount ? String(e.amount) : '');
@@ -11124,7 +11168,7 @@ function purWireForm(){
   purSug('pu-code',   'orderCodes', '_puCode');
 }
 // پیشنهادِ هم‌تم — فقط وقتی کاربر تایپ کرده باشد
-// V390: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
+// V392: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
 function purSugNorm(s){ return String(s==null?'':s).replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[\u200c\u200f\u200e]/g,' ').replace(/\s+/g,' ').trim().toLowerCase(); }
 function purSugList(key){
   var S = PUR_SUG || {};
@@ -12901,8 +12945,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V390 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V390";
+try{ if(window.console) console.log('%c iPrint3D FRONT V392 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V392";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12939,7 +12983,7 @@ function prPayload(lean){
       pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
     }
   }
-  if(_plKeep){   // V390: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
+  if(_plKeep){   // V392: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
     var cfgK = prCurrentConfig();
     pl.config = { machines:cfgK.machines, materials:cfgK.materials, composites:cfgK.composites, rates:cfgK.rates, defaults:cfgK.defaults };
   }
@@ -13017,7 +13061,7 @@ function pricingReorder(id){
         var dm = dEn.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
         var newDate = dm ? (dm[1]+'/'+('0'+dm[2]).slice(-2)+'/'+('0'+dm[3]).slice(-2)) : today;
         if(!dm && dRaw) showToast('تاریخ نامعتبر بود — امروز گذاشته شد');
-        // V390: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
+        // V392: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
         if(same){
           prSaveLock(true);
           var _lk=document.getElementById('pr-save-lock'); if(_lk){ var _bx=_lk.querySelector('div'); if(_bx) _bx.innerHTML='⏳ در حالِ انتقالِ سفارشِ '+escapeHtml(oldCode)+'…<br><span style="color:#8a93b2;font-size:12px">کپیِ اطلاعات، فاکتور، عکس‌ها و فایل‌ها — چند ثانیه صبر کن.</span>'; }
@@ -13062,7 +13106,7 @@ function pricingReorder(id){
           delete n.invoiceData; delete n.invoiceNo; delete n.createdAt; delete n.savedAt;
           delete n.custody; delete n.custodyReceipts;
           n.reorderFrom = oldCode;                 // ردِ سفارشِ مبدأ برای پیگیری
-          n.reorderFromId = id;                    // V390: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
+          n.reorderFromId = id;                    // V392: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
           if(_sel.cust) n.reorderCustody = true;
           n.dateStr = newDate;                     // ماهِ انتخاب‌شده
           if(same){
@@ -13182,7 +13226,7 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
-var prCompSeq = 0;   // V390: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
+var prCompSeq = 0;   // V392: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
   var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
@@ -13720,7 +13764,7 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
-  // V390: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  // V392: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
   var durBlock = function(){
     try{
       var mb={}, labMin=0, modH=0;
@@ -13741,7 +13785,7 @@ function pricingCopy(){
       if(!any) L.push('• زمانی ثبت نشده');
     }catch(e){}
   };
-  // V390: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
+  // V392: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
   var schedBlock = function(){
     try{
       var sc = o.schedule;
@@ -13955,7 +13999,7 @@ var ivNotes = [
   'خواهشمند است مبلغ فاکتور به شماره کارت ۵۰۴۱۷۲۱۱۱۲۳۳۳۴۸۰ به نام آقای اباذر اخوان بهابادی واریز گردد.',
   'شماره حساب ۱۰.۷۸۴۹۴۷۳.۳ بانک رسالت، شماره شبا IR۲۰۰۷۰۰۰۰۱۰۰۰۱۱۷۸۴۹۴۷۳۰۰۳'
 ];
-var IV_NOTES_DEFAULT = ivNotes.slice();   // V390: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
+var IV_NOTES_DEFAULT = ivNotes.slice();   // V392: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
 function ivRenderNotes(){
   var box=document.getElementById('iv-notes'); if(!box) return;
   box.innerHTML = ivNotes.map(function(t,i){
@@ -14061,7 +14105,7 @@ function ivOpenInvoice(opts){
   ivBuyerEdit = false;
   var _bv = {};
   try{ _bv = ivBuyerValues() || {}; }catch(e){ _bv = {}; }
-  // V390: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
+  // V392: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
   // (نسخهٔ ذخیره‌شدهٔ همین سفارش، اگر باشد، بعداً با ivLoadSavedData رویش می‌نشیند)
   ivNotes = IV_NOTES_DEFAULT.slice();
   ['iv-beco','iv-breg','iv-bfax','iv-baddr','iv-bpost'].forEach(function(k){ _bv[k] = '—'; });
@@ -14650,7 +14694,7 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
-// V390: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+// V392: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
 function prSaveLock(on){
   var id='pr-save-lock', el=document.getElementById(id);
   if(!on){ if(el) el.remove(); return; }
