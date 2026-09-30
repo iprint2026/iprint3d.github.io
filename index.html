@@ -8458,7 +8458,7 @@ function pricingResetForNext(){
   prState.editId = null; prState.cfgDirty = false;
   prState.savedCode = '';
   prPendingImage = null;
-  try{ prActiveSecImg=''; prLastResult=null; prEditSnapshot=''; prEditNeedBaseline=false; }catch(_e){}
+  try{ prActiveSecImg=''; prLastResult=null; prEditSnapshot=''; prEditNeedBaseline=false; prState.keepCfg=false; prState.reorderExpect=null; }catch(_e){}
   try{ var _mrx0=document.getElementById('pr-p-matriskx'); if(_mrx0) _mrx0.value=''; }catch(_e){}
   var ind=document.getElementById('pr-image-ind'); if(ind) ind.textContent='';
   if(typeof prRenderEditBanner==='function') prRenderEditBanner();
@@ -12851,8 +12851,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V383 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V383";
+try{ if(window.console) console.log('%c iPrint3D FRONT V385 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V385";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12878,6 +12878,7 @@ function prPayload(lean){
       });
     }
   }
+  var _plKeep = (!prState.editId && prState.keepCfg);
   var pl = { order: ord, lines: (lean ? (prState.lines||[]).map(function(l){ var q={}; for(var lk in l){ if(l.hasOwnProperty(lk) && lk!=='id' && lk.charAt(0)!=='_') q[lk]=l[lk]; } return q; }) : prState.lines) };
   if(prState.editId){
     pl.editId = prState.editId;
@@ -12887,6 +12888,10 @@ function prPayload(lean){
       var cfg = prCurrentConfig();
       pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
     }
+  }
+  if(_plKeep){   // V385: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
+    var cfgK = prCurrentConfig();
+    pl.config = { machines:cfgK.machines, materials:cfgK.materials, composites:cfgK.composites, rates:cfgK.rates, defaults:cfgK.defaults };
   }
   var _s = JSON.stringify(pl);
   if(lean) prLastPayloadLen = _s.length;
@@ -12918,6 +12923,7 @@ function prRenderEditBanner(){
   }
 }
 function pricingNewOrder(){
+  prState.keepCfg=false; prState.reorderExpect=null;
   try{ prPendingImage=null; prActiveSecImg=''; var _pind=document.getElementById('pr-image-ind'); if(_pind) _pind.textContent=''; }catch(_e){}
   prState.editId = null; prState.savedCode = ''; prState.cfgDirty = false;
   prState.loaded = false;
@@ -12936,44 +12942,64 @@ function pricingReorder(id){
     if(!(res && res.status==='ok')){ showToast('خطا در بارگذاری سفارش'); return; }
     var oldCode = res.code||'';
     var o = res.order||{};
-    var qtyOld = (+o.qty||1);
+    var today = (typeof prTodayJalaliStr==='function') ? prTodayJalaliStr() : '';
+    var _cuN = (o.custody||[]).length, _rcN = (o.custodyReceipts||[]).length;
+    window._roSel = { same:true, date:today, cust:false };   // مقادیرِ پنجره (پنجره پیش از onOk بسته می‌شود)
 
     prConfirm({
       title:'🔁 سفارشِ مجدد',
-      okText:'بله، سفارشِ جدید بساز', cancelText:'انصراف',
-      message:'از روی سفارشِ <b>'+escapeHtml(oldCode)+'</b> یک سفارشِ <b>جدید</b> ساخته می‌شود:<br><br>'
-        +'<span style="color:#9ee0a8">✓ قطعات، دستگاه‌ها، زمانِ چاپ، مواد و عکس‌ها عیناً می‌آیند</span><br>'
-        +'<span style="color:#9ee0a8">✓ اطلاعاتِ مشتری هم پر می‌شود</span><br>'
-        +'<span style="color:#f0c674">↻ ولی نرخ‌ها و ضرایب <b>از امروز</b> گرفته می‌شود</span><br>'
-        +'<span style="color:#8a93b2">سفارشِ قبلی دست‌نخورده باقی می‌ماند.</span><br><br>'
-        +'<span style="font-size:11px;color:#8a93b2">بعد از ساخت می‌توانی تعداد و ضرایب را تغییر دهی و بعد ذخیره کنی.</span>',
+      okText:'بساز', cancelText:'انصراف',
+      message:'از روی سفارشِ <b>'+escapeHtml(oldCode)+'</b> یک سفارشِ <b>جدید</b> با کدِ تازه ساخته می‌شود. سفارشِ '+escapeHtml(oldCode)+' هیچ تغییری نمی‌کند.<br><br>'
+        +'<label style="display:block;cursor:pointer;margin-bottom:8px"><input type="radio" name="ro-mode" id="ro-same" checked onchange="if(this.checked) window._roSel.same=true"> <b style="color:#9ee0a8">همان قیمتِ برآورد</b>'
+        +'<div style="font-size:11px;color:#8a93b2;margin-right:22px">وقتی مشتری همان برآورد را تأیید کرده: نرخ‌ها، ضرایب، قیمتِ دستی، زمان‌بندی و فاکتور عیناً می‌آیند و مبلغ عوض نمی‌شود.</div></label>'
+        +'<label style="display:block;cursor:pointer"><input type="radio" name="ro-mode" id="ro-today" onchange="if(this.checked) window._roSel.same=false"> <b style="color:#f0c674">با نرخِ امروز</b>'
+        +'<div style="font-size:11px;color:#8a93b2;margin-right:22px">همان کار، ولی قیمت با نرخ‌ها و ضرایبِ امروز دوباره حساب می‌شود.</div></label>'
+        +'<div style="margin-top:12px">📅 تاریخِ سفارشِ جدید: <input id="ro-date" class="inp" oninput="window._roSel.date=this.value" onchange="window._roSel.date=this.value" value="'+escapeHtml(today)+'" style="width:130px;display:inline-block;text-align:center;direction:ltr"></div>'
+        +'<div style="font-size:11px;color:#8a93b2;margin-top:4px">سفارش در ماهِ همین تاریخ ثبت می‌شود (مثلاً ۱۴۰۵/۰۷/۰۸).</div>'
+        +(_cuN||_rcN ? ('<label style="display:block;cursor:pointer;margin-top:12px"><input type="checkbox" onchange="window._roSel.cust=this.checked"> 📦 امانت‌ها و رسیدهای تحویل هم منتقل شوند <span style="color:#8a93b2">('+prToFa(_cuN)+' امانت · '+prToFa(_rcN)+' رسید)</span>'
+            +'<div style="font-size:11px;color:#8a93b2;margin-right:22px">یک کپی به سفارشِ جدید می‌رود؛ سفارشِ '+escapeHtml(oldCode)+' همان‌طور می‌ماند. تغییراتِ بعدیِ امانت در سفارشِ جدید روی سفارشِ قبلی اثر ندارد.</div></label>') : '')
+        +'<div style="font-size:11px;color:#8a93b2;margin-top:10px">🗂 عکس‌ها به پوشهٔ سفارشِ جدید کپی می‌شوند. در حالتِ «همان قیمت»، فایل‌های پوشه هم (PDFِ فاکتور، متن و اکسلِ قبلی) با پیشوندِ «از '+escapeHtml(oldCode)+'» کپی می‌شوند.</div>',
       onOk:function(){
-        // ۱) تنظیماتِ امروز را بگیر (نه تنظیماتِ ذخیره‌شدهٔ سفارشِ قبلی)
-        callSheet('getPricingConfig', { t:Date.now() }, function(cfg){
-          var c = (cfg && cfg.status==='ok' && cfg.config) ? cfg.config : (res.config||{});
+        var _sel = window._roSel || { same:true, date:today };
+        var same = !!_sel.same;
+        var dRaw = String(_sel.date||'').trim();
+        var dEn = (typeof prEnDigits==='function') ? prEnDigits(dRaw) : dRaw;
+        var dm = dEn.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
+        var newDate = dm ? (dm[1]+'/'+('0'+dm[2]).slice(-2)+'/'+('0'+dm[3]).slice(-2)) : today;
+        if(!dm && dRaw) showToast('تاریخ نامعتبر بود — امروز گذاشته شد');
+        var finish = function(c){
           prState.machines   = Array.isArray(c.machines)?c.machines:[];
           prState.materials  = Array.isArray(c.materials)?c.materials:[];
           prState.composites = Array.isArray(c.composites)?c.composites:[];
           prState.rates      = c.rates||{labor:0,finishing:0,modeling:0};
           prState.defaults   = c.defaults||{profit:0,institute:0,packaging:0,shipping:0};
-          prState.invoice    = c.invoice||{logoFileId:'',stampFileId:''};
-          // ضریبِ ریسک و کشِ نرخ‌های امروز هم به‌روز شود
-          try{ gBizRisk = (+((c.defaults||{}).riskFactor)>0) ? +c.defaults.riskFactor : 1; }catch(e){}
-          try{ gTodayConfig = JSON.parse(JSON.stringify(c)); }catch(e){ gTodayConfig = c; }
+          prState.invoice    = c.invoice||prState.invoice||{logoFileId:'',stampFileId:''};
 
-          // ۲) محتوای سفارش را کپی کن، ولی چیزهای مخصوصِ سفارشِ قبلی را پاک کن
+          // محتوای سفارش را کپی کن، ولی چیزهای مخصوصِ سفارشِ قبلی را پاک کن
           var n = JSON.parse(JSON.stringify(o));
-          delete n.code; delete n.id; delete n.status; delete n.schedule;
+          delete n.code; delete n.id; delete n.status;
           delete n.invoiceData; delete n.invoiceNo; delete n.createdAt; delete n.savedAt;
-          delete n.calcVersion;                    // با موتورِ امروز حساب شود
-          n.manualUnit = 0;                        // قیمتِ دستیِ قبلی برداشته شود
+          delete n.custody; delete n.custodyReceipts;
           n.reorderFrom = oldCode;                 // ردِ سفارشِ مبدأ برای پیگیری
-          // ضرایبِ امروز به‌جای ضرایبِ ذخیره‌شده
-          if(prState.defaults){
-            if(prState.defaults.profit    != null) n.profit    = prState.defaults.profit;
-            if(prState.defaults.institute != null) n.institute = prState.defaults.institute;
+          n.reorderFromId = id;                    // V385: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
+          if(_sel.cust) n.reorderCustody = true;
+          n.dateStr = newDate;                     // ماهِ انتخاب‌شده
+          if(same){
+            // «همان قیمت»: هیچ نرخ/ضریب/قیمتِ دستی‌ای عوض نمی‌شود
+            n.reorderSame = true; n.reorderCV = (+o.calcVersion||0);
+            prState.keepCfg = true;                // کانفیگِ ذخیره‌شدهٔ همان برآورد به سرور فرستاده شود
+            prState.reorderExpect = (+res.total>0) ? Math.round(+res.total) : null;
+          } else {
+            delete n.schedule;
+            delete n.calcVersion;                  // با موتورِ امروز حساب شود
+            n.manualUnit = 0;                      // قیمتِ دستیِ قبلی برداشته شود
+            if(prState.defaults){
+              if(prState.defaults.profit    != null) n.profit    = prState.defaults.profit;
+              if(prState.defaults.institute != null) n.institute = prState.defaults.institute;
+            }
+            (n.sections||[]).forEach(function(sx){ if(sx) sx.manualUnit = 0; });
+            prState.keepCfg = false; prState.reorderExpect = null;
           }
-          (n.sections||[]).forEach(function(s){ if(s) s.manualUnit = 0; });
 
           prState.order  = n;
           prState.lines  = (res.lines||[]).map(function(l){
@@ -12983,10 +13009,10 @@ function pricingReorder(id){
             var seen={};
             function uniq(t){ if(!t) return; var k=String(t.id||''); if(!k||seen[k]){ t.id=prNid(); } seen[String(t.id)]=1; }
             (prState.lines||[]).forEach(uniq);
-            ((prState.order&&prState.order.sections)||[]).forEach(function(s){ uniq(s); (s.lines||[]).forEach(uniq); });
+            ((prState.order&&prState.order.sections)||[]).forEach(function(sx){ uniq(sx); (sx.lines||[]).forEach(uniq); });
           })();
 
-          // ۳) سفارشِ جدید: نه ویرایش، نه کدِ قبلی
+          // سفارشِ جدید: نه ویرایش، نه کدِ قبلی
           prState.editId    = null;
           prState.savedCode = '';
           prState.cfgDirty  = false;
@@ -12997,13 +13023,23 @@ function pricingReorder(id){
           gotoView('pricing');
           prRenderEditBanner();
           prRenderSettings(); prRenderOrder(); prRenderLines(); prDoCompute();
-          showToast('سفارشِ مجدد از '+oldCode+' — نرخ‌ها به امروز به‌روز شد');
-        });
+          showToast(same ? ('سفارشِ مجدد از '+oldCode+' — همان قیمت · تاریخ '+prToFa(newDate)) : ('سفارشِ مجدد از '+oldCode+' — نرخ‌ها به امروز به‌روز شد'));
+        };
+        if(same){ finish(res.config||{}); }
+        else {
+          callSheet('getPricingConfig', { t:Date.now() }, function(cfg){
+            var c = (cfg && cfg.status==='ok' && cfg.config) ? cfg.config : (res.config||{});
+            try{ gBizRisk = (+((c.defaults||{}).riskFactor)>0) ? +c.defaults.riskFactor : 1; }catch(e){}
+            try{ gTodayConfig = JSON.parse(JSON.stringify(c)); }catch(e){ gTodayConfig = c; }
+            finish(c);
+          });
+        }
       }
     });
   });
 }
 function pricingEditOrder(id){
+  prState.keepCfg=false; prState.reorderExpect=null;
   try{ prPendingImage=null; prActiveSecImg=''; var _pind=document.getElementById('pr-image-ind'); if(_pind) _pind.textContent=''; }catch(_e){}
   callSheet('getEstimateForEdit', { id:id, t:Date.now() }, function(res){
     if(!(res && res.status==='ok')){ showToast('خطا در بارگذاری سفارش برای ویرایش'); return; }
@@ -13065,7 +13101,7 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
-var prCompSeq = 0;   // V383: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
+var prCompSeq = 0;   // V385: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
   var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
@@ -13087,6 +13123,14 @@ function prDoCompute(){
     if(_mySeq !== prCompSeq) return;   // جوابِ کهنه
     if(res && res.status==='ok' && res.result){
       prLastResult = res.result;
+      try{
+        if(prState.reorderExpect!=null && !prState.editId){
+          var _gotT = Math.round(+res.result.orderTotal||0), _dT = _gotT - prState.reorderExpect;
+          if(Math.abs(_dT)>1) showToast('⚠️ مبلغ با برآوردِ مبدأ '+(_dT>0?'+':'')+prToFa(prSep(_dT))+' تومان فرق دارد ('+prToFa(prSep(prState.reorderExpect))+' ← '+prToFa(prSep(_gotT))+')');
+          else showToast('✅ مبلغ دقیقاً همان برآوردِ مبدأ است: '+prToFa(prSep(_gotT))+' تومان');
+          prState.reorderExpect = null;   // فقط بارِ اول
+        }
+      }catch(_e){}
       prRenderTape(res.result);
       if(cs) cs.textContent = '';
       if(prEditNeedBaseline){ prEditNeedBaseline=false; try{ prEditSnapshot=prSnapshot(); }catch(e){ prEditSnapshot=''; } }
@@ -13595,7 +13639,7 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
-  // V383: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  // V385: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
   var durBlock = function(){
     try{
       var mb={}, labMin=0, modH=0;
@@ -13616,7 +13660,7 @@ function pricingCopy(){
       if(!any) L.push('• زمانی ثبت نشده');
     }catch(e){}
   };
-  // V383: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
+  // V385: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
   var schedBlock = function(){
     try{
       var sc = o.schedule;
@@ -14520,7 +14564,7 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
-// V383: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+// V385: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
 function prSaveLock(on){
   var id='pr-save-lock', el=document.getElementById(id);
   if(!on){ if(el) el.remove(); return; }
