@@ -10902,7 +10902,7 @@ function purForm(existing){
   var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
   window._puDate  = e.date || today;
   window._puTitle = e.title || '';
-  // V389: تعداد + قیمتِ هر عدد یا جمع
+  // V390: تعداد + قیمتِ هر عدد یا جمع
   window._puQty   = (e.qty && +e.qty>0) ? String(e.qty) : '1';
   window._puMode  = (!e.id || (e.qty && +e.qty>1)) ? 'unit' : 'total';
   window._puAmt   = (window._puMode==='unit') ? (e.unitPrice ? String(Math.round(+e.unitPrice)) : '') : (e.amount ? String(e.amount) : '');
@@ -11124,7 +11124,7 @@ function purWireForm(){
   purSug('pu-code',   'orderCodes', '_puCode');
 }
 // پیشنهادِ هم‌تم — فقط وقتی کاربر تایپ کرده باشد
-// V389: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
+// V390: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
 function purSugNorm(s){ return String(s==null?'':s).replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[\u200c\u200f\u200e]/g,' ').replace(/\s+/g,' ').trim().toLowerCase(); }
 function purSugList(key){
   var S = PUR_SUG || {};
@@ -11138,7 +11138,7 @@ function purSugList(key){
 }
 function purSugHits(list, q, n){
   var qn = purSugNorm(q);
-  if(!qn) return (list||[]).slice(0, n||7);                           // فیلدِ خالی: پرتکرارترین‌ها
+  if(!qn) return [];                                                  // تا چیزی تایپ نشود، هیچ پیشنهادی نمی‌آید
   return (list||[]).filter(function(x){ var xn = purSugNorm(x); return xn.indexOf(qn) >= 0 && xn !== qn; }).slice(0, n||7);
 }
 function purEnsureSug(cb){
@@ -12901,8 +12901,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V389 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V389";
+try{ if(window.console) console.log('%c iPrint3D FRONT V390 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V390";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12939,7 +12939,7 @@ function prPayload(lean){
       pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
     }
   }
-  if(_plKeep){   // V389: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
+  if(_plKeep){   // V390: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
     var cfgK = prCurrentConfig();
     pl.config = { machines:cfgK.machines, materials:cfgK.materials, composites:cfgK.composites, rates:cfgK.rates, defaults:cfgK.defaults };
   }
@@ -13017,7 +13017,7 @@ function pricingReorder(id){
         var dm = dEn.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
         var newDate = dm ? (dm[1]+'/'+('0'+dm[2]).slice(-2)+'/'+('0'+dm[3]).slice(-2)) : today;
         if(!dm && dRaw) showToast('تاریخ نامعتبر بود — امروز گذاشته شد');
-        // V389: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
+        // V390: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
         if(same){
           prSaveLock(true);
           var _lk=document.getElementById('pr-save-lock'); if(_lk){ var _bx=_lk.querySelector('div'); if(_bx) _bx.innerHTML='⏳ در حالِ انتقالِ سفارشِ '+escapeHtml(oldCode)+'…<br><span style="color:#8a93b2;font-size:12px">کپیِ اطلاعات، فاکتور، عکس‌ها و فایل‌ها — چند ثانیه صبر کن.</span>'; }
@@ -13062,7 +13062,7 @@ function pricingReorder(id){
           delete n.invoiceData; delete n.invoiceNo; delete n.createdAt; delete n.savedAt;
           delete n.custody; delete n.custodyReceipts;
           n.reorderFrom = oldCode;                 // ردِ سفارشِ مبدأ برای پیگیری
-          n.reorderFromId = id;                    // V389: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
+          n.reorderFromId = id;                    // V390: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
           if(_sel.cust) n.reorderCustody = true;
           n.dateStr = newDate;                     // ماهِ انتخاب‌شده
           if(same){
@@ -13182,7 +13182,7 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
-var prCompSeq = 0;   // V389: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
+var prCompSeq = 0;   // V390: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
   var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
@@ -13720,7 +13720,7 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
-  // V389: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  // V390: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
   var durBlock = function(){
     try{
       var mb={}, labMin=0, modH=0;
@@ -13741,7 +13741,7 @@ function pricingCopy(){
       if(!any) L.push('• زمانی ثبت نشده');
     }catch(e){}
   };
-  // V389: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
+  // V390: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
   var schedBlock = function(){
     try{
       var sc = o.schedule;
@@ -13955,7 +13955,7 @@ var ivNotes = [
   'خواهشمند است مبلغ فاکتور به شماره کارت ۵۰۴۱۷۲۱۱۱۲۳۳۳۴۸۰ به نام آقای اباذر اخوان بهابادی واریز گردد.',
   'شماره حساب ۱۰.۷۸۴۹۴۷۳.۳ بانک رسالت، شماره شبا IR۲۰۰۷۰۰۰۰۱۰۰۰۱۱۷۸۴۹۴۷۳۰۰۳'
 ];
-var IV_NOTES_DEFAULT = ivNotes.slice();   // V389: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
+var IV_NOTES_DEFAULT = ivNotes.slice();   // V390: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
 function ivRenderNotes(){
   var box=document.getElementById('iv-notes'); if(!box) return;
   box.innerHTML = ivNotes.map(function(t,i){
@@ -14061,7 +14061,7 @@ function ivOpenInvoice(opts){
   ivBuyerEdit = false;
   var _bv = {};
   try{ _bv = ivBuyerValues() || {}; }catch(e){ _bv = {}; }
-  // V389: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
+  // V390: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
   // (نسخهٔ ذخیره‌شدهٔ همین سفارش، اگر باشد، بعداً با ivLoadSavedData رویش می‌نشیند)
   ivNotes = IV_NOTES_DEFAULT.slice();
   ['iv-beco','iv-breg','iv-bfax','iv-baddr','iv-bpost'].forEach(function(k){ _bv[k] = '—'; });
@@ -14650,7 +14650,7 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
-// V389: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+// V390: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
 function prSaveLock(on){
   var id='pr-save-lock', el=document.getElementById(id);
   if(!on){ if(el) el.remove(); return; }
