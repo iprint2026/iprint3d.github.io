@@ -12851,8 +12851,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V386 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V386";
+try{ if(window.console) console.log('%c iPrint3D FRONT V387 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V387";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12889,7 +12889,7 @@ function prPayload(lean){
       pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
     }
   }
-  if(_plKeep){   // V386: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
+  if(_plKeep){   // V387: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
     var cfgK = prCurrentConfig();
     pl.config = { machines:cfgK.machines, materials:cfgK.materials, composites:cfgK.composites, rates:cfgK.rates, defaults:cfgK.defaults };
   }
@@ -12967,7 +12967,7 @@ function pricingReorder(id){
         var dm = dEn.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
         var newDate = dm ? (dm[1]+'/'+('0'+dm[2]).slice(-2)+'/'+('0'+dm[3]).slice(-2)) : today;
         if(!dm && dRaw) showToast('تاریخ نامعتبر بود — امروز گذاشته شد');
-        // V386: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
+        // V387: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
         if(same){
           prSaveLock(true);
           var _lk=document.getElementById('pr-save-lock'); if(_lk){ var _bx=_lk.querySelector('div'); if(_bx) _bx.innerHTML='⏳ در حالِ انتقالِ سفارشِ '+escapeHtml(oldCode)+'…<br><span style="color:#8a93b2;font-size:12px">کپیِ اطلاعات، فاکتور، عکس‌ها و فایل‌ها — چند ثانیه صبر کن.</span>'; }
@@ -13012,7 +13012,7 @@ function pricingReorder(id){
           delete n.invoiceData; delete n.invoiceNo; delete n.createdAt; delete n.savedAt;
           delete n.custody; delete n.custodyReceipts;
           n.reorderFrom = oldCode;                 // ردِ سفارشِ مبدأ برای پیگیری
-          n.reorderFromId = id;                    // V386: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
+          n.reorderFromId = id;                    // V387: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
           if(_sel.cust) n.reorderCustody = true;
           n.dateStr = newDate;                     // ماهِ انتخاب‌شده
           if(same){
@@ -13132,7 +13132,7 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
-var prCompSeq = 0;   // V386: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
+var prCompSeq = 0;   // V387: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
   var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
@@ -13670,7 +13670,7 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
-  // V386: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  // V387: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
   var durBlock = function(){
     try{
       var mb={}, labMin=0, modH=0;
@@ -13691,7 +13691,7 @@ function pricingCopy(){
       if(!any) L.push('• زمانی ثبت نشده');
     }catch(e){}
   };
-  // V386: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
+  // V387: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
   var schedBlock = function(){
     try{
       var sc = o.schedule;
@@ -13905,6 +13905,7 @@ var ivNotes = [
   'خواهشمند است مبلغ فاکتور به شماره کارت ۵۰۴۱۷۲۱۱۱۲۳۳۳۴۸۰ به نام آقای اباذر اخوان بهابادی واریز گردد.',
   'شماره حساب ۱۰.۷۸۴۹۴۷۳.۳ بانک رسالت، شماره شبا IR۲۰۰۷۰۰۰۰۱۰۰۰۱۱۷۸۴۹۴۷۳۰۰۳'
 ];
+var IV_NOTES_DEFAULT = ivNotes.slice();   // V387: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
 function ivRenderNotes(){
   var box=document.getElementById('iv-notes'); if(!box) return;
   box.innerHTML = ivNotes.map(function(t,i){
@@ -14010,6 +14011,10 @@ function ivOpenInvoice(opts){
   ivBuyerEdit = false;
   var _bv = {};
   try{ _bv = ivBuyerValues() || {}; }catch(e){ _bv = {}; }
+  // V387: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
+  // (نسخهٔ ذخیره‌شدهٔ همین سفارش، اگر باشد، بعداً با ivLoadSavedData رویش می‌نشیند)
+  ivNotes = IV_NOTES_DEFAULT.slice();
+  ['iv-beco','iv-breg','iv-bfax','iv-baddr','iv-bpost'].forEach(function(k){ _bv[k] = '—'; });
   _bv['iv-bname'] = opts.customer || '—';
   _bv['iv-btel']  = opts.tel || '—';
   ivRenderBuyer(_bv);
@@ -14595,7 +14600,7 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
-// V386: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+// V387: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
 function prSaveLock(on){
   var id='pr-save-lock', el=document.getElementById(id);
   if(!on){ if(el) el.remove(); return; }
