@@ -10853,7 +10853,7 @@ function purRowHtml(r){
   return '<div style="border:1px solid ' + (pend?'#5a4a2a':'#232742') + ';border-radius:9px;padding:10px 12px;margin-bottom:7px;background:' + (pend?'#1a1710':'transparent') + '">'
     + '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start">'
     +   '<div style="min-width:0;flex:1">'
-    +     '<div style="font-weight:700;font-size:13.5px;color:#dfe3f5">' + escapeHtml(r.title)
+    +     '<div style="font-weight:700;font-size:13.5px;color:#dfe3f5">' + escapeHtml(r.title) + ((+r.qty>1)?(' <span style="font-size:11px;color:#7ab8ff;font-weight:400">· '+prToFa(r.qty)+' عدد × '+prToFa(fmtMoney(Math.round(+r.unitPrice||0)))+'</span>'):'')
     +       ' <span style="font-size:10.5px;color:' + stColor + ';font-weight:400">· ' + stText + '</span>'
     +       (r.refunded ? ' <span style="font-size:10.5px;color:#9ee0a8">· پول برگشته</span>' : '')
     +     '</div>'
@@ -10902,7 +10902,10 @@ function purForm(existing){
   var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
   window._puDate  = e.date || today;
   window._puTitle = e.title || '';
-  window._puAmt   = e.amount ? String(e.amount) : '';
+  // V388: تعداد + قیمتِ هر عدد یا جمع
+  window._puQty   = (e.qty && +e.qty>0) ? String(e.qty) : '1';
+  window._puMode  = (!e.id || (e.qty && +e.qty>1)) ? 'unit' : 'total';
+  window._puAmt   = (window._puMode==='unit') ? (e.unitPrice ? String(Math.round(+e.unitPrice)) : '') : (e.amount ? String(e.amount) : '');
   window._puReason= e.reason || '';
   window._puProj  = e.project || '';
   window._puCode  = e.orderCode || '';
@@ -10924,8 +10927,15 @@ function purForm(existing){
    + '<input id="pu-date" value="'+escapeHtml(window._puDate)+'" oninput="window._puDate=this.value" style="'+inp+';text-align:center;margin-bottom:9px">'
    + '<label style="'+lbl+'">شرحِ کالا</label>'
    + field('pu-title', window._puTitle, 'مثلاً چسب سیانوآکریلات ۲ عدد', ';margin-bottom:9px')
-   + '<label style="'+lbl+'">مبلغ (تومان)</label>'
-   + '<input id="pu-amt" value="'+escapeHtml(window._puAmt?fmtMoney(window._puAmt):'')+'" inputmode="numeric" placeholder="۲۰۰٬۰۰۰" style="'+inp+';text-align:center;margin-bottom:3px;font-weight:700;font-size:15px">'
+   + '<div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:3px">'
+   +   '<div style="width:74px"><label style="'+lbl+'">تعداد</label>'
+   +     '<input id="pu-qty" value="'+escapeHtml(prToFa(window._puQty))+'" inputmode="decimal" oninput="window._puQty=purEnNum(this.value);purAmtPreview()" style="'+inp+';text-align:center;font-weight:700;font-size:15px"></div>'
+   +   '<div style="flex:1"><label style="'+lbl+'">مبلغ (تومان)</label>'
+   +     '<input id="pu-amt" value="'+escapeHtml(window._puAmt?fmtMoney(window._puAmt):'')+'" inputmode="numeric" placeholder="۲۰۰٬۰۰۰" style="'+inp+';text-align:center;font-weight:700;font-size:15px"></div>'
+   +   '<select id="pu-mode" onchange="window._puMode=this.value;purAmtPreview()" style="'+inp+';width:auto;padding:9px 6px">'
+   +     '<option value="unit"'+(window._puMode==='unit'?' selected':'')+'>هر عدد</option>'
+   +     '<option value="total"'+(window._puMode==='total'?' selected':'')+'>جمع</option></select>'
+   + '</div>'
    + '<div id="pu-amt-words" style="color:#7ab8ff;font-size:11px;text-align:center;min-height:16px;margin-bottom:8px"></div>'
    + '<label style="'+lbl+'">برای چه کاری خریده شد؟</label>'
    + field('pu-reason', window._puReason, 'مثلاً چسباندنِ قطعاتِ شکسته', ';margin-bottom:9px')
@@ -10947,6 +10957,7 @@ function purForm(existing){
               okText: e.id ? 'ذخیره' : 'ثبتِ خرید', cancelText:'انصراف', danger:false }, function(){
     var title = (window._puTitle||'').trim();
     var amt   = (window._puAmt||'').trim();
+    var qty   = +(window._puQty||1); if(!(qty>0)) qty = 1;
     if(!title){ showToast('شرحِ کالا لازم است'); return; }
     if(!amt){ showToast('مبلغ لازم است'); return; }
     var code = (window._puCode||'').trim();
@@ -10954,7 +10965,8 @@ function purForm(existing){
     if(m) code = m[1];
     var cardRaw = purNormCard(window._puCard||'');
     if(cardRaw && cardRaw.length !== 16){ showToast('شمارهٔ کارت باید ۱۶ رقم باشد'); return; }
-    var payload = { date:(window._puDate||today), title:title, amount:amt,
+    var payload = { date:(window._puDate||today), title:title, qty:qty,
+                    amount:(window._puMode==='unit' ? '' : amt), unitPrice:(window._puMode==='unit' ? amt : ''),
                     reason:(window._puReason||''), project:(window._puProj||''),
                     orderCode:code, note:(window._puNote||''), cardNumber:cardRaw, t:Date.now() };
     if(e.id){
@@ -11068,6 +11080,15 @@ function purItemProjWarn(i, q){
   w.textContent = near.length ? ('⚠️ پروژهٔ مشابه هست: ' + near.join(' · ')) : '';
 }
 // سیم‌کشیِ فیلدها: جداکنندهٔ هزارگان + پیشنهادِ سفارشی
+function purEnNum(v){ return String(v==null?'':v).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);}).replace(/[٫,]/g,'.').replace(/[^0-9.]/g,''); }
+// «۴ × ۲۵٬۰۰۰ = ۱۰۰٬۰۰۰ تومان» زیرِ مبلغ
+function purLineText(qty, amt, mode){
+  var q = +qty; if(!(q>0)) q = 1; var a = +amt||0; if(!a) return '';
+  if(q===1) return prToFa(fmtMoney(a))+' تومان';
+  if(mode==='unit') return prToFa(q)+' × '+prToFa(fmtMoney(a))+' = <b>'+prToFa(fmtMoney(Math.round(q*a)))+'</b> تومان';
+  return 'جمع '+prToFa(fmtMoney(a))+' ÷ '+prToFa(q)+' = هر عدد '+prToFa(fmtMoney(Math.round(a/q)))+' تومان';
+}
+function purAmtPreview(){ var w=document.getElementById('pu-amt-words'); if(w) w.innerHTML = purLineText(window._puQty, window._puAmt, window._puMode); }
 function purWireForm(){
   var S = PUR_SUG || {};
   // مبلغ: هزارگان زنده + نمایشِ حروف
@@ -11077,11 +11098,9 @@ function purWireForm(){
       var raw = String(this.value).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[^0-9]/g,'');
       window._puAmt = raw;
       this.value = raw ? fmtMoney(raw) : '';
-      var w = document.getElementById('pu-amt-words');
-      if(w) w.textContent = raw ? (prToFa(fmtMoney(raw))+' تومان') : '';
+      purAmtPreview();
     });
-    var w0 = document.getElementById('pu-amt-words');
-    if(w0 && window._puAmt) w0.textContent = prToFa(fmtMoney(window._puAmt))+' تومان';
+    purAmtPreview();
   }
   // شمارهٔ کارت: گروه‌بندیِ ۴تایی زنده + اعتبارسنجی
   var cd = document.getElementById('pu-card');
@@ -11250,7 +11269,7 @@ function purInvoiceHtml(invId, g){
 
   var items = g.map(function(r){
     return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 9px;border-bottom:1px solid #161b2c;font-size:12px">'
-      + '<div style="min-width:0"><span style="color:#dfe3f5">'+escapeHtml(r.title)+'</span>'
+      + '<div style="min-width:0"><span style="color:#dfe3f5">'+escapeHtml(r.title)+'</span>'+((+r.qty>1)?(' <span style="font-size:10.5px;color:#7ab8ff">'+prToFa(r.qty)+' × '+prToFa(fmtMoney(Math.round(+r.unitPrice||0)))+'</span>'):'')
       +   (r.project?('<span style="color:#8a93b2;font-size:10.5px"> · 📁 '+escapeHtml(r.project)+'</span>'):'')
       +   (r.status==='pending'?'<span style="color:#f0c674;font-size:10px"> ⏳</span>':'')
       + '</div>'
@@ -11344,7 +11363,7 @@ function purInvForm(){
   var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
   var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
   window._piDate = today; window._piProj=''; window._piReason=''; window._piCode=''; window._piCard='';
-  PUR_ITEMS = [ {title:'',amount:'',project:''} ];
+  PUR_ITEMS = [ {title:'',amount:'',project:'',qty:'1',mode:'unit'} ];
   PUR_INV_FILE = null;
   var inp = 'width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px';
   var lbl = 'color:#8a93b2;font-size:11.5px;margin-bottom:4px;display:block';
@@ -11417,7 +11436,8 @@ function purUploadHeld(payload, purchaseId, cb){
   }).then(function(r){ return r.json(); }).then(function(res){ if(cb) cb(!!(res && res.status==='ok')); })
     .catch(function(){ if(cb) cb(false); });
 }
-function purItemAdd(){ PUR_ITEMS.push({title:'',amount:'',project:''}); purItemsRender(); }
+function purItemAdd(){ PUR_ITEMS.push({title:'',amount:'',project:'',qty:'1',mode:'unit'}); purItemsRender(); }
+function purItemLineTotal(it){ var q=+it.qty; if(!(q>0)) q=1; var a=parseFloat(it.amount)||0; return (it.mode==='unit') ? Math.round(q*a) : a; }
 function purItemDel(i){ if(PUR_ITEMS.length<=1) return; PUR_ITEMS.splice(i,1); purItemsRender(); }
 function purItemSet(i, k, v){
   if(!PUR_ITEMS[i]) return;
@@ -11426,11 +11446,13 @@ function purItemSet(i, k, v){
     PUR_ITEMS[i].amount = raw;
     var el = document.getElementById('pi-amt-'+i);
     if(el) el.value = raw ? fmtMoney(raw) : '';
-  } else PUR_ITEMS[i][k] = v;
+  } else if(k==='qty'){ PUR_ITEMS[i].qty = purEnNum(v); }
+  else PUR_ITEMS[i][k] = v;
+  var ln = document.getElementById('pi-line-'+i); if(ln) ln.innerHTML = purLineText(PUR_ITEMS[i].qty, PUR_ITEMS[i].amount, PUR_ITEMS[i].mode);
   purItemsTotal();
 }
 function purItemsTotal(){
-  var t = 0; PUR_ITEMS.forEach(function(it){ t += (parseFloat(it.amount)||0); });
+  var t = 0; PUR_ITEMS.forEach(function(it){ t += purItemLineTotal(it); });
   var el = document.getElementById('pi-total');
   if(el) el.innerHTML = t ? ('جمعِ فاکتور: <span style="font-size:16px">'+prToFa(fmtMoney(t))+'</span> تومان') : '';
 }
@@ -11444,8 +11466,13 @@ function purItemsRender(){
       +   (PUR_ITEMS.length>1 ? '<button type="button" onclick="purItemDel('+i+')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:5px;padding:2px 9px;font-size:10.5px;font-family:inherit">حذف</button>' : '')
       + '</div>'
       + '<input value="'+escapeHtml(it.title||'')+'" oninput="purItemSet('+i+',\'title\',this.value)" placeholder="نامِ کالا" style="'+si+';margin-bottom:6px">'
-      + '<div style="display:flex;gap:6px">'
+      + '<div style="display:flex;gap:6px;margin-bottom:4px">'
+      +   '<input value="'+escapeHtml(prToFa(it.qty||'1'))+'" oninput="purItemSet('+i+',\'qty\',this.value)" inputmode="decimal" title="تعداد" style="'+si+';width:52px;flex:none;text-align:center;font-weight:700">'
       +   '<input id="pi-amt-'+i+'" value="'+(it.amount?escapeHtml(fmtMoney(it.amount)):'')+'" oninput="purItemSet('+i+',\'amount\',this.value)" inputmode="numeric" placeholder="مبلغ" style="'+si+';flex:1;text-align:center;font-weight:700">'
+      +   '<select onchange="purItemSet('+i+',\'mode\',this.value)" style="'+si+';width:auto;flex:none;padding:7px 4px"><option value="unit"'+(it.mode!=='total'?' selected':'')+'>هر عدد</option><option value="total"'+(it.mode==='total'?' selected':'')+'>جمع</option></select>'
+      + '</div>'
+      + '<div id="pi-line-'+i+'" style="color:#7ab8ff;font-size:10.5px;text-align:center;min-height:14px;margin-bottom:6px">'+purLineText(it.qty, it.amount, it.mode)+'</div>'
+      + '<div style="display:flex;gap:6px">'
       +   '<div style="flex:1.3;position:relative">'
       +     '<input id="pi-proj-'+i+'" value="'+escapeHtml(it.project||'')+'" oninput="purItemSet('+i+',\'project\',this.value); purItemProjSug('+i+')" onfocus="purItemProjSug('+i+')" onblur="purItemProjHide('+i+')" autocomplete="off" placeholder="پروژه (اگر فرق دارد)" style="'+si+'">'
       +     '<div id="pi-proj-sug-'+i+'" style="display:none;position:absolute;top:100%;right:0;left:0;z-index:50;background:#0e1426;border:1px solid #232742;border-radius:7px;margin-top:3px;max-height:190px;overflow:auto"></div>'
@@ -11505,9 +11532,11 @@ function purInvSubmit(){
   var card = purNormCard(window._piCard||'');
   if(card && card.length!==16){ showToast('شمارهٔ کارت باید ۱۶ رقم باشد'); return; }
   showToast('در حال ثبتِ '+prToFa(items.length)+' قلم...');
+  var itemsOut = items.map(function(it){ var q=+it.qty; if(!(q>0)) q=1;
+    return { title:it.title, project:it.project, qty:q, amount:(it.mode==='unit' ? '' : it.amount), unitPrice:(it.mode==='unit' ? it.amount : '') }; });
   callSheet('purAddInvoice', {
     date:(window._piDate||''), project:(window._piProj||''), reason:(window._piReason||''),
-    cardNumber:card, items: JSON.stringify(items), t:Date.now()
+    cardNumber:card, items: JSON.stringify(itemsOut), t:Date.now()
   }, function(res){
     if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در ثبت'); return; }
     var held = PUR_INV_FILE; PUR_INV_FILE = null;
@@ -12851,8 +12880,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V387 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V387";
+try{ if(window.console) console.log('%c iPrint3D FRONT V388 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V388";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -12889,7 +12918,7 @@ function prPayload(lean){
       pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
     }
   }
-  if(_plKeep){   // V387: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
+  if(_plKeep){   // V388: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
     var cfgK = prCurrentConfig();
     pl.config = { machines:cfgK.machines, materials:cfgK.materials, composites:cfgK.composites, rates:cfgK.rates, defaults:cfgK.defaults };
   }
@@ -12967,7 +12996,7 @@ function pricingReorder(id){
         var dm = dEn.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
         var newDate = dm ? (dm[1]+'/'+('0'+dm[2]).slice(-2)+'/'+('0'+dm[3]).slice(-2)) : today;
         if(!dm && dRaw) showToast('تاریخ نامعتبر بود — امروز گذاشته شد');
-        // V387: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
+        // V388: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
         if(same){
           prSaveLock(true);
           var _lk=document.getElementById('pr-save-lock'); if(_lk){ var _bx=_lk.querySelector('div'); if(_bx) _bx.innerHTML='⏳ در حالِ انتقالِ سفارشِ '+escapeHtml(oldCode)+'…<br><span style="color:#8a93b2;font-size:12px">کپیِ اطلاعات، فاکتور، عکس‌ها و فایل‌ها — چند ثانیه صبر کن.</span>'; }
@@ -13012,7 +13041,7 @@ function pricingReorder(id){
           delete n.invoiceData; delete n.invoiceNo; delete n.createdAt; delete n.savedAt;
           delete n.custody; delete n.custodyReceipts;
           n.reorderFrom = oldCode;                 // ردِ سفارشِ مبدأ برای پیگیری
-          n.reorderFromId = id;                    // V387: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
+          n.reorderFromId = id;                    // V388: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
           if(_sel.cust) n.reorderCustody = true;
           n.dateStr = newDate;                     // ماهِ انتخاب‌شده
           if(same){
@@ -13132,7 +13161,7 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
-var prCompSeq = 0;   // V387: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
+var prCompSeq = 0;   // V388: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
   var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
@@ -13670,7 +13699,7 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
-  // V387: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  // V388: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
   var durBlock = function(){
     try{
       var mb={}, labMin=0, modH=0;
@@ -13691,7 +13720,7 @@ function pricingCopy(){
       if(!any) L.push('• زمانی ثبت نشده');
     }catch(e){}
   };
-  // V387: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
+  // V388: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
   var schedBlock = function(){
     try{
       var sc = o.schedule;
@@ -13905,7 +13934,7 @@ var ivNotes = [
   'خواهشمند است مبلغ فاکتور به شماره کارت ۵۰۴۱۷۲۱۱۱۲۳۳۳۴۸۰ به نام آقای اباذر اخوان بهابادی واریز گردد.',
   'شماره حساب ۱۰.۷۸۴۹۴۷۳.۳ بانک رسالت، شماره شبا IR۲۰۰۷۰۰۰۰۱۰۰۰۱۱۷۸۴۹۴۷۳۰۰۳'
 ];
-var IV_NOTES_DEFAULT = ivNotes.slice();   // V387: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
+var IV_NOTES_DEFAULT = ivNotes.slice();   // V388: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
 function ivRenderNotes(){
   var box=document.getElementById('iv-notes'); if(!box) return;
   box.innerHTML = ivNotes.map(function(t,i){
@@ -14011,7 +14040,7 @@ function ivOpenInvoice(opts){
   ivBuyerEdit = false;
   var _bv = {};
   try{ _bv = ivBuyerValues() || {}; }catch(e){ _bv = {}; }
-  // V387: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
+  // V388: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
   // (نسخهٔ ذخیره‌شدهٔ همین سفارش، اگر باشد، بعداً با ivLoadSavedData رویش می‌نشیند)
   ivNotes = IV_NOTES_DEFAULT.slice();
   ['iv-beco','iv-breg','iv-bfax','iv-baddr','iv-bpost'].forEach(function(k){ _bv[k] = '—'; });
@@ -14600,7 +14629,7 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
-// V387: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+// V388: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
 function prSaveLock(on){
   var id='pr-save-lock', el=document.getElementById(id);
   if(!on){ if(el) el.remove(); return; }
