@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+پ<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -2343,8 +2343,27 @@ function updateBulkBar(){
 }
 
 // ── خروجیِ Excel از کالاهای تیک‌خورده ──
-// کاملاً سمتِ مرورگر (کتابخانهٔ XLSX)؛ هیچ درخواستی به سرور نمی‌رود و
-// هیچ داده‌ای تغییر نمی‌کند — فقط از آرایهٔ items که در حافظه است می‌خواند.
+// کاملاً سمتِ مرورگر؛ هیچ درخواستی به سرور نمی‌رود و هیچ داده‌ای تغییر نمی‌کند —
+// فقط از آرایهٔ items و BATCHES که در حافظه است می‌خواند.
+// V395: رنگ‌بندی (نسخهٔ استایل‌دارِ SheetJS فقط برای همین خروجی بار می‌شود)، ستون‌های زیردسته از خودِ کالا،
+// ستون‌های کاملاً خالی حذف می‌شوند، وضعیتِ موجودی رنگی، جمعِ هر واحد، و شیتِ جدای بچ‌ها.
+var XLSX_STYLED = null;
+function loadStyledXlsx(cb){
+  if(XLSX_STYLED){ cb(XLSX_STYLED); return; }
+  var orig = window.XLSX, done = false;
+  var sc = document.createElement('script');
+  sc.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+  function fin(ok){
+    if(done) return; done = true;
+    if(ok && window.XLSX && window.XLSX !== orig){ XLSX_STYLED = window.XLSX; }
+    if(orig) window.XLSX = orig;               // XLSXِ اصلیِ صفحه برای بقیهٔ بخش‌ها دست‌نخورده می‌ماند
+    cb(XLSX_STYLED || orig || null);
+  }
+  sc.onload = function(){ fin(true); };
+  sc.onerror = function(){ fin(false); };
+  setTimeout(function(){ fin(false); }, 8000);
+  document.head.appendChild(sc);
+}
 function exportSelectedItemsToExcel(){
   var checked = document.querySelectorAll('.item-cb:checked');
   if(!checked.length){ showToast('اول چند کالا را تیک بزن'); return; }
@@ -2352,79 +2371,134 @@ function exportSelectedItemsToExcel(){
   Array.prototype.forEach.call(checked, function(c){ ids[String(c.value)] = 1; });
   var rows = (items||[]).filter(function(i){ return ids[String(i.id)]; });
   if(!rows.length){ showToast('کالای انتخاب‌شده پیدا نشد'); return; }
-
+  showToast('⏳ در حالِ ساختِ اکسل…');
+  loadStyledXlsx(function(X){ buildItemsXlsx_(X, rows); });
+}
+function buildItemsXlsx_(X, rows){
   function unitOf(i){
     var u = String(i.unit||'').trim();
-    if(u) return u;
-    return (String(i.weighted)==='true' || i.weighted===true) ? 'گرم' : '';
+    if(u && u!=='عدد') return u;
+    if(String(i.weighted)==='true' || i.weighted===true) return 'گرم';
+    return u || 'عدد';
   }
   function qtyOf(i){
-    var q = parseFloat(i.qty||0)||0;
-    var u = unitOf(i);
-    // نمایشِ خوانا: زیر ۱۰۰۰ گرم → گرم، بالاتر → کیلوگرم (بدونِ تغییرِ دادهٔ اصلی)
-    if(u === 'گرم' && q >= 1000) return { n: (q/1000), u: 'کیلوگرم' };
-    return { n: q, u: u };
+    var q = parseFloat(i.qty||0)||0, u = unitOf(i);
+    if(u === 'گرم' && q >= 1000) return { n: Math.round(q)/1000, u: 'کیلوگرم' };
+    return { n: Math.round(q*1000)/1000, u: u };
   }
+  function subsOf(i){ var sc=[]; try{ sc = JSON.parse(i.subcats||'[]'); }catch(e){} return (sc||[]).filter(function(x){ return x && x.k && x.k!=='__batched__' && String(x.v||'').trim(); }); }
+  function bOf(i){ return (typeof BATCHES!=='undefined' && BATCHES) ? BATCHES.filter(function(b){ return String(b.itemId)===String(i.id); }) : []; }
+  function stockState(i){
+    var q = parseFloat(i.qty||0)||0, m = parseFloat(i.minQty||0)||0;
+    if(q <= 0) return { t:'تمام شده', c:'F8D7DA', f:'9B1C1C' };
+    if(m > 0 && q <= m) return { t:'کم', c:'FFF3CD', f:'8A5A00' };
+    return { t:'کافی', c:'D4EDDA', f:'1E6B3A' };
+  }
+  // ستون‌های زیردسته به ترتیبِ اولین دیده‌شدن (برند، نوع، رنگ، …)
+  var subKeys = [];
+  rows.forEach(function(i){ subsOf(i).forEach(function(x){ if(subKeys.indexOf(x.k) < 0) subKeys.push(x.k); }); });
 
-  var headers = ['ردیف','کد','نام کالا','دسته','برند','مدل','رنگ','موجودی','واحد','وضعیت','تعداد بچ','حداقل موجودی','محل','قفسه','بارکد','توضیحات'];
-  var aoa = [
-    ['گزارشِ موجودیِ کالاهای انتخابی'],
-    ['تاریخ: ' + new Date().toLocaleDateString('fa-IR') + '   |   ' + rows.length + ' کالا'],
-    [],
-    headers
+  var cols = [
+    { h:'ردیف',  w:6,  v:function(i,ix){ return ix+1; }, num:true },
+    { h:'کد',    w:12, v:function(i){ return i.code || ''; } },
+    { h:'نام کالا', w:36, v:function(i){ return i.name || ''; }, bold:true },
+    { h:'دسته',  w:12, v:function(i){ return i.cat || ''; } }
   ];
-  rows.forEach(function(i, idx){
-    var q = qtyOf(i);
-    aoa.push([
-      idx+1,
-      i.code || i.id || '',
-      i.name || '',
-      i.cat || '',
-      i.brand || '',
-      i.model || '',
-      i.color || '',
-      q.n,
-      q.u,
-      i.status || '',
-      (parseInt(i.batchCount||0)||0) || '',
-      (parseFloat(i.minQty||0)||0) || '',
-      i.location || '',
-      i.shelf || '',
-      i.barcode || '',
-      i.note || i.desc || ''
-    ]);
-  });
+  subKeys.forEach(function(k){ cols.push({ h:k, w:Math.max(12, Math.min(22, k.length+8)), v:function(i){ var f=subsOf(i).filter(function(x){ return x.k===k; })[0]; return f ? String(f.v) : ''; } }); });
+  cols = cols.concat([
+    { h:'موجودی', w:11, v:function(i){ return qtyOf(i).n; }, num:true, qty:true },
+    { h:'واحد',   w:10, v:function(i){ return qtyOf(i).u; } },
+    { h:'حداقل موجودی', w:12, v:function(i){ var m=parseFloat(i.minQty||0)||0; return m ? m : ''; }, num:true },
+    { h:'وضعیتِ موجودی', w:13, v:function(i){ return stockState(i).t; }, state:true },
+    { h:'تعداد بچ', w:9, v:function(i){ var n=bOf(i).length; return n ? n : ''; }, num:true },
+    { h:'بچ‌ها (کد: مقدار)', w:34, v:function(i){ var u=qtyOf(i).u; return bOf(i).map(function(b){ return (b.batchCode||'—')+': '+(Math.round((parseFloat(b.qty)||0)*1000)/1000); }).join(' ، '); } },
+    { h:'محل (قفسه / ردیف)', w:16, v:function(i){ var s=String(i.shelf||'').trim(), r=String(i.row||'').trim(); if(s==='-') s=''; if(r==='-') r=''; return (s||r) ? ((s?('قفسه '+s):'')+(s&&r?' / ':'')+(r?('ردیف '+r):'')) : ''; } },
+    { h:'وضعیتِ کالا', w:10, v:function(i){ return i.status || ''; } },
+    { h:'تاریخ ثبت', w:12, v:function(i){ return String(i.date||'').split(',')[0].trim(); } },
+    { h:'بارکد',  w:16, v:function(i){ return i.barcode || ''; } },
+    { h:'توضیحات', w:30, v:function(i){ var d=String(i.desc||i.note||'').trim(); return (d && d!==String(i.name||'').trim()) ? d : ''; } }
+  ]);
+  // ستون‌هایی که برای همهٔ کالاهای انتخابی خالی‌اند حذف می‌شوند (ستونِ ردیف/کد/نام/موجودی همیشه می‌ماند)
+  cols = cols.filter(function(c){ if(c.h==='ردیف'||c.h==='کد'||c.h==='نام کالا'||c.h==='موجودی'||c.h==='وضعیتِ موجودی') return true;
+    return rows.some(function(i,ix){ var v=c.v(i,ix); return v!=='' && v!=null; }); });
 
-  if(typeof XLSX === 'undefined'){
-    var csv = '\ufeff' + headers.join(',') + '\n';
-    aoa.slice(4).forEach(function(r){
-      csv += r.map(function(v){ return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'; }).join(',')+'\n';
-    });
-    var blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href=url; a.download='موجودی_انتخابی.csv'; a.click();
-    URL.revokeObjectURL(url);
-    showToast('✅ فایل CSV دانلود شد');
-    return;
+  var NC = cols.length;
+  var today = new Date().toLocaleDateString('fa-IR');
+  var aoa = [ ['گزارشِ موجودیِ کالاهای انتخابی — iPrint3D'], ['تاریخ: '+today+'   ·   '+prToFa(rows.length)+' کالا'], cols.map(function(c){ return c.h; }) ];
+  rows.forEach(function(i, ix){ aoa.push(cols.map(function(c){ return c.v(i, ix); })); });
+  // جمعِ موجودی به تفکیکِ واحد
+  var sums = {}; rows.forEach(function(i){ var q=qtyOf(i); sums[q.u] = (sums[q.u]||0) + q.n; });
+  var sumTxt = Object.keys(sums).map(function(u){ return (Math.round(sums[u]*1000)/1000)+' '+u; }).join('   ·   ');
+  var low = rows.filter(function(i){ return stockState(i).t!=='کافی'; }).length;
+  aoa.push([]);
+  aoa.push(['جمعِ موجودی: '+sumTxt + (low ? ('   ·   ⚠️ '+low+' کالا کم یا تمام') : '')]);
+
+  if(!X){ showToast('کتابخانهٔ اکسل بار نشد'); return; }
+  var ws = X.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = cols.map(function(c){ return { wch:c.w }; });
+  var lastR = aoa.length-1;
+  ws['!merges'] = [ {s:{r:0,c:0},e:{r:0,c:NC-1}}, {s:{r:1,c:0},e:{r:1,c:NC-1}}, {s:{r:lastR,c:0},e:{r:lastR,c:NC-1}} ];
+  ws['!rows'] = [ {hpt:28}, {hpt:18}, {hpt:24} ];
+  ws['!autofilter'] = { ref: X.utils.encode_range({ s:{r:2,c:0}, e:{r:2+rows.length, c:NC-1} }) };
+  ws['!freeze'] = { xSplit:0, ySplit:3 };
+  var B = { style:'thin', color:{ rgb:'C9CDF2' } }, border = { top:B, bottom:B, left:B, right:B };
+  function set(r,c,st){ var ref=X.utils.encode_cell({r:r,c:c}); if(!ws[ref]) ws[ref]={t:'s',v:''}; ws[ref].s=st; }
+  var font = 'Tahoma';
+  for(var c=0;c<NC;c++){
+    set(0,c,{ font:{ name:font, bold:true, sz:14, color:{rgb:'FFFFFF'} }, fill:{ fgColor:{rgb:'1E2A5A'} }, alignment:{ horizontal:'center', vertical:'center', readingOrder:2 } });
+    set(1,c,{ font:{ name:font, sz:10, color:{rgb:'3A3F86'} }, fill:{ fgColor:{rgb:'E8EAFB'} }, alignment:{ horizontal:'center', readingOrder:2 } });
+    set(2,c,{ font:{ name:font, bold:true, sz:11, color:{rgb:'FFFFFF'} }, fill:{ fgColor:{rgb:'3A4A8A'} }, alignment:{ horizontal:'center', vertical:'center', wrapText:true, readingOrder:2 }, border:border });
   }
+  rows.forEach(function(i, ix){
+    var r = 3+ix, zebra = (ix%2) ? 'F5F6FC' : 'FFFFFF', stt = stockState(i);
+    cols.forEach(function(col, c){
+      var st = { font:{ name:font, sz:10.5 }, fill:{ fgColor:{rgb:zebra} }, alignment:{ horizontal:(col.num?'center':'right'), vertical:'center', wrapText:true, readingOrder:2 }, border:border };
+      if(col.bold) st.font.bold = true;
+      if(col.h==='کد') st.font.color = { rgb:'3A4A8A' };
+      if(col.qty){ st.font.bold = true; st.font.sz = 11.5; st.font.color = { rgb: stt.f }; st.numFmt = '#,##0.###'; }
+      if(col.state){ st.fill = { fgColor:{rgb:stt.c} }; st.font.color = { rgb:stt.f }; st.font.bold = true; st.alignment.horizontal = 'center'; }
+      set(r, c, st);
+    });
+  });
+  for(var c2=0;c2<NC;c2++) set(lastR, c2, { font:{ name:font, bold:true, sz:11, color:{rgb:'1E2A5A'} }, fill:{ fgColor:{rgb:'FFE8C2'} }, alignment:{ horizontal:'right', readingOrder:2 }, border:border });
 
-  var ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:6},{wch:13},{wch:34},{wch:14},{wch:14},{wch:18},{wch:12},
-                 {wch:11},{wch:11},{wch:10},{wch:9},{wch:12},{wch:14},{wch:10},{wch:16},{wch:26}];
-  ws['!merges'] = [ {s:{r:0,c:0},e:{r:0,c:15}}, {s:{r:1,c:0},e:{r:1,c:15}} ];
-  try{
-    if(ws['A1']) ws['A1'].s = { font:{ bold:true, sz:14 }, alignment:{ horizontal:'center' } };
-    if(ws['A2']) ws['A2'].s = { font:{ sz:10, color:{rgb:'666666'} }, alignment:{ horizontal:'center' } };
-    for(var c=0;c<headers.length;c++){
-      var ref = XLSX.utils.encode_cell({r:3,c:c});
-      if(ws[ref]) ws[ref].s = { font:{ bold:true, color:{rgb:'FFFFFF'} }, fill:{ fgColor:{rgb:'1E2235'} } };
-    }
-  }catch(e){}
-  var wb = XLSX.utils.book_new();
+  var wb = X.utils.book_new();
   wb.Workbook = { Views:[{ RTL:true }] };
-  XLSX.utils.book_append_sheet(wb, ws, 'موجودی');
+  X.utils.book_append_sheet(wb, ws, 'موجودی');
+
+  // شیتِ دوم: ریزِ بچ‌ها (فقط اگر کالاهای انتخابی بچ دارند)
+  var bRows = []; rows.forEach(function(i){ bOf(i).forEach(function(b){ bRows.push({ i:i, b:b }); }); });
+  if(bRows.length){
+    var bh = ['کد کالا','نام کالا','کد بچ','نام بچ','مقدار','واحد','تاریخ ورود','انقضا','روزِ مانده'];
+    var baoa = [ ['ریزِ بچ‌های کالاهای انتخابی'], bh ];
+    var nowTs = Date.now();
+    bRows.forEach(function(x){
+      var exp = x.b.expiry ? smartDateBoth(x.b.expiry) : null, days = '';
+      if(exp){ try{ var g = exp.milady.split('/').map(Number); days = Math.ceil((new Date(g[0], g[1]-1, g[2]).getTime() - nowTs)/86400000); }catch(e){} }
+      var ent = (x.b.entryDate && String(x.b.entryDate).trim()) ? String(x.b.entryDate).trim() : String(x.b.date||'').split(',')[0].trim();
+      baoa.push([ x.i.code||'', x.i.name||'', x.b.batchCode||'', x.b.batchName||'', Math.round((parseFloat(x.b.qty)||0)*1000)/1000, unitOf(x.i), ent, exp?exp.shamsi:'', days ]);
+    });
+    var bws = X.utils.aoa_to_sheet(baoa);
+    bws['!cols'] = [{wch:12},{wch:32},{wch:14},{wch:26},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10}];
+    bws['!merges'] = [ {s:{r:0,c:0},e:{r:0,c:bh.length-1}} ];
+    for(var c3=0;c3<bh.length;c3++){
+      var r0 = X.utils.encode_cell({r:0,c:c3}); if(!bws[r0]) bws[r0]={t:'s',v:''}; bws[r0].s = { font:{ name:font, bold:true, sz:13, color:{rgb:'FFFFFF'} }, fill:{ fgColor:{rgb:'1E2A5A'} }, alignment:{ horizontal:'center', readingOrder:2 } };
+      var r1 = X.utils.encode_cell({r:1,c:c3}); bws[r1].s = { font:{ name:font, bold:true, color:{rgb:'FFFFFF'} }, fill:{ fgColor:{rgb:'3A4A8A'} }, alignment:{ horizontal:'center', readingOrder:2 }, border:border };
+    }
+    bRows.forEach(function(x, ix){
+      var rr = 2+ix, zb = (ix%2) ? 'F5F6FC' : 'FFFFFF', dv = baoa[rr][8];
+      for(var c4=0;c4<bh.length;c4++){
+        var ref4 = X.utils.encode_cell({r:rr,c:c4}); if(!bws[ref4]) bws[ref4]={t:'s',v:''};
+        var st4 = { font:{ name:font, sz:10.5 }, fill:{ fgColor:{rgb:zb} }, alignment:{ horizontal:(c4>=4?'center':'right'), readingOrder:2 }, border:border };
+        if(c4===4) st4.font.bold = true;
+        if(c4===8 && dv!==''){ var bad = dv<0, warn = dv>=0 && dv<=30; st4.fill = { fgColor:{rgb: bad?'F8D7DA':(warn?'FFF3CD':'D4EDDA')} }; st4.font.color = { rgb: bad?'9B1C1C':(warn?'8A5A00':'1E6B3A') }; st4.font.bold = true; }
+        bws[ref4].s = st4;
+      }
+    });
+    X.utils.book_append_sheet(wb, bws, 'بچ‌ها');
+  }
   var fname = 'موجودی_انتخابی_' + new Date().toLocaleDateString('fa-IR').replace(/\//g,'-') + '.xlsx';
-  XLSX.writeFile(wb, fname);
+  X.writeFile(wb, fname, { cellStyles:true });
   showToast('✅ خروجیِ ' + prToFa(rows.length) + ' کالا دانلود شد');
 }
 
@@ -3116,7 +3190,7 @@ function saveEdit(id){
   const desc=document.getElementById('edit-desc').value.trim();
   const shelf=document.getElementById('edit-shelf').value.trim().toUpperCase();
   const row=document.getElementById('edit-row').value.trim();
-  // V394: parseFloat (قبلاً parseInt بود و موجودیِ اعشاری مثل ۴۴٫۹۱ کیلو هنگامِ ذخیره به ۴۴ بریده می‌شد)
+  // V395: parseFloat (قبلاً parseInt بود و موجودیِ اعشاری مثل ۴۴٫۹۱ کیلو هنگامِ ذخیره به ۴۴ بریده می‌شد)
   const qty=Math.round((parseFloat(String(document.getElementById('edit-qty').value).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}))||0)*1000)/1000;
   const minQty=Math.round((parseFloat(String(document.getElementById('edit-min').value).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}))||0)*1000)/1000;
   // تاریخِ ورود (فقط ادمین، کالای بدونِ بچ) — اگر عوض شده
@@ -3903,7 +3977,7 @@ function virtualEntryRecords(){
       });
     });
     // کالاهای بدونِ بچ: از تاریخِ ثبتِ خودِ کالا رکوردِ ورود ساخته می‌شود
-    // V394: ورودهای ثبت‌شده از موجودیِ فعلی کم می‌شوند تا دوباره‌شماری نشود
+    // V395: ورودهای ثبت‌شده از موجودیِ فعلی کم می‌شوند تا دوباره‌شماری نشود
     // (قبلاً اگر حتی یک ورودِ ثبت‌شده داشت، ورودِ اولیه کلاً حذف می‌شد)
     var loggedIn = {};
     (USAGE_LOG||[]).forEach(function(r){ var c=(parseFloat(r.change||'0')||0); if(c > 0 && r.itemId) loggedIn[String(r.itemId)] = (loggedIn[String(r.itemId)]||0) + c; });
@@ -4142,7 +4216,7 @@ function undoUsageLogEntry(idx){
       if(typeof loadFromSheet==='function') loadFromSheet();
       if(typeof loadBatches==='function') loadBatches();
     } else if(!res || res.error){
-      // V394: پاسخ دیر رسید (کار روی سرور معمولاً انجام شده) — دوباره نزن؛ داده‌ها را از سرور تازه بخوان
+      // V395: پاسخ دیر رسید (کار روی سرور معمولاً انجام شده) — دوباره نزن؛ داده‌ها را از سرور تازه بخوان
       showToast('⏳ پاسخِ سرور دیر رسید — در حالِ خواندنِ دوبارهٔ موجودی… دوباره «بازگرداندن» را نزن');
       loadUsageReport();
       if(typeof loadFromSheet==='function') loadFromSheet();
@@ -4299,7 +4373,7 @@ function changeQty(id,dir){
     // اگر کالا بچِ واقعی دارد، افزایش هم باید به یک بچِ مشخص برود — وگرنه موجودیِ کالا
     // با جمعِ بچ‌ها اختلاف پیدا می‌کند (همان باگِ «موجودیِ دوتایی»، این‌بار در جهتِ افزایش).
     var _bsAdd = batchesOf(id);
-    if(currentUser && currentUser.role==='admin'){   // V394: ادمین همیشه فرمِ کامل (با تاریخ و دلیل)، با بچ یا بدونِ بچ
+    if(currentUser && currentUser.role==='admin'){   // V395: ادمین همیشه فرمِ کامل (با تاریخ و دلیل)، با بچ یا بدونِ بچ
       openAddQtyModal(id);
       return;
     }
@@ -4377,7 +4451,7 @@ function confirmAddQty(id){
   var batchSel = document.getElementById('consume-batch');
   if(!batchSel){
     if(batchesOf(id).length){ showToast('انتخابِ بچ نیامد — صفحه را یک بار بروزرسانی کن'); return; }
-    // V394: کالای بدونِ بچ — موجودیِ خودِ کالا زیاد می‌شود و ورود (با تاریخ) در گزارش ثبت می‌شود
+    // V395: کالای بدونِ بچ — موجودیِ خودِ کالا زیاد می‌شود و ورود (با تاریخ) در گزارش ثبت می‌شود
     var _u0 = (item.unit && item.unit!=='عدد') ? item.unit : '';
     closeAddQty();
     applyQtyChange(id, 1, amt, reason, '', '');
@@ -4546,7 +4620,7 @@ function pickProject(label){
   document.getElementById('consume-project-suggest').innerHTML='';
 }
 // افزودن یک خط مصرف به یادداشت قبلی بچ (با حفظ تاریخچه)
-// V394: تاریخِ دلخواه برای ثبتِ مصرف (مثلاً فروشی که دیرتر یادت آمد)
+// V395: تاریخِ دلخواه برای ثبتِ مصرف (مثلاً فروشی که دیرتر یادت آمد)
 function previewConsumeDate(){
   var inp=document.getElementById('consume-date'), prev=document.getElementById('consume-date-preview'); if(!inp||!prev) return;
   var v=String(inp.value||'').replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}).trim();
@@ -10983,7 +11057,7 @@ function purForm(existing){
   var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
   window._puDate  = e.date || today;
   window._puTitle = e.title || '';
-  // V394: تعداد + قیمتِ هر عدد یا جمع
+  // V395: تعداد + قیمتِ هر عدد یا جمع
   window._puQty   = (e.qty && +e.qty>0) ? String(e.qty) : '1';
   window._puMode  = (!e.id || (e.qty && +e.qty>1)) ? 'unit' : 'total';
   window._puAmt   = (window._puMode==='unit') ? (e.unitPrice ? String(Math.round(+e.unitPrice)) : '') : (e.amount ? String(e.amount) : '');
@@ -11205,7 +11279,7 @@ function purWireForm(){
   purSug('pu-code',   'orderCodes', '_puCode');
 }
 // پیشنهادِ هم‌تم — فقط وقتی کاربر تایپ کرده باشد
-// V394: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
+// V395: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
 function purSugNorm(s){ return String(s==null?'':s).replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[\u200c\u200f\u200e]/g,' ').replace(/\s+/g,' ').trim().toLowerCase(); }
 function purSugList(key){
   var S = PUR_SUG || {};
@@ -12982,8 +13056,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V394 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V394";
+try{ if(window.console) console.log('%c iPrint3D FRONT V395 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V395";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -13020,7 +13094,7 @@ function prPayload(lean){
       pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
     }
   }
-  if(_plKeep){   // V394: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
+  if(_plKeep){   // V395: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
     var cfgK = prCurrentConfig();
     pl.config = { machines:cfgK.machines, materials:cfgK.materials, composites:cfgK.composites, rates:cfgK.rates, defaults:cfgK.defaults };
   }
@@ -13098,7 +13172,7 @@ function pricingReorder(id){
         var dm = dEn.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
         var newDate = dm ? (dm[1]+'/'+('0'+dm[2]).slice(-2)+'/'+('0'+dm[3]).slice(-2)) : today;
         if(!dm && dRaw) showToast('تاریخ نامعتبر بود — امروز گذاشته شد');
-        // V394: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
+        // V395: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
         if(same){
           prSaveLock(true);
           var _lk=document.getElementById('pr-save-lock'); if(_lk){ var _bx=_lk.querySelector('div'); if(_bx) _bx.innerHTML='⏳ در حالِ انتقالِ سفارشِ '+escapeHtml(oldCode)+'…<br><span style="color:#8a93b2;font-size:12px">کپیِ اطلاعات، فاکتور، عکس‌ها و فایل‌ها — چند ثانیه صبر کن.</span>'; }
@@ -13143,7 +13217,7 @@ function pricingReorder(id){
           delete n.invoiceData; delete n.invoiceNo; delete n.createdAt; delete n.savedAt;
           delete n.custody; delete n.custodyReceipts;
           n.reorderFrom = oldCode;                 // ردِ سفارشِ مبدأ برای پیگیری
-          n.reorderFromId = id;                    // V394: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
+          n.reorderFromId = id;                    // V395: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
           if(_sel.cust) n.reorderCustody = true;
           n.dateStr = newDate;                     // ماهِ انتخاب‌شده
           if(same){
@@ -13263,7 +13337,7 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
-var prCompSeq = 0;   // V394: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
+var prCompSeq = 0;   // V395: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
   var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
@@ -13801,7 +13875,7 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
-  // V394: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  // V395: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
   var durBlock = function(){
     try{
       var mb={}, labMin=0, modH=0;
@@ -13822,7 +13896,7 @@ function pricingCopy(){
       if(!any) L.push('• زمانی ثبت نشده');
     }catch(e){}
   };
-  // V394: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
+  // V395: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
   var schedBlock = function(){
     try{
       var sc = o.schedule;
@@ -14036,7 +14110,7 @@ var ivNotes = [
   'خواهشمند است مبلغ فاکتور به شماره کارت ۵۰۴۱۷۲۱۱۱۲۳۳۳۴۸۰ به نام آقای اباذر اخوان بهابادی واریز گردد.',
   'شماره حساب ۱۰.۷۸۴۹۴۷۳.۳ بانک رسالت، شماره شبا IR۲۰۰۷۰۰۰۰۱۰۰۰۱۱۷۸۴۹۴۷۳۰۰۳'
 ];
-var IV_NOTES_DEFAULT = ivNotes.slice();   // V394: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
+var IV_NOTES_DEFAULT = ivNotes.slice();   // V395: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
 function ivRenderNotes(){
   var box=document.getElementById('iv-notes'); if(!box) return;
   box.innerHTML = ivNotes.map(function(t,i){
@@ -14142,7 +14216,7 @@ function ivOpenInvoice(opts){
   ivBuyerEdit = false;
   var _bv = {};
   try{ _bv = ivBuyerValues() || {}; }catch(e){ _bv = {}; }
-  // V394: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
+  // V395: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
   // (نسخهٔ ذخیره‌شدهٔ همین سفارش، اگر باشد، بعداً با ivLoadSavedData رویش می‌نشیند)
   ivNotes = IV_NOTES_DEFAULT.slice();
   ['iv-beco','iv-breg','iv-bfax','iv-baddr','iv-bpost'].forEach(function(k){ _bv[k] = '—'; });
@@ -14731,7 +14805,7 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
-// V394: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+// V395: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
 function prSaveLock(on){
   var id='pr-save-lock', el=document.getElementById(id);
   if(!on){ if(el) el.remove(); return; }
