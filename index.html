@@ -3116,7 +3116,7 @@ function saveEdit(id){
   const desc=document.getElementById('edit-desc').value.trim();
   const shelf=document.getElementById('edit-shelf').value.trim().toUpperCase();
   const row=document.getElementById('edit-row').value.trim();
-  // V393: parseFloat (قبلاً parseInt بود و موجودیِ اعشاری مثل ۴۴٫۹۱ کیلو هنگامِ ذخیره به ۴۴ بریده می‌شد)
+  // V394: parseFloat (قبلاً parseInt بود و موجودیِ اعشاری مثل ۴۴٫۹۱ کیلو هنگامِ ذخیره به ۴۴ بریده می‌شد)
   const qty=Math.round((parseFloat(String(document.getElementById('edit-qty').value).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}))||0)*1000)/1000;
   const minQty=Math.round((parseFloat(String(document.getElementById('edit-min').value).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}))||0)*1000)/1000;
   // تاریخِ ورود (فقط ادمین، کالای بدونِ بچ) — اگر عوض شده
@@ -3903,7 +3903,7 @@ function virtualEntryRecords(){
       });
     });
     // کالاهای بدونِ بچ: از تاریخِ ثبتِ خودِ کالا رکوردِ ورود ساخته می‌شود
-    // V393: ورودهای ثبت‌شده از موجودیِ فعلی کم می‌شوند تا دوباره‌شماری نشود
+    // V394: ورودهای ثبت‌شده از موجودیِ فعلی کم می‌شوند تا دوباره‌شماری نشود
     // (قبلاً اگر حتی یک ورودِ ثبت‌شده داشت، ورودِ اولیه کلاً حذف می‌شد)
     var loggedIn = {};
     (USAGE_LOG||[]).forEach(function(r){ var c=(parseFloat(r.change||'0')||0); if(c > 0 && r.itemId) loggedIn[String(r.itemId)] = (loggedIn[String(r.itemId)]||0) + c; });
@@ -4110,10 +4110,12 @@ function deleteUsageLogEntry(idx){
     if(res && res.status==='ok'){
       showToast('🗑️ گزارش حذف شد');
       loadUsageReport(); // بارگذاری مجدد از شیت
+    } else if(!res || res.error){
+      showToast('⏳ پاسخِ سرور دیر رسید — گزارش دوباره خوانده می‌شود؛ دوباره حذف نزن'); loadUsageReport();
     } else {
       showToast('❌ خطا: ' + (res && res.message ? res.message : 'نامشخص'));
     }
-  });
+  }, 60000);
 }
 // حذفِ گزارش **همراه با بازگرداندنِ موجودی** — برای وقتی اشتباهی مصرف/ورود ثبت شده
 function undoUsageLogEntry(idx){
@@ -4139,10 +4141,16 @@ function undoUsageLogEntry(idx){
       loadUsageReport();
       if(typeof loadFromSheet==='function') loadFromSheet();
       if(typeof loadBatches==='function') loadBatches();
+    } else if(!res || res.error){
+      // V394: پاسخ دیر رسید (کار روی سرور معمولاً انجام شده) — دوباره نزن؛ داده‌ها را از سرور تازه بخوان
+      showToast('⏳ پاسخِ سرور دیر رسید — در حالِ خواندنِ دوبارهٔ موجودی… دوباره «بازگرداندن» را نزن');
+      loadUsageReport();
+      if(typeof loadFromSheet==='function') loadFromSheet();
+      if(typeof loadBatches==='function') loadBatches();
     } else {
       showToast('❌ خطا: ' + (res && res.message ? res.message : 'نامشخص'));
     }
-  });
+  }, 90000);
 }
 // انتخاب همه
 function toggleSelectAllUsage(){
@@ -4291,7 +4299,7 @@ function changeQty(id,dir){
     // اگر کالا بچِ واقعی دارد، افزایش هم باید به یک بچِ مشخص برود — وگرنه موجودیِ کالا
     // با جمعِ بچ‌ها اختلاف پیدا می‌کند (همان باگِ «موجودیِ دوتایی»، این‌بار در جهتِ افزایش).
     var _bsAdd = batchesOf(id);
-    if(currentUser && currentUser.role==='admin'){   // V393: ادمین همیشه فرمِ کامل (با تاریخ و دلیل)، با بچ یا بدونِ بچ
+    if(currentUser && currentUser.role==='admin'){   // V394: ادمین همیشه فرمِ کامل (با تاریخ و دلیل)، با بچ یا بدونِ بچ
       openAddQtyModal(id);
       return;
     }
@@ -4369,7 +4377,7 @@ function confirmAddQty(id){
   var batchSel = document.getElementById('consume-batch');
   if(!batchSel){
     if(batchesOf(id).length){ showToast('انتخابِ بچ نیامد — صفحه را یک بار بروزرسانی کن'); return; }
-    // V393: کالای بدونِ بچ — موجودیِ خودِ کالا زیاد می‌شود و ورود (با تاریخ) در گزارش ثبت می‌شود
+    // V394: کالای بدونِ بچ — موجودیِ خودِ کالا زیاد می‌شود و ورود (با تاریخ) در گزارش ثبت می‌شود
     var _u0 = (item.unit && item.unit!=='عدد') ? item.unit : '';
     closeAddQty();
     applyQtyChange(id, 1, amt, reason, '', '');
@@ -4538,7 +4546,7 @@ function pickProject(label){
   document.getElementById('consume-project-suggest').innerHTML='';
 }
 // افزودن یک خط مصرف به یادداشت قبلی بچ (با حفظ تاریخچه)
-// V393: تاریخِ دلخواه برای ثبتِ مصرف (مثلاً فروشی که دیرتر یادت آمد)
+// V394: تاریخِ دلخواه برای ثبتِ مصرف (مثلاً فروشی که دیرتر یادت آمد)
 function previewConsumeDate(){
   var inp=document.getElementById('consume-date'), prev=document.getElementById('consume-date-preview'); if(!inp||!prev) return;
   var v=String(inp.value||'').replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}).trim();
@@ -10975,7 +10983,7 @@ function purForm(existing){
   var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
   window._puDate  = e.date || today;
   window._puTitle = e.title || '';
-  // V393: تعداد + قیمتِ هر عدد یا جمع
+  // V394: تعداد + قیمتِ هر عدد یا جمع
   window._puQty   = (e.qty && +e.qty>0) ? String(e.qty) : '1';
   window._puMode  = (!e.id || (e.qty && +e.qty>1)) ? 'unit' : 'total';
   window._puAmt   = (window._puMode==='unit') ? (e.unitPrice ? String(Math.round(+e.unitPrice)) : '') : (e.amount ? String(e.amount) : '');
@@ -11197,7 +11205,7 @@ function purWireForm(){
   purSug('pu-code',   'orderCodes', '_puCode');
 }
 // پیشنهادِ هم‌تم — فقط وقتی کاربر تایپ کرده باشد
-// V393: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
+// V394: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
 function purSugNorm(s){ return String(s==null?'':s).replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[\u200c\u200f\u200e]/g,' ').replace(/\s+/g,' ').trim().toLowerCase(); }
 function purSugList(key){
   var S = PUR_SUG || {};
@@ -12974,8 +12982,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V393 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V393";
+try{ if(window.console) console.log('%c iPrint3D FRONT V394 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V394";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -13012,7 +13020,7 @@ function prPayload(lean){
       pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
     }
   }
-  if(_plKeep){   // V393: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
+  if(_plKeep){   // V394: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
     var cfgK = prCurrentConfig();
     pl.config = { machines:cfgK.machines, materials:cfgK.materials, composites:cfgK.composites, rates:cfgK.rates, defaults:cfgK.defaults };
   }
@@ -13090,7 +13098,7 @@ function pricingReorder(id){
         var dm = dEn.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
         var newDate = dm ? (dm[1]+'/'+('0'+dm[2]).slice(-2)+'/'+('0'+dm[3]).slice(-2)) : today;
         if(!dm && dRaw) showToast('تاریخ نامعتبر بود — امروز گذاشته شد');
-        // V393: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
+        // V394: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
         if(same){
           prSaveLock(true);
           var _lk=document.getElementById('pr-save-lock'); if(_lk){ var _bx=_lk.querySelector('div'); if(_bx) _bx.innerHTML='⏳ در حالِ انتقالِ سفارشِ '+escapeHtml(oldCode)+'…<br><span style="color:#8a93b2;font-size:12px">کپیِ اطلاعات، فاکتور، عکس‌ها و فایل‌ها — چند ثانیه صبر کن.</span>'; }
@@ -13135,7 +13143,7 @@ function pricingReorder(id){
           delete n.invoiceData; delete n.invoiceNo; delete n.createdAt; delete n.savedAt;
           delete n.custody; delete n.custodyReceipts;
           n.reorderFrom = oldCode;                 // ردِ سفارشِ مبدأ برای پیگیری
-          n.reorderFromId = id;                    // V393: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
+          n.reorderFromId = id;                    // V394: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
           if(_sel.cust) n.reorderCustody = true;
           n.dateStr = newDate;                     // ماهِ انتخاب‌شده
           if(same){
@@ -13255,7 +13263,7 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
-var prCompSeq = 0;   // V393: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
+var prCompSeq = 0;   // V394: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
   var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
@@ -13793,7 +13801,7 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
-  // V393: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  // V394: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
   var durBlock = function(){
     try{
       var mb={}, labMin=0, modH=0;
@@ -13814,7 +13822,7 @@ function pricingCopy(){
       if(!any) L.push('• زمانی ثبت نشده');
     }catch(e){}
   };
-  // V393: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
+  // V394: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
   var schedBlock = function(){
     try{
       var sc = o.schedule;
@@ -14028,7 +14036,7 @@ var ivNotes = [
   'خواهشمند است مبلغ فاکتور به شماره کارت ۵۰۴۱۷۲۱۱۱۲۳۳۳۴۸۰ به نام آقای اباذر اخوان بهابادی واریز گردد.',
   'شماره حساب ۱۰.۷۸۴۹۴۷۳.۳ بانک رسالت، شماره شبا IR۲۰۰۷۰۰۰۰۱۰۰۰۱۱۷۸۴۹۴۷۳۰۰۳'
 ];
-var IV_NOTES_DEFAULT = ivNotes.slice();   // V393: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
+var IV_NOTES_DEFAULT = ivNotes.slice();   // V394: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
 function ivRenderNotes(){
   var box=document.getElementById('iv-notes'); if(!box) return;
   box.innerHTML = ivNotes.map(function(t,i){
@@ -14134,7 +14142,7 @@ function ivOpenInvoice(opts){
   ivBuyerEdit = false;
   var _bv = {};
   try{ _bv = ivBuyerValues() || {}; }catch(e){ _bv = {}; }
-  // V393: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
+  // V394: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
   // (نسخهٔ ذخیره‌شدهٔ همین سفارش، اگر باشد، بعداً با ivLoadSavedData رویش می‌نشیند)
   ivNotes = IV_NOTES_DEFAULT.slice();
   ['iv-beco','iv-breg','iv-bfax','iv-baddr','iv-bpost'].forEach(function(k){ _bv[k] = '—'; });
@@ -14723,7 +14731,7 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
-// V393: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+// V394: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
 function prSaveLock(on){
   var id='pr-save-lock', el=document.getElementById(id);
   if(!on){ if(el) el.remove(); return; }
