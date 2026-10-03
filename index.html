@@ -1,4 +1,4 @@
-پ<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -2345,7 +2345,7 @@ function updateBulkBar(){
 // ── خروجیِ Excel از کالاهای تیک‌خورده ──
 // کاملاً سمتِ مرورگر؛ هیچ درخواستی به سرور نمی‌رود و هیچ داده‌ای تغییر نمی‌کند —
 // فقط از آرایهٔ items و BATCHES که در حافظه است می‌خواند.
-// V395: رنگ‌بندی (نسخهٔ استایل‌دارِ SheetJS فقط برای همین خروجی بار می‌شود)، ستون‌های زیردسته از خودِ کالا،
+// V398: رنگ‌بندی (نسخهٔ استایل‌دارِ SheetJS فقط برای همین خروجی بار می‌شود)، ستون‌های زیردسته از خودِ کالا،
 // ستون‌های کاملاً خالی حذف می‌شوند، وضعیتِ موجودی رنگی، جمعِ هر واحد، و شیتِ جدای بچ‌ها.
 var XLSX_STYLED = null;
 function loadStyledXlsx(cb){
@@ -2618,7 +2618,11 @@ function openDetail(id){
         ? '<div style="font-size:11px;color:#5a6080;margin:-4px 0 10px">📥 این کالا بچ دارد — تاریخِ ورود را در ✏️ هر بچ تنظیم کن.</div>'
         : ('<div class="form-group"><label>تاریخِ ورود <span style="color:#5a6080;font-size:11px">(در گزارش ورود/خرید همین ثبت می‌شود)</span></label>'
           + '<input class="inp" id="edit-entrydate" data-orig="'+escapeHtml(String(i.date||'').split(',')[0].trim())+'" value="'+escapeHtml(String(i.date||'').split(',')[0].trim())+'" oninput="previewEditEntryDate()" style="text-align:center;direction:ltr">'
-          + '<div id="edit-entrydate-preview" style="font-size:11px;color:#5a6080;margin-top:3px"></div></div>')) : ''}
+          + '<div id="edit-entrydate-preview" style="font-size:11px;color:#5a6080;margin-top:3px"></div></div>'
+          + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:9px 11px;background:#0c1120;border:1px solid #1a2440;border-radius:9px;cursor:pointer">'
+          +   '<input type="checkbox" id="edit-purchased" data-item="'+i.id+'" data-orig="" disabled style="width:16px;height:16px">'
+          +   '<span style="font-size:12px;color:#cfd3e6">🛒 این کالا <b>خریداری</b> شده (هزینه دارد)<div id="edit-purchased-hint" style="font-size:10.5px;color:#5f6a8c;margin-top:2px">در حالِ خواندن…</div></span>'
+          + '</label>')) : ''}
       <div class="form-group">
         <label>دسته‌بندی</label>
         <select class="inp" id="edit-cat">
@@ -3190,7 +3194,7 @@ function saveEdit(id){
   const desc=document.getElementById('edit-desc').value.trim();
   const shelf=document.getElementById('edit-shelf').value.trim().toUpperCase();
   const row=document.getElementById('edit-row').value.trim();
-  // V395: parseFloat (قبلاً parseInt بود و موجودیِ اعشاری مثل ۴۴٫۹۱ کیلو هنگامِ ذخیره به ۴۴ بریده می‌شد)
+  // V398: parseFloat (قبلاً parseInt بود و موجودیِ اعشاری مثل ۴۴٫۹۱ کیلو هنگامِ ذخیره به ۴۴ بریده می‌شد)
   const qty=Math.round((parseFloat(String(document.getElementById('edit-qty').value).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}))||0)*1000)/1000;
   const minQty=Math.round((parseFloat(String(document.getElementById('edit-min').value).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}))||0)*1000)/1000;
   // تاریخِ ورود (فقط ادمین، کالای بدونِ بچ) — اگر عوض شده
@@ -3200,6 +3204,9 @@ function saveEdit(id){
     var _o=String(_edEl.getAttribute('data-orig')||'').replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}).trim();
     if(_v && _v!==_o){ var _b=smartDateBoth(_v); if(!(_b && +_b.shamsi.split('/')[0]>1300)){ alert('تاریخِ ورود نامعتبر است — مثلاً ۱۴۰۵/۰۵/۱۱'); return; } _edNew=_b.shamsi; }
   }
+  // «خریداری‌شده» — فقط اگر خوانده شده و عوض شده باشد
+  var _purEl=document.getElementById('edit-purchased'), _purNew=null;
+  if(_purEl && _purEl.getAttribute('data-loaded')){ var _pn=_purEl.checked?'1':'0'; if(_pn!==_purEl.getAttribute('data-orig')) _purNew=_pn; }
   const cat=document.getElementById('edit-cat').value;
   const statusEl=document.getElementById('edit-status');
   const status=statusEl?statusEl.value:'نو';
@@ -3246,11 +3253,12 @@ function saveEdit(id){
     callSheet('updateItem', updated, function(res){
       if(res && res.status==='ok'){
         showToast('✅ تغییرات ذخیره شد');
-        if(_edNew){
-          callSheet('setItemEntryDate', { id:id, date:_edNew }, function(r2){
+        if(_edNew || _purNew!==null){
+          var _pp = { id:id, user:(currentUser?currentUser.user:'') }; if(_edNew) _pp.date=_edNew; if(_purNew!==null) _pp.purchased=_purNew;
+          callSheet('setItemEntryDate', _pp, function(r2){
             if(r2 && r2.status==='ok'){
-              items = items.map(function(i){ return i.id!==id ? i : Object.assign({}, i, { date:r2.date }); }); saveItems();
-              showToast('✅ تاریخِ ورود شد '+r2.date+(r2.logFixed?' (گزارش هم اصلاح شد)':''));
+              if(r2.date){ items = items.map(function(i){ return i.id!==id ? i : Object.assign({}, i, { date:r2.date }); }); saveItems(); }
+              showToast('✅ '+(r2.date?('تاریخِ ورود شد '+r2.date+' '):'')+(_purNew!==null?(_purNew==='1'?'· در گزارش «خرید» ثبت شد':'· در گزارش «ورودِ بدونِ هزینه» شد'):(r2.logFixed?'(گزارش هم اصلاح شد)':'')));
               try{ if(typeof loadUsageReport==='function' && document.getElementById('usage-report-list')) loadUsageReport(); }catch(e){}
             } else showToast('⚠️ تاریخِ ورود ذخیره نشد: '+((r2&&r2.message)||''));
           });
@@ -3977,7 +3985,7 @@ function virtualEntryRecords(){
       });
     });
     // کالاهای بدونِ بچ: از تاریخِ ثبتِ خودِ کالا رکوردِ ورود ساخته می‌شود
-    // V395: ورودهای ثبت‌شده از موجودیِ فعلی کم می‌شوند تا دوباره‌شماری نشود
+    // V398: ورودهای ثبت‌شده از موجودیِ فعلی کم می‌شوند تا دوباره‌شماری نشود
     // (قبلاً اگر حتی یک ورودِ ثبت‌شده داشت، ورودِ اولیه کلاً حذف می‌شد)
     var loggedIn = {};
     (USAGE_LOG||[]).forEach(function(r){ var c=(parseFloat(r.change||'0')||0); if(c > 0 && r.itemId) loggedIn[String(r.itemId)] = (loggedIn[String(r.itemId)]||0) + c; });
@@ -4216,7 +4224,7 @@ function undoUsageLogEntry(idx){
       if(typeof loadFromSheet==='function') loadFromSheet();
       if(typeof loadBatches==='function') loadBatches();
     } else if(!res || res.error){
-      // V395: پاسخ دیر رسید (کار روی سرور معمولاً انجام شده) — دوباره نزن؛ داده‌ها را از سرور تازه بخوان
+      // V398: پاسخ دیر رسید (کار روی سرور معمولاً انجام شده) — دوباره نزن؛ داده‌ها را از سرور تازه بخوان
       showToast('⏳ پاسخِ سرور دیر رسید — در حالِ خواندنِ دوبارهٔ موجودی… دوباره «بازگرداندن» را نزن');
       loadUsageReport();
       if(typeof loadFromSheet==='function') loadFromSheet();
@@ -4373,7 +4381,7 @@ function changeQty(id,dir){
     // اگر کالا بچِ واقعی دارد، افزایش هم باید به یک بچِ مشخص برود — وگرنه موجودیِ کالا
     // با جمعِ بچ‌ها اختلاف پیدا می‌کند (همان باگِ «موجودیِ دوتایی»، این‌بار در جهتِ افزایش).
     var _bsAdd = batchesOf(id);
-    if(currentUser && currentUser.role==='admin'){   // V395: ادمین همیشه فرمِ کامل (با تاریخ و دلیل)، با بچ یا بدونِ بچ
+    if(currentUser && currentUser.role==='admin'){   // V398: ادمین همیشه فرمِ کامل (با تاریخ و دلیل)، با بچ یا بدونِ بچ
       openAddQtyModal(id);
       return;
     }
@@ -4451,7 +4459,7 @@ function confirmAddQty(id){
   var batchSel = document.getElementById('consume-batch');
   if(!batchSel){
     if(batchesOf(id).length){ showToast('انتخابِ بچ نیامد — صفحه را یک بار بروزرسانی کن'); return; }
-    // V395: کالای بدونِ بچ — موجودیِ خودِ کالا زیاد می‌شود و ورود (با تاریخ) در گزارش ثبت می‌شود
+    // V398: کالای بدونِ بچ — موجودیِ خودِ کالا زیاد می‌شود و ورود (با تاریخ) در گزارش ثبت می‌شود
     var _u0 = (item.unit && item.unit!=='عدد') ? item.unit : '';
     closeAddQty();
     applyQtyChange(id, 1, amt, reason, '', '');
@@ -4620,7 +4628,7 @@ function pickProject(label){
   document.getElementById('consume-project-suggest').innerHTML='';
 }
 // افزودن یک خط مصرف به یادداشت قبلی بچ (با حفظ تاریخچه)
-// V395: تاریخِ دلخواه برای ثبتِ مصرف (مثلاً فروشی که دیرتر یادت آمد)
+// V398: تاریخِ دلخواه برای ثبتِ مصرف (مثلاً فروشی که دیرتر یادت آمد)
 function previewConsumeDate(){
   var inp=document.getElementById('consume-date'), prev=document.getElementById('consume-date-preview'); if(!inp||!prev) return;
   var v=String(inp.value||'').replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}).trim();
@@ -7062,6 +7070,19 @@ function toggleEditForm(){
   var isOpen = body.style.display !== 'none';
   body.style.display = isOpen ? 'none' : 'block';
   if(arrow) arrow.textContent = isOpen ? '▼' : '▲';
+  if(!isOpen) loadEditPurchased();
+}
+// V398: وضعیتِ «خریداری‌شده»ِ کالا از ردیفِ ورودِ اولیه‌اش در گزارش خوانده می‌شود (فقط وقتی فرمِ ویرایش باز می‌شود)
+function loadEditPurchased(){
+  var cb = document.getElementById('edit-purchased'); if(!cb || cb.getAttribute('data-loaded')) return;
+  var hint = document.getElementById('edit-purchased-hint'), id = cb.getAttribute('data-item');
+  callSheet('getItemEntryInfo', { id:id, t:Date.now() }, function(r){
+    var cb2 = document.getElementById('edit-purchased'); if(!cb2 || cb2.getAttribute('data-item')!==id) return;
+    if(r && r.status==='ok'){
+      cb2.checked = !!r.purchased; cb2.setAttribute('data-orig', r.purchased ? '1' : '0'); cb2.setAttribute('data-loaded','1'); cb2.disabled = false;
+      if(hint) hint.textContent = 'اگر تیک نخورد، فقط «ورود» ثبت می‌شود — برای اجناسی که از قبل موجود بودند. با ذخیره، گزارشِ ورود/خرید هم اصلاح می‌شود.';
+    } else if(hint){ hint.style.color='#f0c674'; hint.textContent = 'وضعیتِ خرید خوانده نشد — فرم را ببند و دوباره باز کن.'; }
+  }, 30000);
 }
 
 function showRelatedItemsByCodes(codes){
@@ -10703,7 +10724,8 @@ function wsResvForm(deviceId, dayKey){
     +   '<input type="checkbox" id="ws-rv-precise" onchange="window._wsRvPrecise=this.checked; document.getElementById(\'ws-rv-precise-box\').style.display=this.checked?\'flex\':\'none\'; document.getElementById(\'ws-rv-fluid-box\').style.display=this.checked?\'none\':\'block\'"> ساعتِ دقیق مشخص است (وگرنه فقط تعدادِ ساعت)'
     + '</label>'
     + '<div id="ws-rv-fluid-box" style="margin-bottom:6px">'
-    +   '<input id="ws-rv-hours" oninput="window._wsRvHours=this.value" type="number" step="0.5" min="0" placeholder="چند ساعت؟ (مثلاً ۲)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    +   '<input id="ws-rv-hours" oninput="window._wsRvHours=this.value;wsHoursHint(this.value,\'ws-rv-hours-hint\')" type="text" inputmode="decimal" autocomplete="off" placeholder="چند ساعت؟ (مثلاً ۱.۵ یا ۱:۲۰)" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px">'
+    +   '<div id="ws-rv-hours-hint" style="font-size:11px;min-height:14px;margin-top:3px"></div>'
     + '</div>'
     + '<div id="ws-rv-precise-box" style="display:none;gap:6px;margin-bottom:6px">'
     +   '<input id="ws-rv-from" oninput="window._wsRvFrom=this.value" placeholder="از ساعت (۱۳:۰۰)" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px;text-align:center">'
@@ -10746,12 +10768,34 @@ function wsSmartTime(raw){
   function p2(n){ return (n<10?'0':'')+n; }
   return p2(h)+':'+p2(m);
 }
+// V398: ساعتِ رزرو — اعشار با «.» یا «٫»، «ساعت:دقیقه» (۱:۲۰) یا دقیقه (۸۰د) → عددِ ساعت. '' = خالی · null = نامعتبر
+function wsSmartHours(v){
+  var s = String(v==null?'':v).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}).replace(/[٠-٩]/g,function(c){return '٠١٢٣٤٥٦٧٨٩'.indexOf(c);})
+            .replace(/[٫،,\/]/g,'.').replace(/\s+/g,' ').trim();
+  if(!s) return '';
+  var m, h = null;
+  if((m = s.match(/^(\d+)\s*:\s*(\d{1,2})$/))) h = (+m[1]) + (+m[2])/60;
+  else if((m = s.match(/^(\d+(?:\.\d+)?)\s*(د|دقیقه|min|m)$/i))) h = (+m[1])/60;
+  else if((m = s.match(/^(\d+(?:\.\d+)?|\.\d+)\s*(ساعت|h)?$/i))) h = parseFloat(m[1]);
+  if(h===null || !isFinite(h) || h<=0) return null;
+  return Math.round(h*100)/100;
+}
+function wsHoursHint(v, elId){
+  var el = document.getElementById(elId); if(!el) return;
+  var h = wsSmartHours(v);
+  if(h===''){ el.textContent=''; return; }
+  if(h===null){ el.style.color='#f0c674'; el.textContent='مثلاً ۱.۵ یا ۱:۲۰ (ساعت:دقیقه) یا ۸۰د'; return; }
+  var hh = Math.floor(h + 1e-9), mm = Math.round((h-hh)*60);
+  if(mm===60){ hh++; mm=0; }
+  el.style.color='#9ee0a8'; el.textContent = '= ' + (hh?prToFa(hh)+' ساعت':'') + (hh&&mm?' و ':'') + (mm?prToFa(mm)+' دقیقه':'');
+}
 function wsResvAdd(deviceId, deviceType, dayKey){
   var person = window._wsRvPerson||'', ord=window._wsRvOrder||'', note=window._wsRvNote||'';
   var precise = !!window._wsRvPrecise;
   var from = precise ? wsSmartTime(window._wsRvFrom||'') : '';
   var to   = precise ? wsSmartTime(window._wsRvTo||'')   : '';
-  var hours = precise ? '' : (window._wsRvHours||'');
+  var hours = precise ? '' : wsSmartHours(window._wsRvHours||'');
+  if(hours===null){ alert('تعدادِ ساعت نامعتبر است — مثلاً ۱.۵ یا ۱:۲۰'); return; }
   if(window.console) console.log('%c[رزرو] شروع','color:#3b82f6', {deviceId:deviceId, deviceType:deviceType, dayKey:dayKey, person:person, hours:hours, from:from, to:to});
   if(!person.trim() && !ord.trim() && !note.trim()){
     if(window.console) console.log('%c[رزرو] رد شد: همه فیلدها خالی','color:#ef4444');
@@ -10779,14 +10823,16 @@ function wsResvEditHours(id, who, curHours, curFrom, curTo){
   var html = '<div style="color:#c7cce0;font-size:12.5px;margin-bottom:3px">«'+escapeHtml(who)+'»</div>'
     + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:11px">ساعتِ <b>واقعیِ</b> کارِ انجام‌شده را وارد کن. این عدد در آمارِ دستگاه و دانشجو استفاده می‌شود.</div>'
     + '<label class="lbl" style="color:#8a93b2;font-size:11.5px;display:block;margin-bottom:4px">تعدادِ ساعت</label>'
-    + '<input id="ws-ed-h" oninput="window._edH=this.value" type="number" step="0.5" min="0" value="'+escapeHtml(String(curHours||''))+'" placeholder="مثلاً ۴" style="width:100%;box-sizing:border-box;margin-bottom:9px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px">'
+    + '<input id="ws-ed-h" oninput="window._edH=this.value;wsHoursHint(this.value,\'ws-ed-h-hint\')" type="text" inputmode="decimal" autocomplete="off" value="'+escapeHtml(String(curHours||''))+'" placeholder="مثلاً ۴" style="width:100%;box-sizing:border-box;margin-bottom:9px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px">'
+    + '<div id="ws-ed-h-hint" style="font-size:11px;min-height:14px;margin:-6px 0 8px"></div>'
     + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:4px">یا بازهٔ دقیق (اختیاری — اگر پر شود، ساعت از تفاوتش حساب می‌شود)</div>'
     + '<div style="display:flex;gap:7px">'
     +   '<input id="ws-ed-f" oninput="window._edF=this.value" value="'+escapeHtml(String(curFrom||''))+'" placeholder="از ۱۳:۰۰" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px;text-align:center">'
     +   '<input id="ws-ed-t" oninput="window._edT=this.value" value="'+escapeHtml(String(curTo||''))+'" placeholder="تا ۱۷:۰۰" style="flex:1;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px;text-align:center">'
     + '</div>';
   uiConfirm({ title:'ویرایشِ ساعتِ واقعی', html:html, okText:'ذخیرهٔ ساعت', cancelText:'انصراف', danger:false }, function(){
-    var h = (window._edH||'').trim(), f = wsSmartTime(window._edF||''), t = wsSmartTime(window._edT||'');
+    var h = wsSmartHours(window._edH||''), f = wsSmartTime(window._edF||''), t = wsSmartTime(window._edT||'');
+    if(h===null){ showToast('تعدادِ ساعت نامعتبر است — مثلاً ۱.۵ یا ۱:۲۰'); return; }
     if(!h && !(f&&t)){ showToast('یا تعدادِ ساعت یا بازهٔ دقیق را وارد کن'); return; }
     callSheet('resvUpdate', { id:id, hours:h, fromTime:f, toTime:t, t:Date.now() }, function(res){
       if(res && res.status==='ok'){ showToast('ساعت به‌روز شد ✓'); wsInit(true); }
@@ -11057,7 +11103,7 @@ function purForm(existing){
   var today = t.y+'/'+wsP2(t.m)+'/'+wsP2(t.d);
   window._puDate  = e.date || today;
   window._puTitle = e.title || '';
-  // V395: تعداد + قیمتِ هر عدد یا جمع
+  // V398: تعداد + قیمتِ هر عدد یا جمع
   window._puQty   = (e.qty && +e.qty>0) ? String(e.qty) : '1';
   window._puMode  = (!e.id || (e.qty && +e.qty>1)) ? 'unit' : 'total';
   window._puAmt   = (window._puMode==='unit') ? (e.unitPrice ? String(Math.round(+e.unitPrice)) : '') : (e.amount ? String(e.amount) : '');
@@ -11279,7 +11325,7 @@ function purWireForm(){
   purSug('pu-code',   'orderCodes', '_puCode');
 }
 // پیشنهادِ هم‌تم — فقط وقتی کاربر تایپ کرده باشد
-// V395: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
+// V398: پیشنهادها زنده از PUR_SUG خوانده می‌شوند (نه کپیِ لحظهٔ باز شدنِ فرم)
 function purSugNorm(s){ return String(s==null?'':s).replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[\u200c\u200f\u200e]/g,' ').replace(/\s+/g,' ').trim().toLowerCase(); }
 function purSugList(key){
   var S = PUR_SUG || {};
@@ -12993,6 +13039,7 @@ function prDoExitEdit(){
 }
 // بازکردنِ پروفایلِ یک سفارش پس از تازه‌کردنِ لیست
 function prOpenProfileAfter(id){
+  if(id) window._arOpenForId = id;
   if(typeof gotoView==='function') gotoView('archive');
   if(!id){ return; }
   if(typeof archiveInit==='function'){ archiveInit(function(){ if(typeof archiveProfile==='function') archiveProfile(id); }); }
@@ -13056,8 +13103,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V395 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V395";
+try{ if(window.console) console.log('%c iPrint3D FRONT V398 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -13094,7 +13141,7 @@ function prPayload(lean){
       pl.config = { machines:cfg.machines, materials:cfg.materials, composites:cfg.composites, rates:cfg.rates, defaults:cfg.defaults };
     }
   }
-  if(_plKeep){   // V395: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
+  if(_plKeep){   // V398: سفارشِ مجدد با «همان قیمت» — نرخ‌های همان برآورد، نه نرخِ امروز
     var cfgK = prCurrentConfig();
     pl.config = { machines:cfgK.machines, materials:cfgK.materials, composites:cfgK.composites, rates:cfgK.rates, defaults:cfgK.defaults };
   }
@@ -13172,7 +13219,7 @@ function pricingReorder(id){
         var dm = dEn.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
         var newDate = dm ? (dm[1]+'/'+('0'+dm[2]).slice(-2)+'/'+('0'+dm[3]).slice(-2)) : today;
         if(!dm && dRaw) showToast('تاریخ نامعتبر بود — امروز گذاشته شد');
-        // V395: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
+        // V398: «همان قیمت» → انتقالِ مستقیم روی سرور، بدونِ بازشدنِ ویرایشگر
         if(same){
           prSaveLock(true);
           var _lk=document.getElementById('pr-save-lock'); if(_lk){ var _bx=_lk.querySelector('div'); if(_bx) _bx.innerHTML='⏳ در حالِ انتقالِ سفارشِ '+escapeHtml(oldCode)+'…<br><span style="color:#8a93b2;font-size:12px">کپیِ اطلاعات، فاکتور، عکس‌ها و فایل‌ها — چند ثانیه صبر کن.</span>'; }
@@ -13217,7 +13264,7 @@ function pricingReorder(id){
           delete n.invoiceData; delete n.invoiceNo; delete n.createdAt; delete n.savedAt;
           delete n.custody; delete n.custodyReceipts;
           n.reorderFrom = oldCode;                 // ردِ سفارشِ مبدأ برای پیگیری
-          n.reorderFromId = id;                    // V395: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
+          n.reorderFromId = id;                    // V398: سرور عکس‌ها/فایل‌ها را از پوشهٔ مبدأ کپی می‌کند (مبدأ فقط خوانده می‌شود)
           if(_sel.cust) n.reorderCustody = true;
           n.dateStr = newDate;                     // ماهِ انتخاب‌شده
           if(same){
@@ -13337,7 +13384,7 @@ function prSyncMnpFromDom(){
     });
   }catch(e){}
 }
-var prCompSeq = 0;   // V395: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
+var prCompSeq = 0;   // V398: فقط جوابِ آخرین محاسبه نمایش داده شود (جوابِ دیررسِ برآوردِ قبلی نادیده)
 function prDoCompute(){
   var _mySeq = ++prCompSeq;
   prSyncMnpFromDom();
@@ -13875,7 +13922,7 @@ function pricingCopy(){
       if(m.composite && m.parts){ m.parts.forEach(function(p){ L.push('   └ ' + p.name + ' (' + prToFa(p.pct) + '٪): ' + prToFa(prSep(p.grams)) + ' گرم'); }); }
     });
   };
-  // V395: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
+  // V398: «مدت زمان انجام» — جمعِ ساعتِ دستگاه‌ها و نیروی انسانیِ کلِ سفارش
   var durBlock = function(){
     try{
       var mb={}, labMin=0, modH=0;
@@ -13896,7 +13943,7 @@ function pricingCopy(){
       if(!any) L.push('• زمانی ثبت نشده');
     }catch(e){}
   };
-  // V395: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
+  // V398: موعدِ تحویل — فقط وقتی در زمان‌بندی تیکِ «در فاکتور اعمال شود» خورده باشد
   var schedBlock = function(){
     try{
       var sc = o.schedule;
@@ -14110,7 +14157,7 @@ var ivNotes = [
   'خواهشمند است مبلغ فاکتور به شماره کارت ۵۰۴۱۷۲۱۱۱۲۳۳۳۴۸۰ به نام آقای اباذر اخوان بهابادی واریز گردد.',
   'شماره حساب ۱۰.۷۸۴۹۴۷۳.۳ بانک رسالت، شماره شبا IR۲۰۰۷۰۰۰۰۱۰۰۰۱۱۷۸۴۹۴۷۳۰۰۳'
 ];
-var IV_NOTES_DEFAULT = ivNotes.slice();   // V395: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
+var IV_NOTES_DEFAULT = ivNotes.slice();   // V398: نکته‌های پیش‌فرض — هر فاکتورِ تازه از همین‌ها شروع می‌شود
 function ivRenderNotes(){
   var box=document.getElementById('iv-notes'); if(!box) return;
   box.innerHTML = ivNotes.map(function(t,i){
@@ -14216,7 +14263,7 @@ function ivOpenInvoice(opts){
   ivBuyerEdit = false;
   var _bv = {};
   try{ _bv = ivBuyerValues() || {}; }catch(e){ _bv = {}; }
-  // V395: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
+  // V398: نکته‌ها و مشخصاتِ تکمیلیِ خریدارِ فاکتورِ قبلی به فاکتورِ بعدی نشت نکند
   // (نسخهٔ ذخیره‌شدهٔ همین سفارش، اگر باشد، بعداً با ivLoadSavedData رویش می‌نشیند)
   ivNotes = IV_NOTES_DEFAULT.slice();
   ['iv-beco','iv-breg','iv-bfax','iv-baddr','iv-bpost'].forEach(function(k){ _bv[k] = '—'; });
@@ -14805,7 +14852,7 @@ function ivExportWord(){
 // ════════════════════════════════════════════════════════════
 //  آرشیو برآوردها و گزارش ماهانه (Phase 3)
 // ════════════════════════════════════════════════════════════
-// V395: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
+// V398: در طولِ ذخیره (آپلودِ عکس + ساختِ اکسل) فرمِ برآورد قفل می‌شود تا چیزی روی برآوردِ در حالِ ذخیره تایپ نشود
 function prSaveLock(on){
   var id='pr-save-lock', el=document.getElementById(id);
   if(!on){ if(el) el.remove(); return; }
@@ -14932,28 +14979,67 @@ function archiveInit(cb){
     if(typeof cb==='function') cb();
   });
 }
-var arSecThumbQueue = [];
-function arRunSecThumbs(){
-  if(!arSecThumbQueue.length) return;
-  var job = arSecThumbQueue.shift();
-  callSheet('getOrderFileBlob', { fileId:job.fileId, w:120, t:Date.now() }, function(r){
-    var el=document.getElementById(job.elId);
-    if(el && r && r.status==='ok' && r.base64){
-      el.style.backgroundImage='url(data:'+(r.mime||'image/png')+';base64,'+r.base64+')';
-      el.textContent='';
-    } else if(el){ el.textContent=''; }
-    setTimeout(arRunSecThumbs, 120); // یکی‌یکی، با فاصله‌ی کوتاه
-  }, 40000);
+var arSecThumbQueue = [];   // (قدیمی — دیگر استفاده نمی‌شود)
+// V398: عکس‌ها فقط برای ماهی که باز است گرفته می‌شوند. ماهِ بسته هیچ درخواستی به سرور نمی‌فرستد.
+var AR_OPEN = {};            // ماه‌هایی که کاربر باز کرده (بینِ رندرها حفظ می‌شود)
+var AR_SEC_CACHE = {};       // fileId → dataURL (عکسی که یک بار آمده دوباره گرفته نمی‌شود)
+var AR_Q = [], AR_RUNNING = false, AR_NOIMG = {};
+function arQueueMonth(mk){
+  var body = document.getElementById('ar-m-'+mk); if(!body) return;
+  var nodes = body.querySelectorAll('[data-secfid], [data-lazy]');
+  for(var k=0;k<nodes.length;k++){
+    var n = nodes[k]; if(n.getAttribute('data-q')) continue;      // از قبل در صف/انجام‌شده
+    n.setAttribute('data-q','1');
+    if(n.getAttribute('data-secfid')) AR_Q.push({ kind:'sec', elId:n.id, fileId:n.getAttribute('data-secfid') });
+    else AR_Q.push({ kind:'main', id:n.getAttribute('data-lazy') });
+  }
+  arRunQueue();
 }
+function arRunQueue(){
+  if(AR_RUNNING) return;
+  function next(){
+    var job = AR_Q.shift();
+    if(!job){ AR_RUNNING = false; return; }
+    if(job.kind==='sec'){
+      var el = document.getElementById(job.elId);
+      if(!el){ return next(); }                                    // صفحه دوباره ساخته شده
+      if(AR_SEC_CACHE[job.fileId]){ el.style.backgroundImage='url('+AR_SEC_CACHE[job.fileId]+')'; el.textContent=''; return next(); }
+      callSheet('getOrderFileBlob', { fileId:job.fileId, w:120, t:Date.now() }, function(r){
+        var el2 = document.getElementById(job.elId);
+        if(r && r.status==='ok' && r.base64){
+          AR_SEC_CACHE[job.fileId] = 'data:'+(r.mime||'image/png')+';base64,'+r.base64;
+          if(el2){ el2.style.backgroundImage='url('+AR_SEC_CACHE[job.fileId]+')'; el2.textContent=''; }
+        } else if(el2){ el2.textContent=''; }
+        setTimeout(next, 120);
+      }, 40000);
+    } else {
+      if(!document.getElementById('arthumb-'+job.id)) return next();
+      if(arThumbCache[job.id]){ arSetThumb(job.id, arThumbCache[job.id]); return next(); }
+      if(AR_NOIMG[job.id]) return next();                           // قبلاً پرسیده شد و عکسی نبود
+      callSheet('getOrderImage', { id:job.id, t:Date.now() }, function(res){
+        if(res && res.status==='ok' && res.hasImage && res.dataUrl){
+          makeThumb(res.dataUrl, function(thumb){
+            if(thumb){ arThumbCache[job.id]=thumb; arSetThumb(job.id, thumb); arPersistThumb(job.id, thumb); }
+            next();
+          });
+        } else { if(res && res.status==='ok') AR_NOIMG[job.id]=1; next(); }
+      }, 60000);
+    }
+  }
+  AR_RUNNING = true; next();
+}
+function arFaEn(t){ return String(t==null?'':t).replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c);}).replace(/[٠-٩]/g,function(c){return '٠١٢٣٤٥٦٧٨٩'.indexOf(c);}); }
 function archiveRender(){
   var box=document.getElementById('ar-body');
   if(!arData.length){ box.innerHTML='<div style="color:#5a6080;text-align:center;padding:40px;border:1px dashed #1a1d2e;border-radius:14px">هنوز برآوردی ذخیره نشده.<br><span style="font-size:12px">از صفحه‌ی برآورد، دکمه‌ی «ذخیره در گزارش ماه» را بزن.</span></div>'; return; }
-  var qEl=document.getElementById('ar-search'); var q=qEl?String(qEl.value||'').trim().toLowerCase():'';
+  var qEl=document.getElementById('ar-search'); var q=qEl?arFaEn(String(qEl.value||'')).trim().toLowerCase():'';
+  // سفارشی که تازه ساخته/ذخیره شده: ماهش باز شود تا عکس‌هایش بیایند
+  if(window._arOpenForId){ var _oe=arData.filter(function(x){ return String(x.id)===String(window._arOpenForId); })[0]; if(_oe) AR_OPEN[_oe.monthKey]=1; window._arOpenForId=null; }
   var rows = arData;
   if(q){ var qn=q.replace(/[^a-z0-9]/gi,''); rows = arData.filter(function(e){
     return (String(e.code||'').toLowerCase().indexOf(q)>=0)
-        || (String(e.projectName||'').toLowerCase().indexOf(q)>=0)
-        || (String(e.customer||'').toLowerCase().indexOf(q)>=0)
+        || (arFaEn(e.projectName||'').toLowerCase().indexOf(q)>=0)
+        || (arFaEn(e.customer||'').toLowerCase().indexOf(q)>=0)
         || (qn && (e.rcCodes||[]).some(function(rc){ return String(rc).toLowerCase().replace(/[^a-z0-9]/gi,'').indexOf(qn)>=0; }));
   }); }
   if(!rows.length){ box.innerHTML='<div style="color:#5a6080;text-align:center;padding:34px;border:1px dashed #1a1d2e;border-radius:14px">نتیجه‌ای برای «'+escapeHtml(q)+'» پیدا نشد.</div>'; return; }
@@ -14967,7 +15053,7 @@ function archiveRender(){
     else { g.countEst++; }
   });
   order.sort(function(a,b){ return a<b?1:(a>b?-1:0); });
-  arSecThumbQueue = [];
+  AR_Q = [];   // صفِ قبلی باطل (عنصرهای قبلی دیگر در صفحه نیستند)
   box.innerHTML = order.map(function(mk){
     var g=groups[mk];
     var ests = g.items.map(function(e){
@@ -14986,8 +15072,8 @@ function archiveRender(){
         // سفارش چندبخشی: به‌تعدادِ بخش‌ها آیکونِ عکس
         thumb = '<div class="ar-secthumbs" style="display:flex;gap:4px;flex:none">' + e.secImages.slice(0,4).map(function(fid,zi){
           var tid='arsec_'+e.id+'_'+zi;
-          arSecThumbQueue.push({elId:tid, fileId:fid});
-          return '<div id="'+tid+'" style="width:42px;height:42px;border-radius:8px;background:#161827 center/cover no-repeat;border:1px solid #232539;display:flex;align-items:center;justify-content:center;font-size:13px;color:#3a4060;overflow:hidden">⏳</div>';
+          var _cch = AR_SEC_CACHE[fid];
+          return '<div id="'+tid+'" '+(_cch?'data-q="1"':'')+' data-secfid="'+escapeHtml(String(fid))+'" style="width:42px;height:42px;border-radius:8px;background:#161827 '+(_cch?('url('+_cch+') '):'')+'center/cover no-repeat;border:1px solid #232539;display:flex;align-items:center;justify-content:center;font-size:13px;color:#3a4060;overflow:hidden">'+(_cch?'':'⏳')+'</div>';
         }).join('') + (e.secImages.length>4?'<div style="width:42px;height:42px;border-radius:8px;background:#161827;border:1px solid #232539;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9aa3c2">+'+prToFa(e.secImages.length-4)+'</div>':'') + '</div>';
       } else {
         thumb = tsrc
@@ -15006,17 +15092,18 @@ function archiveRender(){
         +'<div><div class="ar-ml">'+escapeHtml(g.label||mk)+'</div><div class="ar-sub">'+prToFa(g.countEst)+' برآورد · '+prToFa(g.countDone)+' در حال ساخت/تمام‌شده · جمعِ ساخته‌ها '+prToFa(prSep(g.doneTotal))+' تومان</div></div></div>'
         +'<div style="display:flex;gap:8px;align-items:center">'
         +'<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();archiveDownload(\''+mk+'\',this)">⬇ دانلود گزارش ماه</button>'
-        +'<span class="ar-chev" id="ar-chev-'+mk+'">▾</span></div>'
+        +'<span class="ar-chev" id="ar-chev-'+mk+'">'+((q||AR_OPEN[mk])?'▴':'▾')+'</span></div>'
       +'</div>'
-      +'<div class="ar-body" id="ar-m-'+mk+'"'+(q?' style="display:block"':'')+'>'+ests+'</div>'
+      +'<div class="ar-body" id="ar-m-'+mk+'"'+((q||AR_OPEN[mk])?' style="display:block"':'')+'>'+ests+'</div>'
     +'</div>';
   }).join('');
-  arLazyThumbs();
-  arRunSecThumbs();
+  // فقط ماه‌های باز (یا نتیجهٔ جستجو که همه باز است) عکس می‌گیرند
+  order.forEach(function(mk){ if(q || AR_OPEN[mk]) arQueueMonth(mk); });
 }
 function archiveToggle(mk){
   var b=document.getElementById('ar-m-'+mk), c=document.getElementById('ar-chev-'+mk);
   if(!b) return; var open=b.style.display==='block'; b.style.display=open?'none':'block'; if(c) c.textContent=open?'▾':'▴';
+  if(open){ delete AR_OPEN[mk]; } else { AR_OPEN[mk]=1; arQueueMonth(mk); }   // V398: با باز شدنِ ماه، عکس‌های همان ماه گرفته می‌شود
 }
 function archiveSetStatus(id, value){
   callSheet('setEstimateStatus', { id:id, value:value }, function(res){
