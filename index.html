@@ -10364,9 +10364,10 @@ function wsGotoMonth(delta){
 function wsPendingUnseen(mid){
   var seen = (typeof notifSeenGet==='function') ? notifSeenGet('seen_resv') : [];
   return (WS_RESV||[]).filter(function(r){
-    return String(r.deviceId)===String(mid)
-        && String(r.status)==='pending'
-        && seen.indexOf(String(r.id)) === -1;
+    if(String(r.deviceId)!==String(mid)) return false;
+    // V399: درخواستِ لغوِ دانشجو هم کارِ منتظرِ ادمین است
+    if(r.cancelState==='requested') return seen.indexOf(String(r.id)+':c') === -1;
+    return String(r.status)==='pending' && seen.indexOf(String(r.id)) === -1;
   }).length;
 }
 // وقتی ادمین روزی را باز می‌کند، درخواست‌های همان روز «دیده‌شده» می‌شوند
@@ -10375,10 +10376,12 @@ function wsMarkDaySeen(deviceId, dayKey){
   var seen = notifSeenGet('seen_resv');
   var added = false;
   (WS_RESV||[]).forEach(function(r){
-    if(String(r.status)!=='pending') return;
+    var _cq = (r.cancelState==='requested');
+    if(String(r.status)!=='pending' && !_cq) return;
     if(String(r.date)!==String(dayKey)) return;
     if(deviceId && deviceId!=='__ALL__' && String(r.deviceId)!==String(deviceId)) return;
-    if(seen.indexOf(String(r.id))===-1){ seen.push(String(r.id)); added = true; }
+    var _sid = String(r.id) + (_cq ? ':c' : '');
+    if(seen.indexOf(_sid)===-1){ seen.push(_sid); added = true; }
   });
   if(added){
     notifSeenSet('seen_resv', seen);
@@ -10704,9 +10707,13 @@ function wsResvForm(deviceId, dayKey){
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;border:1px solid '+_bd+';border-radius:7px;margin-bottom:5px;background:'+_bg+'">'
       + '<div style="min-width:0"><div style="color:#dfe3f5;font-size:12px;font-weight:600">'+(pend?'⏳ ':(rej?'❌ ':''))+escapeHtml(r.personName||r.orderCode||'رزرو')
       +   (pend?'<span style="color:#f0c674;font-size:10px;font-weight:400"> · در انتظار تأیید</span>':'')
-      +   (rej ?'<span style="color:#f0a6a8;font-size:10px;font-weight:400"> · ردشده</span>':'')+'</div>'
-      + '<div style="color:#8a93b2;font-size:10.5px">'+escapeHtml(tm)+(r.note?(' · '+escapeHtml(r.note)):'')+'</div></div>'
+      +   (rej ?'<span style="color:#f0a6a8;font-size:10px;font-weight:400"> · ردشده</span>':'')
+      +   (r.cancelState==='requested'?'<span style="color:#ffb86b;font-size:10px;font-weight:400"> · درخواستِ لغو</span>':'')+'</div>'
+      + '<div style="color:#8a93b2;font-size:10.5px">'+escapeHtml(tm)+(r.note?(' · '+escapeHtml(r.note)):'')+'</div>'
+      + (r.cancelState==='requested'?'<div style="color:#ffb86b;font-size:10.5px;margin-top:2px">دلیلِ لغو: '+escapeHtml(r.cancelReason||'—')+'</div>':'')
+      + '</div>'
       + '<div style="display:flex;gap:4px;flex-shrink:0">'
+      +   (r.cancelState==='requested'?'<button onclick="wsCancelDecide(\''+r.id+'\')" style="cursor:pointer;border:1px solid #6b4a1f;background:#2a1d0c;color:#ffb86b;border-radius:6px;padding:3px 9px;font-size:10.5px">بررسیِ لغو</button>':'')
       +   (pend?'<button onclick="wsResvSetStatus(\''+r.id+'\',\'confirmed\')" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:6px;padding:3px 9px;font-size:10.5px">✓ تأیید</button>':'')
       +   '<button onclick="wsResvEditHours(\''+r.id+'\',\''+nm+'\',\''+(r.hours||'')+'\',\''+(r.fromTime||'')+'\',\''+(r.toTime||'')+'\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:3px 9px;font-size:10.5px">⏱ ساعت</button>'
       +   '<button onclick="wsResvDelete(\''+r.id+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:3px 8px;font-size:10.5px">حذف</button>'
@@ -12067,6 +12074,50 @@ function stuApprove(id){
     });
   }, 30);
 }
+// V399: بررسیِ «درخواستِ لغوِ» دانشجو برای رزروِ تأییدشده
+function wsCancelSend(id, accept){
+  callSheet('resvCancelDecide', { id:id, accept:(accept?'1':'0'), t:Date.now() }, function(res){
+    if(res && res.status==='ok'){ showToast(accept?'لغو پذیرفته شد — رزرو حذف شد ✓':'درخواستِ لغو رد شد — رزرو سرِ جایش است'); wsInit(true); }
+    else { showToast((res&&res.message)?res.message:'خطا'); wsInit(true); }
+  });
+}
+function wsCancelDecide(id){
+  var r = (WS_RESV||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+  if(!r){ showToast('رزرو پیدا نشد'); return; }
+  wsMarkDaySeen(r.deviceId, r.date);
+  function row(lbl, val){
+    if(val===undefined || val===null || String(val).trim()==='' ) return '';
+    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #1a2038;font-size:12.5px">'
+      + '<span style="color:#8a93b2;flex-shrink:0">'+lbl+'</span>'
+      + '<span style="color:#dfe3f5;text-align:left;min-width:0">'+escapeHtml(String(val))+'</span></div>';
+  }
+  var timeTxt = (r.fromTime && r.toTime) ? (prToFa(r.fromTime)+' — '+prToFa(r.toTime)) : '';
+  var html = '<div style="color:#c7cce0;font-size:13.5px;font-weight:700;margin-bottom:10px">'+escapeHtml(r.personName||'')+'</div>'
+    + row('دستگاه', wsMachineName(r.deviceId) || r.deviceId || '')
+    + row('تاریخ', prToFa(r.date||''))
+    + row('ساعت', timeTxt)
+    + row('مدت', r.hours ? (prToFa(r.hours)+' ساعت') : '')
+    + row('تعدادِ نمونه', r.samples ? prToFa(r.samples) : '')
+    + '<div style="margin-top:10px;padding:9px 11px;border:1px solid #6b4a1f;background:#2a1d0c;border-radius:8px">'
+    +   '<div style="color:#ffb86b;font-size:11px;margin-bottom:3px">دلیلِ دانشجو برای لغو</div>'
+    +   '<div style="color:#f3e3cc;font-size:13px;white-space:pre-wrap">'+escapeHtml(r.cancelReason||'—')+'</div></div>'
+    + '<div style="color:#8a93b2;font-size:12px;margin-top:10px">با موافقت، رزرو از تقویم حذف و زمانِ دستگاه آزاد می‌شود. با رد، رزرو سرِ جایش می‌ماند.</div>';
+  uiConfirm({ title:'درخواستِ لغوِ رزرو', html:html,
+      okText:'موافقت و حذفِ رزرو', cancelText:'بستن', danger:true }, function(){ wsCancelSend(id, true); });
+  // دکمهٔ «ردِ درخواست» کنارِ مودال (همان روشِ پنجرهٔ درخواستِ رزرو)
+  setTimeout(function(){
+    var box = document.querySelector('#ui-confirm-ov .ui-modal-actions');
+    if(!box){ return; }
+    var b = document.createElement('button');
+    b.textContent = 'ردِ درخواستِ لغو';
+    b.style.cssText = 'cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:8px;padding:8px 14px;font-size:12.5px;font-family:inherit;margin-left:6px';
+    b.onclick = function(){
+      wsCancelSend(id, false);
+      var ov = document.getElementById('ui-confirm-ov'); if(ov && ov.parentNode) ov.parentNode.removeChild(ov);
+    };
+    box.insertBefore(b, box.firstChild);
+  }, 40);
+}
 // تأیید یا ردِ درخواستِ رزروِ دانشجو
 function wsResvDecide(id, who){
   var _rr = (WS_RESV||[]).filter(function(x){ return String(x.id)===String(id); })[0];
@@ -12473,15 +12524,17 @@ function wsRender(){
         var tm = (r.fromTime||r.toTime) ? ((r.fromTime||'?')+'–'+(r.toTime||'?')) : (r.hours ? (prToFa(r.hours)+'س') : '');
         var who = r.personName || r.orderCode || 'رزرو';
         var pend = (r.status==='pending'), rej = (r.status==='rejected');
-        var bg = pend ? '#2a2416' : (rej ? '#2a1616' : '#16281a'),
-            bd = pend ? '#5a4a2a' : (rej ? '#5a2a2a' : '#2f5236'),
-            fg = pend ? '#f0c674' : (rej ? '#f0a6a8' : '#9ee0a8');
+        var creq = (!pend && !rej && r.cancelState==='requested');   // V399: درخواستِ لغو
+        var bg = creq ? '#2a1d0c' : (pend ? '#2a2416' : (rej ? '#2a1616' : '#16281a')),
+            bd = creq ? '#6b4a1f' : (pend ? '#5a4a2a' : (rej ? '#5a2a2a' : '#2f5236')),
+            fg = creq ? '#ffb86b' : (pend ? '#f0c674' : (rej ? '#f0a6a8' : '#9ee0a8'));
         var _dn = WS_IS_ALL ? wsMachineName(r.deviceId) : '';
-        return '<div onclick="event.stopPropagation(); '+(pend?('wsResvDecide(\''+r.id+'\',\''+escapeHtml(who).replace(/\x27/g,'')+'\')'):('wsResvForm(\''+r.deviceId+'\',\''+k+'\')'))+'" title="'+escapeHtml(who+(_dn?(' · '+_dn):'')+(pend?' · درخواستِ دانشجو — کلیک برای تأیید':'')+(r.note?(' · '+r.note):''))+'" '
+        return '<div onclick="event.stopPropagation(); '+(creq?('wsCancelDecide(\''+r.id+'\')'):pend?('wsResvDecide(\''+r.id+'\',\''+escapeHtml(who).replace(/\x27/g,'')+'\')'):('wsResvForm(\''+r.deviceId+'\',\''+k+'\')'))+'" title="'+escapeHtml(who+(_dn?(' · '+_dn):'')+(pend?' · درخواستِ دانشجو — کلیک برای تأیید':'')+(creq?' · درخواستِ لغو — کلیک برای بررسی':'')+(r.note?(' · '+r.note):''))+'" '
           +'style="cursor:pointer;background:'+bg+';border:1px solid '+bd+';border-radius:5px;padding:3px 5px;margin-bottom:3px;overflow:hidden">'
           +(_dn?'<div style="font-size:8.5px;color:#6f8a72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(_dn)+'</div>':'')
-          +'<div style="font-size:10px;color:'+fg+';font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(pend?'⏳ ':(rej?'❌ ':''))+escapeHtml(who)+'</div>'
-          +(tm?'<div style="font-size:9px;color:'+(pend?'#bf9f5b':(rej?'#bf8b8b':'#7bbf85'))+'">'+escapeHtml(prToFa(tm))+'</div>':'')
+          +'<div style="font-size:10px;color:'+fg+';font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(creq?'🟠 ':(pend?'⏳ ':(rej?'❌ ':'')))+escapeHtml(who)+'</div>'
+          +(creq?'<div style="font-size:8.5px;color:#ffb86b">درخواستِ لغو</div>':'')
+          +(tm?'<div style="font-size:9px;color:'+(creq?'#c99a5f':(pend?'#bf9f5b':(rej?'#bf8b8b':'#7bbf85')))+'">'+escapeHtml(prToFa(tm))+'</div>':'')
           +'</div>';
       }).join('');
     }
@@ -13103,7 +13156,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V398 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V399 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
