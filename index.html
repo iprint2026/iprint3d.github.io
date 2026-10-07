@@ -9025,7 +9025,14 @@ function prPreProInv(id, on){
   prPreProList().forEach(function(pp){ if(String(pp.id)===String(id)) pp.inv = !!on; });
   prScheduleCompute();
 }
-function prInvGroupSet(on){ prState.order.invGroupBySource = !!on; prScheduleCompute(); }
+function prInvGroupSet(on){ prState.order.invGroupBySource = !!on; prRenderSections(); prScheduleCompute(); }
+// V404: تعدادِ ردیفِ هر برآورد در فاکتورِ گروهی — خالی = خودکار (با تغییرِ تعدادِ قطعه‌ها خودش عوض می‌شود)
+function prInvQtySet(i, v){
+  var cf=(prState.order.combinedFrom||[])[i]; if(!cf) return;
+  var n=parseInt(prEnDigits(String(v||'')).replace(/[^0-9]/g,''),10);
+  if(n>0) cf.invQty=n; else delete cf.invQty;
+  prScheduleCompute();
+}
 function prCombinedBarHtml(){
   if(!prIsCombined()) return '';
   var cf=prState.order.combinedFrom||[], g=!!prState.order.invGroupBySource;
@@ -9035,6 +9042,10 @@ function prCombinedBarHtml(){
     +'<div style="margin-top:4px">🧾 در فاکتور: '
     +'<label style="cursor:pointer;margin-left:14px"><input type="radio" name="pr-invg" '+(g?'checked':'')+' onchange="if(this.checked) prInvGroupSet(true)"> هر برآوردِ اصلی یک ردیف ('+prToFa(cf.length)+')</label>'
     +'<label style="cursor:pointer"><input type="radio" name="pr-invg" '+(g?'':'checked')+' onchange="if(this.checked) prInvGroupSet(false)"> هر قطعه یک ردیف ('+prToFa(nSec)+')</label></div>'
+    +(g ? ('<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center"><span style="color:#8a93b2">تعدادِ هر ردیف در فاکتور:</span>'
+        + cf.map(function(c,i){ return '<label style="display:inline-flex;align-items:center;gap:5px">'+escapeHtml(c.code||c.name||'')
+            +' <input class="inp" inputmode="numeric" value="'+((+c.invQty>0)?c.invQty:'')+'" placeholder="خودکار" oninput="prInvQtySet('+i+',this.value)" style="width:78px;text-align:center;padding:4px 6px"></label>'; }).join('')
+        +'</div><div style="color:#8a93b2;font-size:10.5px">خالی بماند = خودکار: با کم‌وزیاد شدنِ تعدادِ قطعه‌های همان برآورد، تعدادِ ردیفش هم به همان نسبت عوض می‌شود.</div>') : '')
     +'<div style="color:#8a93b2;font-size:10.5px">طراحی، پیش‌تولید و هزینه‌های اضافهٔ هر برآورد پایین‌تر در بخشِ خودشان آمده‌اند. هر ردیف فقط روی قطعه‌های برآوردِ خودش سرشکن می‌شود؛ اگر «ردیفِ جدا در فاکتور» تیک بخورد، سرشکن نمی‌شود و در فاکتور جدا می‌آید.</div>'
     +'</div>';
 }
@@ -13306,7 +13317,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V403 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V404 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -13709,7 +13720,7 @@ function prRenderTape(r){
           +'<span style="background:#7c5af5;color:#fff;width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:11px">'+prToFa(i+1)+'</span>'
           +escapeHtml(s.name||'')+'<span style="margin-right:auto;color:#8a82c0;font-weight:600;font-size:11px">'+prToFa(s.qty)+' عدد</span></div>'
         +'<div style="padding:9px 11px">';
-      if(s.cat){
+      if(s.cat && r.calcVersion!==2){
         if(s.cat.machine) h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>🖨 دستگاه (هر عدد)</span><span>'+prFmt(s.cat.machine)+'</span></div>';
         if(s.cat.material) h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>🧪 مواد (هر عدد)</span><span>'+prFmt(s.cat.material)+'</span></div>';
         if((s.cat.labor||0)+(s.cat.finishing||0)) h2 += '<div class="pr-ln muted" style="font-size:11.5px"><span>🧑‍🔧 نیروی انسانی (هر عدد)</span><span>'+prFmt((s.cat.labor||0)+(s.cat.finishing||0))+'</span></div>';
@@ -15538,8 +15549,31 @@ function ivCollectData(){
     notes: (typeof ivNotes!=='undefined') ? ivNotes.slice() : [],
     delivery: (function(){ var e=document.getElementById('iv-delivery'); return e ? String(e.textContent||'').trim() : ''; })(),
     pageSize: (typeof ivPageSize!=='undefined') ? ivPageSize : 'a4',
+    srcSig: ivFreshSig(),          // V404: اثرِ انگشتِ ردیف‌های برآورد در لحظهٔ ذخیره (برای تشخیصِ تغییرِ بعدیِ برآورد)
     savedAt: Date.now()
   };
+}
+// V404: فاکتورِ ذخیره‌شده همیشه روی ردیف‌های تازهٔ برآورد می‌نشست؛ اگر برآورد بعداً عوض می‌شد (تعداد/قیمت)،
+// فاکتور همان عددهای قدیمی را نشان می‌داد. حالا تغییر تشخیص داده و از کاربر پرسیده می‌شود.
+function ivFreshSig(){
+  try{ return JSON.stringify(((ivFreshSnap&&ivFreshSnap.items)||[]).map(function(x){ return [String(x.code||''), +x.qty||0, Math.round(+x.unit||0), (x.total!=null&&x.total!=='')?Math.round(+x.total):null]; })); }catch(e){ return ''; }
+}
+function ivRowsSum(L){ return (L||[]).reduce(function(a,it){ return a + ((it.total!=null && it.total!=='') ? (+it.total||0) : ((+it.qty||0)*(+it.unit||0))); }, 0); }
+function ivCheckStale(inv){
+  try{
+    if(!inv || !inv.items || !inv.items.length || !ivFreshSnap || !ivFreshSnap.items || !ivFreshSnap.items.length) return;
+    var fresh = ivFreshSnap.items, savedSum = Math.round(ivRowsSum(inv.items)), freshSum = Math.round(ivRowsSum(fresh));
+    var changed = inv.srcSig ? (inv.srcSig !== ivFreshSig()) : (savedSum !== freshSum);
+    if(!changed) return;
+    var line = function(L){ return L.map(function(it){ return escapeHtml(String(it.code||'').slice(0,34))+' × '+prToFa(prSep(+it.qty||0)); }).slice(0,6).join('<br>'); };
+    prConfirm({ title:'⚠️ برآورد بعد از ذخیرهٔ این فاکتور عوض شده',
+      okText:'به‌روز کن (از برآوردِ فعلی)', cancelText:'همان نسخهٔ ذخیره‌شده بماند',
+      message:'ردیف‌های این فاکتور قبلاً ذخیره شده‌اند و با برآوردِ فعلی نمی‌خوانند.<br><br>'
+        +'<b>فاکتورِ ذخیره‌شده</b> — جمع '+prToFa(prSep(savedSum))+' تومان<div style="font-size:11.5px;color:#8a93b2">'+line(inv.items)+'</div><br>'
+        +'<b>برآوردِ فعلی</b> — جمع '+prToFa(prSep(freshSum))+' تومان<div style="font-size:11.5px;color:#9ee0a8">'+line(fresh)+'</div><br>'
+        +'با «به‌روز کن» فقط ردیف‌های کالا از برآوردِ فعلی ساخته می‌شوند؛ مشخصاتِ خریدار و نکته‌ها دست نمی‌خورند. تا «ذخیره» نزنی چیزی روی سرور عوض نمی‌شود.',
+      onOk:function(){ ivItems = ivFreshSnap.items.map(function(x){ return JSON.parse(JSON.stringify(x)); }); ivRender(); showToast('ردیف‌ها از برآوردِ فعلی ساخته شدند — برای ماندگاری «ذخیره» را بزن'); } });
+  }catch(e){ if(window.console) console.log('ivCheckStale', e); }
 }
 function ivApplyData(inv){
   if(!inv || typeof inv!=='object') return false;
@@ -15579,6 +15613,7 @@ function ivLoadSavedData(estimateId, cb, _try){
     }
     if(res && res.status==='ok' && res.invoice){
       var ok=ivApplyData(res.invoice);
+      if(ok) ivCheckStale(res.invoice);
       // تلفن/نام تازهٔ برآورد دوباره اعمال می‌شود تا نسخهٔ ذخیره‌شدهٔ قدیمی آن را پاک نکند
       try{
         if(ivFreshSnap){
