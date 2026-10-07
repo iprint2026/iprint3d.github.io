@@ -339,7 +339,8 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
       <label class="lbl">تعدادِ نمونه</label>
       <input class="inp" id="mv-samples" type="number" step="1" min="1" placeholder="مثلاً ۵">
       <label class="lbl">چند ساعت لازم دارید؟</label>
-      <input class="inp" id="mv-hours" type="number" step="0.5" min="0.5" placeholder="مثلاً ۲">
+      <input class="inp" id="mv-hours" type="text" inputmode="decimal" autocomplete="off" placeholder="مثلاً ۲ یا ۱.۵ یا ۱:۲۰" oninput="hoursHint(this.value)" style="margin-bottom:3px">
+      <div id="mv-hours-h" style="font-size:11px;min-height:14px;text-align:center;margin-bottom:8px"></div>
       <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:#c7cce0;margin-bottom:9px;cursor:pointer">
         <input type="checkbox" id="mv-exact" onchange="toggleExact()"> ساعتِ دقیق را می‌دانم
       </label>
@@ -387,6 +388,25 @@ function call(action, params, cb){
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function fa(s){ return String(s==null?'':s).replace(/[0-9]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
+// V19: ساعتِ رزرو — «.» یا «٫»، «ساعت:دقیقه» (۱:۲۰) یا دقیقه (۸۰د) → عددِ ساعت. '' = خالی · null = نامعتبر
+function smartHours(v){
+  var s = la(v).replace(/[٠-٩]/g,function(c){return '٠١٢٣٤٥٦٧٨٩'.indexOf(c);}).replace(/[٫،,\/]/g,'.').replace(/\s+/g,' ').trim();
+  if(!s) return '';
+  var m, h = null;
+  if((m = s.match(/^(\d+)\s*:\s*(\d{1,2})$/))) h = (+m[1]) + (+m[2])/60;
+  else if((m = s.match(/^(\d+(?:\.\d+)?)\s*(د|دقیقه|min|m)$/i))) h = (+m[1])/60;
+  else if((m = s.match(/^(\d+(?:\.\d+)?|\.\d+)\s*(ساعت|h)?$/i))) h = parseFloat(m[1]);
+  if(h===null || !isFinite(h) || h<=0) return null;
+  return Math.round(h*100)/100;
+}
+function hoursHint(v){
+  var el = document.getElementById('mv-hours-h'); if(!el) return;
+  var h = smartHours(v);
+  if(h===''){ el.textContent=''; return; }
+  if(h===null){ el.style.color='#f0c674'; el.textContent='مثلاً ۱.۵ یا ۱:۲۰ (ساعت:دقیقه) یا ۸۰د'; return; }
+  var hh = Math.floor(h + 1e-9), mm = Math.round((h-hh)*60); if(mm===60){ hh++; mm=0; }
+  el.style.color='#9ee0a8'; el.textContent = '= ' + (hh?fa(hh)+' ساعت':'') + (hh&&mm?' و ':'') + (mm?fa(mm)+' دقیقه':'');
+}
 function la(s){ return String(s==null?'':s).replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }); }
 // ── پیامِ هم‌تم به‌جای alertِ مرورگر ──
 function showOk(title, body, icon){
@@ -709,7 +729,7 @@ function openMdl(k){
   MDL_DATE=k; EDIT_ID='';
   var dv=DEVS.filter(function(x){return x.id===SEL;})[0];
   document.getElementById('mdlSub').textContent=(dv?dv.name:'دستگاه')+' · روزِ '+fa(k);
-  ['mv-samples','mv-hours','mv-from','mv-to','mv-note'].forEach(function(i){ var e=document.getElementById(i); if(e) e.value=''; });
+  ['mv-samples','mv-hours','mv-from','mv-to','mv-note'].forEach(function(i){ var e=document.getElementById(i); if(e) e.value=''; }); hoursHint('');
   document.getElementById('mv-exact').checked=false;
   document.getElementById('exactBox').className='hidden';
   msg('mdlMsg','');
@@ -735,7 +755,7 @@ function editResv(id){
   b.className=ex?'':'hidden'; b.style.display=ex?'block':'none';
   document.getElementById('mv-from').value=x.fromTime||'';
   document.getElementById('mv-to').value=x.toTime||'';
-  document.getElementById('mv-hours').value=ex?'':(x.hours||'');
+  document.getElementById('mv-hours').value=ex?'':(x.hours||''); hoursHint(document.getElementById('mv-hours').value);
   document.getElementById('mv-samples').value=x.samples||'';
   document.getElementById('mv-note').value=x.note||'';
   msg('mdlMsg','');
@@ -751,7 +771,9 @@ function toggleExact(){
 }
 function submitResv(){
   var ex=document.getElementById('mv-exact').checked;
-  var hrs=ex?'':la(document.getElementById('mv-hours').value||'');
+  var hrs=ex?'':smartHours(document.getElementById('mv-hours').value||'');
+  if(hrs===null){ msg('mdlMsg','تعدادِ ساعت نامعتبر است — مثلاً ۱.۵ یا ۱:۲۰'); return; }
+  hrs = (hrs===''?'':String(hrs));
   var fr=ex?smartTime(document.getElementById('mv-from').value||''):'';
   var to=ex?smartTime(document.getElementById('mv-to').value||''):'';
   var nt=document.getElementById('mv-note').value||'';
@@ -807,15 +829,26 @@ function loadMine(){
       return;
     }
     L.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+    var _t=todayJ(), TODAY_KEY=key(_t.y,_t.m,_t.d);
     document.getElementById('mineBody').innerHTML=L.map(function(x){
       var tm=(x.fromTime||x.toTime)?((x.fromTime||'?')+'–'+(x.toTime||'?')):(x.hours?(fa(x.hours)+' ساعت'):'');
       var pend=(x.status==='pending'), rej=(x.status==='rejected');
+      // V20: درخواستِ لغوِ رزروِ تأییدشده (با دلیل، منتظرِ تصمیمِ مسئول)
+      var conf=(!pend&&!rej), creq=(conf&&x.cancelState==='requested'), cden=(conf&&x.cancelState==='denied');
+      var future=(String(x.date)>=TODAY_KEY);
       return '<div class="card"><div class="row">'
         +'<div><div style="font-weight:700;font-size:13.5px">'+esc(x.deviceName)+' '
         +'<span class="tag '+(pend||rej?'tag-pending':'tag-ok')+'"'+(rej?' style="color:#f0a6a8;border-color:#5a2a2a"':'')+'>'
         +(pend?'در انتظار تأیید':(rej?'ردشده':'تأییدشده'))+'</span></div>'
         +'<div class="sub">📅 '+esc(fa(x.date))+(tm?(' · '+esc(fa(tm))):'')+'</div>'
-        +(x.note?('<div class="mut" style="margin-top:3px">'+esc(x.note)+'</div>'):'')+'</div>'
+        +(x.note?('<div class="mut" style="margin-top:3px">'+esc(x.note)+'</div>'):'')
+        +(creq?('<div style="margin-top:5px;font-size:11.5px;color:#ffb86b">🟠 درخواستِ لغو ثبت شد — در انتظارِ بررسیِ مسئول'
+               +'<div class="mut" style="margin-top:2px">دلیل: '+esc(x.cancelReason||'')+'</div></div>'):'')
+        +(cden?('<div style="margin-top:5px;font-size:11.5px;color:#f0a6a8">درخواستِ لغوِ شما پذیرفته نشد — رزرو سرِ جایش است.</div>'):'')
+        +'</div>'
+        +((conf&&future&&!creq)?('<div style="flex-shrink:0">'
+             +'<button class="btn btn-ghost btn-sm" onclick="askCancelResv(\'' + x.id + '\')" style="color:#ffb86b;border-color:#6b4a1f">درخواستِ لغو</button>'
+             +'</div>'):'')
         +(pend?('<div style="display:flex;gap:6px;flex-shrink:0">'
              +'<button class="btn btn-ghost btn-sm" onclick="editResv(\'' + x.id + '\')">✏️ ویرایش</button>'
              +'<button class="btn btn-ghost btn-sm" onclick="cancelResv(\'' + x.id + '\')" style="color:#f0a6a8;border-color:#5a2a2a">لغو</button>'
@@ -851,6 +884,18 @@ function loadUsage(){
     }).join('');
     box.innerHTML='<div class="card"><div class="ttl" style="font-size:14px;margin-bottom:11px">📊 استفادهٔ شما در '+MNAM[t.m-1]+' '+fa(t.y)+'</div>'
       +cards+'<div class="mut" style="margin-bottom:6px">به تفکیکِ دستگاه</div>'+rows+'</div>';
+  });
+}
+// V20: رزروِ تأییدشده را دانشجو خودش حذف نمی‌کند؛ با دلیل درخواست می‌دهد و مسئول تصمیم می‌گیرد.
+function askCancelResv(id){
+  var x=(MINE||[]).filter(function(r){ return r.id===id; })[0]; if(!x) return;
+  var why=prompt('دلیلِ لغوِ رزروِ '+fa(x.date)+' ('+x.deviceName+') را بنویسید.\nتا وقتی مسئول موافقت نکرده، رزرو سرِ جایش می‌ماند.','');
+  if(why===null) return;
+  why=String(why).trim();
+  if(why.length<3){ showOk('دلیل لازم است','برای درخواستِ لغو باید دلیل بنویسید.','⚠'); return; }
+  call('pubCancelRequest',{id:id,reason:why,t:Date.now()},function(r){
+    if(r&&r.status==='ok'){ showOk('ثبت شد','درخواستِ لغو برای مسئول فرستاده شد. نتیجه را همین‌جا می‌بینید.','✓'); loadMine(); }
+    else showOk('انجام نشد', esc((r&&r.message)||'ثبت نشد'), '⚠');
   });
 }
 function cancelResv(id){
@@ -1293,7 +1338,7 @@ function buyUseCard(card){
       else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
     });
   })();
-  console.log('iPrint3D STUDENT V18');
+  console.log('iPrint3D STUDENT V20');
 })();
 </script>
 </body>
