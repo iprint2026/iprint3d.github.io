@@ -8950,6 +8950,7 @@ function prRenderSections(){
   var box = document.getElementById('pr-lines');
   var secs = prState.order.sections||[];
   var html = '<div style="font-size:11.5px;color:#a99bf5;background:#171430;border:1px solid #2a2350;border-radius:9px;padding:8px 11px;margin-bottom:12px">حالت چندبخشی فعال است: هر بخش دستگاه/مواد/تعداد/سودِ خودش را دارد. درصد پژوهشگاه روی کل پروژه اعمال می‌شود.</div>';
+  html += '<div id="pr-own-sum">'+prOwnSummaryHtml()+'</div>';
   secs.forEach(function(s, idx){
     var alt = (idx % 2 === 0);
     var cardBg = alt ? '#0f1020' : '#121223';
@@ -8989,9 +8990,114 @@ function prRenderSections(){
       +'</label>'
       +(mnp?'<div style="font-size:10px;color:#5aa88c;margin-top:5px">قیمتِ این قطعه = (کار و دستگاه × سود) + (مواد × '+prToFa((+s.matRiskX>0)?s.matRiskX:1.2)+')</div>':'')
       +'</div>';
+    html += prOwnBlockHtml(s);
     html += '</div>';
   });
   box.innerHTML = '<div style="background:#0b0c17;border:1px solid #1c1d35;border-radius:14px;padding:11px">'+html+'</div>';
+}
+// ═══ V401 — هزینه‌های اضافیِ «مالِ همین قطعه» در برآوردِ ترکیبی ═══
+// طراحی/مدلسازی، بسته‌بندی، ارسال، هزینه‌های جانبی و پیش‌تولیدِ برآوردهای اصلی، سرشکن روی قطعه‌های همان برآورد.
+// مبلغ‌ها از قبل داخلِ قیمتِ هر عدد حساب می‌شدند (ownExtra / ownExtraTop)؛ اینجا فقط دیده و ویرایش می‌شوند.
+function prOwnHas(s){ return !!(s && (((s.ownExtraList||[]).length) || (+s.ownExtra>0) || (+s.ownExtraTop>0))); }
+function prOwnFlagged(s){ var L=s.ownExtraList||[]; return L.length>0 && L.every(function(x){ return typeof x.top==='boolean'; }); }
+function prOwnEditable(s){
+  var L=s.ownExtraList||[];
+  if(!L.length) return !(+s.ownExtra>0 || +s.ownExtraTop>0);          // فهرستِ خالی: فقط اگر مبلغی هم نیست
+  if(prOwnFlagged(s)) return true;
+  return !((+s.ownExtra>0) && (+s.ownExtraTop>0));                    // ترکیبیِ قدیمی با دو نوع هزینه: فقط نمایش
+}
+// پیش از اولین ویرایش، نوعِ هر ردیف ثبت می‌شود تا جمع‌ها درست بمانند
+function prOwnStamp(s){
+  var L=s.ownExtraList||[]; if(prOwnFlagged(s) || !L.length) return;
+  var allTop = (+s.ownExtraTop>0) && !(+s.ownExtra>0);
+  L.forEach(function(x){ if(typeof x.top!=='boolean') x.top = allTop; });
+}
+function prOwnRecalc(s){
+  var a=0, t=0; (s.ownExtraList||[]).forEach(function(x){ var v=Math.max(0,+x.amount||0); if(x.top) t+=v; else a+=v; });
+  s.ownExtra = a; s.ownExtraTop = t;
+}
+function prOwnTotal(s){
+  var L=s.ownExtraList||[];
+  if(L.length) return L.reduce(function(a,x){ return a+(+x.amount||0); },0);
+  return (+s.ownExtra||0)+(+s.ownExtraTop||0);
+}
+function prOwnTotLine(s){
+  var tot=Math.round(prOwnTotal(s)), q=Math.max(1,+s.qty||1);
+  return 'جمع: '+prToFa(prSep(tot))+' تومان'+(q>1?(' · هر عدد '+prToFa(prSep(Math.round(tot/q)))):'')+' · بدونِ سود';
+}
+function prOwnBlockHtml(s){
+  var combined = !!(prState.order && prState.order.combinedFrom && prState.order.combinedFrom.length);
+  if(!prOwnHas(s) && !combined) return '';
+  var L=s.ownExtraList||[], ed=prOwnEditable(s), sid=String(s.id).replace(/[\'"\\]/g,'');
+  var manual=(+s.manualUnit>0);
+  var h='<div style="margin-top:8px;background:#151226;border:1px solid #3a2f6b;border-radius:10px;padding:9px 11px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+    +  '<span style="font-size:12px;color:#c4b5fd;font-weight:700">🧾 هزینه‌های اضافیِ این قطعه'+(s.srcCode?(' <span style="font-weight:400;color:#8a7fd0;font-size:10.5px">از '+escapeHtml(s.srcCode)+'</span>'):'')+'</span>'
+    +  (ed?'<button onclick="prOwnAdd(\''+sid+'\')" style="background:#1a1d2e;border:1px solid #3a2f6b;color:#c4b5fd;border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit">+ افزودن</button>':'')
+    +'</div>';
+  if(!L.length){
+    var only=(+s.ownExtra||0)+(+s.ownExtraTop||0);
+    h += only>0
+      ? '<div style="display:flex;justify-content:space-between;font-size:12px;color:#dfe3f5;margin-top:7px"><span>هزینه‌های منتقل‌شده از برآوردِ اصلی</span><span>'+prToFa(prSep(Math.round(only)))+' تومان</span></div>'
+      : '<div style="font-size:10.5px;color:#6b6490;margin-top:6px">هزینه‌ای برای این قطعه ثبت نشده.</div>';
+  }
+  L.forEach(function(x,i){
+    if(ed){
+      h+='<div style="display:flex;gap:7px;align-items:center;margin-top:7px">'
+        +'<input class="inp" value="'+escapeHtml(x.name||'')+'" placeholder="نام هزینه (مثلاً طراحی)" oninput="prOwnSet(\''+sid+'\','+i+',\'name\',this.value)" style="flex:1.4">'
+        +'<input class="inp pr-money" value="'+((+x.amount>0)?prSep(+x.amount):'')+'" placeholder="مبلغ (تومان)" oninput="var g=prParseMoney(this.value);prOwnSet(\''+sid+'\','+i+',\'amount\',g);this.value=g?prSep(g):\'\'" style="flex:1;text-align:center">'
+        +'<button onclick="prOwnDel(\''+sid+'\','+i+')" style="background:#1a1d2e;border:1px solid #2a2f45;color:#8a93b8;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer;font-family:inherit">🗑</button>'
+        +'</div>';
+    } else {
+      h+='<div style="display:flex;justify-content:space-between;font-size:12px;color:#dfe3f5;margin-top:7px"><span>'+escapeHtml(x.name||'هزینهٔ اضافی')+'</span><span>'+prToFa(prSep(Math.round(+x.amount||0)))+' تومان</span></div>';
+    }
+  });
+  if(L.length) h+='<div data-prown-tot="'+sid+'" style="font-size:10.5px;color:#c4b5fd;margin-top:7px;text-align:left">'+prOwnTotLine(s)+'</div>';
+  if(manual && prOwnHas(s)) h+='<div style="font-size:10px;color:#8a7fd0;margin-top:4px">قیمتِ این قطعه دستی/قفل است؛ این هزینه‌ها داخلِ همان قیمت‌اند و تغییرشان قیمت را عوض نمی‌کند (فقط سهمِ سود جابه‌جا می‌شود).</div>';
+  else if(prOwnHas(s)) h+='<div style="font-size:10px;color:#8a7fd0;margin-top:4px">این مبلغ‌ها بدونِ سود روی قیمتِ همین قطعه می‌آیند.</div>';
+  if(!ed && L.length) h+='<div style="font-size:10px;color:#8a7fd0;margin-top:4px">این برآوردِ ترکیبی با نسخهٔ قبلی ساخته شده؛ ریزِ هزینه‌ها فقط نمایش داده می‌شود.</div>';
+  return h+'</div>';
+}
+// خلاصهٔ بالای قطعه‌ها: جمعِ هر عنوان روی همهٔ قطعه‌ها
+function prOwnSummaryHtml(){
+  var secs=(prState.order&&prState.order.sections)||[], agg={}, ord=[], tot=0;
+  secs.forEach(function(s){
+    var L=s.ownExtraList||[];
+    if(!L.length){ var o=(+s.ownExtra||0)+(+s.ownExtraTop||0); if(o>0) L=[{name:'هزینه‌های منتقل‌شده از برآوردِ اصلی',amount:o}]; }
+    L.forEach(function(x){ var v=+x.amount||0; if(!(v>0)) return; var n=String(x.name||'هزینهٔ اضافی'); if(agg[n]==null){ agg[n]=0; ord.push(n); } agg[n]+=v; tot+=v; });
+  });
+  if(!(tot>0)) return '';
+  return '<div style="font-size:11.5px;color:#c4b5fd;background:#151226;border:1px solid #3a2f6b;border-radius:9px;padding:8px 11px;margin-bottom:12px;line-height:1.9">'
+    +'🧾 <b>هزینه‌های اضافی و طراحیِ برآوردهای اصلی</b> — جمع '+prToFa(prSep(Math.round(tot)))+' تومان (زیرِ هر قطعه آمده و در قیمتش حساب شده):<br>'
+    +ord.map(function(n){ return '<span style="color:#dfe3f5">'+escapeHtml(n)+'</span> '+prToFa(prSep(Math.round(agg[n]))); }).join(' · ')
+    +'</div>';
+}
+function prOwnRefresh(sid){
+  var s=prSecFind(sid);
+  var t=document.querySelector('[data-prown-tot="'+sid+'"]'); if(t && s) t.innerHTML=prOwnTotLine(s);
+  var sm=document.getElementById('pr-own-sum'); if(sm) sm.innerHTML=prOwnSummaryHtml();
+}
+function prOwnSet(sid,i,f,v){
+  var s=prSecFind(sid); if(!s || !s.ownExtraList || !s.ownExtraList[i]) return;
+  prOwnStamp(s);
+  s.ownExtraList[i][f] = (f==='amount') ? (Math.max(0,+v||0)) : String(v||'');
+  if(f==='amount'){ prOwnRecalc(s); prScheduleCompute(); }
+  prOwnRefresh(sid);
+}
+function prOwnAdd(sid){
+  var s=prSecFind(sid); if(!s) return;
+  s.ownExtraList = s.ownExtraList||[];
+  prOwnStamp(s);
+  var top = s.ownExtraList.length ? !!s.ownExtraList[0].top : false;
+  s.ownExtraList.push({ name:'', amount:0, top:top });
+  prRenderSections();
+}
+function prOwnDel(sid,i){
+  var s=prSecFind(sid); if(!s || !s.ownExtraList) return;
+  prOwnStamp(s);
+  s.ownExtraList.splice(i,1);
+  prOwnRecalc(s);
+  prRenderSections(); prScheduleCompute();
 }
 function prMakeLine(kind){
   var l = { id:prNid(), kind:kind };
@@ -13156,7 +13262,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V399 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V401 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -14011,6 +14117,7 @@ function pricingCopy(){
   if(r.multi){
     L.push('▌ قطعه‌های این سفارش');
     var srcSecs = (o.sections||[]);
+    var _ownAgg = [];   // V401: هزینه‌های اضافیِ قطعه‌ها در برآوردِ ترکیبی
     var uN = function(x){ x=Math.round((+x||0)*100)/100; return prToFa(String(x)); };
     (r.sections||[]).forEach(function(s,i){
       var lns = (srcSecs[i] && srcSecs[i].lines) || [];
@@ -14037,6 +14144,12 @@ function pricingCopy(){
         L.push('   ➖ تمام‌شده‌ی هر عدد: ' + prFmt(base));
       }
       if(s.matNoProfit) L.push('   🧪 مواد خارج از ضریب سود (مواد ×' + prToFa(s.matRiskX||1) + '، سود فقط روی کار و دستگاه)');
+      var _ownS = srcSecs[i] || {}, _ownL = (_ownS.ownExtraList||[]).filter(function(x){ return (+x.amount||0)>0; });
+      if(!_ownL.length && ((+_ownS.ownExtra||0)+(+_ownS.ownExtraTop||0))>0) _ownL=[{name:'هزینه‌های منتقل‌شده از برآوردِ اصلی', amount:(+_ownS.ownExtra||0)+(+_ownS.ownExtraTop||0)}];
+      if(_ownL.length){
+        L.push('   🧾 هزینه‌های اضافیِ همین قطعه (بدونِ سود' + (_ownS.srcCode?(' — از '+_ownS.srcCode):'') + ')' + (_ownS.ownExtraInLock?' — داخلِ قیمتِ قفل‌شده':'') + ':');
+        _ownL.forEach(function(x){ L.push('      └ ' + (x.name||'هزینهٔ اضافی') + ': ' + prFmt(Math.round(+x.amount||0))); _ownAgg.push(x); });
+      }
       L.push('   ✅ قیمت هر عدد: ' + prFmt(s.perUnit) + ' · ضریب سود ' + prToFa((s.effProfit!=null?s.effProfit:s.profit)) + '×' + ((s.matNoProfit&&s.effProfitWork!=null)?(' · سودِ کار ×'+prToFa(s.effProfitWork)):''));
       L.push('   ◀ جمع این قطعه (' + prToFa(prSep(s.qty)) + ' عدد): ' + prFmt(s.total));
       L.push('   🏷 تمام‌شده‌ی کل این قطعه: ' + prFmt(baseTot));
@@ -14048,6 +14161,11 @@ function pricingCopy(){
     if(r.modelingAnnounced){ L.push('• هزینه‌ی طراحی و مدلسازی (یک‌بار برای کل سفارش): ' + prFmt(r.modelingAnnounced)); (r.modelingItems||[]).forEach(function(m){ if(m.cost||m.hours) L.push('   └ ' + (m.name||'طراحی') + ': ' + prFmt(m.cost) + (m.hours?(' · '+prToFa(m.hours)+' ساعت'):'') + (m.manualCost?' (قیمتِ توافقی)':'')); }); }
     if(r.packaging) L.push('• بسته‌بندی: ' + prFmt(r.packaging));
     if(r.shipping)  L.push('• هزینه‌ی ارسال: ' + prFmt(r.shipping));
+    if(_ownAgg.length){
+      var _oa={}, _oo=[], _ot=0; _ownAgg.forEach(function(x){ var n=String(x.name||'هزینهٔ اضافی'); if(_oa[n]==null){ _oa[n]=0; _oo.push(n); } _oa[n]+=(+x.amount||0); _ot+=(+x.amount||0); });
+      L.push('• هزینه‌های اضافیِ منتقل‌شده از برآوردهای اصلی: ' + prFmt(Math.round(_ot)) + ' — در قیمتِ قطعه‌ها لحاظ شده');
+      _oo.forEach(function(n){ L.push('   └ ' + n + ': ' + prFmt(Math.round(_oa[n]))); });
+    }
     L.push('');
     L.push('💰 مبلغ کلِ قابلِ پرداخت' + ((r.sections||[]).some(function(x){return x.matNoProfit&&(+x.matRiskX||1)!==1;})?' (اعلامی — با لحاظِ ضریبِ ریسکِ مواد)':'') + ': ' + prFmt(r.orderTotal));
     schedBlock();
@@ -14914,7 +15032,7 @@ function prSaveLock(on){
   el.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(6,8,16,.55);display:flex;align-items:center;justify-content:center;cursor:wait';
   el.innerHTML='<div style="background:#12162a;border:1px solid #2a3560;border-radius:12px;padding:16px 20px;color:#dfe3f5;font-size:13.5px;text-align:center;line-height:1.9">⏳ در حالِ ذخیرهٔ برآورد…<br><span style="color:#8a93b2;font-size:12px">تا تمام شدن صبر کن؛ بعد فرم برای برآوردِ بعدی خالی می‌شود.</span></div>';
   document.body.appendChild(el);
-  setTimeout(function(){ var e2=document.getElementById(id); if(e2) e2.remove(); }, 150000);   // ایمنی: هرگز گیر نماند
+  setTimeout(function(){ var e2=document.getElementById(id); if(e2) e2.remove(); }, 420000);   // ایمنی: هرگز گیر نماند (V400: ذخیرهٔ سفارشِ مجدد طولانی‌تر است)
 }
 function pricingSaveEstimate(){
   if(typeof prState==='undefined' || !prHasAnyLine()){ showToast('اول یک برآورد بساز'); return; }
@@ -14925,12 +15043,44 @@ function pricingSaveEstimate(){
   var btn=document.getElementById('pr-btn-save'); var old=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.innerHTML='در حال ذخیره...'; }
   prSaveLock(true);
-  callSheetPayload('saveEstimate', prPayload(), null, function(res){
-    if(!(res && res.status==='ok')){
+  // V400: ذخیرهٔ سفارشِ مجدد (کپیِ عکس‌ها روی سرور) گاهی بیش از مهلتِ قبلیِ ۱۲ ثانیه طول می‌کشید:
+  // سرور ذخیره می‌کرد ولی صفحه «خطا در ذخیره» می‌گفت و فرم خالی نمی‌شد. حالا مهلت بلند است و
+  // اگر باز هم پاسخ نرسید، پیش از اعلامِ خطا از سرور پرسیده می‌شود که ذخیره انجام شده یا نه.
+  var _pl = prPayload();
+  if(!(prState._saveKey && prState._saveKeyPl === _pl)){
+    prState._saveKey = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+    prState._saveKeyPl = _pl;
+  }
+  var _skey = prState._saveKey;
+  var _lockMsg = function(t){ var lk=document.getElementById('pr-save-lock'); if(lk){ var bx=lk.querySelector('div'); if(bx) bx.innerHTML=t; } };
+  var _fail = function(msg){
+    prSaveLock(false);
+    if(btn){ btn.disabled=false; btn.innerHTML=old; }
+    showToast(msg || 'خطا در ذخیره');
+  };
+  var _onSaved;
+  var _verify = function(tries){
+    if(btn){ btn.innerHTML='در حال بررسیِ نتیجه...'; }
+    _lockMsg('⏳ پاسخِ سرور دیر رسید — در حالِ بررسی که ذخیره انجام شده یا نه…<br><span style="color:#8a93b2;font-size:12px">دوباره «ذخیره» نزن؛ صبر کن.</span>');
+    callSheet('saveEstimateCheck', { saveKey:_skey, t:Date.now() }, function(c){
+      if(c && c.check && c.found && c.result && c.result.status==='ok'){ _onSaved(c.result); return; }
+      var running = !!(c && c.check && c.running);
+      // «در حالِ انجام» تا ~۵ دقیقه صبر می‌شود؛ «پیدا نشد» دو بارِ دیگر پرسیده می‌شود (شاید درخواست تازه رسیده باشد)
+      if((running && tries < 40) || (!running && tries < 3)){ setTimeout(function(){ _verify(tries+1); }, 8000); return; }
       prSaveLock(false);
       if(btn){ btn.disabled=false; btn.innerHTML=old; }
-      showToast((res&&res.message) ? res.message : 'خطا در ذخیره'); return;
-    }
+      prConfirm({ title:'⚠️ ذخیره تأیید نشد', okText:'باشه', cancelText:'بستن',
+        message:'پاسخی از سرور نیامد و ذخیره‌شدنِ این برآورد تأیید نشد.<br><b>قبل از تلاشِ دوباره</b> آرشیوِ همان ماه را نگاه کن؛ اگر برآورد آنجا بود، دوباره ذخیره نکن.' });
+    }, 30000);
+  };
+  callSheetPayload('saveEstimate', _pl, { saveKey:_skey }, function(res){
+    if(res && res.status==='ok'){ _onSaved(res); return; }
+    if(res && res.status==='busy'){ _verify(0); return; }               // همین ذخیره هنوز روی سرور در جریان است
+    if(res && res.status==='error' && res.message){ _fail(res.message); return; }   // خطای واقعیِ سرور
+    _verify(0);                                                          // مهلت تمام شد / قطعیِ شبکه → اول بپرس
+  }, 170000);
+  _onSaved = function(res){
+    prState._saveKey = null; prState._saveKeyPl = null;
     var savedCode = res.code||'';
     var _wasEdit = !!prState.editId, _savedId = res.id;
     custBankInvalidate();
@@ -14988,7 +15138,7 @@ function pricingSaveEstimate(){
     } else {
       afterProjImg();
     }
-  });
+  };
 }
 
 var arData = [];
