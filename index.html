@@ -998,7 +998,7 @@ function doPost(e){
               <input type="checkbox" id="pr-p-showextras" onchange="prState.order.showExtras=this.checked; prScheduleCompute();" style="width:16px;height:16px">
               بسته‌بندی و ارسال به‌صورت ردیف در فاکتور نوشته شوند</label>
             <label style="display:flex;align-items:center;gap:8px;margin-top:7px;font-size:12px;color:#cfd3e6;cursor:pointer">
-              <input type="checkbox" id="pr-p-showextrarows" onchange="prState.order.showExtraRows=this.checked; prScheduleCompute();" style="width:16px;height:16px">
+              <input type="checkbox" id="pr-p-showextrarows" onchange="prState.order.showExtraRows=this.checked; prExtrasRender(); prScheduleCompute();" style="width:16px;height:16px">
               هزینه‌های جانبی به‌صورت ردیف در فاکتور نوشته شوند</label>
             <label style="display:flex;align-items:center;gap:8px;margin-top:7px;font-size:12px;color:#cfd3e6;cursor:pointer">
               <input type="checkbox" id="pr-p-setmode" onchange="prState.order.setMode=this.checked; prToggleSetMode(); prScheduleCompute();" style="width:16px;height:16px">
@@ -8797,6 +8797,12 @@ function prExtrasRender(){
       +'<input class="inp pr-money" value="'+((+x.amount>0)?prSep(+x.amount):'')+'" placeholder="مبلغ (تومان)" oninput="prExtraSet('+i+',\'amount\',prParseMoney(this.value));var g=prParseMoney(this.value);this.value=g?prSep(g):\'\';prExtrasUpdateTot()" style="flex:1;border-color:#4a3d80;color:#c4b5fd;text-align:center;font-weight:700">'
       +'<button onclick="prExtraDel('+i+')" style="background:#1a1d2e;border:1px solid #2a2f45;color:#8a93b8;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer;font-family:inherit">🗑</button>'
       +'</div>';
+    if(prIsCombined()){
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:4px;padding-bottom:6px;border-bottom:1px dashed #2a2350">'
+        +'<span style="font-size:11px;color:#8a93b2">'+(x.srcCode?('فقط روی قطعه‌های '+escapeHtml(x.srcCode)+' سرشکن می‌شود'):'روی کلِ سفارش سرشکن می‌شود')+'</span>'
+        +prInvTick(!!x.inv || !!prState.order.showExtraRows, 'prExtraSet('+i+',\'inv\',this.checked)', !!prState.order.showExtraRows)
+        +'</div>';
+    }
   });
   var tot=0; xs.forEach(function(x){ tot+=(+x.amount||0); });
   h+='<div id="pr-extras-tot" style="font-size:10.5px;color:#c4b5fd;margin-top:7px;text-align:left">جمع: '+prToFa(prSep(Math.round(tot)))+' تومان · بدونِ سود، یک‌بار به قیمتِ کل اضافه می‌شود</div>';
@@ -8929,7 +8935,11 @@ function prLineBody(l){
       +'<div><label style="font-size:11px;color:#5a6080">نامِ طراحی/قطعه</label><input class="inp" data-prf="name" value="'+escapeHtml(l.name||'')+'" placeholder="مثلاً: بدنه‌ی اصلی"></div>'
       +'<div><label style="font-size:11px;color:#5a6080">زمان (ساعت)</label><input class="inp" type="number" step="0.1" data-prf="hours" value="'+(l.hours!=null?l.hours:((l.minutes!=null&&l.minutes!=='')?(Math.round((+l.minutes/60)*100)/100):''))+'"></div>'
       +'<div><label style="font-size:11px;color:#5fe39a">هزینه (تومان، اختیاری)</label><input class="inp pr-money" data-prf="cost" value="'+((+l.cost>0)?prSep(+l.cost):'')+'" placeholder="جایگزینِ ساعت×نرخ" style="border-color:#1e5e54;color:#5fe39a"></div>'
-      +'</div>';
+      +'</div>'
+      +(prIsCombined() ? ('<div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px">'
+          +'<span style="font-size:11px;color:#8a93b2">'+(l.srcCode?('فقط روی قطعه‌های '+escapeHtml(l.srcCode)+' سرشکن می‌شود'):'روی کلِ سفارش سرشکن می‌شود')+'</span>'
+          +prInvTick(!!l.inv || !!prState.order.showDesignRow, 'prLineInvSet(\''+String(l.id).replace(/[^A-Za-z0-9_\-]/g,'')+'\',this.checked)', !!prState.order.showDesignRow)
+          +'</div>') : '');
   }
   return '<div><label style="font-size:11px;color:#5a6080">زمان (دقیقه)</label><input class="inp" type="number" data-prf="minutes" value="'+(l.minutes!=null?l.minutes:'')+'"></div>';
 }
@@ -8950,6 +8960,7 @@ function prRenderSections(){
   var box = document.getElementById('pr-lines');
   var secs = prState.order.sections||[];
   var html = '<div style="font-size:11.5px;color:#a99bf5;background:#171430;border:1px solid #2a2350;border-radius:9px;padding:8px 11px;margin-bottom:12px">حالت چندبخشی فعال است: هر بخش دستگاه/مواد/تعداد/سودِ خودش را دارد. درصد پژوهشگاه روی کل پروژه اعمال می‌شود.</div>';
+  html += prCombinedBarHtml();
   html += '<div id="pr-own-sum">'+prOwnSummaryHtml()+'</div>';
   secs.forEach(function(s, idx){
     var alt = (idx % 2 === 0);
@@ -8998,6 +9009,35 @@ function prRenderSections(){
 // ═══ V401 — هزینه‌های اضافیِ «مالِ همین قطعه» در برآوردِ ترکیبی ═══
 // طراحی/مدلسازی، بسته‌بندی، ارسال، هزینه‌های جانبی و پیش‌تولیدِ برآوردهای اصلی، سرشکن روی قطعه‌های همان برآورد.
 // مبلغ‌ها از قبل داخلِ قیمتِ هر عدد حساب می‌شدند (ownExtra / ownExtraTop)؛ اینجا فقط دیده و ویرایش می‌شوند.
+// V402 — برآوردِ ترکیبی: مدلسازی/پیش‌تولید/هزینه‌های اضافه «ردیف‌های واقعیِ سفارش»‌اند.
+// هر ردیف فقط روی قطعه‌های برآوردِ اصلیِ خودش سرشکن می‌شود (forSec) و تیکِ فاکتورِ خودش را دارد (inv).
+function prIsCombined(){ return !!(prState.order && prState.order.combinedFrom && prState.order.combinedFrom.length); }
+function prSrcTag(x){ return (x && x.srcCode) ? ' <span style="font-size:10.5px;color:#8a7fd0;font-weight:400">از '+escapeHtml(x.srcCode)+'</span>' : ''; }
+function prInvTick(checked, onchange, disabled, note){
+  return '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:'+(disabled?'#5a6080':'#cfd3e6')+';cursor:pointer;white-space:nowrap">'
+    +'<input type="checkbox" '+(checked?'checked':'')+(disabled?' disabled':'')+' onchange="'+onchange+'" style="width:15px;height:15px"> ردیفِ جدا در فاکتور'+(note||'')+'</label>';
+}
+function prLineInvSet(id, on){
+  (prState.lines||[]).forEach(function(l){ if(String(l.id)===String(id)) l.inv = !!on; });
+  prScheduleCompute();
+}
+function prPreProInv(id, on){
+  prPreProList().forEach(function(pp){ if(String(pp.id)===String(id)) pp.inv = !!on; });
+  prScheduleCompute();
+}
+function prInvGroupSet(on){ prState.order.invGroupBySource = !!on; prScheduleCompute(); }
+function prCombinedBarHtml(){
+  if(!prIsCombined()) return '';
+  var cf=prState.order.combinedFrom||[], g=!!prState.order.invGroupBySource;
+  var nSec=((prState.order.sections)||[]).length;
+  return '<div style="font-size:11.5px;color:#c7cce0;background:#101a2c;border:1px solid #24406b;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.9">'
+    +'🧩 <b>برآوردِ ترکیبی</b> از '+cf.map(function(c){ return escapeHtml(c.code||c.name||''); }).join(' + ')
+    +'<div style="margin-top:4px">🧾 در فاکتور: '
+    +'<label style="cursor:pointer;margin-left:14px"><input type="radio" name="pr-invg" '+(g?'checked':'')+' onchange="if(this.checked) prInvGroupSet(true)"> هر برآوردِ اصلی یک ردیف ('+prToFa(cf.length)+')</label>'
+    +'<label style="cursor:pointer"><input type="radio" name="pr-invg" '+(g?'':'checked')+' onchange="if(this.checked) prInvGroupSet(false)"> هر قطعه یک ردیف ('+prToFa(nSec)+')</label></div>'
+    +'<div style="color:#8a93b2;font-size:10.5px">طراحی، پیش‌تولید و هزینه‌های اضافهٔ هر برآورد پایین‌تر در بخشِ خودشان آمده‌اند. هر ردیف فقط روی قطعه‌های برآوردِ خودش سرشکن می‌شود؛ اگر «ردیفِ جدا در فاکتور» تیک بخورد، سرشکن نمی‌شود و در فاکتور جدا می‌آید.</div>'
+    +'</div>';
+}
 function prOwnHas(s){ return !!(s && (((s.ownExtraList||[]).length) || (+s.ownExtra>0) || (+s.ownExtraTop>0))); }
 function prOwnFlagged(s){ var L=s.ownExtraList||[]; return L.length>0 && L.every(function(x){ return typeof x.top==='boolean'; }); }
 function prOwnEditable(s){
@@ -9026,8 +9066,7 @@ function prOwnTotLine(s){
   return 'جمع: '+prToFa(prSep(tot))+' تومان'+(q>1?(' · هر عدد '+prToFa(prSep(Math.round(tot/q)))):'')+' · بدونِ سود';
 }
 function prOwnBlockHtml(s){
-  var combined = !!(prState.order && prState.order.combinedFrom && prState.order.combinedFrom.length);
-  if(!prOwnHas(s) && !combined) return '';
+  if(!prOwnHas(s)) return '';      // V402: فقط برآوردهای ترکیبیِ ساخته‌شده با نسخهٔ قبلی
   var L=s.ownExtraList||[], ed=prOwnEditable(s), sid=String(s.id).replace(/[\'"\\]/g,'');
   var manual=(+s.manualUnit>0);
   var h='<div style="margin-top:8px;background:#151226;border:1px solid #3a2f6b;border-radius:10px;padding:9px 11px">'
@@ -12938,7 +12977,12 @@ function prRenderPrePro(){
         + '<select class="inp" onchange="prPreProSetMat(\''+pp.id+'\',this.value)">'+matOpts(pp.materialId?((pp.matSel==='C'?'C':'B')+':'+pp.materialId):'')+'</select>'
         + '<input class="inp" type="number" step="0.1" value="'+(pp.grams||'')+'" placeholder="گرم" oninput="prPreProSet(\''+pp.id+'\',\'grams\',this.value)">'
         + '<input class="inp" type="number" step="1" value="'+(pp.minutes||'')+'" placeholder="دقیقه نیرو" oninput="prPreProSet(\''+pp.id+'\',\'minutes\',this.value)">'
-      + '</div></div>';
+      + '</div>'
+      + (prIsCombined() ? ('<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px">'
+          +'<span style="font-size:11px;color:#8a93b2">'+(pp.srcCode?('فقط روی قطعه‌های '+escapeHtml(pp.srcCode)+' سرشکن می‌شود'):'روی کلِ سفارش سرشکن می‌شود')+'</span>'
+          +prInvTick(!!pp.inv || !!prState.order.showPrePro, 'prPreProInv(\''+String(pp.id).replace(/[^A-Za-z0-9_\-]/g,'')+'\',this.checked)', !!prState.order.showPrePro)
+          +'</div>') : '')
+      + '</div>';
   });
   area.innerHTML = '<div style="margin-top:14px;padding-top:14px;border-top:1px dashed #1a1d2e">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
@@ -13262,7 +13306,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V401 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V402 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -14484,6 +14528,7 @@ function prToggleSetMode(){
 // حالتِ ست: اگر تیک خورده و عددِ معتبر وارد شده باشد، {n, unit} برمی‌گرداند وگرنه null (رفتارِ قبلی)
 function prSepSum(o, r){
   o=o||{}; var sep=0;
+  if(r && r.invoicePlan){ (r.invoicePlan.sep||[]).forEach(function(x){ sep += Math.round(+x.total||0); }); return sep; }   // V402
   if(o.showDesignRow) sep += Math.round(+r.modelingAnnounced||0);
   if(o.showExtras){ sep += Math.round(+r.packaging||0) + Math.round(+r.shipping||0); }
   if(o.showExtraRows && r.extraCosts){ r.extraCosts.forEach(function(x){ sep += Math.round(+x.amount||0); }); }
@@ -14497,9 +14542,46 @@ function prSetInfo(order, orderTotal){
   if(!n || n<1) return null;   // عددِ خالی/نامعتبر → رفتارِ قبلی، چیزی خراب نمی‌شود
   return { n:n, unit: Math.round((+orderTotal||0)/n) };
 }
+// V402: ردیف‌های محصول از «نقشهٔ فاکتور»ِ سرور (برآوردِ ترکیبی) — آینهٔ pricing_planProductRows در بک‌اند
+function prPlanProductRows(r, o){
+  var P=r.invoicePlan, secs=r.sections||[], src=(o&&o.sections)||[];
+  function title(i){
+    var types={}; ((src[i]||{}).lines||[]).forEach(function(l){ if(l.kind==='machine_fdm') types['FDM']=1; else if(l.kind==='machine_dlp') types['DLP']=1; });
+    var t=Object.keys(types).join('/'), nm=((secs[i]||{}).name||'قطعه');
+    return t?('چاپ قطعه '+t+' '+nm):('چاپ قطعه '+nm);
+  }
+  function rowOf(i){ var s=secs[i]||{}, u=(+s.perUnit||0)-(+s.invSub||0); return { code:title(i), qty:(+s.qty||0), u:u, total:u*(+s.qty||0) }; }
+  var out=[];
+  if(P.groups && P.groups.length){
+    P.groups.forEach(function(g){
+      if(g.idx.length===1){ var r1=rowOf(g.idx[0]); out.push({ code:(g.name||r1.code), qty:r1.qty, unit:Math.round(r1.u), total:Math.round(r1.total) }); return; }
+      var tot=0; g.idx.forEach(function(i){ tot+=rowOf(i).total; });
+      var q=(g.setCount>0)?g.setCount:1;
+      out.push({ code:g.name, qty:q, unit:Math.round(tot/q), total:Math.round(tot) });
+    });
+  } else {
+    secs.forEach(function(s,i){ var r2=rowOf(i); out.push({ code:r2.code, qty:r2.qty, unit:Math.round(r2.u), total:Math.round(r2.total) }); });
+  }
+  return out;
+}
 // سازنده‌ی یکپارچه‌ی ردیف‌های فاکتور (تک‌بخشی و چندبخشی)
 function prBuildInvoiceItems(r, o){
   o = o||{};
+  if(r && r.invoicePlan){      // V402: برآوردِ ترکیبی
+    var _pSep=(r.invoicePlan.sep||[]).map(function(x){ return { code:x.code, qty:x.qty, unit:x.unit, total:Math.round(+x.total||0) }; });
+    var _pTot=Math.round(+r.orderTotal||0), _pItems, _pSi=prSetInfo(o, r.orderTotal);
+    if(_pSi){
+      var _pSum=_pSep.reduce(function(a,x){ return a+x.total; },0), _pProd=_pTot-_pSum;
+      _pItems=[{ code:(o.orderName||'محصول'), qty:_pSi.n, unit:Math.round(_pProd/_pSi.n), total:_pProd }].concat(_pSep);
+    } else {
+      _pItems=prPlanProductRows(r, o).concat(_pSep);
+    }
+    if(_pTot>0 && _pItems.length){
+      var _pHave=_pItems.reduce(function(a,it){ return a+(+it.total||0); },0);
+      if(_pHave!==_pTot) _pItems[0].total=(+_pItems[0].total||0)+(_pTot-_pHave);
+    }
+    return { items:_pItems, fallbackUnit:(_pItems[0]?_pItems[0].unit:r.perUnit) };
+  }
   // حالتِ ست: ردیف‌های جداشده (طراحی/بسته‌بندی/جانبی/پیش‌تولید) سرِ جایشان می‌مانند و
   // فقط مبلغِ باقی‌ماندهٔ محصول بر تعدادِ ست تقسیم می‌شود.
   var _si = prSetInfo(o, r.orderTotal);
@@ -16633,6 +16715,17 @@ function cmbSave(){
   var warn=(d.compare||[]).some(function(c){ return (c.reasons||[]).some(function(x){ return String(x).indexOf('⚠️')===0; }); });
   var msg='یک برآوردِ <b>تازه</b> با جمعِ <b>'+cmbMoney((d.totals||{}).new)+' تومان</b> ساخته می‌شود.<br>برآوردهای اصلی هیچ تغییری نمی‌کنند.'
     +(warn?'<br><span style="color:#f0a6a8">⚠️ یک یا چند قطعه هشدار دارند — جدول را دوباره ببین.</span>':'');
+  // V402: فاکتورِ برآوردِ ترکیبی چند ردیف داشته باشد؟
+  var nParts=(d.compare||[]).length, nSrc=(d.sources||[]).length;
+  if(nParts > nSrc){
+    if(CMB.opts.invGroup == null) CMB.opts.invGroup = true;
+    msg += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #232742"><b>🧾 در فاکتور قطعه‌ها چطور بیایند؟</b>'
+      +'<label style="display:block;cursor:pointer;margin-top:7px"><input type="radio" name="cmb-invg" '+(CMB.opts.invGroup?'checked':'')+' onchange="if(this.checked) CMB.opts.invGroup=true"> هر برآوردِ اصلی <b>یک ردیف</b> ('+cmbFa(nSrc)+' ردیف)'
+      +'<div style="font-size:11px;color:#8a93b2;margin-right:22px">نامِ هر برآورد و جمعِ قیمتِ قطعه‌هایش در یک ردیف.</div></label>'
+      +'<label style="display:block;cursor:pointer;margin-top:6px"><input type="radio" name="cmb-invg" '+(CMB.opts.invGroup?'':'checked')+' onchange="if(this.checked) CMB.opts.invGroup=false"> هر قطعه <b>یک ردیف</b> ('+cmbFa(nParts)+' ردیف)'
+      +'<div style="font-size:11px;color:#8a93b2;margin-right:22px">هر قطعه با تعداد و قیمتِ خودش.</div></label>'
+      +'<div style="font-size:11px;color:#8a93b2;margin-top:6px">بعداً در ویرایشگرِ همین برآورد هم قابلِ تغییر است.</div></div>';
+  } else { CMB.opts.invGroup = false; }
   uiConfirm({ title:'ساختِ برآوردِ ترکیبی', html:msg, okText:'بساز', cancelText:'انصراف', danger:false }, function(){
     CMB.busy=true;
     showToast('⏳ در حالِ ساخت...');
