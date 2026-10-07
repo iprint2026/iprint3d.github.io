@@ -13306,7 +13306,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V402 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V403 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -15396,10 +15396,21 @@ function archiveSetStatus(id, value){
     else showToast('خطا در تغییر وضعیت');
   });
 }
-function archiveOpenInvoice(id){
-  showToast('در حال باز کردن فاکتور...');
+function archiveOpenInvoice(id, _try){
+  _try = _try || 0;
+  showToast(_try ? '⏳ سرور کُند است — تلاشِ دوباره برای باز کردنِ فاکتور...' : 'در حال باز کردن فاکتور...');
+  // V403: مهلتِ ۱۲ ثانیه برای این درخواست کم بود (وقتی سرور هم‌زمان مشغولِ عکس‌ها/پروفایل است فاکتور باز نمی‌شد).
+  // حالا ۶۰ ثانیه صبر می‌شود، یک‌بار خودکار دوباره تلاش می‌شود و علتِ واقعیِ خطا نوشته می‌شود.
   callSheet('getEstimate', { id:id, t:Date.now() }, function(res){
-    if(!(res && res.status==='ok')){ showToast((res&&res.message)?res.message:'خطا در بارگذاری سفارش'); return; }
+    if(!(res && res.status==='ok')){
+      var _timeout = !!(res && (res.error==='timeout' || res.error===true)) && !(res && res.message);
+      if(_timeout && _try < 1){ archiveOpenInvoice(id, _try+1); return; }
+      var _m = (res && res.message) ? res.message
+             : (_timeout ? 'پاسخی از سرور نیامد (اینترنت یا کُندیِ سرور). چند لحظه بعد دوباره «ساخت/ویرایش فاکتور» را بزن.' : 'خطا در بارگذاری سفارش');
+      if(typeof prConfirm==='function') prConfirm({ title:'⚠️ فاکتور باز نشد', okText:'تلاشِ دوباره', cancelText:'بستن', message:escapeHtml(_m), onOk:function(){ archiveOpenInvoice(id, 0); } });
+      else showToast(_m);
+      return;
+    }
     ivOpenInvoice({ code:res.orderName, qty:res.qty, unit:res.perUnit, items:res.items, customer:res.customer,
       tel:res.tel, econ:res.econ, regid:res.regid, fax:res.fax, address:res.address, post:res.post, delivery:res.delivery,
       dateStr:res.dateStr, estimateId:id, folderId:res.folderId, orderCode:res.code });
@@ -15408,7 +15419,7 @@ function archiveOpenInvoice(id){
       ivApplyBuyerExtras(false);   // V277 — خانه‌های خالی‌مانده از دادهٔ برآورد پر شوند
       if(loaded) showToast('✅ آخرین نسخه‌ی ذخیره‌شده‌ی فاکتور بازیابی شد');
     });
-  });
+  }, 60000);
 }
 // ── ذخیره/بازیابیِ محتوای فاکتور (تا با «ویرایش فاکتور» گم نشود) ──
 // ── چیدمانِ قابلِ تنظیمِ «مشخصات خریدار» ──
@@ -15557,9 +15568,15 @@ function ivApplyData(inv){
   } catch(e){ if(window.console) console.log('ivApplyData error', e); return false; }
 }
 // بارگذاریِ محتوای ذخیره‌شده هنگام باز کردنِ فاکتور؛ اگر بود، callback(true)
-function ivLoadSavedData(estimateId, cb){
+function ivLoadSavedData(estimateId, cb, _try){
   if(!estimateId){ if(cb) cb(false); return; }
   callSheet('getInvoiceData', { id:estimateId, t:Date.now() }, function(res){
+    // V403: اگر پاسخ نرسید، یک‌بار دوباره؛ و اگر باز هم نرسید هشدار بده تا نسخهٔ ذخیره‌شده ناخواسته بازنویسی نشود
+    if(res && !res.status && res.error){
+      if(!_try){ ivLoadSavedData(estimateId, cb, 1); return; }
+      showToast('⚠️ نسخهٔ ذخیره‌شدهٔ این فاکتور بارگذاری نشد (سرور پاسخ نداد). قبل از ذخیره، فاکتور را ببند و دوباره باز کن.');
+      if(cb) cb(false); return;
+    }
     if(res && res.status==='ok' && res.invoice){
       var ok=ivApplyData(res.invoice);
       // تلفن/نام تازهٔ برآورد دوباره اعمال می‌شود تا نسخهٔ ذخیره‌شدهٔ قدیمی آن را پاک نکند
@@ -15574,7 +15591,7 @@ function ivLoadSavedData(estimateId, cb){
       if(cb) cb(ok);
     }
     else { if(cb) cb(false); }
-  });
+  }, 60000);
 }
 async function ivSaveInvoiceToFolder(){
   if(!ivCurrentEstimateId){ showToast('این فاکتور به سفارشی وصل نیست. اول سفارش را در آرشیو ذخیره کن.'); return; }
