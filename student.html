@@ -361,7 +361,7 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
       <input class="inp" id="mv-note" placeholder="مثلاً تست کششی نمونهٔ پلیمری">
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
         <button class="btn btn-ghost" onclick="closeMdl()">بستن</button>
-        <button class="btn btn-primary" onclick="submitResv()">ثبتِ درخواست</button>
+        <button class="btn btn-primary" id="mv-submit" onclick="submitResv()">ثبتِ درخواست</button>
       </div>
     </div>
   </div>
@@ -726,7 +726,7 @@ function drawCal(){
 
 /* ── مودال رزرو ── */
 function openMdl(k){
-  MDL_DATE=k; EDIT_ID='';
+  MDL_DATE=k; EDIT_ID=''; RESV_RK='';
   var dv=DEVS.filter(function(x){return x.id===SEL;})[0];
   document.getElementById('mdlSub').textContent=(dv?dv.name:'دستگاه')+' · روزِ '+fa(k);
   ['mv-samples','mv-hours','mv-from','mv-to','mv-note'].forEach(function(i){ var e=document.getElementById(i); if(e) e.value=''; }); hoursHint('');
@@ -737,7 +737,14 @@ function openMdl(k){
   wireTime('mv-from','mv-from-h');
   wireTime('mv-to','mv-to-h');
 }
-function closeMdl(){ document.getElementById('mdl').className='hidden'; EDIT_ID=''; }
+function closeMdl(){ if(RESV_BUSY) return; document.getElementById('mdl').className='hidden'; EDIT_ID=''; RESV_RK=''; }
+// V21: تا پاسخِ سرور نیامده دکمه قفل است؛ کلیدِ درخواست (RESV_RK) باعث می‌شود تکرار هم فقط یک رزرو بسازد
+var RESV_BUSY=false, RESV_RK='';
+function resvBusy(on, txt){
+  RESV_BUSY=on; var b=document.getElementById('mv-submit'); if(!b) return;
+  if(!b.getAttribute('data-t')) b.setAttribute('data-t', b.textContent);
+  b.disabled=on; b.style.opacity=on?'.6':''; b.textContent=on?(txt||'⏳ در حال ثبت...'):b.getAttribute('data-t');
+}
 
 // ── ویرایشِ رزروِ در انتظار ──
 // از همان مودالِ رزرو استفاده می‌کند تا رفتار و اعتبارسنجی یکی بماند.
@@ -770,6 +777,7 @@ function toggleExact(){
   b.style.display=on?'block':'none';
 }
 function submitResv(){
+  if(RESV_BUSY) return;
   var ex=document.getElementById('mv-exact').checked;
   var hrs=ex?'':smartHours(document.getElementById('mv-hours').value||'');
   if(hrs===null){ msg('mdlMsg','تعدادِ ساعت نامعتبر است — مثلاً ۱.۵ یا ۱:۲۰'); return; }
@@ -781,8 +789,9 @@ function submitResv(){
   if(ex && (!fr.trim()||!to.trim())){ msg('mdlMsg','ساعتِ شروع و پایان را وارد کنید'); return; }
   var smp=la(document.getElementById('mv-samples').value||'').replace(/[^0-9]/g,'');
   if(EDIT_ID){
-    msg('mdlMsg','در حال ذخیره...','ok');
+    msg('mdlMsg','در حال ذخیره... لطفاً صبر کنید','ok'); resvBusy(true,'⏳ در حال ذخیره...');
     call('pubResvEdit',{id:EDIT_ID,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,samples:smp,t:Date.now()},function(r){
+      resvBusy(false);
       if(r&&r.status==='ok'){
         closeMdl(); loadMine();
         showOk('ذخیره شد','تغییراتِ رزروِ شما ثبت شد.<br><span class="mut">همچنان در انتظارِ تأییدِ مسئولِ آزمایشگاه است.</span>');
@@ -791,13 +800,16 @@ function submitResv(){
     });
     return;
   }
-  msg('mdlMsg','در حال ثبت...','ok');
-  call('pubReserve',{deviceId:SEL,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,samples:smp,t:Date.now()},function(r){
+  if(!RESV_RK) RESV_RK='r'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  msg('mdlMsg','در حال ثبت... لطفاً صبر کنید و دوباره نزنید','ok'); resvBusy(true);
+  call('pubReserve',{deviceId:SEL,date:MDL_DATE,hours:hrs,fromTime:fr,toTime:to,note:nt,samples:smp,rk:RESV_RK,t:Date.now()},function(r){
+    resvBusy(false);
     if(r&&r.status==='ok'){
-      closeMdl(); loadCal();
+      RESV_RK=''; closeMdl(); loadCal();
       showOk('درخواست ثبت شد',
         'درخواستِ رزروِ شما ثبت شد.<br><span class="mut">پس از تأییدِ مسئولِ آزمایشگاه قطعی می‌شود. وضعیتش را در «رزروهای من» ببین.</span>');
     }
+    else if(r && /پاسخی از سرور نیامد/.test(r.message||'')) msg('mdlMsg','پاسخ دیر رسید؛ شاید ثبت شده باشد. «رزروهای من» را ببین یا دوباره بزن (دوبار ثبت نمی‌شود).');
     else msg('mdlMsg',(r&&r.message)?r.message:'ثبت نشد');
   });
 }
@@ -1338,7 +1350,7 @@ function buyUseCard(card){
       else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
     });
   })();
-  console.log('iPrint3D STUDENT V20');
+  console.log('iPrint3D STUDENT V21');
 })();
 </script>
 </body>
