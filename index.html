@@ -1058,8 +1058,9 @@ function doPost(e){
       </style>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <div class="page-title" style="margin:0">📁 آرشیو و گزارش‌ها</div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-sm" style="background:#1a1440;border-color:#4b3fb0;color:#c4b5fd" id="cmb-mode-btn" onclick="cmbModeToggle()">🧩 برآورد ترکیبی</button>
+          <button class="btn btn-sm" style="background:#10233f;border-color:#2a5a8e;color:#9cd1ff" onclick="mgrPickMode()" title="انتخابِ یک یا چند برآورد برای گزارشِ مدیر">📄 گزارش مدیر</button>
           <button class="btn btn-primary btn-sm" onclick="rangeReportOpen()">📊 گزارش اکسل</button>
           <button class="btn btn-ghost btn-sm" onclick="archiveInit()">↻ تازه‌سازی</button>
         </div>
@@ -13317,7 +13318,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V404 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V405 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -15974,6 +15975,7 @@ function archiveProfile(id){
       +'<button class="btn btn-sm" style="background:#3a1d52;border-color:#5b3fd6;color:#c4b5fd" onclick="orderModalClose();archiveOpenInvoice(\''+id+'\')">🧾 ساخت/ویرایش فاکتور</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="archiveImage(\''+id+'\')">🖼 افزودن/تغییر تصویر</button>'
       +'<button class="btn btn-sm" style="background:#10233f;border-color:#2a5a8e;color:#9cd1ff" onclick="omCopyImages(\''+id+'\')" title="همه‌ی عکس‌های قطعات در یک تصویر">🖼 کپی عکس‌ها</button>'
+      +'<button class="btn btn-sm" style="background:#10233f;border-color:#2a5a8e;color:#9cd1ff" onclick="mgrOpen([\''+id+'\'])" title="گزارشِ هزینه برای مدیر (PDF)">📄 گزارش مدیر</button>'
       +lc
       +'<button class="btn btn-sm" style="background:#2a1414;border-color:#5b2020;color:#f87171" onclick="omDelete(\''+id+'\')">✕ حذف سفارش</button>'
     +'</div>'
@@ -16145,6 +16147,7 @@ function archiveProfile(id){
       if(n.indexOf('رسید امانت')===0) return 'custodyrc';
       if(n.indexOf('دفترچه پروژه')===0) return 'log';
       if(n.indexOf('فاکتور')===0) return 'invoice';
+      if(n.indexOf('گزارش مدیر')===0) return 'mgr';
       if(f.kind==='xlsx' || /\.xlsx$/i.test(n)) return 'xlsx';
       if(n.indexOf('تصویر سفارش')===0 || n.indexOf('عکس بخش')===0 || f.kind==='image' || /\.(png|jpe?g|webp|gif|bmp)$/i.test(n)) return 'orderimg';
       if(f.kind==='txt' || /\.txt$/i.test(n)) return 'esttext';
@@ -16154,6 +16157,7 @@ function archiveProfile(id){
       {key:'project', ic:'📦', cl:'#7ec5ff', title:'فایل‌های پروژه'},
       {key:'receipt', ic:'🧾', cl:'#6ee7a8', title:'رسید پرداخت'},
       {key:'invoice', ic:'📄', cl:'#f87171', title:'فاکتور'},
+      {key:'mgr',     ic:'📄', cl:'#9cd1ff', title:'گزارش مدیر'},
       {key:'custodyrc',ic:'🧾', cl:'#ffd479', title:'رسیدهای امانت'},
       {key:'xlsx',    ic:'📊', cl:'#5fe39a', title:'اکسل برآورد'},
       {key:'esttext', ic:'📝', cl:'#fbbf24', title:'متن برآورد'},
@@ -16164,6 +16168,7 @@ function archiveProfile(id){
       if(c==='project') return {ic:'📦',bg:'#10233f',cl:'#7ec5ff'};
       if(c==='receipt') return {ic:'🧾',bg:'#0c2a18',cl:'#6ee7a8'};
       if(c==='invoice') return {ic:'📄',bg:'#2a1414',cl:'#f87171'};
+      if(c==='mgr') return {ic:'📄',bg:'#10233f',cl:'#9cd1ff'};
       if(c==='custodyrc') return {ic:'🧾',bg:'#221a08',cl:'#ffd479'};
       if(c==='xlsx') return {ic:'📊',bg:'#0c2a18',cl:'#5fe39a'};
       if(c==='esttext') return {ic:'📝',bg:'#16140a',cl:'#fbbf24'};
@@ -16562,6 +16567,7 @@ function cmbBar(){
   bar.innerHTML = '<span style="color:#c4b5fd;font-weight:800;font-size:13px">🧩 '+cmbFa(CMB.ids.length)+' انتخاب</span>'
     + (codes.length ? '<span style="color:#8a93b2;font-size:11.5px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(codes.join(' + '))+'</span>' : '<span style="color:#5a6080;font-size:11.5px">روی سفارش‌ها بزن</span>')
     + '<button class="btn btn-primary btn-sm" onclick="cmbGoConfig()"'+(CMB.ids.length<2?' disabled style="opacity:.45"':'')+'>ادامه ←</button>'
+    + '<button class="btn btn-sm" style="background:#10233f;border-color:#2a5a8e;color:#9cd1ff" onclick="mgrOpen(CMB.ids.slice())"'+(CMB.ids.length<1?' disabled style="opacity:.45"':'')+'>📄 گزارش مدیر</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="cmbModeToggle()">لغو</button>';
 }
 
@@ -16794,6 +16800,235 @@ function cmbSave(){
       if(typeof archiveInit==='function') archiveInit();
     }, 180000);
   });
+}
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  V405 — گزارشِ مدیر (یک یا چند برآورد در یک PDF)
+//  بلوکِ مستقل و فقط‌خواندنی: داده را از «mgrReportData» (همان موتورِ قیمتِ سرور) می‌گیرد،
+//  هیچ برآورد/فاکتوری را تغییر نمی‌دهد و فقط PDF را در پوشهٔ سفارش‌ها ذخیره می‌کند.
+// ═══════════════════════════════════════════════════════════════════
+var MGR = { ids:[], data:null, busy:false };
+function mgrFa(n){ return String(n).replace(/\d/g, function(d){ return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }).replace(/\./g,'٫'); }
+function mgrM(n){ n=Math.round(+n||0); var neg=n<0; return (neg?'−':'')+mgrFa(String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'٬')); }
+function mgrN(x, d){ x=+x||0; var p=Math.pow(10, d==null?2:d); return mgrFa(String(Math.round(x*p)/p)); }
+function mgrE(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function mgrClose(){ ['mgr-ov','mgr-src'].forEach(function(k){ var o=document.getElementById(k); if(o&&o.parentNode) o.parentNode.removeChild(o); }); MGR.busy=false; }
+function mgrShell(inner, foot){
+  var o=document.getElementById('mgr-ov');
+  if(!o){ o=document.createElement('div'); o.id='mgr-ov';
+    o.style.cssText='position:fixed;inset:0;z-index:9400;background:rgba(4,6,12,.9);overflow:auto;padding:14px 8px';
+    document.body.appendChild(o); }
+  o.innerHTML='<div style="max-width:830px;margin:0 auto">'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:#0e1220;border:1px solid #23304f;border-radius:12px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:2">'
+    +'<span style="color:#dfe3f5;font-weight:800">📄 گزارشِ مدیر</span><span style="display:flex;gap:8px;flex-wrap:wrap">'+(foot||'')
+    +'<button class="btn btn-ghost btn-sm" onclick="mgrClose()">بستن</button></span></div>'+inner+'</div>';
+}
+// ورودی‌ها: پروفایلِ سفارش (یک id) یا حالتِ انتخابِ آرشیو (چند id)
+function mgrOpen(ids){
+  ids = (ids||[]).filter(String);
+  if(!ids.length){ showToast('اول برآوردها را انتخاب کن'); return; }
+  if(ids.length>20){ showToast('حداکثر ۲۰ برآورد'); return; }
+  MGR = { ids:ids.slice(), data:null, busy:false };
+  mgrShell('<div style="color:#8a93b2;text-align:center;padding:40px;background:#0e1220;border-radius:12px">در حالِ محاسبه از روی دادهٔ ذخیره‌شده...</div>');
+  callSheet('mgrReportData', { ids:ids.join(','), t:Date.now() }, function(r){
+    if(!(r && r.status==='ok' && r.list)){
+      mgrShell('<div style="color:#f0a6a8;padding:20px;background:#0e1220;border-radius:12px">خطا: '+mgrE((r&&r.message)||'پاسخی از سرور نیامد — دوباره امتحان کن')+'</div>'); return;
+    }
+    var bad = r.list.filter(function(x){ return x.error; });
+    if(bad.length){
+      mgrShell('<div style="color:#f0a6a8;padding:20px;background:#0e1220;border-radius:12px;line-height:2">گزارش ساخته نشد:<br>'
+        + bad.map(function(x){ return '• '+mgrE(x.code||x.id)+' — '+mgrE(x.error); }).join('<br>')+'</div>'); return;
+    }
+    MGR.data = r.list;
+    mgrRender();
+  }, 90000);
+}
+function mgrCss(){
+  return '<style>'
+  +'.mgr-pg{width:794px;min-height:1123px;box-sizing:border-box;padding:34px 36px;background:#fff;color:#1d2030;font-family:Vazirmatn,Tahoma,sans-serif;direction:rtl;font-size:12.4px;line-height:1.75;margin:0 auto 14px}'
+  +'.mgr-pg h1{font-size:21px;font-weight:800;margin:0;color:#1b2a5a}.mgr-pg .sub{color:#5a6080;font-size:11.5px}'
+  +'.mgr-pg h2{font-size:15.5px;font-weight:800;color:#fff;background:#1b2a5a;border-radius:7px;padding:5px 12px;margin:0 0 8px}'
+  +'.mgr-pg h3{font-size:13px;font-weight:800;color:#1b2a5a;margin:12px 0 5px}'
+  +'.mgr-pg table{width:100%;border-collapse:collapse;font-size:11.2px}'
+  +'.mgr-pg th{background:#eef1fb;color:#2a3466;font-weight:700;padding:6px 4px;border:1px solid #cfd5ea}'
+  +'.mgr-pg th span{display:block;font-weight:400;font-size:9.4px;color:#5a6080}'
+  +'.mgr-pg td{padding:5px 4px;border:1px solid #dde1ee;text-align:center}.mgr-pg td.nm{text-align:right;font-weight:700}'
+  +'.mgr-pg td.t{font-weight:800;color:#1b2a5a;background:#f6f8ff}.mgr-pg tr.tot td{background:#e3e8f8;font-weight:800;color:#1b2a5a}'
+  +'.mgr-pg table.sum td{font-size:13px;font-weight:700;padding:8px 4px}'
+  +'.mgr-pg .two{display:flex;gap:12px}.mgr-pg .two>div{flex:1;min-width:0}'
+  +'.mgr-pg .hero{display:flex;gap:9px;margin:12px 0}.mgr-pg .card{flex:1;border:1px solid #cfd5ea;border-radius:9px;padding:8px 10px;background:#f8f9fe}'
+  +'.mgr-pg .card .k{font-size:10px;color:#5a6080}.mgr-pg .card .v{font-size:16px;font-weight:800;color:#1b2a5a}'
+  +'.mgr-pg .card.main{background:#1b2a5a}.mgr-pg .card.main .k{color:#c9d2f5}.mgr-pg .card.main .v{color:#fff}'
+  +'.mgr-pg .box{background:#f2fbf5;border:1px solid #a8dcb9;border-radius:9px;padding:8px 13px;font-size:11.4px;margin-top:10px}.mgr-pg .box ul{margin:3px 0;padding-right:18px}'
+  +'.mgr-pg .warn{background:#fdecec;border:1px solid #f0a6a8;color:#9b1c1c;border-radius:8px;padding:7px 11px;font-weight:700;margin:8px 0}'
+  +'</style>';
+}
+function mgrCalc(e){
+  var c = { mat:0, mach:0, lab:0 };
+  e.parts.forEach(function(p){ c.mat += p.matRisked*p.qty; c.mach += p.machine*p.qty; c.lab += p.labor*p.qty; });
+  var t = e.totals;
+  c.cost = t.build + t.prePro;
+  c.sum = c.cost + t.direct + t.institute + t.profit;
+  c.diff = Math.round(c.sum - t.order);
+  c.diffSaved = Math.round(t.order - e.savedTotal);
+  return c;
+}
+function mgrUniq(a){ var o=[]; a.forEach(function(x){ if(x!=='' && x!=null && o.indexOf(x)<0) o.push(x); }); return o; }
+function mgrPageEst(e){
+  var c = mgrCalc(e), t = e.totals;
+  var rows = e.parts.map(function(p){
+    return '<tr><td class=nm>'+mgrE(p.name)+'</td><td>'+mgrM(p.qty)+'</td>'
+      +'<td>'+mgrN(p.grams,1)+' گرم'+(p.riskX!==1?' × '+mgrN(p.riskX):'')+'</td><td>'+mgrM(p.matRisked*p.qty)+'</td>'
+      +'<td>'+mgrN(p.hours)+' ساعت</td><td>'+mgrM(p.machine*p.qty)+'</td>'
+      +'<td>'+mgrN(p.minutes,1)+' دقیقه</td><td>'+mgrM(p.labor*p.qty)+'</td>'
+      +'<td class=t>'+mgrM((p.matRisked+p.machine+p.labor)*p.qty)+'</td></tr>';
+  }).join('');
+  var pre = e.prePro.length ? ('<h3>پیش‌تولید (تست‌ها)</h3><table><tr><th>تست</th><th>تعداد</th><th>هر تست</th><th>هزینهٔ هر تست</th><th>جمع</th></tr>'
+    + e.prePro.map(function(x){ return '<tr><td class=nm>'+mgrE(x.name)+'</td><td>'+mgrFa(x.qty)+'</td><td>'
+        + [x.hours?mgrN(x.hours)+' ساعت دستگاه':'', x.grams?mgrN(x.grams,1)+' گرم':'', x.minutes?mgrN(x.minutes,1)+' دقیقه نیرو':''].filter(String).join(' · ')
+        + '</td><td>'+mgrM(x.unitCost)+'</td><td class=t>'+mgrM(x.total)+'</td></tr>'; }).join('')
+    + '<tr class=tot><td colspan=4>جمع</td><td>'+mgrM(t.prePro)+'</td></tr></table>') : '';
+  var dir = e.direct.length ? ('<h3>هزینه‌های مستقیم</h3><table><tr><th>شرح</th><th>مبلغ</th></tr>'
+    + e.direct.map(function(x){ return '<tr><td class=nm>'+(x.kind==='model'?'طراحی: ':'')+mgrE(x.name)+(x.hours?' ('+mgrN(x.hours)+' ساعت)':'')+'</td><td class=t>'+mgrM(x.amount)+'</td></tr>'; }).join('')
+    + '<tr class=tot><td>جمع</td><td>'+mgrM(t.direct)+'</td></tr></table>') : '';
+  return '<div class="mgr-pg">'
+    + '<h2>'+mgrE(e.code)+' · '+mgrE(e.name)+'</h2>'
+    + '<div class=sub>'+mgrE(e.customer||'—')+' · '+mgrFa(mgrE(e.date||''))+'</div>'
+    + (Math.abs(c.diff)>e.parts.length+2 || Math.abs(c.diffSaved)>e.parts.length+2 ? '<div class=warn>⚠️ جمعِ ردیف‌ها با مبلغِ کلِ سفارش '+mgrM(Math.max(Math.abs(c.diff),Math.abs(c.diffSaved)))+' تومان فرق دارد — برآورد را یک‌بار باز و ذخیره کن.</div>' : '')
+    + '<h3>ساختِ قطعه‌ها (متریال با ضریبِ ریسک + دستگاه + نیروی انسانی)</h3>'
+    + '<table><tr><th>قطعه</th><th>تعداد</th><th>متریالِ هر عدد</th><th>متریال</th><th>دستگاهِ هر عدد</th><th>دستگاه</th><th>نیروی هر عدد</th><th>نیروی انسانی</th><th>جمع</th></tr>'
+    + rows + '<tr class=tot><td colspan=3>جمع</td><td>'+mgrM(c.mat)+'</td><td></td><td>'+mgrM(c.mach)+'</td><td></td><td>'+mgrM(c.lab)+'</td><td>'+mgrM(t.build)+'</td></tr></table>'
+    + (pre && dir ? '<div class=two><div>'+pre+'</div><div>'+dir+'</div></div>' : (pre||dir))
+    + '<h3>جمع‌بندیِ این برآورد</h3>'
+    + '<table class=sum><tr><th>هزینهٔ تمام‌شده<span>متریال + دستگاه + نیرو + پیش‌تولید</span></th><th>هزینه‌های مستقیم</th><th>سهمِ پژوهشگاه '+mgrFa(e.institutePct||0)+'٪</th><th>سودِ خالص</th><th>مبلغِ کل</th></tr>'
+    + '<tr><td class=t>'+mgrM(c.cost)+'</td><td>'+mgrM(t.direct)+'</td><td>'+mgrM(t.institute)+'</td><td>'+mgrM(t.profit)+'</td><td class=t>'+mgrM(t.order)+'</td></tr></table>'
+    + '</div>';
+}
+function mgrPageSummary(L){
+  var S = { cost:0, dir:0, inst:0, prof:0, tot:0 };
+  var rows = L.map(function(e){ var c=mgrCalc(e), t=e.totals;
+    S.cost+=c.cost; S.dir+=t.direct; S.inst+=t.institute; S.prof+=t.profit; S.tot+=t.order;
+    return '<tr><td class=nm>'+mgrE(e.code)+'<span style="display:block;font-weight:400;font-size:10px;color:#5a6080">'+mgrE(e.name)+'</span></td><td>'+mgrM(c.cost)+'</td><td>'+mgrM(t.direct)+'</td><td>'+mgrM(t.institute)+'</td><td>'+mgrM(t.profit)+'</td><td class=t>'+mgrM(t.order)+'</td></tr>'; }).join('');
+  var risks=[], profs=[], machs={}, matsUsed={}, rt=L[0].rates||{};
+  L.forEach(function(e){ e.parts.forEach(function(p){ if(p.riskX!==1) risks.push(mgrN(p.riskX)); if(p.profit!=null && !p.manual) profs.push(mgrN(p.profit));
+    String(p.machines||'').split('، ').forEach(function(x){ if(x) machs[x.trim()]=1; }); String(p.materials||'').split('، ').forEach(function(x){ if(x) matsUsed[x.trim()]=1; }); }); });
+  risks=mgrUniq(risks); profs=mgrUniq(profs);
+  var machTxt = (rt.machine||[]).filter(function(m){ return machs[String(m.name||'').trim()]; }).map(function(m){ return mgrE(String(m.name).trim())+' ساعتی '+mgrM(m.rate); }).join('، ');
+  var matTxt  = (rt.materials||[]).filter(function(m){ return matsUsed[String(m.name||'').trim()]; }).map(function(m){ return mgrE(String(m.name).trim())+' گرمی '+mgrM((+m.price||0)/1000); }).join('، ');
+  var custs = mgrUniq(L.map(function(e){ return e.customer; }));
+  return '<div class="mgr-pg">'
+    + '<h1>گزارشِ هزینه'+(L.length>1?' — '+mgrFa(L.length)+' برآورد':'')+'</h1>'
+    + '<div class=sub>'+(custs.length?'مشتری: '+mgrE(custs.join('، '))+' · ':'')+'مبلغ‌ها به تومان</div>'
+    + '<div class=hero>'
+    + '<div class="card main"><div class=k>هزینهٔ تمام‌شده</div><div class=v>'+mgrM(S.cost)+'</div></div>'
+    + '<div class=card><div class=k>هزینه‌های مستقیم</div><div class=v>'+mgrM(S.dir)+'</div></div>'
+    + '<div class=card><div class=k>سودِ خالص</div><div class=v>'+mgrM(S.prof)+'</div></div>'
+    + '<div class=card><div class=k>مبلغِ کل</div><div class=v>'+mgrM(S.tot)+'</div></div></div>'
+    + '<table class=sum><tr><th>برآورد</th><th>هزینهٔ تمام‌شده</th><th>هزینه‌های مستقیم</th><th>سهمِ پژوهشگاه</th><th>سودِ خالص</th><th>مبلغِ کل</th></tr>'
+    + rows + (L.length>1?'<tr class=tot><td>جمع</td><td>'+mgrM(S.cost)+'</td><td>'+mgrM(S.dir)+'</td><td>'+mgrM(S.inst)+'</td><td>'+mgrM(S.prof)+'</td><td>'+mgrM(S.tot)+'</td></tr>':'') + '</table>'
+    + '<div class=box><b>تعریف‌ها</b><ul>'
+    + '<li><b>هزینهٔ تمام‌شده</b> = متریال'+(risks.length?' (با ضریبِ ریسکِ '+risks.join('، ')+')':'')+' + دستگاه + نیروی انسانی (ساعتی '+mgrM(rt.labor||0)+') + پیش‌تولید.'+(machTxt?' دستگاه: '+machTxt+'.':'')+(matTxt?' متریال: '+matTxt+'.':'')+'</li>'
+    + '<li><b>هزینه‌های مستقیم</b> (طراحی، بسته‌بندی، ارسال و هزینه‌های جانبی) عیناً و بدونِ سود از مشتری گرفته می‌شود.</li>'
+    + (risks.length?'<li><b>ضریبِ ریسک</b> برای ضایعاتِ متریال است (قطعهٔ خراب، ساپورت، رزینِ مانده).'+(profs.length?' ضریبِ سود ('+profs.join('، ')+') فقط روی دستگاه و نیروی انسانی است.':'')+'</li>':'')
+    + '<li><b>پیش‌تولید</b> تست‌های پیش از تولیدِ اصلی است و بدونِ سود حساب می‌شود.</li>'
+    + '<li><b>سودِ خالص</b> پس از کسرِ همهٔ هزینه‌ها و سهمِ پژوهشگاه است.</li></ul></div>'
+    + '</div>';
+}
+function mgrRender(){
+  var L = MGR.data||[];
+  // صفحه‌ها بیرونِ دیدِ کاربر با عرضِ واقعیِ A4 ساخته می‌شوند؛ پیش‌نمایش همان تصویرِ PDF است (روی گوشی هم کامل جا می‌شود)
+  var old=document.getElementById('mgr-src'); if(old&&old.parentNode) old.parentNode.removeChild(old);
+  var src=document.createElement('div'); src.id='mgr-src';
+  src.style.cssText='position:fixed;top:0;left:-12000px;width:794px;z-index:-1;pointer-events:none';
+  src.innerHTML = mgrCss() + '<div id="mgr-pages">' + mgrPageSummary(L) + L.map(mgrPageEst).join('') + '</div>';
+  document.body.appendChild(src);
+  MGR.pdf=null; MGR.b64='';
+  mgrShell('<div id="mgr-prev" style="color:#8a93b2;text-align:center;padding:40px;background:#0e1220;border-radius:12px">در حالِ ساختِ PDF...</div>', '');
+  mgrBuildPdf().then(function(imgs){
+    var pv=document.getElementById('mgr-prev'); if(!pv) return;
+    mgrShell('<div style="display:flex;flex-direction:column;gap:10px">'
+      + imgs.map(function(u){ return '<img src="'+u+'" style="width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 4px 18px rgba(0,0,0,.5);background:#fff">'; }).join('')
+      + '</div>',
+      '<button class="btn btn-primary btn-sm" id="mgr-save" onclick="mgrSave()">💾 ذخیره در پوشهٔ سفارش‌ها</button>'
+      +'<button class="btn btn-sm" style="background:#10233f;border-color:#2a5a8e;color:#9cd1ff" onclick="mgrDownload()">⬇ دانلود</button>');
+  }).catch(function(err){
+    mgrShell('<div style="color:#f0a6a8;padding:20px;background:#0e1220;border-radius:12px">خطا در ساختِ PDF: '+mgrE(err)+'</div>');
+  });
+}
+function mgrFileName(){
+  var codes = (MGR.data||[]).map(function(e){ return e.code||''; }).filter(String);
+  var d = ''; try{ d = prTodayJalaliStr().replace(/\//g,'-'); }catch(e){}
+  return codes.join('+') + (d?(' - '+d):'');
+}
+async function mgrBuildPdf(){
+  if(!window.html2canvas || !window.jspdf) throw 'کتابخانهٔ PDF بارگذاری نشد — صفحه را تازه کن';
+  if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
+  await new Promise(function(r){ setTimeout(r,200); });
+  var pages = document.querySelectorAll('#mgr-src .mgr-pg');
+  var pdf = new window.jspdf.jsPDF('p','mm','a4'), imgs=[], first=true;
+  var pw=210, ph=297;
+  function add(cv){
+    var u=cv.toDataURL('image/jpeg',0.9); imgs.push(u);
+    if(!first) pdf.addPage(); first=false;
+    var h=cv.height*pw/cv.width, w=pw; if(h>ph){ w=pw*ph/h; h=ph; }
+    pdf.addImage(u,'JPEG',(pw-w)/2,0,w,h);
+  }
+  for(var i=0;i<pages.length;i++){
+    var cv = await html2canvas(pages[i], { scale:2, backgroundColor:'#ffffff', useCORS:true, windowWidth:794, width:794, scrollX:0, scrollY:0 });
+    var h=cv.height*pw/cv.width;
+    if(h <= ph*1.35){ add(cv); }
+    else {                         // صفحهٔ خیلی بلند (برآوردِ پرقطعه): برش به چند صفحه
+      var sliceH=Math.floor(cv.width*ph/pw);
+      for(var y=0;y<cv.height;y+=sliceH){
+        var c2=document.createElement('canvas'); c2.width=cv.width; c2.height=Math.min(sliceH,cv.height-y);
+        var cx=c2.getContext('2d'); cx.fillStyle='#fff'; cx.fillRect(0,0,c2.width,c2.height); cx.drawImage(cv,0,-y);
+        add(c2);
+      }
+    }
+  }
+  MGR.pdf=pdf; MGR.b64=(pdf.output('datauristring')||'').split(',')[1]||'';
+  if(!MGR.b64) throw 'pdf-empty';
+  var s=document.getElementById('mgr-src'); if(s&&s.parentNode) s.parentNode.removeChild(s);
+  return imgs;
+}
+function mgrDownload(){
+  if(!MGR.pdf){ showToast('PDF هنوز آماده نیست'); return; }
+  var name='گزارش مدیر - '+mgrFileName()+'.pdf';
+  try{
+    var blob=MGR.pdf.output('blob'), url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(url); }catch(e){} }, 4000);
+  }catch(e){ try{ MGR.pdf.save(name); }catch(e2){ showToast('دانلود انجام نشد'); } }
+}
+async function mgrSave(){
+  if(MGR.busy) return;
+  if(!MGR.b64){ showToast('PDF هنوز آماده نیست'); return; }
+  MGR.busy = true;
+  var btn=document.getElementById('mgr-save'); var old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='در حالِ آپلود...'; }
+  var fname = mgrFileName();
+  var want = 'گزارش مدیر - '+fname.replace(/[\\\/:*?"<>|\[\]]/g,'').replace(/\s+/g,' ').trim()+'.pdf';
+  function done(ok, msg){ if(btn){ btn.disabled=false; btn.innerHTML=ok?'✅ ذخیره شد':old; } MGR.busy=false; showToast(msg); }
+  try{
+    await fetch(loadSheetUrl(), { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'uploadMgrReportPdf', token:SESSION_TOKEN, ids:MGR.ids.join(','), name:fname, base64:MGR.b64 }) });
+  }catch(err){ done(false, 'آپلود نشد (اینترنت؟) — دوباره بزن'); return; }
+  if(btn) btn.innerHTML='در حالِ تأیید...';
+  var tries=0;
+  (function check(){
+    tries++;
+    callSheet('getOrderFiles', { id:MGR.ids[0], t:Date.now() }, function(r){
+      var ok = r && r.status==='ok' && (r.files||[]).some(function(f){ return f.name===want; });
+      if(ok){ done(true, '✅ گزارش در پوشهٔ '+mgrFa(MGR.ids.length)+' سفارش ذخیره شد'); return; }
+      if(tries<3){ setTimeout(check, 5000); return; }
+      done(false, 'تأیید نشد — پوشهٔ سفارش را نگاه کن؛ اگر نبود دوباره «ذخیره» را بزن');
+    }, 60000);
+  })();
+}
+function mgrPickMode(){
+  if(!CMB_MODE) cmbModeToggle();
+  showToast('برآوردها را انتخاب کن و «📄 گزارش مدیر» را در نوارِ پایین بزن');
 }
 </script>
 </body>
