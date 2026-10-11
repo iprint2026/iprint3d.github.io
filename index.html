@@ -867,6 +867,7 @@ function doPost(e){
           <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">مواد پایه — قیمت هر کیلو و چگالی</div>
           <div id="pr-materials"></div>
           <button class="btn btn-ghost btn-sm" onclick="pricingAddMaterial()" style="margin-top:8px">+ ماده</button>
+          <button class="btn btn-sm" onclick="matRecoverOpen()" style="margin-top:8px;background:#10233f;border-color:#2a5a8e;color:#9cd1ff">🔎 بازیابیِ موادِ گم‌شده</button>
 
           <div style="font-size:12px;font-weight:600;color:#60a5fa;margin:18px 0 8px">رزین ترکیبی — قیمت هر کیلو از درصد اجزا</div>
           <div id="pr-composites"></div>
@@ -13189,19 +13190,21 @@ function pricingSaveConfig(){
   if(prState.editId){
     prConfirm({ title:'ذخیره‌ی قیمت‌ها', okText:'🌐 نرخِ کلیِ سایت به‌روز شود', cancelText:'📌 فقط برای این سفارش',
       message:'تغییرِ قیمت‌ها را چطور ذخیره کنم؟<br><br><b>🌐 نرخِ کلیِ سایت:</b> برای همه‌ی سفارش‌های جدیدِ آینده هم اعمال می‌شود.<br><b>📌 فقط این سفارش:</b> قیمت‌ها فقط در همین صفحه می‌مانند و با زدنِ «💾 ذخیره‌ی سفارش» روی همین سفارش ثبت می‌شوند (نرخِ کلیِ سایت دست‌نمی‌خورد).',
-      onOk:function(){ prDoSaveConfig(); },
+      onOk:function(){ prDoSaveConfig(true); },
       onCancel:function(){ var st=document.getElementById('pr-settings-status'); if(st){ st.style.color='#e0b050'; st.textContent='📌 قیمت‌ها فقط برای این سفارش اعمال شد — برای ثبت، «ذخیره‌ی سفارش» را بزن'; setTimeout(function(){ st.textContent=''; },5000);} prDoCompute(); }
     });
     return;
   }
   prDoSaveConfig();
 }
-function prDoSaveConfig(){
+function prDoSaveConfig(fromEdit){
   var st = document.getElementById('pr-settings-status');
   st.style.color = '#9aa3c2'; st.textContent = 'در حال ذخیره...';
   var cfg = { machines:prState.machines, materials:prState.materials, composites:prState.composites, rates:prState.rates, defaults:prState.defaults, invoice:prState.invoice };
-  callSheet('savePricingConfig', { config: JSON.stringify(cfg) }, function(res){
+  // V407: از داخلِ ویرایشِ سفارش، فهرستِ قدیمیِ سفارش نباید فهرستِ کلی را پاک کند → ادغام روی سرور
+  callSheet(fromEdit ? 'savePricingConfigMerge' : 'savePricingConfig', { config: JSON.stringify(cfg) }, function(res){
     if(res && res.status==='ok'){
+      if(fromEdit && res.config){ try{ cfg = res.config; }catch(e){} }
       st.style.color = '#4ade80'; st.textContent = '✅ ذخیره شد — قیمت بازمحاسبه شد';
       try{ gTodayConfig = JSON.parse(JSON.stringify(cfg)); }catch(e){ gTodayConfig=cfg; }
       prDoCompute();
@@ -13318,7 +13321,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V406 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V407 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -16814,14 +16817,14 @@ function mgrM(n){ n=Math.round(+n||0); var neg=n<0; return (neg?'−':'')+mgrFa(
 function mgrN(x, d){ x=+x||0; var p=Math.pow(10, d==null?2:d); return mgrFa(String(Math.round(x*p)/p)); }
 function mgrE(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function mgrClose(){ ['mgr-ov','mgr-src'].forEach(function(k){ var o=document.getElementById(k); if(o&&o.parentNode) o.parentNode.removeChild(o); }); MGR.busy=false; }
-function mgrShell(inner, foot){
+function mgrShell(inner, foot, title){
   var o=document.getElementById('mgr-ov');
   if(!o){ o=document.createElement('div'); o.id='mgr-ov';
     o.style.cssText='position:fixed;inset:0;z-index:9400;background:rgba(4,6,12,.9);overflow:auto;padding:14px 8px';
     document.body.appendChild(o); }
   o.innerHTML='<div style="max-width:830px;margin:0 auto">'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:#0e1220;border:1px solid #23304f;border-radius:12px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:2">'
-    +'<span style="color:#dfe3f5;font-weight:800">📄 گزارشِ مدیر</span><span style="display:flex;gap:8px;flex-wrap:wrap">'+(foot||'')
+    +'<span style="color:#dfe3f5;font-weight:800">'+(title||'📄 گزارشِ مدیر')+'</span><span style="display:flex;gap:8px;flex-wrap:wrap">'+(foot||'')
     +'<button class="btn btn-ghost btn-sm" onclick="mgrClose()">بستن</button></span></div>'+inner+'</div>';
 }
 // ورودی‌ها: پروفایلِ سفارش (یک id) یا حالتِ انتخابِ آرشیو (چند id)
@@ -17029,6 +17032,44 @@ async function mgrSave(){
 function mgrPickMode(){
   if(!CMB_MODE) cmbModeToggle();
   showToast('برآوردها را انتخاب کن و «📄 گزارش مدیر» را در نوارِ پایین بزن');
+}
+
+// V407 — بازیابیِ مواد/دستگاه/رزینِ ترکیبیِ گم‌شده از روی برآوردهای ذخیره‌شده (فقط اضافه می‌کند)
+var T='🔎 بازیابیِ مواد';
+function matRecoverOpen(){
+  if(prState.editId){ showToast('اول از ویرایشِ سفارش خارج شو (سفارشِ جدید)، بعد بازیابی کن'); return; }
+  mgrShell('<div style="color:#8a93b2;text-align:center;padding:30px;background:#0e1220;border-radius:12px">در حالِ جست‌وجو در همهٔ برآوردها...</div>', '', T);
+  callSheet('matRecoverPreview', { t:Date.now() }, function(r){
+    if(!(r && r.status==='ok')){ mgrShell('<div style="color:#f0a6a8;padding:20px;background:#0e1220;border-radius:12px">خطا: '+mgrE((r&&r.message)||'پاسخ نیامد')+'</div>', '', T); return; }
+    var L=r.missing||[], kindFa={materials:'ماده',composites:'رزین ترکیبی',machines:'دستگاه'};
+    if(!L.length){ mgrShell('<div style="color:#9ee0a8;padding:20px;background:#0e1220;border-radius:12px;line-height:2">✅ چیزی گم نشده — همهٔ مواد، دستگاه‌ها و رزین‌های ترکیبیِ برآوردهای قبلی در تنظیماتِ فعلی هستند.<br><span style="color:#8a93b2">الان: '+mgrFa(r.counts.materials)+' ماده · '+mgrFa(r.counts.composites)+' رزین ترکیبی · '+mgrFa(r.counts.machines)+' دستگاه</span></div>', '', T); return; }
+    var rows=L.map(function(x,i){ var pr = x.kind==='machines' ? (mgrM(x.rate)+' تومان/ساعت') : (x.kind==='materials' ? (mgrM(x.price)+' تومان/کیلو') : '');
+      return '<label style="display:flex;gap:10px;align-items:center;padding:9px 10px;border-bottom:1px solid #1a2440;cursor:pointer"><input type="checkbox" class="mr-ck" value="'+mgrE(x.key)+'" checked style="width:18px;height:18px">'
+        +'<span style="flex:1"><b style="color:#dfe3f5">'+mgrE(x.name)+'</b> <span style="color:#7a86b0;font-size:11px">· '+kindFa[x.kind]+'</span><br><span style="color:#8a93b2;font-size:11.5px">'+pr+(x.from?' · آخرین بار در '+mgrE(x.from):'')+'</span></span></label>'; }).join('');
+    mgrShell('<div style="background:#0e1220;border:1px solid #23304f;border-radius:12px;padding:12px;color:#c7cce0;font-size:13px">'
+      +'<div style="margin-bottom:8px;line-height:1.9">این‌ها در برآوردهای قبلی بوده‌اند ولی الان در تنظیمات نیستند. تیک‌خورده‌ها <b>اضافه</b> می‌شوند (با همان قیمتِ آخرین برآورد)؛ چیزی پاک یا عوض نمی‌شود و قبلش بکاپ گرفته می‌شود.</div>'
+      +'<div style="color:#8a93b2;font-size:11.5px;margin-bottom:6px">الان: '+mgrFa(r.counts.materials)+' ماده · '+mgrFa(r.counts.composites)+' رزین ترکیبی · '+mgrFa(r.counts.machines)+' دستگاه</div>'
+      +rows+'</div>',
+      '<button class="btn btn-primary btn-sm" id="mr-apply" onclick="matRecoverApply()">➕ افزودنِ انتخاب‌شده‌ها</button>', T);
+  }, 90000);
+}
+function matRecoverApply(){
+  var keys=[].slice.call(document.querySelectorAll('.mr-ck')).filter(function(c){ return c.checked; }).map(function(c){ return c.value; });
+  if(!keys.length){ showToast('چیزی انتخاب نشده'); return; }
+  var b=document.getElementById('mr-apply'); if(b){ b.disabled=true; b.textContent='⏳ در حالِ افزودن...'; }
+  callSheet('matRecoverApply', { keys:keys.join(','), t:Date.now() }, function(r){
+    if(r && r.status==='ok'){
+      var c=r.config||{};
+      if(!prState.editId){
+        if(Array.isArray(c.machines)) prState.machines=c.machines;
+        if(Array.isArray(c.materials)) prState.materials=c.materials;
+        if(Array.isArray(c.composites)) prState.composites=c.composites;
+        try{ gTodayConfig=JSON.parse(JSON.stringify(c)); }catch(e){}
+        try{ if(typeof prRenderSettings==='function') prRenderSettings(); prDoCompute(); }catch(e){}
+      }
+      mgrShell('<div style="color:#9ee0a8;padding:20px;background:#0e1220;border-radius:12px">✅ '+mgrFa(r.added||0)+' مورد به تنظیمات اضافه شد. قیمت‌هایشان را در «تنظیمات» چک کن.</div>', '', T);
+    } else { if(b){ b.disabled=false; b.textContent='➕ افزودنِ انتخاب‌شده‌ها'; } showToast('خطا: '+((r&&r.message)||'پاسخ نیامد')); }
+  }, 90000);
 }
 </script>
 </body>
