@@ -13321,7 +13321,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V407 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V408 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -16856,7 +16856,7 @@ function mgrCss(){
   +'.mgr-pg table{width:100%;border-collapse:collapse;font-size:11.2px}'
   +'.mgr-pg th{background:#eef1fb;color:#2a3466;font-weight:700;padding:6px 4px;border:1px solid #cfd5ea}'
   +'.mgr-pg th span{display:block;font-weight:400;font-size:9.4px;color:#5a6080}'
-  +'.mgr-pg td{padding:5px 4px;border:1px solid #dde1ee;text-align:center}.mgr-pg td.nm{text-align:right;font-weight:700}'
+  +'.mgr-pg td{padding:5px 4px;border:1px solid #dde1ee;text-align:center}.mgr-pg td.nm{text-align:right;font-weight:700}.mgr-pg td:not(.nm){white-space:nowrap}'
   +'.mgr-pg td.t{font-weight:800;color:#1b2a5a;background:#f6f8ff}.mgr-pg tr.tot td{background:#e3e8f8;font-weight:800;color:#1b2a5a}'
   +'.mgr-pg table.sum td{font-size:13px;font-weight:700;padding:8px 4px}'
   +'.mgr-pg .two{display:flex;gap:12px}.mgr-pg .two>div{flex:1;min-width:0}'
@@ -16876,6 +16876,16 @@ function mgrCalc(e){
   c.diff = Math.round(c.sum - t.order);
   c.diffSaved = Math.round(t.order - e.savedTotal);
   return c;
+}
+function mgrKg(g, den){ var t=mgrN((+g||0)/1000,2)+' کیلو'; if(den && Math.abs(den-1)>0.01) t+=' <span style="color:#5a6080">(≈ '+mgrN((+g||0)/den/1000,2)+' لیتر)</span>'; return t; }
+function mgrBuyTable(list, title){
+  if(!list || !list.length) return '';
+  var tot=0;
+  var rows=list.map(function(b){ tot+=b.cost||0;
+    var sub = (b.parts&&b.parts.length) ? '<span style="display:block;font-weight:400;font-size:9.6px;color:#5a6080">'+b.parts.map(function(pp){ return '<bdi>'+mgrE(pp.name)+'</bdi> '+mgrFa(pp.pct)+'٪: '+mgrM(pp.buyGrams)+' گرم'; }).join(' ؛ ')+'</span>' : '';
+    return '<tr><td class=nm><bdi>'+mgrE(b.name)+'</bdi>'+sub+'</td><td>'+mgrM(b.grams)+' گرم</td><td>× '+mgrN(b.buyX)+'</td><td class=t>'+mgrM(b.buyGrams)+' گرم<span style="display:block;font-weight:400;font-size:9.6px;color:#5a6080">'+mgrKg(b.buyGrams,b.density)+'</span></td><td>'+mgrM(b.pricePerKg)+'</td><td class=t>'+mgrM(b.cost)+'</td></tr>'; }).join('');
+  return '<h3>'+(title||'متریالِ لازم برای خرید')+'</h3><table><tr><th>متریال</th><th>مصرفِ واقعی<span>قطعه‌ها + تست‌ها</span></th><th>ضریبِ خرید</th><th>مقدارِ خرید</th><th>قیمتِ هر کیلو</th><th>هزینهٔ خرید</th></tr>'
+    + rows + (list.length>1?'<tr class=tot><td colspan=5>جمع</td><td>'+mgrM(tot)+'</td></tr>':'') + '</table>';
 }
 function mgrUniq(a){ var o=[]; a.forEach(function(x){ if(x!=='' && x!=null && o.indexOf(x)<0) o.push(x); }); return o; }
 function mgrPageEst(e){
@@ -16906,6 +16916,7 @@ function mgrPageEst(e){
     + '<h3>جمع‌بندیِ این برآورد</h3>'
     + '<table class=sum><tr><th>هزینهٔ تمام‌شده<span>متریال + دستگاه + نیرو + پیش‌تولید</span></th><th>هزینه‌های مستقیم</th><th>سهمِ پژوهشگاه '+mgrFa(e.institutePct||0)+'٪</th><th>سودِ خالص</th><th>مبلغِ کل</th></tr>'
     + '<tr><td class=t>'+mgrM(c.cost)+'</td><td>'+mgrM(t.direct)+'</td><td>'+mgrM(t.institute)+'</td><td>'+mgrM(t.profit)+'</td><td class=t>'+mgrM(t.order)+'</td></tr></table>'
+    + mgrBuyTable(e.buy)
     + '</div>';
 }
 function mgrPageSummary(L){
@@ -16930,11 +16941,17 @@ function mgrPageSummary(L){
     + '<div class=card><div class=k>مبلغِ کل</div><div class=v>'+mgrM(S.tot)+'</div></div></div>'
     + '<table class=sum><tr><th>برآورد</th><th>هزینهٔ تمام‌شده</th><th>هزینه‌های مستقیم</th><th>سهمِ پژوهشگاه</th><th>سودِ خالص</th><th>مبلغِ کل</th></tr>'
     + rows + (L.length>1?'<tr class=tot><td>جمع</td><td>'+mgrM(S.cost)+'</td><td>'+mgrM(S.dir)+'</td><td>'+mgrM(S.inst)+'</td><td>'+mgrM(S.prof)+'</td><td>'+mgrM(S.tot)+'</td></tr>':'') + '</table>'
+    + (function(){ var agg={}, order=[]; L.forEach(function(e){ (e.buy||[]).forEach(function(b){ var k=b.name+'|'+b.buyX; if(!agg[k]){ agg[k]=JSON.parse(JSON.stringify(b)); agg[k].grams=0; agg[k].buyGrams=0; agg[k].cost=0; (agg[k].parts||[]).forEach(function(pp){ pp.buyGrams=0; }); order.push(k); }
+        agg[k].grams+=b.grams; agg[k].buyGrams+=b.buyGrams; agg[k].cost+=b.cost; (b.parts||[]).forEach(function(pp,i){ if(agg[k].parts[i]) agg[k].parts[i].buyGrams+=pp.buyGrams; }); }); });
+        return L.length>1 ? mgrBuyTable(order.map(function(k){ return agg[k]; }), 'متریالِ لازم برای خرید — کلِ پروژه') : ''; })()
     + '<div class=box><b>تعریف‌ها</b><ul>'
     + '<li><b>هزینهٔ تمام‌شده</b> = متریال'+(risks.length?' (با ضریبِ ریسکِ '+risks.join('، ')+')':'')+' + دستگاه + نیروی انسانی (ساعتی '+mgrM(rt.labor||0)+') + پیش‌تولید.'+(machTxt?' دستگاه: '+machTxt+'.':'')+(matTxt?' متریال: '+matTxt+'.':'')+'</li>'
     + '<li><b>هزینه‌های مستقیم</b> (طراحی، بسته‌بندی، ارسال و هزینه‌های جانبی) عیناً و بدونِ سود از مشتری گرفته می‌شود.</li>'
     + (risks.length?'<li><b>ضریبِ ریسک</b> برای ضایعاتِ متریال است (قطعهٔ خراب، ساپورت، رزینِ مانده).'+(profs.length?' ضریبِ سود ('+profs.join('، ')+') فقط روی دستگاه و نیروی انسانی است.':'')+'</li>':'')
     + '<li><b>پیش‌تولید</b> تست‌های پیش از تولیدِ اصلی است و بدونِ سود حساب می‌شود.</li>'
+    + '<li><b>سهمِ پژوهشگاه</b> = '+mgrFa(mgrUniq(L.map(function(e){ return e.institutePct||0; })).join('، '))+'٪ از «تمام‌شدهٔ ساخت + سود» هر قطعه، یعنی '+mgrFa(mgrUniq(L.map(function(e){ return e.institutePct||0; })).join('، '))+'٪ × [(دستگاه + نیرو) × ضریبِ سود + متریال × ضریبِ ریسک]. پیش‌تولید و هزینه‌های مستقیم پژوهشگاه نمی‌خورند.</li>'
+    + '<li><b>مبلغِ کل</b> = تمام‌شدهٔ ساخت + سود + سهمِ پژوهشگاه + پیش‌تولید + هزینه‌های مستقیم.</li>'
+    + '<li><b>متریالِ لازم برای خرید</b> = مصرفِ واقعیِ قطعه‌ها و تست‌ها × ضریبِ خرید (ضریبِ ریسکِ سفارش؛ اگر ثبت نشده، ضریبِ ریسکِ قطعه‌ها). قیمت‌ها از تنظیماتِ همان برآورد است.</li>'
     + '<li><b>سودِ خالص</b> پس از کسرِ همهٔ هزینه‌ها و سهمِ پژوهشگاه است.</li></ul></div>'
     + '</div>';
 }
