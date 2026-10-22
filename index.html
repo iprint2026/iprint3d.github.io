@@ -13324,7 +13324,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V410 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V411 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -17113,6 +17113,10 @@ function spRender(){
   var r = SP.data, inp='width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px;font-family:inherit';
   var h = '<div style="background:#0e1220;border:1px solid #23304f;border-radius:12px;padding:10px 12px;color:#8a93b2;font-size:12px;line-height:1.9;margin-bottom:10px">'
     + '<label style="display:flex;gap:8px;align-items:center;color:#dfe3f5;font-weight:700;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="sp-showcost"'+(r.showCost?' checked':'')+' onchange="spShowCost(this.checked)" style="width:18px;height:18px"> نمایشِ هزینهٔ استفاده در صفحهٔ دانشجو («استفادهٔ شما»)</label>'
+    + '<div style="border:1px solid #2f5236;background:#0f1d15;border-radius:9px;padding:9px 10px;margin:4px 0 10px;color:#c7cce0">'
+    +   '<b style="color:#9ee0a8">💰 قیمت‌گذاریِ رزروهای قبلی</b><div style="font-size:11.5px;margin:3px 0 7px">رزروهای تأییدشدهٔ دانشجو که هنوز مبلغ ندارند، با نرخِ معتبر در تاریخِ خودشان قیمت‌گذاری و قفل می‌شوند. رزروی که برای تاریخش نرخ نباشد، بدونِ مبلغ می‌ماند.</div>'
+    +   '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><input id="sp-la-f" value="'+mgrE(r.today.slice(0,8)+'01')+'" style="width:110px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:7px;font-family:inherit;text-align:center"> تا <input id="sp-la-t" value="'+mgrE(r.today)+'" style="width:110px;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:7px;font-family:inherit;text-align:center">'
+    +   '<button class="btn btn-sm" id="sp-la-btn" style="background:#16281a;border-color:#2f5236;color:#9ee0a8" onclick="spLockAll()">قیمت‌گذاری کن</button></div></div>'
     + 'هر نرخ «از یک تاریخ» معتبر است. مبلغِ هر رزروِ دانشجو هنگامِ <b>تأیید</b> با نرخِ تاریخِ همان رزرو <b>قفل</b> می‌شود و با تغییرِ بعدیِ نرخ عوض نمی‌شود. رزروهای قبل از اولین نرخ مبلغ ندارند. امروز: '+mgrFa(r.today)+'</div>';
   (r.devices||[]).forEach(function(d){
     var cur = d.current, lt = d.latest;
@@ -17152,6 +17156,20 @@ function spFormHtml(d, inp){
     + '<label style="display:flex;gap:7px;align-items:center;margin-top:9px;font-size:12px;cursor:pointer"><input type="checkbox" id="sp-show"'+(lt.show?' checked':'')+'> نمایشِ مبلغِ تقریبی به دانشجو</label>'
     + '<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-primary btn-sm" id="sp-save" onclick="spSave(\''+d.id+'\')">ذخیرهٔ نرخ</button><button class="btn btn-ghost btn-sm" onclick="SP.form=\'\';spRender()">انصراف</button></div>'
     + '</div>';
+}
+function spLockAll(){
+  var fa2en=function(v){ return String(v||'').replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).trim(); };
+  var f=fa2en(document.getElementById('sp-la-f').value), t=fa2en(document.getElementById('sp-la-t').value);
+  var b=document.getElementById('sp-la-btn'); if(b){ b.disabled=true; b.textContent='⏳ ...'; }
+  callSheet('stuPriceLockAll', { from:f, to:t, t:Date.now() }, function(r){
+    if(b){ b.disabled=false; b.textContent='قیمت‌گذاری کن'; }
+    if(r && r.status==='ok'){
+      uiConfirm({ title:'💰 قیمت‌گذاری انجام شد', html:'<div style="line-height:2">✅ '+prToFa(r.locked)+' رزرو قیمت‌گذاری شد · جمع: <b>'+prToFa(prSep(r.amount))+' تومان</b>'
+        +(r.noRate?'<br><span style="color:#f0c674">⚠️ '+prToFa(r.noRate)+' رزرو برای تاریخش نرخ نداشت (اگر می‌خواهی قیمت بگیرند، نرخی با «از تاریخ» قبل از آن‌ها ثبت کن و دوباره بزن)</span>':'')
+        +(r.already?'<br><span style="color:#8a93b2">'+prToFa(r.already)+' رزرو از قبل مبلغ داشت و دست نخورد</span>':'')+'</div>', okText:'باشه', cancelText:'' }, function(){});
+      try{ wsInit(true); }catch(e){}
+    } else showToast('خطا: '+((r&&r.message)||'پاسخ نیامد'));
+  }, 120000);
 }
 function spShowCost(on){
   callSheet('stuShowCostSet', { on:(on?'1':'0'), t:Date.now() }, function(r){
