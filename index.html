@@ -13324,7 +13324,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V411 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V412 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -17129,7 +17129,7 @@ function spRender(){
       +   (lt?(' · <span style="color:'+(lt.show?'#9ee0a8':'#8a93b2')+'">'+(lt.show?'👁 به دانشجو نمایش داده می‌شود':'به دانشجو نمایش داده نمی‌شود')+'</span>'):'')+'</div>'
       + (d.rates && d.rates.length ? '<div style="margin-top:7px;border-top:1px solid #1a2440;padding-top:6px">'
           + d.rates.map(function(x){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;font-size:11.5px"><span>از <b>'+mgrFa(x.fromDate)+'</b>: '+spRateTxt(x,d)+(x.used?' <span style="color:#7a86b0">(قفل در رزروها)</span>':'')+'</span>'
-              + (x.used?'':'<button onclick="spDel(\''+x.id+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:2px 8px;font-size:10.5px">حذف</button>')+'</div>'; }).join('')
+              + (x.used?'':'<span style="display:flex;gap:4px"><button onclick="spDate(\''+x.id+'\',\''+x.fromDate+'\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:2px 8px;font-size:10.5px">تاریخ</button>')+(x.used?'':'<button onclick="spDel(\''+x.id+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:2px 8px;font-size:10.5px">حذف</button></span>')+'</div>'; }).join('')
           + '</div>' : '')
       + (SP.form===d.id ? spFormHtml(d, inp) : '')
       + '</div>';
@@ -17197,6 +17197,15 @@ function spSave(id){
     if(r && r.status==='ok'){ showToast('✅ نرخ ثبت شد'); SP.form=''; spOpen(); }
     else { if(b){ b.disabled=false; b.textContent='ذخیرهٔ نرخ'; } showToast('خطا: '+((r&&r.message)||'پاسخ نیامد')); }
   }, 60000);
+}
+function spDate(id, cur){
+  window._spD = cur;
+  uiConfirm({ title:'تغییرِ «از تاریخ»', html:'<div style="font-size:12px;color:#8a93b2;margin-bottom:6px">مثلاً ۱۴۰۵/۰۷/۰۱ تا رزروهای مهر هم قیمت بگیرند</div><input oninput="window._spD=this.value" value="'+escapeHtml(cur)+'" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px;text-align:center">', okText:'ذخیره', cancelText:'انصراف', danger:false }, function(){
+    var v=String(window._spD||'').replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).trim();
+    callSheet('stuRateSetDate', { id:id, fromDate:v, t:Date.now() }, function(r){
+      if(r && r.status==='ok'){ showToast('✅ تاریخ عوض شد'); spOpen(); } else showToast('خطا: '+((r&&r.message)||'پاسخ نیامد'));
+    }, 60000);
+  });
 }
 function spDel(id){
   uiConfirm({ title:'حذفِ نرخ', html:'این نرخ حذف شود؟', okText:'حذف', cancelText:'انصراف', danger:true }, function(){
