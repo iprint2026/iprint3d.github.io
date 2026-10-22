@@ -359,6 +359,7 @@ body{margin:0;background:#0b0d14;color:#e2e4f0;font-family:'Vazirmatn','Tahoma',
       </div>
       <label class="lbl">توضیح (اختیاری)</label>
       <input class="inp" id="mv-note" placeholder="مثلاً تست کششی نمونهٔ پلیمری">
+      <div id="mv-price" class="hidden" style="margin:8px 0 2px;padding:8px 10px;border:1px solid #2f5236;background:#11201a;border-radius:9px;color:#9ee0a8;font-size:12.5px"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
         <button class="btn btn-ghost" onclick="closeMdl()">بستن</button>
         <button class="btn btn-primary" id="mv-submit" onclick="submitResv()">ثبتِ درخواست</button>
@@ -736,7 +737,32 @@ function openMdl(k){
   document.getElementById('mdl').className='';
   wireTime('mv-from','mv-from-h');
   wireTime('mv-to','mv-to-h');
+  priceWire();
 }
+// V22: مبلغِ تقریبی (فقط اگر مسئول برای این دستگاه «نمایش به دانشجو» را زده باشد)
+function priceWire(){
+  ['mv-samples','mv-hours','mv-from','mv-to'].forEach(function(i){ var e=document.getElementById(i); if(e && !e._pw){ e._pw=1; e.addEventListener('input', priceShow); } });
+  var x=document.getElementById('mv-exact'); if(x && !x._pw){ x._pw=1; x.addEventListener('change', priceShow); }
+  priceShow();
+}
+function priceShow(){
+  var box=document.getElementById('mv-price'); if(!box) return;
+  var dv=DEVS.filter(function(x){return x.id===SEL;})[0], pr=dv&&dv.price;
+  if(!pr || EDIT_ID){ box.className='hidden'; box.style.display='none'; return; }
+  var h=0;
+  if(document.getElementById('mv-exact').checked){
+    var f=smartTime(document.getElementById('mv-from').value||''), t=smartTime(document.getElementById('mv-to').value||'');
+    var tn=function(v){ var m=String(v||'').match(/^(\d{1,2}):(\d{2})$/); return m?(+m[1]+(+m[2])/60):null; };
+    var a=tn(f), b=tn(t); if(a!=null && b!=null && b>a) h=b-a;
+  } else { var hv=smartHours(document.getElementById('mv-hours').value||''); h=(hv&&hv>0)?+hv:0; }
+  var sm=parseInt(la(document.getElementById('mv-samples').value||'').replace(/[^0-9]/g,''),10)||0;
+  var amt=0, parts=[];
+  if(pr.mode!=='sample'){ amt+=h*pr.hourRate; parts.push('ساعتی '+fa(sep(pr.hourRate))); }
+  if(pr.mode!=='hour'){ amt+=sm*pr.sampleRate; parts.push('هر نمونه '+fa(sep(pr.sampleRate))); }
+  box.className=''; box.style.display='block';
+  box.innerHTML='💰 مبلغِ تقریبی: <b>'+fa(sep(Math.round(amt)))+' تومان</b><div class="mut" style="margin-top:3px">'+parts.join(' · ')+' تومان — مبلغِ نهایی پس از تأییدِ مسئول</div>';
+}
+function sep(n){ return String(Math.round(+n||0)).replace(/\B(?=(\d{3})+(?!\d))/g,'٬'); }
 function closeMdl(){ if(RESV_BUSY) return; document.getElementById('mdl').className='hidden'; EDIT_ID=''; RESV_RK=''; }
 // V21: تا پاسخِ سرور نیامده دکمه قفل است؛ کلیدِ درخواست (RESV_RK) باعث می‌شود تکرار هم فقط یک رزرو بسازد
 var RESV_BUSY=false, RESV_RK='';
@@ -854,6 +880,7 @@ function loadMine(){
         +(pend?'در انتظار تأیید':(rej?'ردشده':'تأییدشده'))+'</span></div>'
         +'<div class="sub">📅 '+esc(fa(x.date))+(tm?(' · '+esc(fa(tm))):'')+'</div>'
         +(x.note?('<div class="mut" style="margin-top:3px">'+esc(x.note)+'</div>'):'')
+        +((x.priceAmount!=null && x.priceAmount!=='')?('<div style="margin-top:3px;font-size:12px;color:#9ee0a8">💰 مبلغ: '+fa(sep(x.priceAmount))+' تومان</div>'):'')
         +(creq?('<div style="margin-top:5px;font-size:11.5px;color:#ffb86b">🟠 درخواستِ لغو ثبت شد — در انتظارِ بررسیِ مسئول'
                +'<div class="mut" style="margin-top:2px">دلیل: '+esc(x.cancelReason||'')+'</div></div>'):'')
         +(cden?('<div style="margin-top:5px;font-size:11.5px;color:#f0a6a8">درخواستِ لغوِ شما پذیرفته نشد — رزرو سرِ جایش است.</div>'):'')
@@ -888,11 +915,13 @@ function loadUsage(){
       +  '<div style="color:#9ee0a8;font-size:19px;font-weight:800">'+fa(r.sessionCount)+'</div><div class="mut">نوبت کاری</div></div>'
       +'<div style="flex:1;min-width:88px;background:#0b0f1c;border:1px solid #1a2038;border-radius:10px;padding:11px;text-align:center">'
       +  '<div style="color:#f0c674;font-size:19px;font-weight:800">'+fa(r.deviceCount)+'</div><div class="mut">دستگاه</div></div>'
+      +(r.showCost?('<div style="flex:1;min-width:120px;background:#0f1d15;border:1px solid #2f5236;border-radius:10px;padding:11px;text-align:center">'
+      +  '<div style="color:#9ee0a8;font-size:17px;font-weight:800">'+fa(sep(r.totalAmount||0))+'</div><div class="mut">هزینه (تومان)</div></div>'):'')
       +'</div>';
     var rows=(r.devices||[]).map(function(d){
       return '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #1a2038;border-radius:8px;margin-bottom:5px">'
         +'<span style="color:#dfe3f5;font-size:12.5px">'+esc(d.name)+'</span>'
-        +'<span style="color:#9ee0a8;font-size:12px">'+fa(d.hours)+' ساعت · '+fa(d.count)+' نوبت</span></div>';
+        +'<span style="color:#9ee0a8;font-size:12px">'+fa(d.hours)+' ساعت · '+fa(d.count)+' نوبت'+(r.showCost?(' · <b>'+fa(sep(d.amount||0))+' تومان</b>'):'')+'</span></div>';
     }).join('');
     box.innerHTML='<div class="card"><div class="ttl" style="font-size:14px;margin-bottom:11px">📊 استفادهٔ شما در '+MNAM[t.m-1]+' '+fa(t.y)+'</div>'
       +cards+'<div class="mut" style="margin-bottom:6px">به تفکیکِ دستگاه</div>'+rows+'</div>';
@@ -1350,7 +1379,7 @@ function buyUseCard(card){
       else { hint.style.color='#f0a6a8'; hint.textContent='✗ این کدِ ملی معتبر نیست'; }
     });
   })();
-  console.log('iPrint3D STUDENT V21');
+  console.log('iPrint3D STUDENT V23');
 })();
 </script>
 </body>
