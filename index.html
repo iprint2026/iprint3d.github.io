@@ -1228,6 +1228,7 @@ function doPost(e){
       <div style="display:flex;gap:7px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="WS_VIEW_M=0; wsRender()">📅 ماهِ جاری</button>
         <button class="btn btn-ghost btn-sm" onclick="wsUsageReport()">📊 گزارش استفاده</button>
+        <button class="btn btn-ghost btn-sm" onclick="spOpen()">💰 قیمت دانشجو</button>
         <button class="btn btn-ghost btn-sm" onclick="wsInit(true)">🔄 بروزرسانی</button>
       </div>
     </div>
@@ -10869,11 +10870,13 @@ function wsResvForm(deviceId, dayKey){
       +   (r.cancelState==='requested'?'<span style="color:#ffb86b;font-size:10px;font-weight:400"> · درخواستِ لغو</span>':'')+'</div>'
       + '<div style="color:#8a93b2;font-size:10.5px">'+escapeHtml(tm)+(r.note?(' · '+escapeHtml(r.note)):'')+'</div>'
       + (r.cancelState==='requested'?'<div style="color:#ffb86b;font-size:10.5px;margin-top:2px">دلیلِ لغو: '+escapeHtml(r.cancelReason||'—')+'</div>':'')
+      + ((String(r.createdBy||'').indexOf('stu:')===0 && r.priceAmount!=='' && r.priceAmount!=null)?'<div style="color:#9ee0a8;font-size:10.5px;margin-top:2px">💰 '+prToFa(prSep(r.priceAmount))+' تومان · '+({hour:'ساعتی',sample:'دانه‌ای',both:'ساعتی + دانه‌ای'}[r.priceMode]||'')+'</div>':'')
       + '</div>'
       + '<div style="display:flex;gap:4px;flex-shrink:0">'
       +   (r.cancelState==='requested'?'<button onclick="wsCancelDecide(\''+r.id+'\')" style="cursor:pointer;border:1px solid #6b4a1f;background:#2a1d0c;color:#ffb86b;border-radius:6px;padding:3px 9px;font-size:10.5px">بررسیِ لغو</button>':'')
       +   (pend?'<button onclick="wsResvSetStatus(\''+r.id+'\',\'confirmed\')" style="cursor:pointer;border:1px solid #2f5236;background:#16281a;color:#9ee0a8;border-radius:6px;padding:3px 9px;font-size:10.5px">✓ تأیید</button>':'')
       +   '<button onclick="wsResvEditHours(\''+r.id+'\',\''+nm+'\',\''+(r.hours||'')+'\',\''+(r.fromTime||'')+'\',\''+(r.toTime||'')+'\')" style="cursor:pointer;border:1px solid #2a3a66;background:transparent;color:#9ec5ff;border-radius:6px;padding:3px 9px;font-size:10.5px">⏱ ساعت</button>'
+      +   (String(r.createdBy||'').indexOf('stu:')===0?'<button onclick="spEdit(\''+r.id+'\')" style="cursor:pointer;border:1px solid #2f5236;background:transparent;color:#9ee0a8;border-radius:6px;padding:3px 9px;font-size:10.5px">💰 مبلغ</button>':'')
       +   '<button onclick="wsResvDelete(\''+r.id+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:3px 8px;font-size:10.5px">حذف</button>'
       + '</div></div>';
   }).join('');
@@ -13321,7 +13324,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V408 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V410 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -17087,6 +17090,124 @@ function matRecoverApply(){
       mgrShell('<div style="color:#9ee0a8;padding:20px;background:#0e1220;border-radius:12px">✅ '+mgrFa(r.added||0)+' مورد به تنظیمات اضافه شد. قیمت‌هایشان را در «تنظیمات» چک کن.</div>', '', T);
     } else { if(b){ b.disabled=false; b.textContent='➕ افزودنِ انتخاب‌شده‌ها'; } showToast('خطا: '+((r&&r.message)||'پاسخ نیامد')); }
   }, 90000);
+}
+
+// ═══ V409 — قیمتِ استفادهٔ دانشجو ═══
+var SP = { data:null, form:'' };
+var SP_MF = { hour:'ساعتی', sample:'دانه‌ای (هر نمونه)', both:'ساعتی + دانه‌ای' };
+function spOpen(){
+  mgrShell('<div style="color:#8a93b2;text-align:center;padding:30px;background:#0e1220;border-radius:12px">در حالِ بارگذاری...</div>', '', '💰 قیمت دانشجو');
+  callSheet('stuRatesGet', { t:Date.now() }, function(r){
+    if(!(r && r.status==='ok')){ mgrShell('<div style="color:#f0a6a8;padding:20px;background:#0e1220;border-radius:12px">خطا: '+mgrE((r&&r.message)||'پاسخ نیامد')+'</div>', '', '💰 قیمت دانشجو'); return; }
+    SP.data = r; spRender();
+  }, 60000);
+}
+function spRateTxt(x, d){
+  var hr = x.source==='workshop' ? ('استهلاکِ کارگاه'+(d && d.workshopRate!=null?' ('+mgrM(d.workshopRate)+')':'')) : mgrM(x.hourRate);
+  var t = SP_MF[x.mode]||'';
+  if(x.mode!=='sample') t += ' · ساعتی '+hr;
+  if(x.mode!=='hour') t += ' · هر نمونه '+mgrM(x.sampleRate);
+  return t;
+}
+function spRender(){
+  var r = SP.data, inp='width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:13px;font-family:inherit';
+  var h = '<div style="background:#0e1220;border:1px solid #23304f;border-radius:12px;padding:10px 12px;color:#8a93b2;font-size:12px;line-height:1.9;margin-bottom:10px">'
+    + '<label style="display:flex;gap:8px;align-items:center;color:#dfe3f5;font-weight:700;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="sp-showcost"'+(r.showCost?' checked':'')+' onchange="spShowCost(this.checked)" style="width:18px;height:18px"> نمایشِ هزینهٔ استفاده در صفحهٔ دانشجو («استفادهٔ شما»)</label>'
+    + 'هر نرخ «از یک تاریخ» معتبر است. مبلغِ هر رزروِ دانشجو هنگامِ <b>تأیید</b> با نرخِ تاریخِ همان رزرو <b>قفل</b> می‌شود و با تغییرِ بعدیِ نرخ عوض نمی‌شود. رزروهای قبل از اولین نرخ مبلغ ندارند. امروز: '+mgrFa(r.today)+'</div>';
+  (r.devices||[]).forEach(function(d){
+    var cur = d.current, lt = d.latest;
+    h += '<div style="background:#0e1220;border:1px solid #23304f;border-radius:12px;padding:11px 12px;margin-bottom:9px;color:#c7cce0;font-size:12.5px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+      +   '<b style="color:#dfe3f5;font-size:13.5px">'+mgrE(d.name)+' <span style="font-weight:400;font-size:10.5px;color:#7a86b0">· '+(d.kind==='lab'?'مخصوصِ دانشجو':'مشترک با کارگاه')+'</span></b>'
+      +   '<button class="btn btn-sm" style="background:#10233f;border-color:#2a5a8e;color:#9cd1ff" onclick="spForm(\''+d.id+'\')">+ نرخِ جدید</button></div>'
+      + (d.kind!=='lab' ? '<div style="font-size:11px;margin-top:3px;color:'+(d.workshopMissing?'#f0c674':'#8a93b2')+'">'+(d.workshopMissing?'⚠️ این دستگاه در تنظیماتِ کارگاه نیست (استهلاک ندارد). برای «همان استهلاک» اول آن را با «بازیابیِ موادِ گم‌شده» برگردان، یا نرخِ جدا بده.':'استهلاکِ کارگاه: '+mgrM(d.workshopRate)+' تومان/ساعت')+'</div>' : '')
+      + '<div style="margin-top:6px">'+(cur?('✅ نرخِ امروز: '+spRateTxt(cur,d)):'<span style="color:#f0c674">امروز نرخی ندارد</span>')
+      +   (lt?(' · <span style="color:'+(lt.show?'#9ee0a8':'#8a93b2')+'">'+(lt.show?'👁 به دانشجو نمایش داده می‌شود':'به دانشجو نمایش داده نمی‌شود')+'</span>'):'')+'</div>'
+      + (d.rates && d.rates.length ? '<div style="margin-top:7px;border-top:1px solid #1a2440;padding-top:6px">'
+          + d.rates.map(function(x){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;font-size:11.5px"><span>از <b>'+mgrFa(x.fromDate)+'</b>: '+spRateTxt(x,d)+(x.used?' <span style="color:#7a86b0">(قفل در رزروها)</span>':'')+'</span>'
+              + (x.used?'':'<button onclick="spDel(\''+x.id+'\')" style="cursor:pointer;border:1px solid #5a2a2a;background:transparent;color:#f0a6a8;border-radius:6px;padding:2px 8px;font-size:10.5px">حذف</button>')+'</div>'; }).join('')
+          + '</div>' : '')
+      + (SP.form===d.id ? spFormHtml(d, inp) : '')
+      + '</div>';
+  });
+  mgrShell(h, '', '💰 قیمت دانشجو');
+  if(SP.form) spModeVis();
+}
+function spFormHtml(d, inp){
+  var lt = d.latest || {};
+  var src = (d.kind==='lab' || d.workshopMissing) ? 'custom' : (lt.source||'workshop');
+  return '<div style="margin-top:9px;border:1px solid #2a5a8e;border-radius:10px;padding:10px;background:#0b1424">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    +   '<div><div style="font-size:11px;color:#8a93b2;margin-bottom:3px">از تاریخ</div><input id="sp-fd" style="'+inp+'" value="'+mgrE(SP.data.today)+'" placeholder="۱۴۰۵/۰۸/۰۱"></div>'
+    +   '<div><div style="font-size:11px;color:#8a93b2;margin-bottom:3px">حالتِ پیش‌فرضِ محاسبه</div><select id="sp-mode" onchange="spModeVis()" style="'+inp+'">'
+    +     ['hour','sample','both'].map(function(m){ return '<option value="'+m+'"'+((lt.mode||(d.kind==='lab'?'both':'hour'))===m?' selected':'')+'>'+SP_MF[m]+'</option>'; }).join('')+'</select></div>'
+    + '</div>'
+    + (d.kind!=='lab' ? '<div style="margin-top:8px;font-size:12px">نرخِ ساعتی: '
+        + '<label style="margin-left:12px;cursor:pointer"><input type="radio" name="sp-src" value="workshop"'+(src==='workshop'?' checked':'')+(d.workshopMissing?' disabled':'')+' onchange="spModeVis()"> همان استهلاکِ کارگاه</label>'
+        + '<label style="cursor:pointer"><input type="radio" name="sp-src" value="custom"'+(src==='custom'?' checked':'')+' onchange="spModeVis()"> نرخِ جدا</label></div>' : '<input type="radio" name="sp-src" value="custom" checked style="display:none">')
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+    +   '<div id="sp-hr-box"><div style="font-size:11px;color:#8a93b2;margin-bottom:3px">نرخِ هر ساعت (تومان)</div><input id="sp-hr" inputmode="numeric" style="'+inp+'" value="'+(lt.source==='custom'&&lt.hourRate?lt.hourRate:'')+'"></div>'
+    +   '<div id="sp-sr-box"><div style="font-size:11px;color:#8a93b2;margin-bottom:3px">نرخِ هر نمونه (تومان)</div><input id="sp-sr" inputmode="numeric" style="'+inp+'" value="'+(lt.sampleRate||'')+'"></div>'
+    + '</div>'
+    + '<label style="display:flex;gap:7px;align-items:center;margin-top:9px;font-size:12px;cursor:pointer"><input type="checkbox" id="sp-show"'+(lt.show?' checked':'')+'> نمایشِ مبلغِ تقریبی به دانشجو</label>'
+    + '<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-primary btn-sm" id="sp-save" onclick="spSave(\''+d.id+'\')">ذخیرهٔ نرخ</button><button class="btn btn-ghost btn-sm" onclick="SP.form=\'\';spRender()">انصراف</button></div>'
+    + '</div>';
+}
+function spShowCost(on){
+  callSheet('stuShowCostSet', { on:(on?'1':'0'), t:Date.now() }, function(r){
+    if(r && r.status==='ok'){ SP.data.showCost = r.showCost; showToast(r.showCost?'✅ هزینه به دانشجو نمایش داده می‌شود':'هزینه به دانشجو نمایش داده نمی‌شود'); }
+    else { showToast('خطا: '+((r&&r.message)||'پاسخ نیامد')); var c=document.getElementById('sp-showcost'); if(c) c.checked=!on; }
+  }, 60000);
+}
+function spForm(id){ SP.form = (SP.form===id?'':id); spRender(); }
+function spModeVis(){
+  var m=(document.getElementById('sp-mode')||{}).value||'hour';
+  var src=(document.querySelector('input[name="sp-src"]:checked')||{}).value||'custom';
+  var hb=document.getElementById('sp-hr-box'), sb=document.getElementById('sp-sr-box');
+  if(hb) hb.style.display = (m!=='sample' && src==='custom') ? '' : 'none';
+  if(sb) sb.style.display = (m!=='hour') ? '' : 'none';
+}
+function spNum(v){ return String(v||'').replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[^0-9]/g,''); }
+function spSave(id){
+  var b=document.getElementById('sp-save'); if(b){ b.disabled=true; b.textContent='⏳ در حالِ ذخیره...'; }
+  var fd=String(document.getElementById('sp-fd').value||'').replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).trim();
+  var p={ deviceId:id, fromDate:fd, mode:document.getElementById('sp-mode').value,
+    source:((document.querySelector('input[name="sp-src"]:checked')||{}).value||'custom'),
+    hourRate:spNum(document.getElementById('sp-hr').value), sampleRate:spNum(document.getElementById('sp-sr').value),
+    show:(document.getElementById('sp-show').checked?'1':'0'), t:Date.now() };
+  callSheet('stuRateAdd', p, function(r){
+    if(r && r.status==='ok'){ showToast('✅ نرخ ثبت شد'); SP.form=''; spOpen(); }
+    else { if(b){ b.disabled=false; b.textContent='ذخیرهٔ نرخ'; } showToast('خطا: '+((r&&r.message)||'پاسخ نیامد')); }
+  }, 60000);
+}
+function spDel(id){
+  uiConfirm({ title:'حذفِ نرخ', html:'این نرخ حذف شود؟', okText:'حذف', cancelText:'انصراف', danger:true }, function(){
+    callSheet('stuRateDelete', { id:id, t:Date.now() }, function(r){
+      if(r && r.status==='ok'){ showToast('حذف شد'); spOpen(); } else showToast('خطا: '+((r&&r.message)||'پاسخ نیامد'));
+    }, 60000);
+  });
+}
+// مبلغِ یک رزروِ دانشجو: حالت / ساعت / تعدادِ نمونه (با نرخِ قفل‌شده)
+function spEdit(id){
+  var r=null; (WS_RESV||[]).forEach(function(x){ if(String(x.id)===String(id)) r=x; }); if(!r) return;
+  var locked = !!r.priceLockedAt;
+  var inp='width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:9px;font-size:13px;font-family:inherit';
+  var mode = r.priceMode || 'hour';
+  window._speM = mode; window._speH = String(locked?r.priceHours:(r.hours||'')); window._speS = String(locked?r.priceSamples:(r.samples||''));
+  var html = '<div style="color:#c7cce0;font-size:12.5px;margin-bottom:6px">«'+escapeHtml(r.personName||'')+'» · '+escapeHtml(prToFa(r.date))+'</div>'
+    + (locked ? '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:9px">نرخِ قفل‌شده: ساعتی '+prToFa(prSep(r.priceHourRate||0))+' · هر نمونه '+prToFa(prSep(r.priceSampleRate||0))+' تومان</div>'
+              : '<div style="color:#f0c674;font-size:11.5px;margin-bottom:9px">هنوز قفل نشده؛ با ذخیره، با نرخِ تاریخِ همین رزرو قفل می‌شود.</div>')
+    + '<div style="font-size:11.5px;color:#8a93b2;margin-bottom:3px">حالتِ محاسبه</div>'
+    + '<select id="spe-mode" onchange="window._speM=this.value" style="'+inp+';margin-bottom:8px">'+['hour','sample','both'].map(function(m){ return '<option value="'+m+'"'+(m===mode?' selected':'')+'>'+SP_MF[m]+'</option>'; }).join('')+'</select>'
+    + '<div style="display:flex;gap:8px"><div style="flex:1"><div style="font-size:11.5px;color:#8a93b2;margin-bottom:3px">ساعتِ واقعی</div><input id="spe-h" oninput="window._speH=this.value" inputmode="decimal" style="'+inp+'" value="'+escapeHtml(String(locked?r.priceHours:(r.hours||'')))+'"></div>'
+    + '<div style="flex:1"><div style="font-size:11.5px;color:#8a93b2;margin-bottom:3px">تعدادِ نمونه</div><input id="spe-s" oninput="window._speS=this.value" inputmode="numeric" style="'+inp+'" value="'+escapeHtml(String(locked?r.priceSamples:(r.samples||'')))+'"></div></div>';
+  uiConfirm({ title:'💰 مبلغِ رزرو', html:html, okText:'ذخیره', cancelText:'انصراف', danger:false }, function(){
+    var h=String(window._speH||'').replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٫,]/g,'.');
+    callSheet('resvPriceSet', { id:id, mode:(window._speM||'hour'), hours:h, samples:spNum(window._speS), t:Date.now() }, function(res){
+      if(res && res.status==='ok'){ showToast('💰 مبلغ: '+prToFa(prSep(res.amount))+' تومان'); wsInit(true); }
+      else showToast('خطا: '+((res&&res.message)||'پاسخ نیامد'));
+    }, 60000);
+  });
 }
 </script>
 </body>
