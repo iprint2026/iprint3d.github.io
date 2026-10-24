@@ -1525,6 +1525,7 @@ function doPost(e){
     <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px">
       <button class="btn btn-ghost btn-sm" onclick="rangeApplyPreset('week')">هفتهٔ اخیر</button>
       <button class="btn btn-ghost btn-sm" onclick="rangeApplyPreset('twoweeks')">دو هفتهٔ اخیر</button>
+      <button class="btn btn-ghost btn-sm" onclick="rangePrevMonth()">ماه قبل</button>
       <button class="btn btn-ghost btn-sm" onclick="rangeApplyPreset('month')">ماه جاری</button>
       <button class="btn btn-ghost btn-sm" onclick="rangeApplyPreset('3months')">۳ ماه اخیر</button>
       <button class="btn btn-ghost btn-sm" onclick="rangeApplyPreset('year')">امسال</button>
@@ -10575,6 +10576,11 @@ function wsUsageReport(){
     +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">تا تاریخ</div>'
     +     '<input id="u-to" oninput="window._uTo=this.value" value="'+window._uTo+'" placeholder="۱۴۰۵/۰۶/۳۱" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;text-align:center"></div>'
     + '</div>'
+    + '<div style="display:flex;gap:6px;margin-bottom:10px">'
+    +   '<button onclick="wsUsageRange(\'prev\')" style="'+'flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit'+'">ماهِ قبل</button>'
+    +   '<button onclick="wsUsageRange(\'month\')" style="'+'flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit'+'">این ماه</button>'
+    +   '<button onclick="wsUsageRange(\'year\')" style="'+'flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit'+'">امسال</button>'
+    + '</div>'
     + '<div style="display:flex;gap:7px;margin-bottom:10px">'
     +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">دستگاه</div>'
     +     '<select id="u-dev" onchange="window._uDev=this.value" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;font-family:inherit">'+devOpts+'</select></div>'
@@ -11233,7 +11239,7 @@ function purRowHtml(r){
     +   '</div>'
     +   '<div style="text-align:left;flex-shrink:0">'
     +     '<div style="color:#9ec5ff;font-weight:800;font-size:14px;white-space:nowrap">' + prToFa(fmtMoney(r.amount)) + '</div>'
-    +     (r.imageFileId ? ('<button onclick="purViewFile(\''+r.id+'\')" style="cursor:pointer;border:none;background:transparent;color:#7ab8ff;font-size:10.5px;padding:0;font-family:inherit;text-decoration:underline">'+(r.fileKind==='pdf'?'📄 دیدنِ PDF':'🧾 دیدنِ فاکتور')+'</button>') : '<span style="color:#5a6080;font-size:10.5px">بدون فاکتور</span>')
+    +     (r.imageFileId ? ('<button onclick="purViewFile(\''+r.id+'\')" style="cursor:pointer;margin-top:6px;border:1px solid #2a5a8e;background:#10233f;color:#9cd1ff;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;font-family:inherit;white-space:nowrap">'+(r.fileKind==='pdf'?'📄 مشاهدهٔ PDF':'🧾 مشاهدهٔ فاکتور')+'</button>') : '<div style="color:#5a6080;font-size:10.5px;margin-top:4px">بدون فاکتور</div>')
     +   '</div>'
     + '</div>'
     + (acts ? '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:9px;padding-top:8px;border-top:1px solid #1a2440">' + acts + '</div>' : '')
@@ -11589,9 +11595,14 @@ function purXlsx(){
     + '</div>'
     + '<div style="color:#8a93b2;font-size:11.5px;margin-bottom:5px">بازهٔ گزارش</div>'
     + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    +   '<button onclick="purXFrom(\'prev\')" style="'+'flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit'+'">ماهِ قبل</button>'
     +   '<button onclick="purXFrom(\'month\')" style="flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit">این ماه</button>'
     +   '<button onclick="purXFrom(\'year\')"  style="flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit">امسال</button>'
     +   '<button onclick="purXFrom(\'all\')"   style="flex:1;cursor:pointer;border:1px solid #232742;background:transparent;color:#8a93b2;border-radius:7px;padding:7px;font-size:11.5px;font-family:inherit">کلِ تاریخچه</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:7px;margin-top:9px">'
+    +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">از تاریخ</div><input id="pu-xf" oninput="PUR_F.from=prRangeNorm(this.value)" value="'+escapeHtml(PUR_F.from||'')+'" placeholder="ابتدا — مثلاً ۱۴۰۵/۰۷/۰۱" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;text-align:center"></div>'
+    +   '<div style="flex:1"><div style="color:#8a93b2;font-size:11px;margin-bottom:3px">تا تاریخ</div><input id="pu-xt" oninput="PUR_F.to=prRangeNorm(this.value)" value="'+escapeHtml(PUR_F.to||'')+'" placeholder="انتها — مثلاً ۱۴۰۵/۰۷/۳۰" style="width:100%;box-sizing:border-box;background:#12151f;border:1px solid #232742;border-radius:7px;color:#e2e4f0;padding:8px;font-size:12.5px;text-align:center"></div>'
     + '</div>'
     + '<div id="pu-xrange" style="color:#7ab8ff;font-size:11.5px;text-align:center;margin-top:9px">'
     +   'بازه: ' + escapeHtml(prToFa(PUR_F.from||'ابتدا')) + ' تا ' + escapeHtml(prToFa(PUR_F.to||'انتها')) + '</div>';
@@ -11612,10 +11623,12 @@ function purSetPeriod(p){
 function purXFrom(kind){
   var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
   if(kind==='month'){ PUR_F.from = t.y+'/'+wsP2(t.m)+'/01'; PUR_F.to = t.y+'/'+wsP2(t.m)+'/'+wsP2(WS_MONS[t.m-1]||30); }
+  if(kind==='prev'){ var pm = prPrevMonth(); PUR_F.from = pm.from; PUR_F.to = pm.to; }
   if(kind==='year'){ PUR_F.from = t.y+'/01/01'; PUR_F.to = t.y+'/12/29'; }
   if(kind==='all'){ PUR_F.from = ''; PUR_F.to = ''; }
   var el = document.getElementById('pu-xrange');
   if(el) el.textContent = 'بازه: ' + prToFa(PUR_F.from||'ابتدا') + ' تا ' + prToFa(PUR_F.to||'انتها');
+  var xf=document.getElementById('pu-xf'), xt=document.getElementById('pu-xt'); if(xf) xf.value=PUR_F.from||''; if(xt) xt.value=PUR_F.to||'';
 }
 function purXlsxRun(){
   showToast('در حال ساختِ فایل... (چند لحظه)');
@@ -11820,11 +11833,51 @@ function purInvPickFile(){
 }
 function purUploadHeld(payload, purchaseId, cb){
   if(!payload || !purchaseId){ if(cb) cb(false); return; }
-  fetch(SHEET_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({ action:'purUploadImage', token:SESSION_TOKEN, id:purchaseId,
-                           base64:payload.base64, mime:payload.mime })
-  }).then(function(r){ return r.json(); }).then(function(res){ if(cb) cb(!!(res && res.status==='ok')); })
-    .catch(function(){ if(cb) cb(false); });
+  purUploadSend(purchaseId, payload.base64, payload.mime, cb);
+}
+// V414 — آپلودِ فاکتورِ خرید با نمایشِ وضعیت (به‌جای پیامِ گذرا) + بررسیِ واقعی روی سرور + «تلاشِ دوباره»
+function purUpBox(html, btns){
+  var ov=document.getElementById('pur-up-ov');
+  if(!ov){ ov=document.createElement('div'); ov.id='pur-up-ov'; ov.style.cssText='position:fixed;inset:0;z-index:9700;background:rgba(4,6,12,.82);display:flex;align-items:center;justify-content:center;padding:18px'; document.body.appendChild(ov); }
+  ov.innerHTML='<div style="background:#0e1220;border:1px solid #23304f;border-radius:14px;max-width:420px;width:100%;padding:18px;color:#dfe3f5;font-size:13.5px;line-height:1.9;text-align:center">'+html
+    +(btns?'<div style="display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap">'+btns+'</div>':'')+'</div>';
+  ov.style.display='flex';
+}
+function purUpClose(){ var ov=document.getElementById('pur-up-ov'); if(ov&&ov.parentNode) ov.parentNode.removeChild(ov); }
+var PUR_UP_RETRY = null;
+function purUploadSend(id, b64, mime, cb){
+  var kb = Math.round((String(b64||'').length*3/4)/1024);
+  purUpBox('⏳ <b>در حالِ آپلودِ فاکتور...</b><div style="color:#8a93b2;font-size:12px">حجم: '+prToFa(kb)+' کیلوبایت — صفحه را نبند</div>');
+  var finished=false;
+  function done(ok, msg){
+    if(finished) return; finished=true;
+    if(ok){
+      purUpBox('✅ <b>فاکتور ذخیره شد</b><div style="color:#8a93b2;font-size:12px">از دکمهٔ «🧾 مشاهدهٔ فاکتور» روی همان خرید می‌بینی‌اش.</div>', '<button class="btn btn-primary btn-sm" onclick="purUpClose()">باشه</button>');
+      PUR_UP_RETRY=null; if(cb) cb(true);
+    } else {
+      PUR_UP_RETRY = function(){ purUploadSend(id, b64, mime, cb); };
+      purUpBox('❌ <b>فاکتور ذخیره نشد</b><div style="color:#f0a6a8;font-size:12px">'+escapeHtml(msg||'پاسخی از سرور نیامد')+'</div>',
+        '<button class="btn btn-primary btn-sm" onclick="PUR_UP_RETRY&&PUR_UP_RETRY()">🔁 تلاشِ دوباره</button><button class="btn btn-ghost btn-sm" onclick="purUpClose()">بستن</button>');
+      if(cb) cb(false);
+    }
+  }
+  // اگر پاسخِ خودِ آپلود خوانده نشد، از روی فهرستِ خریدها چک می‌کنیم که واقعاً ثبت شده یا نه
+  function verify(msg){
+    callSheet('purList', { from:'', to:'', status:'', buyerType:'', project:'', buyerId:'', t:Date.now() }, function(r){
+      var it = (r && r.purchases) ? r.purchases.filter(function(x){ return x.id===id; })[0] : null;
+      if(it && it.imageFileId) done(true); else done(false, msg);
+    }, 60000);
+  }
+  var tmo = setTimeout(function(){ verify('آپلود بیش از حد طول کشید'); }, 120000);
+  fetch(loadSheetUrl(), { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'purUploadImage', token:SESSION_TOKEN, id:id, base64:b64, mime:mime })
+  }).then(function(r){ return r.text(); }).then(function(t){
+    clearTimeout(tmo);
+    var res=null; try{ res=JSON.parse(t); }catch(e){}
+    if(res && res.status==='ok') done(true);
+    else if(res && res.message) done(false, res.message);
+    else verify('پاسخِ سرور خوانا نبود');
+  }).catch(function(){ clearTimeout(tmo); verify('ارتباط با سرور قطع شد'); });
 }
 function purItemAdd(){ PUR_ITEMS.push({title:'',amount:'',project:'',qty:'1',mode:'unit'}); purItemsRender(); }
 function purItemLineTotal(it){ var q=+it.qty; if(!(q>0)) q=1; var a=parseFloat(it.amount)||0; return (it.mode==='unit') ? Math.round(q*a) : a; }
@@ -12063,15 +12116,7 @@ function purPickImage(id){
     var isPdf = (f.type==='application/pdf') || /\.pdf$/i.test(f.name||'');
     if(isPdf && f.size > 8*1024*1024){ showToast('حجمِ PDF بیشتر از ۸ مگابایت است'); return; }
     showToast('در حال آپلود...');
-    function send(b64, mime){
-      fetch(SHEET_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({ action:'purUploadImage', token:SESSION_TOKEN, id:id,
-                               base64:b64, mime:mime })
-      }).then(function(r){ return r.json(); }).then(function(res){
-        if(res && res.status==='ok'){ showToast('فاکتور ذخیره شد ✓'); purInit(true); }
-        else showToast((res&&res.message)?res.message:'خطا در آپلود');
-      }).catch(function(){ showToast('خطا در ارتباط'); });
-    }
+    function send(b64, mime){ purUploadSend(id, b64, mime, function(ok){ if(ok) purInit(true); }); }
     if(isPdf){
       // PDF خام فرستاده می‌شود (فشرده‌سازیِ عکس آن را خراب می‌کند)
       var rd = new FileReader();
@@ -13324,7 +13369,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V412 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V414 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
@@ -17235,6 +17280,33 @@ function spEdit(id){
       else showToast('خطا: '+((res&&res.message)||'پاسخ نیامد'));
     }, 60000);
   });
+}
+
+// V413 — «ماهِ قبل» و بازهٔ دلخواه در خروجی‌ها
+function prPrevMonth(){
+  var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1};
+  var y = t.y, m = t.m - 1; if(m < 1){ m = 12; y--; }
+  return { from: y+'/'+wsP2(m)+'/01', to: y+'/'+wsP2(m)+'/'+wsP2(WS_MONS[m-1]||30) };
+}
+function prRangeNorm(v){
+  v = String(v||'').replace(/[۰-۹]/g,function(d){ return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[-.]/g,'/').trim();
+  var m = v.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/); if(!m) return v ? v : '';
+  var x = m[1]+'/'+wsP2(+m[2])+'/'+wsP2(+m[3]);
+  var el = document.getElementById('pu-xrange'); if(el) setTimeout(function(){ el.textContent = 'بازه: ' + prToFa(PUR_F.from||'ابتدا') + ' تا ' + prToFa(PUR_F.to||'انتها'); }, 0);
+  return x;
+}
+function wsUsageRange(kind){
+  var t = wsParse(todayShamsi()) || {y:1405,m:1,d:1}, r;
+  if(kind==='prev') r = prPrevMonth();
+  else if(kind==='year') r = { from:t.y+'/01/01', to:t.y+'/12/'+wsP2(WS_MONS[11]||29) };
+  else r = { from:t.y+'/'+wsP2(t.m)+'/01', to:t.y+'/'+wsP2(t.m)+'/'+wsP2(WS_MONS[t.m-1]||30) };
+  window._uFrom = r.from; window._uTo = r.to;
+  var f=document.getElementById('u-from'), to=document.getElementById('u-to'); if(f) f.value=r.from; if(to) to.value=r.to;
+}
+function rangePrevMonth(){
+  var r = prPrevMonth();
+  rgParseToInputs('rg-from', r.from); rgParseToInputs('rg-to', r.to);
+  var st=document.getElementById('rg-status'); if(st){ st.style.color='#9aa3c2'; st.textContent='ماهِ قبل انتخاب شد ('+prToFa(r.from)+' تا '+prToFa(r.to)+') — دکمهٔ ساخت گزارش را بزن'; }
 }
 </script>
 </body>
