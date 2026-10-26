@@ -12197,10 +12197,24 @@ function stuTab(t){
   });
   stuRender();
 }
+// V416: نامِ ذخیره‌شدهٔ هر شناسه از رکوردِ همهٔ دانشجوها (برای دستگاهی که از تنظیمات حذف/بازسازی شده)
+function stuKnownName(id){
+  id=String(id); var nm='';
+  (STU_LIST||[]).some(function(s){
+    return String(s.devices||'').split(',').some(function(x){
+      x=x.trim(); var i=x.indexOf('|'); if(i<0) return false;
+      var a=x.slice(0,i), b=x.slice(i+1).trim();
+      if(a===id && b && b!==id){ nm=b; return true; } return false;
+    });
+  });
+  return nm;
+}
 function stuDeviceName(id){
   var d = (WS_LABDEV||[]).filter(function(x){ return String(x.id)===String(id); })[0];
   if(d) return d.name;
-  return (typeof wsMachineName==='function') ? wsMachineName(id) : String(id);
+  var w = (typeof wsMachineName==='function') ? wsMachineName(id) : '';
+  if(w && String(w)!==String(id)) return w;
+  return stuKnownName(id) || String(id);
 }
 function stuRender(){
   var body = document.getElementById('stu-body'); if(!body) return;
@@ -12218,7 +12232,7 @@ function stuRender(){
     var devs = (s.devices||'').split(',').map(function(x){return x.trim();}).filter(Boolean)
                  .map(function(x){ var i=x.indexOf('|'); return i<0?{id:x,nm:''}:{id:x.slice(0,i),nm:x.slice(i+1)}; });
     var devNames = devs.length
-      ? devs.map(function(d){ return escapeHtml(d.nm || stuDeviceName(d.id)); }).join('، ')
+      ? devs.map(function(d){ return escapeHtml((d.nm && d.nm!==d.id) ? d.nm : stuDeviceName(d.id)); }).join('، ')
       : '<span style="color:#5a6080">هیچ دستگاهی مجاز نشده</span>';
     var stColor = s.status==='approved'?'#9ee0a8':(s.status==='rejected'?'#f0a6a8':'#f0c674');
     var stText = s.status==='approved'?'تأییدشده':(s.status==='rejected'?'ردشده':'در انتظار');
@@ -12259,6 +12273,13 @@ function stuApprove(id){
   var all = (typeof wsAllDevices==='function') ? wsAllDevices() : (WS_LABDEV||[]).map(function(d){return {id:d.id,name:d.name,type:'lab'};});
   if(!all.length){ showToast('اول یک دستگاه در تقویم اضافه کن'); return; }
   window._stuDevs = current.slice();
+  var oldNm = {};
+  (s.devices||'').split(',').forEach(function(x){ x=x.trim(); var i=x.indexOf('|'); if(i>0){ var b=x.slice(i+1).trim(); if(b && b!==x.slice(0,i)) oldNm[x.slice(0,i)]=b; } });
+  all = all.slice();
+  current.forEach(function(cid){
+    if(!all.some(function(x){ return String(x.id)===String(cid); }))
+      all.push({ id:cid, name:(oldNm[cid]||stuKnownName(cid)||cid)+' (دستگاهِ قدیمی)', type:'lab', _old:1, _nm:(oldNm[cid]||stuKnownName(cid)||cid) });
+  });
   var rows = all.map(function(d){
     var on = current.indexOf(String(d.id))>=0;
     var icon = d.type==='lab' ? '🔬' : (d.kind==='DLP' ? '🧪' : '🖨️');
@@ -12272,7 +12293,8 @@ function stuApprove(id){
     // شناسه را همراهِ نام ذخیره کن تا صفحهٔ دانشجو نامِ پرینترها را هم بشناسد
     var payload = picked.map(function(pid){
       var d = all.filter(function(x){ return String(x.id)===String(pid); })[0];
-      return pid + '|' + ((d&&d.name)?String(d.name).replace(/[,|]/g,' '):pid);
+      var nm0 = d ? (d._old ? d._nm : d.name) : (stuKnownName(pid)||pid);
+      return pid + '|' + String(nm0||pid).replace(/[,|]/g,' ');
     }).join(',');
     callSheet('stuUpdate', { id:id, status:'approved', devices:payload, t:Date.now() }, function(res){
       if(res && res.status==='ok'){ showToast(picked.length?('دسترسی به '+prToFa(picked.length)+' دستگاه داده شد ✓'):'تأیید شد (بدونِ دستگاه)'); stuInit(true); }
@@ -13383,8 +13405,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V415 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V398";
+try{ if(window.console) console.log('%c iPrint3D FRONT V416 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V416";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
