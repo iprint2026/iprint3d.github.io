@@ -11825,11 +11825,24 @@ function purInvPickFile(){
       rd.onerror = function(){ if(info){ info.style.color='#f0a6a8'; info.textContent='خطا در خواندنِ فایل'; } };
       rd.readAsDataURL(f);
     } else {
-      compressImage(f, 1400, 0.72).then(function(img){ done({ base64:img.base64, mime:img.mime }); })
+      purImgB64(f).then(function(img){ done({ base64:img.base64, mime:img.mime }); })
         .catch(function(){ if(info){ info.style.color='#f0a6a8'; info.textContent='خطا در خواندنِ عکس'; } });
     }
   };
   inp.click();
+}
+// V415: compressImage یک Blob برمی‌گرداند نه {base64,mime} — برای همین عکسِ فاکتورِ خرید «دادهٔ ناقص» می‌شد.
+// اینجا Blob به base64 تبدیل می‌شود؛ خودِ compressImage (که جاهای دیگر استفاده می‌شود) دست نخورده.
+function purImgB64(file){
+  return compressImage(file, 1400, 0.72).then(function(blob){
+    return new Promise(function(res, rej){
+      if(!blob){ rej('no-blob'); return; }
+      var rd = new FileReader();
+      rd.onload = function(e){ var u=String(e.target.result||''); var b=u.split(',')[1]||''; if(!b){ rej('empty'); return; } res({ base64:b, mime:(blob.type||'image/jpeg') }); };
+      rd.onerror = function(){ rej('read'); };
+      rd.readAsDataURL(blob);
+    });
+  });
 }
 function purUploadHeld(payload, purchaseId, cb){
   if(!payload || !purchaseId){ if(cb) cb(false); return; }
@@ -11846,6 +11859,7 @@ function purUpBox(html, btns){
 function purUpClose(){ var ov=document.getElementById('pur-up-ov'); if(ov&&ov.parentNode) ov.parentNode.removeChild(ov); }
 var PUR_UP_RETRY = null;
 function purUploadSend(id, b64, mime, cb){
+  if(!id || !b64){ purUpBox('❌ <b>فایل خوانده نشد</b><div style="color:#f0a6a8;font-size:12px">'+(!id?'شناسهٔ خرید پیدا نشد':'عکس/فایل خالی است — دوباره انتخاب کن')+'</div>', '<button class="btn btn-ghost btn-sm" onclick="purUpClose()">بستن</button>'); if(cb) cb(false); return; }
   var kb = Math.round((String(b64||'').length*3/4)/1024);
   purUpBox('⏳ <b>در حالِ آپلودِ فاکتور...</b><div style="color:#8a93b2;font-size:12px">حجم: '+prToFa(kb)+' کیلوبایت — صفحه را نبند</div>');
   var finished=false;
@@ -12127,7 +12141,7 @@ function purPickImage(id){
       rd.onerror = function(){ showToast('خطا در خواندنِ فایل'); };
       rd.readAsDataURL(f);
     } else {
-      compressImage(f, 1400, 0.72).then(function(img){
+      purImgB64(f).then(function(img){
         send(img.base64, img.mime);
       }).catch(function(){ showToast('خطا در خواندنِ عکس'); });
     }
@@ -13369,7 +13383,7 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V414 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+try{ if(window.console) console.log('%c iPrint3D FRONT V415 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
 window.IPRINT_FRONT_VERSION = "V398";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
