@@ -10239,16 +10239,14 @@ function mgrPageTime(e, txt){
     var t = noEmo(ln);
     if(idx===0) return;
     if(idx===1){ sub = t; return; }
-    if(!t){ if(inList){ html += '</ul>'; inList = false; } return; }
+    if(!t){ return; }
     var m = t.match(/^(شروع|تحویل|مدت):\s*(.+)$/);
     if(m){ var mn = (m[1]==='تحویل'); cards.push('<div style="border:1px solid #cfd5ea;border-radius:9px;padding:8px 10px;background:'+(mn?'#1b2a5a':'#f8f9fe')+'"><div style="font-size:10px;color:'+(mn?'#c9d2f5':'#5a6080')+'">'+mgrE(m[1])+'</div><div style="font-size:16px;font-weight:800;color:'+(mn?'#fff':'#1b2a5a')+'">'+mgrE(m[2])+'</div></div>'); return; }
-    if(/^•/.test(t)){ if(!inList){ html += '<ul style="margin:3px 0 8px;padding:0 16px 0 0">'; inList = true; } html += '<li style="margin:3px 0">'+B(t.replace(/^•\s*/,''))+'</li>'; return; }
-    if(inList){ html += '</ul>'; inList = false; }
+    if(/^•/.test(t)){ html += '<div style="display:flex;gap:7px;margin:3px 0"><span style="color:#1b2a5a;flex:none">•</span><span>'+B(t.replace(/^•\s*/,''))+'</span></div>'; return; }
     if(/^(سهم هر دستگاه|مبنای محاسبه)/.test(t)){ html += '<h3>'+mgrE(t)+'</h3>'; return; }
     var warn = /^(بدون در نظر|ضریب ریسک)/.test(t);
     html += '<div style="margin-top:8px;padding:8px 12px;border-radius:8px;font-weight:700;'+(warn?'background:#fff6e0;border:1px solid #f0c674;color:#7a5200':'background:#f2fbf5;border:1px solid #a8dcb9;color:#15682f')+'">'+mgrE(t)+'</div>';
   });
-  if(inList) html += '</ul>';
   return '<div class="mgr-pg">'
     + '<h2>برآوردِ زمانی · '+mgrE(e.code)+' · '+mgrE(e.name)+'</h2>'
     + '<div class=sub>'+mgrE(sub)+'</div>'
@@ -14091,8 +14089,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V422 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V422";
+try{ if(window.console) console.log('%c iPrint3D FRONT V423 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V423";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
@@ -17629,19 +17627,19 @@ function mgrOpenRun(ids, withTime){
 }
 function mgrCss(){
   return '<style>'
-  +'.mgr-pg{width:794px;min-height:1123px;box-sizing:border-box;padding:34px 36px;background:#fff;color:#1d2030;font-family:Vazirmatn,Tahoma,sans-serif;direction:rtl;font-size:12.4px;line-height:1.75;margin:0 auto 14px}'
-  +'.mgr-pg h1{font-size:21px;font-weight:800;margin:0;color:#1b2a5a}.mgr-pg .sub{color:#5a6080;font-size:11.5px}'
-  +'.mgr-pg h2{font-size:15.5px;font-weight:800;color:#fff;background:#1b2a5a;border-radius:7px;padding:5px 12px;margin:0 0 8px}'
-  +'.mgr-pg h3{font-size:13px;font-weight:800;color:#1b2a5a;margin:12px 0 5px}'
+  +'.mgr-pg{width:794px;min-height:1123px;box-sizing:border-box;padding:34px 36px;background:#fff;color:#1d2030;font-family:Vazirmatn,Tahoma,sans-serif;direction:rtl;font-size:12.4px;line-height:1.75;margin:0 auto 14px;letter-spacing:normal;word-spacing:normal;font-kerning:none;font-synthesis:none;text-rendering:auto}'
+  +'.mgr-pg h1{font-size:21px;font-weight:700;margin:0;color:#1b2a5a}.mgr-pg .sub{color:#5a6080;font-size:11.5px}'
+  +'.mgr-pg h2{font-size:15.5px;font-weight:700;color:#fff;background:#1b2a5a;border-radius:7px;padding:5px 12px;margin:0 0 8px}'
+  +'.mgr-pg h3{font-size:13px;font-weight:700;color:#1b2a5a;margin:12px 0 5px}'
   +'.mgr-pg table{width:100%;border-collapse:collapse;font-size:11.2px}'
   +'.mgr-pg th{background:#eef1fb;color:#2a3466;font-weight:700;padding:6px 4px;border:1px solid #cfd5ea}'
   +'.mgr-pg th span{display:block;font-weight:400;font-size:9.4px;color:#5a6080}'
   +'.mgr-pg td{padding:5px 4px;border:1px solid #dde1ee;text-align:center}.mgr-pg td.nm{text-align:right;font-weight:700}.mgr-pg td:not(.nm){white-space:nowrap}'
-  +'.mgr-pg td.t{font-weight:800;color:#1b2a5a;background:#f6f8ff}.mgr-pg tr.tot td{background:#e3e8f8;font-weight:800;color:#1b2a5a}'
+  +'.mgr-pg td.t{font-weight:700;color:#1b2a5a;background:#f6f8ff}.mgr-pg tr.tot td{background:#e3e8f8;font-weight:700;color:#1b2a5a}'
   +'.mgr-pg table.sum td{font-size:13px;font-weight:700;padding:8px 4px}'
   +'.mgr-pg .two{display:flex;gap:12px}.mgr-pg .two>div{flex:1;min-width:0}'
   +'.mgr-pg .hero{display:flex;gap:9px;margin:12px 0}.mgr-pg .card{flex:1;border:1px solid #cfd5ea;border-radius:9px;padding:8px 10px;background:#f8f9fe}'
-  +'.mgr-pg .card .k{font-size:10px;color:#5a6080}.mgr-pg .card .v{font-size:16px;font-weight:800;color:#1b2a5a}'
+  +'.mgr-pg .card .k{font-size:10px;color:#5a6080}.mgr-pg .card .v{font-size:16px;font-weight:700;color:#1b2a5a}'
   +'.mgr-pg .card.main{background:#1b2a5a}.mgr-pg .card.main .k{color:#c9d2f5}.mgr-pg .card.main .v{color:#fff}'
   +'.mgr-pg .box{background:#f2fbf5;border:1px solid #a8dcb9;border-radius:9px;padding:8px 13px;font-size:11.4px;margin-top:10px}.mgr-pg .box ul{margin:3px 0;padding:0;list-style:none}.mgr-pg .box li{position:relative;padding-right:14px;margin:2px 0}.mgr-pg .box li:before{content:"";position:absolute;right:2px;top:.75em;width:5px;height:5px;border-radius:50%;background:#3a8a5a}'
   +'.mgr-pg .warn{background:#fdecec;border:1px solid #f0a6a8;color:#9b1c1c;border-radius:8px;padding:7px 11px;font-weight:700;margin:8px 0}'
@@ -17764,7 +17762,9 @@ function mgrFileName(){
 async function mgrBuildPdf(){
   if(!window.html2canvas || !window.jspdf) throw 'کتابخانهٔ PDF بارگذاری نشد — صفحه را تازه کن';
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
-  await new Promise(function(r){ setTimeout(r,200); });
+  try{ if(document.fonts && document.fonts.load){ await Promise.all(['400','700'].map(function(w){ return document.fonts.load(w+' 13px Vazirmatn', 'گزارش ۱۲۳'); })); } }catch(e){}
+  try{ var _ms=document.getElementById('mgr-src'); if(_ms){ _ms.style.display='none'; void _ms.offsetHeight; _ms.style.display=''; } }catch(e){}
+  await new Promise(function(r){ setTimeout(r,300); });
   var pages = document.querySelectorAll('#mgr-src .mgr-pg');
   var pdf = new window.jspdf.jsPDF('p','mm','a4'), imgs=[], first=true;
   var pw=210, ph=297;
