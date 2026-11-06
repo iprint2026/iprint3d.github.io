@@ -8992,7 +8992,7 @@ function prRenderSections(){
       +'</div>';
     // جعبه‌ی متمایزِ تعداد و سود (انتهای بخش)
     html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px;background:#161326;border:1px solid #34306a;border-radius:10px;padding:10px">'
-      +'<div><label style="font-size:11px;color:#a99bf5;font-weight:700">🔢 تعداد این قطعه</label><input class="inp" type="number" min="1" data-prsf="qty" value="'+(s.qty!=null?s.qty:1)+'" style="border-color:#34306a;text-align:center;font-weight:700"></div>'
+      +'<div><label style="font-size:11px;color:#a99bf5;font-weight:700">🔢 تعداد این قطعه</label><input class="inp" type="number" min="1" data-prsf="qty" value="'+(s.qty!=null?s.qty:1)+'" style="border-color:#34306a;text-align:center;font-weight:700">'+(s.optNote?'<div style="font-size:10px;color:#34d399;margin-top:3px">'+escapeHtml(s.optNote)+'</div>':'')+'</div>'
       +'<div><label style="font-size:11px;color:#fbbf24;font-weight:700">📈 ضریب سود این قطعه</label><input class="inp" type="number" step="0.1" data-prsf="profit" value="'+(s.profit!=null?s.profit:'')+'" placeholder="پیش‌فرض" style="border-color:#5a4a1e;text-align:center;font-weight:700;color:#fbbf24"></div>'
       +'</div>';
     // «مواد خارج از ضریب سود» — تیک + ضریب ریسکِ دستی (فقط همین قطعه)
@@ -9197,7 +9197,7 @@ var SCHED_DAYS = [ {k:'sat',n:'شنبه'}, {k:'sun',n:'یک‌شنبه'}, {k:'mo
                    {k:'tue',n:'سه‌شنبه'}, {k:'wed',n:'چهارشنبه'}, {k:'thu',n:'پنج‌شنبه'}, {k:'fri',n:'جمعه'} ];
 
 function schedDefault(){
-  return { hoursPerDay:10, operators:1, mode:'parallel', startDate:'', machines:{}, machinePar:{}, safety:1, queue:'rotate', setCount:0, showPlan:true, invNotice:false, invText:'',
+  return { nightRun:true, workStart:8, workEnd:18, changeMin:10, hoursPerDay:10, operators:1, mode:'parallel', startDate:'', machines:{}, machinePar:{}, safety:1, queue:'rotate', setCount:0, showPlan:true, invNotice:false, invText:'',
            days:{sat:true,sun:true,mon:true,tue:true,wed:true,thu:false,fri:false}, holidaysOff:true, result:null };
 }
 function schedGet(){
@@ -9257,7 +9257,7 @@ function schedRenderInto(slotId){
     +    '<div style="font-weight:600;font-size:13.5px">زمان‌بندی تولید <span class="sched-badge" style="font-size:11px;color:'+(schedSummaryText()?'#34d399':(isSet?'#8a93b2':'#5a6080'))+';font-weight:400">· '+(schedSummaryText()||(isSet?'تنظیم‌شده':'تنظیم نشده'))+'</span></div>'
     +    '<span style="color:#8a93b8;font-size:13px">'+(schedOpen?'▲':'▼')+'</span>'
     +  '</div>'
-    +  (schedOpen ? '<div style="padding:13px;border-top:1px solid #1a2440">'+schedFormHtml(c)+'</div>' : '')
+    +  (schedOpen ? '<div style="padding:13px;border-top:1px solid #1a2440">'+schedFormHtml(c)+((slotId==='pr-sched-slot' && c.nightRun) ? schedOptHtml(c) : '')+'</div>' : '')
     +  calBtn
     +'</div>';
 }
@@ -9319,8 +9319,21 @@ function schedFormHtml(c){
          + '<span style="color:'+(on?'#7ab8ff':'#6b7280')+'">'+d.n+'</span></label>';
   }).join('');
 
-  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">'
-    +  '<div><label style="font-size:11px;color:#5a6080">ساعت کاری در هر روز</label><input class="inp" type="number" min="1" max="24" step="0.5" value="'+(+c.hoursPerDay||10)+'" oninput="schedSet(\'hoursPerDay\',this.value)"></div>'
+  var nightHtml = '<div style="margin-bottom:12px;padding:11px 13px;background:#0b1020;border:1px solid #1e3a6e;border-radius:10px">'
+    +   '<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:#c7cce0;cursor:pointer">'
+    +     '<input type="checkbox" '+(c.nightRun?'checked':'')+' onchange="schedSet(\'nightRun\',this.checked); schedRender();" style="margin:0">'
+    +     '<b>پرینترها شب‌ها روشن می‌مانند</b></label>'
+    +   '<div style="font-size:11px;color:#8a93b2;margin-top:5px;line-height:1.8">'+(c.nightRun
+          ? 'چاپ شب و تعطیلات ادامه پیدا می‌کند، ولی چاپِ جدید فقط در ساعتِ کاری شروع می‌شود. زمانِ تحویل دقیق و ساعت‌به‌ساعت شبیه‌سازی می‌شود.'
+          : 'خاموش: دستگاه‌ها فقط در ساعتِ کاری چاپ می‌کنند (روشِ قدیمی).')+'</div>'
+    +   (c.nightRun ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:9px">'
+    +     '<div><label style="font-size:11px;color:#5a6080">شروعِ ساعت کاری</label><input class="inp" type="number" min="0" max="23" step="0.5" value="'+schedNum(c.workStart,8)+'" oninput="schedSet(\'workStart\',this.value)"></div>'
+    +     '<div><label style="font-size:11px;color:#5a6080">پایانِ ساعت کاری</label><input class="inp" type="number" min="1" max="24" step="0.5" value="'+schedNum(c.workEnd,18)+'" oninput="schedSet(\'workEnd\',this.value)"></div>'
+    +     '<div><label style="font-size:11px;color:#5a6080">تعویض بین دو چاپ (دقیقه)</label><input class="inp" type="number" min="0" max="120" step="1" value="'+schedNum(c.changeMin,10)+'" oninput="schedSet(\'changeMin\',this.value)"></div>'
+    +   '</div>' : '')
+    + '</div>';
+  return nightHtml + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">'
+    +  (c.nightRun ? '' : '<div><label style="font-size:11px;color:#5a6080">ساعت کاری در هر روز</label><input class="inp" type="number" min="1" max="24" step="0.5" value="'+(+c.hoursPerDay||10)+'" oninput="schedSet(\'hoursPerDay\',this.value)"></div>')
     +  '<div><label style="font-size:11px;color:#5a6080">تعداد اپراتور</label><input class="inp" type="number" min="1" step="1" value="'+(+c.operators||1)+'" oninput="schedSet(\'operators\',this.value)"></div>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px">'+machHtml+'</div>'
@@ -9574,6 +9587,447 @@ function schedSimulate(parts, c){
   }
   return { days:days, totalDays:day, st:st };
 }
+// ══════════ V417: زمان‌بندیِ شبانه‌روزی ══════════
+// پرینترها شب و تعطیلات روشن می‌مانند؛ فقط «شروعِ» هر چاپ در ساعتِ کاری ممکن است.
+// کارِ دستی فقط در ساعتِ کاری. قیمت و داده‌ها دست نمی‌خورند؛ فقط محاسبه.
+function schedCalendarDays(c, cb){
+  var start = String(c.startDate||'').trim().replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);});
+  if(!start){ try{ start = todayShamsi()||''; }catch(e){ start=''; } }
+  var m = start.match(/^(\d{3,4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
+  if(!m){ cb(null, 'تاریخِ شروع درست نیست — مثل ۱۴۰۵/۰۸/۱۶ وارد کن.'); return; }
+  var yy=+m[1], mm=+m[2], dd=+m[3];
+  var got = {}, left = 2, failed = false;
+  [yy, yy+1].forEach(function(y){
+    callSheet('calendarGet', { year:y, t:Date.now() }, function(r){
+      if(r && r.status==='ok') got[y] = r; else if(y===yy) failed = true;
+      if(--left) return;
+      if(failed){ cb(null, 'تقویم در دسترس نبود.'); return; }
+      var official = {}, fridays = {};
+      [yy, yy+1].forEach(function(y2){ var g = got[y2]; if(!g) return;
+        for(var k in (g.official||{})) official[k] = 1; for(var k2 in (g.fridays||{})) fridays[k2] = 1; });
+      var mons=[31,31,31,31,31,31,30,30,30,30,30,29];
+      function p2(n){ return (n<10?'0':'')+n; }
+      var cur={y:yy,m:mm,d:dd}, list=[];
+      for(var i=0;i<730;i++){
+        list.push({ k:cur.y+'/'+p2(cur.m)+'/'+p2(cur.d) });
+        cur.d++; if(cur.d>(mons[cur.m-1]||30)){ cur.d=1; cur.m++; if(cur.m>12){ cur.m=1; cur.y++; } }
+      }
+      var anchor=-1; for(var j=0;j<list.length;j++){ if(fridays[list[j].k]){ anchor=j; break; } }
+      var DOW=['sat','sun','mon','tue','wed','thu','fri'];
+      list.forEach(function(x, i2){
+        x.dow = anchor>=0 ? DOW[(6 + (((i2-anchor)%7)+7)%7) % 7] : null;
+        var hol = c.holidaysOff && official.hasOwnProperty(x.k);
+        var dowOk = x.dow ? !!(c.days && c.days[x.dow]) : true;
+        x.work = !hol && dowOk; x.hol = hol;
+      });
+      cb(list, anchor<0 ? 'روزِ هفته از تقویم تشخیص داده نشد؛ فقط تعطیلاتِ رسمی لحاظ شد.' : '');
+    });
+  });
+}
+
+function schedNightSim(parts, c, cal){
+  var ws = schedNum(c.workStart,8), we = schedNum(c.workEnd,18);
+  if(!(we > ws)) { ws = 8; we = 18; }
+  var chg = Math.max(0, schedNum(c.changeMin,10))/60;
+  var safety = Math.max(1, schedNum(c.safety,1));
+  var ops = Math.max(1, schedNum(c.operators,1));
+  var seq = (c.queue === 'seq');
+  var H = cal.length * 24;
+  function dayOf(t){ return Math.floor(t/24); }
+  function isWork(d){ return d>=0 && d<cal.length && cal[d].work; }
+  // نزدیک‌ترین لحظه ≥ t که شروعِ کار مجاز است
+  function nextStart(t){
+    var d = dayOf(t);
+    while(d < cal.length){
+      if(isWork(d)){
+        var h = t - d*24;
+        if(h <= ws) return d*24 + ws;
+        if(h <= we + 1e-9) return t;
+      }
+      d++; t = d*24;
+    }
+    return H;
+  }
+  // اضافه‌کردنِ ساعتِ کارِ دستی فقط داخلِ ساعتِ کاری
+  function addWork(t, need){
+    t = nextStart(t);
+    while(need > 1e-9 && t < H){
+      var d = dayOf(t), endOfWin = d*24 + we;
+      var can = endOfWin - t;
+      if(can >= need){ return t + need; }
+      need -= Math.max(0, can);
+      t = nextStart((d+1)*24);
+    }
+    return t;
+  }
+
+  var st = parts.map(function(p){
+    var isDlp = p.plateTime > 0;
+    var batch = isDlp ? Math.max(1, p.perPlate) : 1;
+    var dur = (isDlp ? p.plateTime : (p.fdmHours||0)) * safety;
+    var jobs = dur > 0 ? Math.ceil(p.qty / batch) : 0;
+    return { p:p, dur:dur, batch:batch, jobsLeft:jobs, jobsTotal:jobs, need:p.qty, printed:0,
+             laborH:(p.laborMin||0)/60*safety, ready:[], mid:p.machineId||'—' };
+  });
+  var groups = {};
+  st.forEach(function(x){ (groups[x.mid] = groups[x.mid] || []).push(x); });
+
+  var units = [], mstat = {};
+  Object.keys(groups).forEach(function(mid){
+    var cnt = Math.max(1, schedNum((c.machines||{})[mid],1));
+    mstat[mid] = { busy:0, jobs:0, end:0, cnt:cnt, first:null, durs:{} };
+    for(var u=0; u<cnt; u++) units.push({ mid:mid, t:0 });
+  });
+
+  var guard = 0;
+  while(guard++ < 200000){
+    var live = units.filter(function(u){ return groups[u.mid].some(function(x){ return x.jobsLeft>0; }); });
+    if(!live.length) break;
+    live.sort(function(a,b){ return a.t-b.t; });
+    var u = live[0];
+    var s = nextStart(u.t);
+    if(s >= H) break;
+    var cand = groups[u.mid].filter(function(x){ return x.jobsLeft>0; });
+    var pick = null;
+    if(seq){ pick = cand[0]; }
+    else {
+      var W = we - (s - dayOf(s)*24);
+      var fit = cand.filter(function(x){ return x.dur + chg <= W + 1e-9; });
+      var pool = fit.length ? fit : cand;
+      pool.sort(function(a,b){
+        if(Math.abs(b.dur-a.dur) > 1e-9) return b.dur - a.dur;           // بلندترین
+        return (a.jobsTotal-a.jobsLeft)/a.jobsTotal - (b.jobsTotal-b.jobsLeft)/b.jobsTotal; // عقب‌مانده‌تر
+      });
+      pick = pool[0];
+    }
+    var end = s + pick.dur;
+    var take = Math.min(pick.batch, pick.need - pick.printed);
+    pick.jobsLeft--; pick.printed += take;
+    pick.ready.push({ t:end, n:take });
+    var ms = mstat[u.mid]; ms.busy += pick.dur; ms.jobs++; ms.end = Math.max(ms.end, end);
+    if(ms.first===null) ms.first = s;
+    ms.durs[pick.p.name] = pick.dur;
+    u.t = end + chg;
+  }
+
+  // ── کارِ دستی: صف با چند اپراتور، فقط در ساعتِ کاری ──
+  var pieces = [];
+  st.forEach(function(x, i){ x.ready.forEach(function(r){ for(var k=0;k<r.n;k++) pieces.push({ i:i, t:r.t }); }); });
+  pieces.sort(function(a,b){ return a.t-b.t; });
+  var opFree = []; for(var o=0;o<ops;o++) opFree.push(0);
+  var doneAt = st.map(function(){ return []; }), laborEnd = 0, printEnd = 0;
+  pieces.forEach(function(pc){
+    var x = st[pc.i]; printEnd = Math.max(printEnd, pc.t);
+    if(x.laborH <= 0){ var tr = nextStart(pc.t); doneAt[pc.i].push(tr); laborEnd = Math.max(laborEnd, tr); return; }
+    var oi = 0; for(var q=1;q<ops;q++) if(opFree[q] < opFree[oi]) oi = q;
+    var fin = addWork(Math.max(pc.t, opFree[oi]), x.laborH);
+    opFree[oi] = fin; doneAt[pc.i].push(fin); laborEnd = Math.max(laborEnd, fin);
+  });
+  var finalT = Math.max(laborEnd, printEnd ? nextStart(printEnd) : 0);
+  return { st:st, mstat:mstat, doneAt:doneAt, finalT:finalT, printEnd:printEnd, laborEnd:laborEnd, ws:ws, we:we, overflow: finalT >= H };
+}
+
+function schedFmtClock(t, cal){
+  var d = Math.floor(t/24), h = t - d*24;
+  var hh = Math.floor(h), mi = Math.round((h-hh)*60); if(mi===60){ hh++; mi=0; }
+  var DN={sat:'شنبه',sun:'یک‌شنبه',mon:'دوشنبه',tue:'سه‌شنبه',wed:'چهارشنبه',thu:'پنج‌شنبه',fri:'جمعه'};
+  var x = cal[Math.min(d, cal.length-1)] || {};
+  return (DN[x.dow]||'') + ' ' + prToFa(x.k||'') + ' ساعت ' + prToFa((hh<10?'0':'')+hh+':'+(mi<10?'0':'')+mi);
+}
+
+function schedComputeNight(c, parts, paint){
+  paint('<div style="color:#8a93b2;font-size:12px;padding:10px">در حالِ گرفتنِ تقویم و شبیه‌سازیِ دستگاه‌ها...</div>');
+  schedCalendarDays(c, function(cal, note){
+    if(!cal){ paint('<div style="background:#2a1416;border:1px solid #5a2a2e;border-radius:10px;padding:12px;font-size:12px;color:#f0a6a8">'+escapeHtml(note||'خطا')+'</div>'); return; }
+    var R = schedNightSim(parts, c, cal);
+    var machNames = {};
+    (prState.machines||[]).forEach(function(m){ machNames[m.id]=m.name||m.id; });
+    schedUsedMachines().forEach(function(m){ if(!machNames[m.id]) machNames[m.id]=m.name; });
+    var winH = R.we - R.ws;
+
+    // روزهای کاری تا پایان
+    var lastDay = Math.floor(R.finalT/24), workIdx = [], dateList = [];
+    for(var d=0; d<=lastDay && d<cal.length; d++){ if(cal[d].work){ workIdx.push(d); dateList.push({ k:cal[d].k, dow:cal[d].dow }); } }
+    var calDays = lastDay + 1;
+
+    // ── خلاصهٔ دستگاه‌ها ──
+    var bott = null, M = '';
+    Object.keys(R.mstat).forEach(function(mid){
+      var ms = R.mstat[mid];
+      if(!bott || ms.end > R.mstat[bott].end) bott = mid;
+      var span = Math.max(0.01, (ms.end - (ms.first||0)) * ms.cnt);
+      var util = Math.min(100, Math.round(ms.busy / span * 100));
+      M += '<div style="padding:7px 0;border-top:1px solid #1a2440">'
+        +  '<b style="color:#dfe3f5">'+escapeHtml(machNames[mid]||mid)+'</b> <span style="color:#5a6080;font-size:11px">('+prToFa(ms.cnt)+' دستگاه)</span><br>'
+        +  'تعدادِ چاپ: '+prToFa(ms.jobs)+' · زمانِ چاپ: '+schedFmtHours(ms.busy)+' · کارکرد: <b style="color:'+(util>=80?'#34d399':(util>=55?'#fbbf24':'#f0a6a8'))+'">'+prToFa(util)+'٪</b><br>'
+        +  'پایانِ چاپ: <span style="color:#7ab8ff">'+escapeHtml(schedFmtClock(ms.end, cal))+'</span></div>';
+    });
+
+    // ── توصیه: قطعه‌هایی که از پنجرهٔ کاری بلندترند ──
+    var tips = [];
+    R.st.forEach(function(x){
+      if(x.dur > winH + 1e-9 && x.dur < 24){
+        tips.push('«'+escapeHtml(x.p.name)+'» با '+schedFmtHours(x.dur)+' در هر چاپ، روزی فقط یک بار شروع می‌شود. اگر به '+schedFmtHours(winH)+' یا کمتر برسد، روزی دو بار (یکی روز، یکی شب) چاپ می‌شود.');
+      }
+    });
+
+    var H1 = '<div style="border:1px solid #2a4a3a;border-radius:10px;overflow:hidden;background:#0c1a14;margin-bottom:10px">'
+      + '<div style="background:#12281e;padding:7px 10px;font-weight:700;font-size:12.5px;color:#34d399">نتیجهٔ نهایی — حالتِ شبانه‌روزی</div>'
+      + '<div style="padding:10px 11px;font-size:12px;color:#c7cce0;line-height:2">'
+      +   (R.overflow ? '<b style="color:#f0a6a8">کار در دو سالِ آینده تمام نمی‌شود — ورودی‌ها را بررسی کن.</b><br>' : '')
+      +   'تحویل: <b style="color:#34d399;font-size:15px">'+escapeHtml(schedFmtClock(R.finalT, cal))+'</b><br>'
+      +   '<b>'+prToFa(workIdx.length)+'</b> روزِ کاری · <b>'+prToFa(calDays)+'</b> روزِ تقویمی از تاریخِ شروع<br>'
+      +   'پایانِ آخرین چاپ: '+escapeHtml(schedFmtClock(R.printEnd, cal))+'<br>'
+      +   'گلوگاه: <b style="color:#fbbf24">'+escapeHtml(machNames[bott]||bott||'—')+'</b>'
+      +   (note ? '<div style="color:#8a6a2a;font-size:11px">'+escapeHtml(note)+'</div>' : '')
+      +   '<div style="color:#8a93b2;font-size:11px;margin-top:4px">قانون: پرینتر شب و تعطیلات کار می‌کند، ولی چاپِ جدید فقط بین ساعت '+prToFa(R.ws)+' تا '+prToFa(R.we)+' در روزهای کاری شروع می‌شود. در روز، بلندترین چاپی که تا ساعت '+prToFa(R.we)+' تمام شود زده می‌شود؛ آخرِ روز، بلندترین چاپ برای شب. '+(schedNum(c.changeMin,10)?'بین دو چاپ '+prToFa(schedNum(c.changeMin,10))+' دقیقه برای تعویض. ':'')+'کارِ دستی فقط در ساعتِ کاری و هم‌زمان با چاپ.</div>'
+      + '</div></div>'
+      + '<div style="border:1px solid #232742;border-radius:10px;overflow:hidden;margin-bottom:10px">'
+      +   '<div style="background:#141833;padding:7px 10px;font-weight:700;font-size:12.5px;color:#7ab8ff">دستگاه‌ها</div>'
+      +   '<div style="padding:2px 11px 8px;font-size:12px;color:#c7cce0;line-height:2">'+M+'</div></div>'
+      + (tips.length ? '<div style="background:#2a1f10;border:1px solid #6b5518;border-radius:10px;padding:10px 12px;font-size:12px;color:#f0c674;line-height:1.9;margin-bottom:10px"><b>برای کوتاه‌کردنِ زمان:</b><br>'+tips.join('<br>')+'</div>' : '');
+
+    // ── جدولِ روزبه‌روز (همان قالبِ قبلی) ──
+    var names = parts.map(function(x){ return x.name; });
+    var totalSets = schedNum(c.setCount,0) || Math.min.apply(null, parts.map(function(x){ return x.qty; }));
+    var days = [], prevDone = R.st.map(function(){ return 0; });
+    workIdx.forEach(function(di, n){
+      var cut = di*24 + 24;
+      var made = {}, state = [], ratio = 1;
+      R.st.forEach(function(x, i){
+        var f = R.doneAt[i].filter(function(t){ return t <= cut; }).length;
+        if(f > prevDone[i]) made[x.p.name] = (made[x.p.name]||0) + (f - prevDone[i]);
+        prevDone[i] = f;
+        state.push({ name:x.p.name, finished:f, need:x.need });
+        ratio = Math.min(ratio, x.need>0 ? f/x.need : 1);
+      });
+      days.push({ day:n+1, made:made, state:state, sets:Math.floor(ratio*totalSets), printed:{}, laborCap:1 });
+    });
+    var rows = days.map(function(d){
+      var cells = names.map(function(nm){
+        var s2 = null; d.state.forEach(function(x){ if(x.name===nm) s2=x; });
+        var add = d.made[nm]||0;
+        return '<td style="padding:5px 6px;text-align:center;border-top:1px solid #1a2440">'+(s2?'<b style="color:#dfe3f5">'+prToFa(s2.finished)+'</b><span style="color:#5a6080">/'+prToFa(s2.need)+'</span>':'—')+(add?'<div style="color:#34d399;font-size:10px">+'+prToFa(add)+'</div>':'')+'</td>';
+      }).join('');
+      var it = dateList[d.day-1] || {};
+      var DN={sat:'شنبه',sun:'یک‌شنبه',mon:'دوشنبه',tue:'سه‌شنبه',wed:'چهارشنبه',thu:'پنج‌شنبه',fri:'جمعه'};
+      var pct = totalSets ? Math.round(d.sets/totalSets*100) : 0;
+      return '<tr><td style="padding:5px 6px;text-align:center;border-top:1px solid #1a2440;color:#8a93b2;font-weight:700">'+prToFa(d.day)
+        + '<div style="font-weight:400;font-size:10px;color:#6b7280;white-space:nowrap">'+(DN[it.dow]||'')+'<br>'+prToFa(it.k||'')+'</div></td>'+cells
+        + '<td style="padding:5px 6px;text-align:center;border-top:1px solid #1a2440;color:'+(d.sets?'#34d399':'#5a6080')+';font-weight:700">'+prToFa(d.sets)
+        + '<div style="height:3px;background:#1a2440;border-radius:2px;margin-top:3px"><div style="height:3px;width:'+pct+'%;background:#34d399;border-radius:2px"></div></div></td></tr>';
+    }).join('');
+    var T = '<div style="border:1px solid #232742;border-radius:10px;overflow:hidden">'
+      + '<div style="background:#141833;padding:8px 10px;font-weight:700;font-size:12.5px;color:#7ab8ff">جدولِ روزبه‌روز <span style="font-weight:400;font-size:10.5px;color:#8a93b2">· آمادهٔ نهایی تا پایانِ هر روزِ کاری</span></div>'
+      + '<div style="max-height:340px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px;color:#c7cce0"><thead><tr style="background:#0f1428;position:sticky;top:0">'
+      + '<th style="padding:7px 6px;font-size:11px;color:#8a93b2">روز</th>'
+      + names.map(function(n){ return '<th style="padding:7px 6px;font-size:11px;color:#8a93b2">'+escapeHtml(n)+'</th>'; }).join('')
+      + '<th style="padding:7px 6px;font-size:11px;color:#34d399">محصولِ کامل<div style="font-weight:400;font-size:9.5px;color:#5a6080">از '+prToFa(totalSets)+'</div></th>'
+      + '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+
+    paint(H1 + T);
+
+    var totMach = 0, totLabor = 0;
+    R.st.forEach(function(x){ totMach += x.dur * x.jobsTotal; totLabor += x.laborH * x.need; });
+    window._schedLastPlanDays = workIdx.length;
+    window._schedPlan = { sim:{ days:days, totalDays:workIdx.length, st:R.st }, parts:parts, c:c, names:names,
+                          totMach:totMach, totLabor:totLabor, workDays:workIdx.length, baseDays:workIdx.length,
+                          safety:Math.max(1, schedNum(c.safety,1)), machDetail:M, dates:dateList };
+    var lastK = (cal[Math.min(lastDay, cal.length-1)]||{}).k || '';
+    schedEnsure().result = { days: workIdx.length, date: lastK, at: Date.now() };
+    schedPaintBadge();
+  });
+}
+
+// ══════════ V418: بهینه‌سازیِ تقسیمِ تعداد بین دستگاه‌ها ══════════
+// فقط وقتی «اعمال» زده شود تعدادِ بخش‌ها عوض می‌شود؛ نسخهٔ قبل برای «بازگشت» نگه داشته می‌شود.
+var SCHED_OPT = { sel:{}, total:'', last:null };
+function schedOptParts(){
+  // مثلِ schedParts، ولی ارجاع به خودِ بخش را نگه می‌دارد
+  var out = [];
+  var secs = (prState.order && prState.order.sections) || [];
+  secs.forEach(function(sec){
+    var p = { name:sec.name||'قطعه', qty:Math.max(1, schedNum(sec.qty,1)), plateTime:0, perPlate:0, laborMin:0, fdmHours:0, machineId:'', machineName:'', sec:sec };
+    (sec.lines||[]).forEach(function(l){
+      if(!l) return;
+      if(l.kind==='machine_dlp'){ p.plateTime += schedNum(l.plateTime,0); p.perPlate = Math.max(p.perPlate, schedNum(l.perPlate,1)); if(!p.machineId) p.machineId = l.machineId||''; }
+      else if(l.kind==='machine_fdm'){ p.fdmHours += schedNum(l.hours,0); if(!p.machineId) p.machineId = l.machineId||''; }
+      else if(l.kind==='labor' || l.kind==='finishing'){ p.laborMin += schedNum(l.minutes,0); }
+    });
+    if(p.plateTime>0 || p.fdmHours>0 || p.laborMin>0) out.push(p);
+  });
+  return out;
+}
+function schedOptHtml(c){
+  if(!prIsMulti()) return '';
+  var o = prState.order || {};
+  var parts = schedOptParts().filter(function(p){ return p.fdmHours>0 || p.plateTime>0; });
+  if(parts.length < 2) return '';
+  var names = {}; (prState.machines||[]).forEach(function(m){ names[m.id]=m.name||m.id; });
+  var rows = parts.map(function(p){
+    var id = String(p.sec.id).replace(/[^A-Za-z0-9_\-]/g,'');
+    var on = !!SCHED_OPT.sel[id];
+    var per = p.plateTime>0 ? (schedFmtHours(p.plateTime)+' برای '+prToFa(Math.max(1,p.perPlate))+' عدد') : (schedFmtHours(p.fdmHours)+' هر عدد');
+    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid '+(on?'#1e3a6e':'#22263a')+';background:'+(on?'#132a4d':'#12141f')+';border-radius:8px;cursor:pointer;font-size:12px">'
+      + '<input type="checkbox" '+(on?'checked':'')+' onchange="schedOptSel(\''+id+'\',this.checked)" style="margin:0">'
+      + '<span style="flex:1;color:#dfe3f5">'+escapeHtml(p.name)+' <span style="color:#8a93b2">· '+escapeHtml(names[p.machineId]||p.machineId||'—')+' · '+per+'</span></span>'
+      + '<span style="color:#a99bf5;font-weight:700">'+prToFa(p.qty)+' عدد</span>'
+      + (p.sec.optNote ? '<span style="color:#34d399;font-size:10.5px">بهینه‌شده</span>' : '')
+      + '</label>';
+  }).join('');
+  var selCount = 0, selSum = 0;
+  parts.forEach(function(p){ var id=String(p.sec.id).replace(/[^A-Za-z0-9_\-]/g,''); if(SCHED_OPT.sel[id]){ selCount++; selSum += p.qty; } });
+  var undo = o.optBackup ? '<button class="btn btn-ghost btn-sm" onclick="schedOptUndo()" style="border-color:#6b4a1f;color:#ffb86b">↩ بازگشت به قبل از بهینه‌سازی</button>' : '';
+  return '<div style="margin-top:14px;padding:12px 13px;background:#0b1020;border:1px solid #2a2350;border-radius:10px">'
+    + '<div style="font-weight:700;font-size:13px;color:#cbbcff">بهینه‌سازیِ زمان</div>'
+    + '<div style="font-size:11px;color:#8a93b2;line-height:1.9;margin:4px 0 9px">قطعه‌هایی را تیک بزن که <b>یک محصول‌اند و فقط روی دستگاهِ متفاوت</b> چاپ می‌شوند. تعدادِ کل را بده؛ سایت آن را طوری بین دستگاه‌ها تقسیم می‌کند که کلِ سفارش زودتر تمام شود. هر دستگاهِ انتخاب‌شده حداقل یک عدد می‌زند.</div>'
+    + '<div style="display:flex;flex-direction:column;gap:6px">'+rows+'</div>'
+    + '<div style="display:flex;gap:9px;align-items:flex-end;margin-top:10px;flex-wrap:wrap">'
+    +   '<div><label style="font-size:11px;color:#5a6080">تعدادِ کلِ این قطعه‌ها</label><input class="inp" type="number" min="1" step="1" value="'+escapeHtml(String(SCHED_OPT.total!==''?SCHED_OPT.total:(selSum||'')))+'" oninput="SCHED_OPT.total=this.value" style="width:130px"></div>'
+    +   '<button class="btn btn-sm" onclick="schedOptRun()" '+(selCount<2?'disabled':'')+' style="background:#7c5af5;border-color:#7c5af5;color:#fff">محاسبهٔ بهینه‌سازی</button>'
+    +   undo
+    + '</div>'
+    + (selCount<2 ? '<div style="font-size:11px;color:#5a6080;margin-top:6px">حداقل دو قطعه را انتخاب کن.</div>' : '')
+    + '<div class="sched-opt-out" style="margin-top:10px"></div>'
+    + '</div>';
+}
+function schedOptSel(id, on){ SCHED_OPT.sel[id] = !!on; if(!on) delete SCHED_OPT.sel[id]; SCHED_OPT.total=''; schedRender(); }
+
+function schedOptSearch(base, selIdx, N, c, cal){
+  var evals = 0;
+  function run(q){
+    evals++;
+    var ps = base.map(function(p, i){ var k = selIdx.indexOf(i); return k>=0 ? Object.assign({}, p, { qty:q[k] }) : p; });
+    var R = schedNightSim(ps, c, cal); return R.finalT;
+  }
+  // تخمینِ سرعتِ هر دستگاه: شبیه‌سازیِ تنهایِ همان قطعه
+  var rate = selIdx.map(function(i){
+    var p = Object.assign({}, base[i], { qty:400 });
+    var R = schedNightSim([p], c, cal.slice(0, 15));
+    var done = 0; (R.st[0].ready||[]).forEach(function(r){ if(r.t <= 14*24) done += r.n; });
+    return Math.max(0.01, done/14);
+  });
+  var rs = rate.reduce(function(a,b){ return a+b; }, 0);
+  var q = rate.map(function(r){ return Math.max(1, Math.round(N*r/rs)); });
+  function fix(){ var s=q.reduce(function(a,b){return a+b;},0), k=0; while(s!==N && k<10000){ var j=k%q.length; if(s>N && q[j]>1){ q[j]--; s--; } else if(s<N){ q[j]++; s++; } k++; } }
+  fix();
+  var best = run(q);
+  var step = Math.max(1, Math.ceil(N/8));
+  while(step >= 1 && evals < 600){
+    var improved = true;
+    while(improved && evals < 600){
+      improved = false;
+      var bq = null, bt = best;
+      for(var a=0;a<q.length;a++) for(var b=0;b<q.length;b++){
+        if(a===b || q[a]-step < 1) continue;
+        var t = q.slice(); t[a]-=step; t[b]+=step;
+        var v = run(t);
+        if(v < bt - 1e-6){ bt = v; bq = t; }
+      }
+      if(bq){ q = bq; best = bt; improved = true; }
+    }
+    if(step===1) break;
+    step = Math.max(1, Math.floor(step/2));
+  }
+  return { q:q, t:best, evals:evals };
+}
+
+function schedOptRun(){
+  var c = schedGet();
+  var out = document.querySelectorAll('.sched-opt-out');
+  function paint(h){ Array.prototype.forEach.call(out, function(o){ o.innerHTML = h; }); }
+  var base = schedOptParts();
+  var selIdx = [];
+  base.forEach(function(p, i){ var id=String(p.sec.id).replace(/[^A-Za-z0-9_\-]/g,''); if(SCHED_OPT.sel[id] && (p.fdmHours>0 || p.plateTime>0)) selIdx.push(i); });
+  if(selIdx.length < 2){ paint('<div style="color:#f0a6a8;font-size:12px">حداقل دو قطعه را انتخاب کن.</div>'); return; }
+  var cur = selIdx.map(function(i){ return base[i].qty; });
+  var curSum = cur.reduce(function(a,b){ return a+b; }, 0);
+  var N = parseInt(prEnDigits(String(SCHED_OPT.total||'')).replace(/[^0-9]/g,''), 10) || curSum;
+  if(N < selIdx.length){ paint('<div style="color:#f0a6a8;font-size:12px">تعدادِ کل باید حداقل '+prToFa(selIdx.length)+' باشد (هر دستگاه یکی).</div>'); return; }
+  paint('<div style="color:#8a93b2;font-size:12px">در حالِ امتحانِ ترکیب‌های مختلف...</div>');
+  schedCalendarDays(c, function(cal, note){
+    if(!cal){ paint('<div style="color:#f0a6a8;font-size:12px">'+escapeHtml(note||'تقویم در دسترس نبود')+'</div>'); return; }
+    setTimeout(function(){
+      var before;
+      if(N === curSum){ before = schedNightSim(base, c, cal).finalT; }
+      else {
+        // تعدادِ کل عوض شده: «قبل» = همان نسبتِ فعلی با تعدادِ جدید
+        var qq = cur.map(function(x){ return Math.max(1, Math.round(x*N/curSum)); });
+        var d = N - qq.reduce(function(a,b){return a+b;},0), k=0; while(d!==0 && k<10000){ var j=k%qq.length; if(d>0){ qq[j]++; d--; } else if(qq[j]>1){ qq[j]--; d++; } k++; }
+        before = schedNightSim(base.map(function(p,i){ var x=selIdx.indexOf(i); return x>=0 ? Object.assign({},p,{qty:qq[x]}) : p; }), c, cal).finalT;
+      }
+      var res = schedOptSearch(base, selIdx, N, c, cal);
+      function days(t){ return Math.floor(t/24)+1; }
+      function wdays(t){ var n=0, L=Math.floor(t/24); for(var d2=0; d2<=L && d2<cal.length; d2++) if(cal[d2].work) n++; return n; }
+      var names = {}; (prState.machines||[]).forEach(function(m){ names[m.id]=m.name||m.id; });
+      var rows = selIdx.map(function(i, k){
+        var p = base[i], ch = res.q[k] - p.qty;
+        return '<tr><td style="padding:5px 7px;border-top:1px solid #1a2440">'+escapeHtml(p.name)+'</td>'
+          + '<td style="padding:5px 7px;border-top:1px solid #1a2440;color:#8a93b2">'+escapeHtml(names[p.machineId]||p.machineId||'—')+'</td>'
+          + '<td style="padding:5px 7px;border-top:1px solid #1a2440;text-align:center">'+prToFa(p.qty)+'</td>'
+          + '<td style="padding:5px 7px;border-top:1px solid #1a2440;text-align:center;font-weight:700;color:#34d399">'+prToFa(res.q[k])+'</td>'
+          + '<td style="padding:5px 7px;border-top:1px solid #1a2440;text-align:center;color:'+(ch>0?'#7ab8ff':(ch<0?'#ffb86b':'#5a6080'))+'">'+(ch>0?'+':'')+prToFa(ch)+'</td></tr>';
+      }).join('');
+      var gain = before - res.t;
+      SCHED_OPT.last = { ids: selIdx.map(function(i){ return base[i].sec.id; }), q: res.q, N:N };
+      var H = '<div style="border:1px solid #2a4a3a;border-radius:10px;overflow:hidden;background:#0c1a14">'
+        + '<div style="background:#12281e;padding:7px 10px;font-weight:700;font-size:12.5px;color:#34d399">نتیجهٔ بهینه‌سازی</div>'
+        + '<div style="padding:10px 11px;font-size:12px;color:#c7cce0;line-height:2">'
+        +   'قبل: <b>'+prToFa(wdays(before))+'</b> روزِ کاری ('+prToFa(days(before))+' روزِ تقویمی) — تحویل '+escapeHtml(schedFmtClock(before, cal))+'<br>'
+        +   'بعد: <b style="color:#34d399;font-size:14px">'+prToFa(wdays(res.t))+'</b> روزِ کاری ('+prToFa(days(res.t))+' روزِ تقویمی) — تحویل '+escapeHtml(schedFmtClock(res.t, cal))+'<br>'
+        +   (gain > 0.5 ? '<b style="color:#34d399">'+prToFa(days(before)-days(res.t))+' روز زودتر</b>' : '<span style="color:#fbbf24">تقسیمِ فعلی تقریباً بهترین حالت است.</span>')
+        +   '<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-top:8px"><thead><tr style="color:#8a93b2"><th style="text-align:right;padding:4px 7px">قطعه</th><th style="text-align:right;padding:4px 7px">دستگاه</th><th style="padding:4px 7px">الان</th><th style="padding:4px 7px">پیشنهاد</th><th style="padding:4px 7px">تغییر</th></tr></thead><tbody>'+rows+'</tbody></table>'
+        +   '<div style="color:#8a93b2;font-size:11px;margin-top:6px">چون استهلاکِ دستگاه‌ها فرق دارد، بعد از اعمال، قیمتِ کل دوباره حساب می‌شود. همیشه با «بازگشت» می‌توانی به تعدادهای قبلی برگردی.</div>'
+        +   (gain > 0.5 || N !== curSum ? '<button class="btn btn-sm" onclick="schedOptApplyAsk()" style="margin-top:8px;background:#16281a;border-color:#2f5236;color:#9ee0a8;font-weight:700">اعمالِ بهینه‌سازی</button>' : '')
+        + '</div></div>';
+      if(note) H += '<div style="color:#8a6a2a;font-size:11px;margin-top:4px">'+escapeHtml(note)+'</div>';
+      paint(H);
+    }, 30);
+  });
+}
+function schedOptApplyAsk(){
+  var L = SCHED_OPT.last; if(!L) return;
+  uiConfirm({ title:'اعمالِ بهینه‌سازی', danger:false, okText:'بله، اعمال کن', cancelText:'انصراف',
+    html:'تعدادِ '+prToFa(L.ids.length)+' بخش طبقِ پیشنهاد عوض می‌شود و قیمتِ کل دوباره محاسبه می‌شود.<br><span style="color:#8a93b2;font-size:12px">تعدادهای فعلی نگه داشته می‌شوند تا با دکمهٔ «بازگشت» برگردی. برای ماندگار شدن، بعد از اعمال «ذخیرهٔ سفارش» را بزن.</span>' },
+    function(){ schedOptApply(); });
+}
+function schedOptApply(){
+  var L = SCHED_OPT.last; if(!L) return;
+  var o = prState.order; if(!o || !o.sections) return;
+  if(!o.optBackup){
+    var bk = {}; o.sections.forEach(function(s){ bk[s.id] = { qty:s.qty, optNote:s.optNote||'' }; });
+    o.optBackup = { at: Date.now(), secs: bk };
+  }
+  L.ids.forEach(function(id, k){
+    var s = prSecFind(id); if(!s) return;
+    s.qty = L.q[k];
+    s.optNote = 'این تعداد حاصلِ بهینه‌سازیِ زمان است';
+  });
+  SCHED_OPT.last = null;
+  try{ prRenderLines(); }catch(e){}
+  prScheduleCompute();
+  schedRender();
+  showToast('بهینه‌سازی اعمال شد — برای ماندگاری «ذخیرهٔ سفارش» را بزن');
+}
+function schedOptUndo(){
+  var o = prState.order; if(!o || !o.optBackup) return;
+  uiConfirm({ title:'بازگشت به قبل از بهینه‌سازی', danger:false, okText:'بله، برگردان', cancelText:'انصراف',
+    html:'تعدادِ همهٔ بخش‌ها به قبل از بهینه‌سازی برمی‌گردد و قیمت دوباره محاسبه می‌شود.' },
+    function(){
+      var bk = (o.optBackup && o.optBackup.secs) || {};
+      (o.sections||[]).forEach(function(s){
+        if(!bk.hasOwnProperty(s.id)) return;
+        s.qty = bk[s.id].qty;
+        if(bk[s.id].optNote) s.optNote = bk[s.id].optNote; else delete s.optNote;
+      });
+      delete o.optBackup;
+      try{ prRenderLines(); }catch(e){}
+      prScheduleCompute();
+      schedRender();
+      showToast('به قبل از بهینه‌سازی برگشت — برای ماندگاری «ذخیرهٔ سفارش» را بزن');
+    });
+}
+
 function schedCompute(){
   var c = schedGet();
   var parts = schedParts();
@@ -9586,6 +10040,7 @@ function schedCompute(){
   var ops = Math.max(1, schedNum(c.operators,1));
   var dayCount = 0; SCHED_DAYS.forEach(function(d){ if(c.days && c.days[d.k]) dayCount++; });
   if(!dayCount){ paint('<div style="background:#2a1416;border:1px solid #5a2a2e;border-radius:10px;padding:12px;font-size:12px;color:#f0a6a8">هیچ روزِ کاری‌ای تیک نخورده است.</div>'); return; }
+  if(c.nightRun){ schedComputeNight(c, parts, paint); return; }
 
   // ── مرحلهٔ ۱: تفکیکِ هر قطعه ──
   var H='', totMach=0, totLabor=0, byMachine={};
@@ -10021,7 +10476,7 @@ function schedPaintBadge(){
 function schedEnsure(){ if(!prState.order) prState.order={}; if(!prState.order.schedule) prState.order.schedule = schedDefault(); return prState.order.schedule; }
 function schedSet(k,v){
   var s = schedEnsure();
-  if(k==='hoursPerDay'||k==='operators'||k==='safety'||k==='setCount') v = (String(v).trim()==='') ? '' : +v;
+  if(k==='hoursPerDay'||k==='operators'||k==='safety'||k==='setCount'||k==='workStart'||k==='workEnd'||k==='changeMin') v = (String(v).trim()==='') ? '' : +v;
   s[k]=v;
   Array.prototype.forEach.call(document.querySelectorAll('.sched-badge'),function(b){ b.style.color='#fbbf24'; b.textContent='· ذخیره نشده'; });
 }
@@ -13185,6 +13640,7 @@ function prOnInput(e){
       var f=t.dataset.prsf;
       if(f==='matNoProfit'){ sc2.matNoProfit = !!t.checked; if(sc2.matNoProfit && !(+sc2.matRiskX>0)) sc2.matRiskX = 1.2; prRenderLines(); prScheduleCompute(); return; }
       sc2[f] = (f==='name') ? t.value : (t.value===''?'':(+t.value));
+      if(f==='qty' && sc2.optNote) delete sc2.optNote;
       prScheduleCompute();
     }
     return;
@@ -13405,8 +13861,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V416 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V416";
+try{ if(window.console) console.log('%c iPrint3D FRONT V418 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V418";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
