@@ -10213,7 +10213,7 @@ function mgrTimeLoad(cb){
         if(!(r && r.status==='ok')){ errs.push(codeOf(id)+' — برآورد خوانده نشد'); next(); return; }
         var o = r.order || {}, sch = o.schedule;
         if(!sch || !sch.result){ errs.push((r.code||codeOf(id))+' — زمان‌بندی محاسبه و ذخیره نشده'); next(); return; }
-        if(!sch.nightRun){ errs.push((r.code||codeOf(id))+' — زمان‌بندی در حالتِ قدیمی است؛ تیکِ «پرینترها شب‌ها روشن می‌مانند» را بزن و دوباره محاسبه کن'); next(); return; }
+        if(!schedCfgFrom(sch).nightRun){ errs.push((r.code||codeOf(id))+' — زمان‌بندی در حالتِ قدیمی است؛ تیکِ «پرینترها شب‌ها روشن می‌مانند» را بزن و دوباره محاسبه کن'); next(); return; }
         var machines = (r.config && r.config.machines) || prState.machines || [];
         var parts = schedPartsFrom(o, r.lines||[], machines);
         if(!parts.some(function(p){ return p.fdmHours>0 || p.plateTime>0; })){ errs.push((r.code||codeOf(id))+' — ردیفِ دستگاه ندارد'); next(); return; }
@@ -10747,7 +10747,8 @@ function schedSetMachine(id,v){ var s=schedEnsure(); if(!s.machines) s.machines=
 function schedSave(btn){
   var oid = schedTargetId();
   if(!oid){ showToast('اول سفارش را ذخیره کن، بعد زمان‌بندی'); return; }
-  schedEnsure();
+  var _se = schedEnsure();
+  try{ var _df = schedDefault(); for(var _k in _df){ if(!_se.hasOwnProperty(_k) || _se[_k]==null) _se[_k] = _df[_k]; } }catch(e){}
   var old = btn?btn.innerHTML:''; if(btn){ btn.disabled=true; btn.innerHTML='در حال ذخیره...'; }
   callSheet('saveSchedule', { id:oid, schedule:JSON.stringify(prState.order.schedule) }, function(res){
     if(btn){ btn.disabled=false; btn.innerHTML=old; }
@@ -14090,8 +14091,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V421 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V421";
+try{ if(window.console) console.log('%c iPrint3D FRONT V422 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V422";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
