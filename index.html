@@ -9789,18 +9789,25 @@ function schedComputeNight(c, parts, paint){
 
     // ── جدولِ روزبه‌روز (همان قالبِ قبلی) ──
     var names = parts.map(function(x){ return x.name; });
-    var totalSets = schedNum(c.setCount,0) || Math.min.apply(null, parts.map(function(x){ return x.qty; }));
+    var gIds = schedGroupIds();
+    var inG = parts.map(function(x){ return !!(x.sec && gIds.indexOf(x.sec.id) >= 0); });
+    var hasG = inG.filter(Boolean).length >= 2;
+    var gNeed = 0; parts.forEach(function(x, i){ if(hasG && inG[i]) gNeed += x.qty; });
+    var autoSets = Math.min.apply(null, parts.map(function(x, i){ return (hasG && inG[i]) ? gNeed : x.qty; }));
+    var totalSets = schedNum(c.setCount,0) || autoSets;
     var days = [], prevDone = R.st.map(function(){ return 0; });
     workIdx.forEach(function(di, n){
       var cut = di*24 + 24;
-      var made = {}, state = [], ratio = 1;
+      var made = {}, state = [], ratio = 1, gDone = 0;
       R.st.forEach(function(x, i){
         var f = R.doneAt[i].filter(function(t){ return t <= cut; }).length;
         if(f > prevDone[i]) made[x.p.name] = (made[x.p.name]||0) + (f - prevDone[i]);
         prevDone[i] = f;
         state.push({ name:x.p.name, finished:f, need:x.need });
-        ratio = Math.min(ratio, x.need>0 ? f/x.need : 1);
+        if(hasG && inG[i]) gDone += f;
+        else ratio = Math.min(ratio, x.need>0 ? f/x.need : 1);
       });
+      if(hasG) ratio = Math.min(ratio, gNeed>0 ? gDone/gNeed : 1);
       days.push({ day:n+1, made:made, state:state, sets:Math.floor(ratio*totalSets), printed:{}, laborCap:1 });
     });
     var rows = days.map(function(d){
@@ -9832,7 +9839,7 @@ function schedComputeNight(c, parts, paint){
     window._schedLastPlanDays = workIdx.length;
     window._schedPlan = { sim:{ days:days, totalDays:workIdx.length, st:R.st }, parts:parts, c:c, names:names,
                           totMach:totMach, totLabor:totLabor, workDays:workIdx.length, baseDays:workIdx.length,
-                          safety:Math.max(1, schedNum(c.safety,1)), machDetail:M, dates:dateList };
+                          safety:Math.max(1, schedNum(c.safety,1)), machDetail:M, dates:dateList, totalSets:totalSets };
     var lastK = (cal[Math.min(lastDay, cal.length-1)]||{}).k || '';
     schedEnsure().result = { days: workIdx.length, date: lastK, at: Date.now() };
     schedPaintBadge();
@@ -9890,6 +9897,11 @@ function schedOptHtml(c){
     + (selCount<2 ? '<div style="font-size:11px;color:#5a6080;margin-top:6px">حداقل دو قطعه را انتخاب کن.</div>' : '')
     + '<div class="sched-opt-out" style="margin-top:10px"></div>'
     + '</div>';
+}
+function schedGroupIds(){
+  var o = prState.order || {};
+  if(o.optGroup && o.optGroup.ids && o.optGroup.ids.length) return o.optGroup.ids.slice();
+  return (o.sections||[]).filter(function(s){ return !!s.optNote; }).map(function(s){ return s.id; });
 }
 function schedOptSel(id, on){ SCHED_OPT.sel[id] = !!on; if(!on) delete SCHED_OPT.sel[id]; SCHED_OPT.total=''; schedRender(); }
 
@@ -10003,6 +10015,7 @@ function schedOptApply(){
     s.qty = L.q[k];
     s.optNote = 'این تعداد حاصلِ بهینه‌سازیِ زمان است';
   });
+  o.optGroup = { ids: L.ids.slice(), N: L.N };
   SCHED_OPT.last = null;
   try{ prRenderLines(); }catch(e){}
   prScheduleCompute();
@@ -10020,7 +10033,7 @@ function schedOptUndo(){
         s.qty = bk[s.id].qty;
         if(bk[s.id].optNote) s.optNote = bk[s.id].optNote; else delete s.optNote;
       });
-      delete o.optBackup;
+      delete o.optBackup; delete o.optGroup;
       try{ prRenderLines(); }catch(e){}
       prScheduleCompute();
       schedRender();
@@ -10040,7 +10053,7 @@ function schedCompute(){
   var ops = Math.max(1, schedNum(c.operators,1));
   var dayCount = 0; SCHED_DAYS.forEach(function(d){ if(c.days && c.days[d.k]) dayCount++; });
   if(!dayCount){ paint('<div style="background:#2a1416;border:1px solid #5a2a2e;border-radius:10px;padding:12px;font-size:12px;color:#f0a6a8">هیچ روزِ کاری‌ای تیک نخورده است.</div>'); return; }
-  if(c.nightRun){ schedComputeNight(c, parts, paint); return; }
+  if(c.nightRun){ schedComputeNight(c, (prIsMulti() ? schedOptParts() : parts), paint); return; }
 
   // ── مرحلهٔ ۱: تفکیکِ هر قطعه ──
   var H='', totMach=0, totLabor=0, byMachine={};
@@ -10293,7 +10306,7 @@ function schedExportPDF(){
 
   var o=(prState&&prState.order)?prState.order:{};
   var title=o.orderName||'پروژه', cust=o.org||o.customer||'', code=(prState&&prState.savedCode)||o.code||'';
-  var totalSets=schedNum(c.setCount,0)||Math.min.apply(null,P.parts.map(function(x){return x.qty;}));
+  var totalSets=P.totalSets||schedNum(c.setCount,0)||Math.min.apply(null,P.parts.map(function(x){return x.qty;}));
   var firstDate=dates.length?dates[0].k:'', lastDate=dates.length?dates[Math.min(sim.totalDays,dates.length)-1].k:'';
   var dayNames=SCHED_DAYS.filter(function(d){return c.days&&c.days[d.k];}).map(function(d){return d.n;}).join('، ');
   var mile=[],prev=0; sim.days.forEach(function(d){ if(d.sets>prev){ mile.push(d); prev=d.sets; } });
@@ -13861,8 +13874,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V418 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V418";
+try{ if(window.console) console.log('%c iPrint3D FRONT V419 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V419";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
