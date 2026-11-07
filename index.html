@@ -9197,7 +9197,7 @@ var SCHED_DAYS = [ {k:'sat',n:'شنبه'}, {k:'sun',n:'یک‌شنبه'}, {k:'mo
                    {k:'tue',n:'سه‌شنبه'}, {k:'wed',n:'چهارشنبه'}, {k:'thu',n:'پنج‌شنبه'}, {k:'fri',n:'جمعه'} ];
 
 function schedDefault(){
-  return { nightRun:true, workStart:8, workEnd:18, changeMin:10, hoursPerDay:10, operators:1, mode:'parallel', startDate:'', machines:{}, machinePar:{}, safety:1, queue:'rotate', setCount:0, showPlan:true, invNotice:false, invText:'',
+  return { nightRun:true, workStart:8, workEnd:18, changeMin:10, opHandle:true, hoursPerDay:10, operators:1, mode:'parallel', startDate:'', machines:{}, machinePar:{}, safety:1, queue:'rotate', setCount:0, showPlan:true, invNotice:false, invText:'',
            days:{sat:true,sun:true,mon:true,tue:true,wed:true,thu:false,fri:false}, holidaysOff:true, result:null };
 }
 function schedGet(){
@@ -9330,7 +9330,10 @@ function schedFormHtml(c){
     +     '<div><label style="font-size:11px;color:#5a6080">شروعِ ساعت کاری</label><input class="inp" type="number" min="0" max="23" step="0.5" value="'+schedNum(c.workStart,8)+'" oninput="schedSet(\'workStart\',this.value)"></div>'
     +     '<div><label style="font-size:11px;color:#5a6080">پایانِ ساعت کاری</label><input class="inp" type="number" min="1" max="24" step="0.5" value="'+schedNum(c.workEnd,18)+'" oninput="schedSet(\'workEnd\',this.value)"></div>'
     +     '<div><label style="font-size:11px;color:#5a6080">تعویض بین دو چاپ (دقیقه)</label><input class="inp" type="number" min="0" max="120" step="1" value="'+schedNum(c.changeMin,10)+'" oninput="schedSet(\'changeMin\',this.value)"></div>'
-    +   '</div>' : '')
+    +   '</div>'
+    +   '<label style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#c7cce0;cursor:pointer;margin-top:9px">'
+    +     '<input type="checkbox" '+(c.opHandle!==false?'checked':'')+' onchange="schedSet(\'opHandle\',this.checked)" style="margin:0">'
+    +     'زمانِ تعویضِ هر چاپ هم وقتِ اپراتور حساب شود</label>' : '')
     + '</div>';
   return nightHtml + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">'
     +  (c.nightRun ? '' : '<div><label style="font-size:11px;color:#5a6080">ساعت کاری در هر روز</label><input class="inp" type="number" min="1" max="24" step="0.5" value="'+(+c.hoursPerDay||10)+'" oninput="schedSet(\'hoursPerDay\',this.value)"></div>')
@@ -9712,20 +9715,23 @@ function schedNightSim(parts, c, cal){
   }
 
   // ── کارِ دستی: صف با چند اپراتور، فقط در ساعتِ کاری ──
-  var pieces = [];
-  st.forEach(function(x, i){ x.ready.forEach(function(r){ for(var k=0;k<r.n;k++) pieces.push({ i:i, t:r.t }); }); });
-  pieces.sort(function(a,b){ return a.t-b.t; });
+  var pieces = [], jobsN = 0, handleOn = (c.opHandle !== false) && chg > 0;
+  st.forEach(function(x, i){ x.ready.forEach(function(r){ jobsN++; if(handleOn) pieces.push({ i:i, t:r.t, h:chg }); for(var k=0;k<r.n;k++) pieces.push({ i:i, t:r.t }); }); });
+  pieces.sort(function(a,b){ return (a.t-b.t) || ((b.h?1:0)-(a.h?1:0)); });
   var opFree = []; for(var o=0;o<ops;o++) opFree.push(0);
   var doneAt = st.map(function(){ return []; }), laborEnd = 0, printEnd = 0;
+  var opWork = 0;
   pieces.forEach(function(pc){
     var x = st[pc.i]; printEnd = Math.max(printEnd, pc.t);
+    if(pc.h){ var oh = 0; for(var qh=1;qh<ops;qh++) if(opFree[qh] < opFree[oh]) oh = qh; opFree[oh] = addWork(Math.max(pc.t, opFree[oh]), pc.h); opWork += pc.h; return; }
     if(x.laborH <= 0){ var tr = nextStart(pc.t); doneAt[pc.i].push(tr); laborEnd = Math.max(laborEnd, tr); return; }
     var oi = 0; for(var q=1;q<ops;q++) if(opFree[q] < opFree[oi]) oi = q;
     var fin = addWork(Math.max(pc.t, opFree[oi]), x.laborH);
-    opFree[oi] = fin; doneAt[pc.i].push(fin); laborEnd = Math.max(laborEnd, fin);
+    opFree[oi] = fin; doneAt[pc.i].push(fin); laborEnd = Math.max(laborEnd, fin); opWork += x.laborH;
   });
   var finalT = Math.max(laborEnd, printEnd ? nextStart(printEnd) : 0);
-  return { st:st, mstat:mstat, doneAt:doneAt, finalT:finalT, printEnd:printEnd, laborEnd:laborEnd, ws:ws, we:we, overflow: finalT >= H };
+  return { st:st, mstat:mstat, doneAt:doneAt, finalT:finalT, printEnd:printEnd, laborEnd:laborEnd, ws:ws, we:we, overflow: finalT >= H,
+           jobs: jobsN, handleH: handleOn ? jobsN*chg : 0, opWork: opWork };
 }
 
 function schedFmtClock(t, cal){
@@ -9858,7 +9864,7 @@ function schedComputeNight(c, parts, paint){
       var daysTxt = (contig && DAYN.length > 2) ? (SCHED_DAYS[firstOn].n + ' تا ' + SCHED_DAYS[lastOn].n) : DAYN.join('، ');
       window._schedPlan.textInfo = { wd: workIdx.length, wd1: wd1, wdBefore: wdB, safety: sf,
         ws: R.ws, we: R.we, chg: Math.max(0, schedNum(c.changeMin,10))/60, ops: Math.max(1, schedNum(c.operators,1)),
-        totLabor: totLabor/sf, startK: (dateList[0]||{}).k || '', endK: (cal[Math.min(lastDay, cal.length-1)]||{}).k || '',
+        jobs: R.jobs, handleH: R.handleH, opWork: R.opWork, totLabor: totLabor/sf, startK: (dateList[0]||{}).k || '', endK: (cal[Math.min(lastDay, cal.length-1)]||{}).k || '',
         daysTxt: daysTxt, holOff: !!c.holidaysOff };
     }catch(eT){}
     var lastK = (cal[Math.min(lastDay, cal.length-1)]||{}).k || '';
@@ -10096,7 +10102,12 @@ function schedTimeTextFrom(P, o, code, machines){
   L.push('• پرینترها شبانه‌روز کار می‌کنند؛ شروع چاپ جدید فقط ' + prToFa(T.ws) + ' تا ' + prToFa(T.we));
   var two = Math.max(0, (T.we - T.ws) - T.chg);
   L.push('• چاپ تا ' + schedFmtHours(two) + ': روزی ۲ بار · بلندتر: روزی ۱ بار');
-  L.push('• کار دستی هم‌زمان با چاپ، ' + prToFa(T.ops) + ' نفر (جمعاً ' + schedFmtHours(T.totLabor) + ')');
+  var winH = Math.max(0.5, T.we - T.ws);
+  if(T.handleH > 0) L.push('• نیروی انسانی (' + prToFa(T.ops) + ' نفر): کار دستی ' + schedFmtHours(T.totLabor) + ' + گذاشتن و برداشتنِ ' + prToFa(T.jobs) + ' چاپ ' + schedFmtHours(T.handleH));
+  else L.push('• کار دستی هم‌زمان با چاپ، ' + prToFa(T.ops) + ' نفر (جمعاً ' + schedFmtHours(T.totLabor) + ')');
+  var opDay = 0, opPct = 0;
+  if(T.opWork > 0 && T.wd > 0){ opDay = T.opWork / (T.wd * T.ops); opPct = Math.round(opDay / winH * 100); }
+  if(opDay > 0) L.push('• اپراتور به‌طور میانگین ' + schedFmtHours(opDay) + ' از ' + schedFmtHours(winH) + ' هر روز درگیر است (' + prToFa(opPct) + '٪)');
   L.push('• روزهای کاری: ' + T.daysTxt + (T.holOff ? '، بدون تعطیلات رسمی' : ''));
   L.push('');
   // ریسک
@@ -10107,6 +10118,7 @@ function schedTimeTextFrom(P, o, code, machines){
   } else {
     L.push('⚠️ بدون در نظر گرفتن حتی یک قطعهٔ خراب');
   }
+  if(opPct >= 85) L.push('⚠️ اپراتور تقریباً تمام‌وقت درگیر است؛ جای کمی برای کارِ پیش‌بینی‌نشده می‌ماند' + (T.safety > 1 ? '' : ' — ضریب ریسک ۱٫۱ تا ۱٫۲ پیشنهاد می‌شود'));
   if(T.wdBefore && T.wdBefore > T.wd){
     L.push('✅ با تقسیم بهینه، ' + prToFa(T.wdBefore - T.wd) + ' روز زودتر از قبل از بهینه‌سازی (' + prToFa(T.wdBefore) + ' ← ' + prToFa(T.wd) + ' روز کاری)');
   }
@@ -10188,7 +10200,7 @@ function schedPlanFrom(parts, c, cal, order){
   return { parts:parts, totalSets:totalSets, workDays:workIdx.length, dates:dateList,
     textInfo:{ wd: workIdx.length, wd1: wd1, wdBefore: wdB, safety: sf, ws: R.ws, we: R.we,
       chg: Math.max(0, schedNum(c.changeMin,10))/60, ops: Math.max(1, schedNum(c.operators,1)),
-      totLabor: totLabor/sf, startK: (dateList[0]||{}).k || '', endK: (cal[Math.min(lastDay, cal.length-1)]||{}).k || '',
+      jobs: R.jobs, handleH: R.handleH, opWork: R.opWork, totLabor: totLabor/sf, startK: (dateList[0]||{}).k || '', endK: (cal[Math.min(lastDay, cal.length-1)]||{}).k || '',
       daysTxt: daysTxt, holOff: !!c.holidaysOff } };
 }
 function mgrTimeLoad(cb){
@@ -10244,7 +10256,7 @@ function mgrPageTime(e, txt){
     if(m){ var mn = (m[1]==='تحویل'); cards.push('<div style="border:1px solid #cfd5ea;border-radius:9px;padding:8px 10px;background:'+(mn?'#1b2a5a':'#f8f9fe')+'"><div style="font-size:10px;color:'+(mn?'#c9d2f5':'#5a6080')+'">'+mgrE(m[1])+'</div><div style="font-size:16px;font-weight:800;color:'+(mn?'#fff':'#1b2a5a')+'">'+mgrE(m[2])+'</div></div>'); return; }
     if(/^•/.test(t)){ html += '<div style="display:flex;gap:7px;margin:3px 0"><span style="color:#1b2a5a;flex:none">•</span><span>'+B(t.replace(/^•\s*/,''))+'</span></div>'; return; }
     if(/^(سهم هر دستگاه|مبنای محاسبه)/.test(t)){ html += '<h3>'+mgrE(t)+'</h3>'; return; }
-    var warn = /^(بدون در نظر|ضریب ریسک)/.test(t);
+    var warn = /^(بدون در نظر|ضریب ریسک|اپراتور تقریباً)/.test(t);
     html += '<div style="margin-top:8px;padding:8px 12px;border-radius:8px;font-weight:700;'+(warn?'background:#fff6e0;border:1px solid #f0c674;color:#7a5200':'background:#f2fbf5;border:1px solid #a8dcb9;color:#15682f')+'">'+mgrE(t)+'</div>';
   });
   return '<div class="mgr-pg">'
@@ -14089,8 +14101,8 @@ function callSheetPayload(action, payloadStr, extraParams, callback, timeoutMs){
   .catch(function(){ callback({ error:true }); });
 }
 var prLastPayloadLen = 0;
-try{ if(window.console) console.log('%c iPrint3D FRONT V423 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
-window.IPRINT_FRONT_VERSION = "V423";
+try{ if(window.console) console.log('%c iPrint3D FRONT V424 ','background:#1e3a6e;color:#fff;font-weight:bold'); }catch(e){}
+window.IPRINT_FRONT_VERSION = "V424";
 function prPayload(lean){
   var ord = {}; for(var k in prState.order){ if(prState.order.hasOwnProperty(k)) ord[k]=prState.order[k]; }
   if(prState.savedCode) ord.code = prState.savedCode;
